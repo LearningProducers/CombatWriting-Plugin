@@ -51,7 +51,7 @@ All plain Node, no dependencies, run from the person's project folder. They writ
 
 The run folder: `draft.md` and any `draft-N.md`, `brief.md`, `seats.json`, `log.jsonl` (the source of truth for what was sent and checked), `record.md`, and `rounds/<nn-kind>/<seat>.question.md|packet.md|answer.md` (plus `<seat>.sn.*` and `<seat>.redflag.*` in a final round). Rounds are numbered in order across kinds: `01-sparring`, `02-debate`, `03-battle`, `04-final`. A revised draft continues the numbering; the record says which draft each round read.
 
-Word caps: 400 for a read alone, 600 when the packet carries other seats (they quote), 250 for each final read. The checker reads the cap from the packet.
+Word caps: 500 for a read alone, 600 when the packet carries other seats (they quote), 250 for each final read. The checker reads the cap from the packet.
 
 ## Showing a result
 

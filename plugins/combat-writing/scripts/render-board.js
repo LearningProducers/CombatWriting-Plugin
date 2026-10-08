@@ -60,8 +60,9 @@ var grid={}; seats.forEach(function(s){grid[s.id]={};ratingRounds.forEach(functi
 // The chart: x = rating rounds in order, y = 1 to 10, one series per seat (categorical, fixed order).
 var LIGHT=['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#4a3aa7','#e34948'];
 var DARK=['#3987e5','#d95926','#199e70','#c98500','#d55181','#008300','#9085e9','#e66767'];
-var W=720, H=300, PL=44, PR=150, PT=20, PB=40;
+var W=720, H=312, PL=64, PR=150, PT=20, PB=64;
 var plotW=W-PL-PR, plotH=H-PT-PB;
+var MISSING_Y=PT+plotH+18;   // the missing row: its own line below the axis, never on the 1 line
 function x(i){ return ratingRounds.length<=1?PL+plotW/2:PL+plotW*i/(ratingRounds.length-1); }
 function y(v){ return PT+plotH*(10-v)/9; }
 
@@ -76,7 +77,8 @@ for(var v=1;v<=10;v++){
 }
 svg.push('<line class="seven" x1="'+PL+'" x2="'+(PL+plotW)+'" y1="'+y(7).toFixed(1)+'" y2="'+y(7).toFixed(1)+'"/>');
 svg.push('<text class="tick seven-label" x="'+(PL+4)+'" y="'+(y(7)-4).toFixed(1)+'">7 is forbidden</text>');
-ratingRounds.forEach(function(r,i){ svg.push('<text class="tick" x="'+x(i).toFixed(1)+'" y="'+(H-PB+18)+'" text-anchor="middle">'+esc(r)+'</text>'); });
+svg.push('<text class="tick" x="'+(PL-8)+'" y="'+(MISSING_Y+4).toFixed(1)+'" text-anchor="end">missing</text>');
+ratingRounds.forEach(function(r,i){ svg.push('<text class="tick" x="'+x(i).toFixed(1)+'" y="'+(H-PB+54)+'" text-anchor="middle">'+esc(r)+'</text>'); });
 // End labels: one per seat at its last point, nudged apart when seats end on the same rating.
 var endLabels=[];
 seats.forEach(function(s){
@@ -99,7 +101,8 @@ seats.forEach(function(s,si){
     var c=grid[s.id][r];
     var cx=x(i).toFixed(1);
     if(c.rating===null){
-      svg.push('<g class="pt missing" tabindex="0" data-seat="'+esc(lib.seatLabel(s))+'" data-round="'+esc(r)+'" data-value="'+esc(c.text)+'"><circle cx="'+cx+'" cy="'+y(1).toFixed(1)+'" r="7"/><line x1="'+(x(i)-4).toFixed(1)+'" x2="'+(x(i)+4).toFixed(1)+'" y1="'+(y(1)-4).toFixed(1)+'" y2="'+(y(1)+4).toFixed(1)+'"/><line x1="'+(x(i)-4).toFixed(1)+'" x2="'+(x(i)+4).toFixed(1)+'" y1="'+(y(1)+4).toFixed(1)+'" y2="'+(y(1)-4).toFixed(1)+'"/></g>');
+      var my=MISSING_Y+si*0;  // every missing seat sits on the missing row; the readout names the seat
+      svg.push('<g class="pt missing" tabindex="0" data-seat="'+esc(lib.seatLabel(s))+'" data-round="'+esc(r)+'" data-value="'+esc(c.text)+'"><circle cx="'+cx+'" cy="'+my.toFixed(1)+'" r="7"/><line x1="'+(x(i)-4).toFixed(1)+'" x2="'+(x(i)+4).toFixed(1)+'" y1="'+(my-4).toFixed(1)+'" y2="'+(my+4).toFixed(1)+'"/><line x1="'+(x(i)-4).toFixed(1)+'" x2="'+(x(i)+4).toFixed(1)+'" y1="'+(my+4).toFixed(1)+'" y2="'+(my-4).toFixed(1)+'"/></g>');
       return;
     }
     var cls='pt '+c.kind;
@@ -170,7 +173,7 @@ if(ratingRounds.length){
   html.push('<h2>Ratings across rounds</h2>');
   html.push('<div class="legend">'+seats.map(function(s,si){return '<span><span class="key" style="background:var(--series-'+(si%8+1)+')"></span>'+esc(lib.seatLabel(s))+'</span>';}).join('')+'</div>');
   html.push(svg.join('\n'));
-  html.push('<p class="readout" id="readout" aria-live="polite">Hover or focus a point for its seat, round and mark. ✓ a valid flip, ✗ an invalid flip, × a missing seat.</p>');
+  html.push('<p class="readout" id="readout" aria-live="polite">Hover or focus a point for its seat, round and mark. ✓ a valid flip, ✗ an invalid flip; a × on the missing row below the axis is a seat with no sound answer that round.</p>');
 }
 if(finalRounds.length){
   html.push('<h2>Final reads</h2>');

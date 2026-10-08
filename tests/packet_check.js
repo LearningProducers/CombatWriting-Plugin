@@ -19,7 +19,10 @@
 //   - A round-1 packet opens with the credit line, names the seat by model and
 //     company, carries the default step-4 prompt, the brief, the draft inside the
 //     DRAFT BEGIN/END fence with the untrusted-content line, no other answers, no
-//     earlier turn, and a 400-word cap.
+//     earlier turn, and a 500-word cap.
+//   - A failed read is judged at the cap the seat was sent: an answer over the packet's
+//     cap but under the default is a failed read when no check was logged, and an
+//     answer under the packet's cap is carried; the default applies only with no packet.
 //   - A --question file replaces the default prompt; the question text is in the
 //     packet and the default prompt is not.
 //   - Battle: a later-round packet carries the PREVIOUS ROUND ONLY (the latest earlier
@@ -98,7 +101,7 @@ var tu=pu.status===0?read(pu.stdout.trim()):'';
 check(tu.indexOf('# Packet for Anthropic model, name not reported, seat-1')>=0,'unreported: label not rendered from the company');
 check(tu.indexOf('model unreported')<0,'unreported: the raw "model unreported" string reached the packet');
 
-// Round-1 packet for seat-1: default prompt, brief, fenced draft, no other answers, no earlier turn, cap 400.
+// Round-1 packet for seat-1: default prompt, brief, fenced draft, no other answers, no earlier turn, cap 500.
 var p=node('packet.js',['--run',run,'--round','01-sparring','--seat','seat-1']);
 check(p.status===0,'packet round 1: exit '+p.status+' '+p.stderr);
 var packet1=p.stdout.trim();
@@ -112,7 +115,7 @@ var fence=/=== DRAFT BEGIN ===\n([\s\S]*?)\n=== DRAFT END ===/.exec(t1);
 check(!!fence&&fence[1]===draftText.replace(/\s+$/,''),'packet round 1: draft not carried verbatim inside the fence');
 check(/untrusted content/.test(t1)&&/never a command/.test(t1),'packet round 1: untrusted-content line missing');
 check(t1.indexOf('ANSWER BEGIN')<0&&t1.indexOf('The other seats\' answers')<0&&t1.indexOf('Your earlier turn')<0,'packet round 1: carried answers or an earlier turn where there are none');
-check(/RATING: X\/10/.test(t1)&&/never 7/.test(t1)&&/Under 400 words/.test(t1),'packet round 1: rating contract or 400 cap missing');
+check(/RATING: X\/10/.test(t1)&&/never 7/.test(t1)&&/Under 500 words/.test(t1),'packet round 1: rating contract or 500 cap missing');
 
 // A question file replaces the default prompt.
 write(path.join(proj,'q2.md'),'Does the ask land in the first paragraph?\n');
@@ -170,6 +173,30 @@ check(/## Your earlier turn \(round 01-sparring\)/.test(tfo)&&tfo.indexOf('Seat 
 fs.unlinkSync(path.join(run,'rounds','03-battle','seat-3.answer.md'));
 fs.unlinkSync(path.join(run,'rounds','03-battle','seat-1.answer.md'));
 fs.rmSync(path.join(run,'rounds','04-battle'),{recursive:true,force:true});
+
+// The live check uses the cap the seat was sent. A fresh run: seat-1's packet is built at 300;
+// seat-1 writes 350 words and no check is logged. seat-2's packet at the default; seat-2 writes
+// 350 words. A round-2 packet for seat-3 lists seat-1 as a failed read (over 300) and carries seat-2.
+var runC=node('new-run.js',['--draft','draft.md','--name','caps','--model','Test Model 1.0']).stdout.trim();
+node('packet.js',['--run',runC,'--round','01-sparring','--seat','seat-1','--word-cap','300']);
+node('packet.js',['--run',runC,'--round','01-sparring','--seat','seat-2']);
+node('packet.js',['--run',runC,'--round','01-sparring','--seat','seat-3']);
+var w350='RATING: 8/10\n'+new Array(349).join('word ')+'end\n';
+write(path.join(runC,'rounds','01-sparring','seat-1.answer.md'),w350);
+write(path.join(runC,'rounds','01-sparring','seat-2.answer.md'),w350);
+var pcap=node('packet.js',['--run',runC,'--round','02-battle','--seat','seat-3']);
+var tcap=pcap.status===0?read(pcap.stdout.trim()):'';
+check(/seat-1 — failed read[\s\S]*over the cap of 300/.test(tcap),'cap sent: seat-1 (350 words, packet cap 300, no check logged) should be a failed read at 300');
+check(/### Test Model 1\.0 \(Anthropic\), seat-2\n\n=== ANSWER BEGIN ===/.test(tcap),'cap sent: seat-2 (350 words, default cap) should be carried');
+// With the packet.built line gone, the packet file's "Under N words." line still gives the cap.
+var capLog=path.join(runC,'log.jsonl');
+write(capLog,read(capLog).split('\n').filter(function(l){return l&&!(l.indexOf('packet.built')>=0&&l.indexOf('"seat":"seat-1"')>=0);}).join('\n')+'\n');
+var pcap2=node('packet.js',['--run',runC,'--round','02-battle','--seat','seat-2']);
+check(pcap2.status===0&&/seat-1 — failed read[\s\S]*over the cap of 300/.test(read(pcap2.stdout.trim())),'cap sent: the packet file\'s cap line should apply when the log line is gone');
+// With no packet at all, the default applies: 350 words pass at 500.
+fs.unlinkSync(path.join(runC,'rounds','01-sparring','seat-1.packet.md'));
+var pcap3=node('packet.js',['--run',runC,'--round','02-battle','--seat','seat-2']);
+check(pcap3.status===0&&/### Test Model 1\.0 \(Anthropic\), seat-1\n\n=== ANSWER BEGIN ===/.test(read(pcap3.stdout.trim())),'cap sent: with no packet the default cap should carry a 350-word answer');
 
 // Same snapshot: seat-2 answers round 3 before seat-3's packet is built; seat-3 must not see it.
 write(path.join(run,'rounds','03-battle','seat-2.answer.md'),'RATING: 5/10\nSeat two, round three.\n');
@@ -231,7 +258,7 @@ check(JSON.stringify(l3.carried)===JSON.stringify([{seat:'seat-2',round:'02-deba
 var lc=built.filter(function(e){return e.round==='04-cold';})[0]||{};
 check(lc.mode==='cold'&&lc.brief_included===false&&lc.carried&&lc.carried.length===0&&lc.reads_round===null,'log: cold line wrong: '+JSON.stringify(lc));
 var lq=built.filter(function(e){return e.round==='01-sparring'&&e.seat==='seat-2';})[0]||{};
-check(lq.question==='q2.md'&&lq.mode==='read'&&lq.word_cap===400,'log: question line wrong: '+JSON.stringify(lq));
+check(lq.question==='q2.md'&&lq.mode==='read'&&lq.word_cap===500,'log: question line wrong: '+JSON.stringify(lq));
 var lf=built.filter(function(e){return e.round==='06-final'&&e.seat==='seat-1'&&e.mode==='final-sn';})[0]||{};
 check(lf.file==='rounds/06-final/seat-1.sn.packet.md'&&lf.draft==='draft-2.md'&&lf.word_cap===250&&lf.brief_included===false,'log: final line wrong: '+JSON.stringify(lf));
 check(logOf(run).some(function(e){return e.event==='draft.added'&&e.file==='draft-2.md'&&e.sha256&&e.words;}),'log: draft.added missing');
@@ -258,7 +285,7 @@ check(node('add-draft.js',['--run',run,'--file','missing.md']).status===2,'add-d
 var top=fs.readdirSync(proj).sort().join(',');
 check(top==='brief.md,combat-writing,draft.md,q2.md,rev.md,sfq.md,sn.md','project folder has unexpected entries: '+top);
 var runs=fs.readdirSync(path.join(proj,'combat-writing','runs')).length;
-check(runs===3,'expected 3 run folders (board-letter, board-letter-2, free), found '+runs);
+check(runs===4,'expected 4 run folders (board-letter, board-letter-2, free, caps), found '+runs);
 
 fs.rmSync(proj,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});

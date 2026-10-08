@@ -21,11 +21,13 @@ From the Claude plugin directory once it is listed, or from Learning Producers' 
 
 ## Example prompts
 
-Each prompt below was run for real on 2026-10-08, in a scratch project, with three seats. The block after each prompt is the first lines of what came back. The ratings are the seats' own; the draft was a CEO's letter asking a board to approve a letter of intent.
+Each prompt below was run for real in October 2026, in a scratch project, with three seats. The block after each prompt is the first lines of what came back, labeled as example output; the model named in it is the one that answered that day, and yours may differ. The ratings are the seats' own; the draft was a CEO's letter asking a board to approve a letter of intent.
 
 ```
 /combat-writing:help
 ```
+
+Example output, October 2026:
 
 ```
 Combat Writing — Learning Producers Inc., Israel Hernandez, founder
@@ -41,6 +43,8 @@ The four stages
 ```
 /combat-writing:sparring Here is the draft of my letter to the board. Focus question for every seat: does the ask land in the first paragraph?
 ```
+
+Example output, October 2026:
 
 ```
 Combat Writing — Learning Producers Inc., Israel Hernandez, founder
@@ -61,6 +65,8 @@ An ask lands in the first paragraph. The wrong one. You open with "I am writing 
 ```
 /combat-writing:battle Navigation note: the second seat called the close weak; everyone answer that.
 ```
+
+Example output, October 2026:
 
 ```
 Combat Writing — Learning Producers Inc., Israel Hernandez, founder

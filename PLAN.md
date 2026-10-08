@@ -33,7 +33,7 @@ Delivers:
 - The flip check in code (`check-flip.js`): a changed rating must quote a line from another seat, attributed, matched word for word against the cited seat's answer; no match marks the flip invalid with the rating still shown; a held rating says Stand.
 - The record (`render-record.js` → `record.md`): the credit line, the crew, the drafts and brief, the scoreboard (one row per seat, one column per round, flips valid or invalid with the earlier number kept, Stand, missing, the final reads' two numbers), every answer in full by round, the log of what was sent. Rebuilt after every round from the files and `log.jsonl`. Nothing averaged.
 - The S/N ratio and red-flag reads as `battle final`: the app's two prompts verbatim, on the newest draft, no other seats' answers, the app's first-line contracts, both numbers per seat. Placement still Israel's ruling.
-- Word caps: 600 for synthesis packets, 250 for the final reads, 400 otherwise. An unreported model renders from its company, never a model name from code.
+- Word caps: 600 for synthesis packets, 250 for the final reads, 500 otherwise (raised from 400 on the part 4 review). An unreported model renders from its company, never a model name from code.
 - Tests: flip_check.js, record_check.js, the battle cases in packet_check.js, the final contracts in rating_contract_check.js.
 
 Status: merged — 2026-10-08 — pull request 3 merged to main with its review fixes.
@@ -50,7 +50,7 @@ Delivers:
 - The S/N and red-flag reads stay as `battle final` (ruled).
 - From the real run: a seat whose answer fails the contract is never carried to another seat; the agent prompt tells the seat to count words before writing.
 
-Status: delivered — 2026-10-08 — pull request open; board, help, READMEs, checklist, evals and tests in; all eight checks pass; `claude plugin validate --strict` passes on the plugin folder, the root and each component folder.
+Status: delivered — 2026-10-08 — pull request 4 open, review fixes pushed: the checklist re-measured, README output blocks labeled as example output, a live check of an answer uses the cap the seat was sent, the board's missing row sits below the axis, the read-alone cap is 500; all eight checks pass; `claude plugin validate --strict` passes on the plugin folder, the root and each component folder.
 
 ## Part 5 — The add-on
 

@@ -17,10 +17,10 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 | Every file a hook, MCP server or script uses inside the plugin folder; every `plugin.json` path inside it | pass | `plugin.json` declares no component paths; every script the skill and commands run is under `plugins/combat-writing/scripts/` and is referenced as `${CLAUDE_PLUGIN_ROOT}/scripts/<file>` |
 | Regular files only: no symlinks, submodules or LFS pointers | pass | `git ls-files -s` shows mode 100644 for every file under the plugin folder; no `.gitmodules`, no `.gitattributes` |
 | No `.DS_Store`, `Thumbs.db`, `desktop.ini`, `__MACOSX` | pass | none in the repository |
-| File and folder names valid on Windows and macOS: no colon, trailing dot or space, device names, or names differing only by case | pass | every tracked name is lowercase letters, digits, hyphens, dots and underscores |
+| File and folder names valid on Windows and macOS: no colon, trailing dot or space, device names, or names differing only by case | pass | every tracked name is letters, digits, hyphens, dots and underscores; no name holds a colon, a trailing dot or space, or a Windows device name; no two names differ only by case (`git ls-files` lowercased has no duplicate). Fourteen names carry uppercase letters (README.md, LICENSE.md, NOTICE, SKILL.md and the like), which the rule allows |
 | Path to the plugin made of letters, digits, dots, hyphens, underscores | pass | `plugins/combat-writing` |
 | No `export-ignore`, `export-subst`, `filter` or content-rewriting attributes in any `.gitattributes` | pass | no `.gitattributes` in the repository |
-| Repository under 50 MiB archived and 256 MiB unpacked, fewer than 10,000 entries; every plugin file under 5 MiB | pass | the repository is under 1 MiB; the largest file is `LICENSES/CC-BY-NC-SA-4.0.txt` at 19 KiB |
+| Repository under 50 MiB archived and 256 MiB unpacked, fewer than 10,000 entries; every plugin file under 5 MiB | pass | the repository's tracked files total 528 KiB on disk (53 files); the largest file in the repository is `tests/packet_check.js` at 26,578 bytes, and the largest in the plugin folder is `scripts/render-board.js` at 17,129 bytes, both measured on 2026-10-08 |
 
 ## Manifest and plugin name
 
@@ -46,8 +46,8 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 
 | Item | Result | Satisfied by |
 |---|---|---|
-| Every non-image, non-font file under 256 KiB | pass | `tests/license_check.js` fails any file at or over 262,144 bytes; the largest plugin file is `method/combat-writing.md` at under 30 KiB |
-| 512 files or fewer | pass | the plugin folder holds under 30 files |
+| Every non-image, non-font file under 256 KiB | pass | `tests/license_check.js` fails any file at or over 262,144 bytes; the largest plugin file is `scripts/render-board.js` at 17,129 bytes (2026-10-08) |
+| 512 files or fewer | pass | the plugin folder holds 32 tracked files (2026-10-08) |
 | Only text files, SVG, complete PNG, JPEG, GIF, WebP and fonts; no other binary | pass | every file in the plugin folder is text (Markdown, JavaScript, JSON, YAML) |
 | Bundled images referenced only by Markdown image syntax, never from commands, hooks or scripts | n/a | the plugin bundles no image or font |
 | MCP servers declared with `command` and `args` or `url`, not a `.mcpb` or `.dxt` bundle | n/a | the listed plugin declares no MCP server; the add-on is a separate, unlisted plugin |
@@ -59,7 +59,7 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 | Every package a launcher runs pinned to an exact version | n/a | no `npx`, `bunx`, `pnpm dlx`, `yarn dlx`, `uvx`, `pipx run` or `uv run` anywhere in the plugin; the scripts run under the Node already on the machine with no package |
 | No `.npmrc`, `bunfig.toml`, `uv.toml` or other package-source file | pass | none in the plugin folder or the repository |
 | No real credentials in any file; sensitive values through `userConfig` with `sensitive: true` | pass | the plugin holds no keys and asks for none; `tests/license_check.js` and the READMEs state it |
-| No credential read from the user's environment and sent to a server | pass | the plugin makes no outside call; `tests/board_check.js` pins that `board.html` fetches nothing |
+| No credential read from the user's environment and sent to a server | pass | the plugin makes no outside call; `tests/board_check.js` pins that the page `render-board.js` writes fetches nothing |
 | `.mcp.json` valid and matching the schema | n/a | no `.mcp.json` in the listed plugin |
 | Remote MCP servers over `https://` or `wss://` | n/a | none |
 | Local MCP servers started by running a file in the plugin with plain arguments | n/a | none |
@@ -80,7 +80,7 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 |---|---|---|
 | `hooks/hooks.json` valid, with only documented events and types | n/a | no hooks |
 | `hooks/hooks.json` left out of the `hooks` field | n/a | no hooks |
-| Valid YAML front matter in each skill, command and agent file, with `description` as one text value | pass | `skills/combat-writing/SKILL.md`, `commands/help.md`, `commands/sparring.md`, `commands/battle.md`, `agents/seat.md`; `claude plugin validate --strict` passes on each folder; `tests/license_check.js` requires front matter on line 1 of every component file |
+| Valid YAML front matter in each skill, command and agent file, with `description` as one text value | pass | `skills/combat-writing/SKILL.md`, `commands/help.md`, `commands/sparring.md`, `commands/battle.md`, `agents/seat.md`. `claude plugin validate --strict` passes on `plugins/combat-writing` (the manifest), on the repository root (the marketplace), and on the component folders `plugins/combat-writing/commands`, `plugins/combat-writing/agents` and `plugins/combat-writing/skills`; `skills/combat-writing` on its own is not a validator target, the validator reads the `skills/` folder. `tests/license_check.js` requires front matter on line 1 of every component file |
 | Component folders and files named exactly as Claude Code expects | pass | `skills/<name>/SKILL.md`, `commands/*.md`, `agents/*.md` |
 
 ## The security scan (after submission)
@@ -88,7 +88,7 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 | Item | Result | Satisfied by |
 |---|---|---|
 | Describe in the README everything the plugin runs, sends or fetches | pass | `plugins/combat-writing/README.md`, "What it runs, sends and fetches"; `tests/readme_check.js` pins the disclosures |
-| Readable source, not compiled, packed or minified | pass | every script is plain, commented JavaScript |
+| Readable source, not compiled, packed or minified | pass | every script under `scripts/` (`lib.js`, `new-run.js`, `add-draft.js`, `packet.js`, `check-answer.js`, `check-flip.js`, `render-record.js`, `render-board.js`) is plain, commented JavaScript; `render-board.js` writes the page's own CSS and a few lines of inline script, all readable |
 | No undisclosed destination, hidden code or change to Claude's permission settings | pass, scan is portal | the plugin makes no outside call, runs no hook, and writes only inside `combat-writing/` in the person's project; the scan itself runs only after submission |
 
 ## Submit page: what the submitter does
@@ -102,6 +102,7 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 | **Listing details** read from `plugin.json` and the README | pass | both files are the listing; the description promises only what ships (help, sparring, battle, the record, the board) |
 | **Data handling** answers: personal data read or stored, data sent to other services, retention, under-18 audience | portal, prepared | the plugin reads only the files the person gives it, stores the run folder in the person's own project, sends nothing to any service of its own, keeps nothing elsewhere, and is not aimed at people under 18 |
 | **Compliance** step: contact email, four acknowledgements | portal | Israel |
+| **Load the plugin on each surface** your users will use (Claude Code, Cowork, chat) and test its output there, as the submit page's "Test the plugin's behavior before you submit" asks | not done here | Israel. The build sessions ran the scripts and the seats in a cloud Claude Code session only; the plugin was not installed and exercised on each surface |
 | One submission per repository and folder; at most 10 submissions per organization per 24 hours | portal | Israel |
 | Raise `version` with every release | pass (to keep) | `plugin.json` |
 

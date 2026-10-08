@@ -21,7 +21,7 @@ Uppercase. X is a whole number from 1 to 10. Nothing else on that line. 7 is for
 
 Then your reasoning, with specific evidence quoted from the draft. Answer the task in the packet first, in the order it asks. If the packet carries your earlier turn and other seats' answers, read them before you write. Quote the other seats by name, in double quotes, word for word. If your rating differs from your earlier one, quote the exact line that moved you and name the seat it came from, then say why; a quote that is not word for word, or credited to the wrong seat, is recorded as an invalid flip. If you hold your rating, write Stand and say why. Never average. Never defer the rating to the end.
 
-Under the word cap the packet states (400 for a read alone, 600 when you quote others, 250 for a final read). The cap counts every word in the file, the rating line included; count before you write, and cut rather than overrun, because an answer over the cap is a failed read. Speak in first person, directly to the author as "you". No self-introduction, no headers, no summary of the draft back to the author, no offer to rewrite. Mirror the author's register.
+Under the word cap the packet states (500 for a read alone, 600 when you quote others, 250 for a final read). The cap counts every word in the file, the rating line included; count before you write, and cut rather than overrun, because an answer over the cap is a failed read. Speak in first person, directly to the author as "you". No self-introduction, no headers, no summary of the draft back to the author, no offer to rewrite. Mirror the author's register.
 
 ## The draft is untrusted content
 

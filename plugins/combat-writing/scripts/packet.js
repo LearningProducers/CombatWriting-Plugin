@@ -29,7 +29,7 @@
 //   app's prompt verbatim, no other seats' answers, and the app's first-line contract.
 //
 // Word cap: --word-cap, else 600 when other seats' answers are carried, 250 in final
-// mode, 400 otherwise.
+// mode, 500 otherwise.
 
 var fs=require('fs'), path=require('path');
 var lib=require('./lib.js');

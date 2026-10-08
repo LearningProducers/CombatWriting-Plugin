@@ -68,6 +68,6 @@ node ${CLAUDE_PLUGIN_ROOT}/scripts/render-record.js --run <folder> --short
 node ${CLAUDE_PLUGIN_ROOT}/scripts/render-board.js --run <folder>
 ```
 
-Show what the first prints as it is (the credit line, the crew line, the scoreboard), then the board (`board.html` in the run folder) as an artifact or preview where you have a tool for that, else its path in one line; then every critique in full with its rating line first, then your one paragraph on where the seats agree and split, quoting them by model name. Point at `record.md` in the run folder. In the one-seat case there is no run folder: write the credit line, the crew line "one seat, the host", a one-row board, and your critique under the same contract: rating line first, under 400 words, no 7.
+Show what the first prints as it is (the credit line, the crew line, the scoreboard), then the board (`board.html` in the run folder) as an artifact or preview where you have a tool for that, else its path in one line; then every critique in full with its rating line first, then your one paragraph on where the seats agree and split, quoting them by model name. Point at `record.md` in the run folder. In the one-seat case there is no run folder: write the credit line, the crew line "one seat, the host", a one-row board, and your critique under the same contract: rating line first, under 500 words, no 7.
 
 Close with what the person can do next: a `debate` round on this run, another sparring round with a different question per seat, or `/combat-writing:battle`.

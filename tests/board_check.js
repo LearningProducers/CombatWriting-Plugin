@@ -96,6 +96,12 @@ check(/<td class="num stand">4\/10<br><span class="mark">Stand<\/span><\/td>/.te
 check(/<span class="missing">missing<\/span>/.test(html),'board: no missing cell');
 check(/<span class="failed" title="rating is 7; 7 is forbidden[^"]*">failed read<\/span>/.test(html),'board: the 7/10 answer is not marked as a failed read');
 check(/<g class="pt missing"/.test(html),'board: no missing marker in the chart');
+// The missing row sits below the axis: its markers' cy is greater than the y of rating 1, and the row is labeled.
+var ones=(html.match(/<circle class="ring" cx="[\d.]+" cy="([\d.]+)"/g)||[]).map(function(s){return parseFloat(/cy="([\d.]+)"/.exec(s)[1]);});
+var missY=(html.match(/<g class="pt missing"[^>]*><circle cx="[\d.]+" cy="([\d.]+)"/g)||[]).map(function(s){return parseFloat(/cy="([\d.]+)"/.exec(s)[1]);});
+var yOfOne=parseFloat((/<text class="tick" x="\d+" y="([\d.]+)" text-anchor="end">1<\/text>/.exec(html)||[0,'0'])[1])-4;
+check(missY.length>0&&missY.every(function(v){return v>yOfOne+10;})&&ones.every(function(v){return v<=yOfOne+0.5;}),'board: missing markers must sit on their own row below the 1 line (missing y '+missY+', y of 1 '+yOfOne+')');
+check(/text-anchor="end">missing<\/text>/.test(html),'board: the missing row is not labeled');
 check(/<g class="pt flip-valid"[^>]*data-value="6\/10 · flip from 8, valid \(quoted seat-2\)"/.test(html),'board: valid flip point readout wrong');
 check(/<text class="flag"[^>]*>✓<\/text>/.test(html)&&/<text class="flag"[^>]*>✗<\/text>/.test(html),'board: flip flags missing from the chart');
 check(/S\/N 70%<br>1 red flag<\/td>/.test(html)&&/S\/N 55%<br>no red flags<\/td>/.test(html)&&/S\/N missing<\/span><br><span class="missing">red flags missing/.test(html),'board: final cells wrong');

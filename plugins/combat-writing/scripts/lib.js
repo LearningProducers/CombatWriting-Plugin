@@ -24,7 +24,7 @@ var fs=require('fs'), path=require('path'), crypto=require('crypto');
 
 var CREDIT='Combat Writing — Learning Producers Inc., Israel Hernandez, founder';
 var RUNS_DIR=path.join('combat-writing','runs');
-var DEFAULT_WORD_CAP=400;            // a read with no other seats' answers
+var DEFAULT_WORD_CAP=500;            // a read with no other seats' answers
 var DEFAULT_SYNTHESIS_WORD_CAP=600;  // a read that quotes other seats
 var DEFAULT_FINAL_WORD_CAP=250;      // the S/N and red-flag reads (the app's S/N prompt says under 250)
 var DEFAULT_COMPANY='Anthropic';
@@ -106,11 +106,31 @@ function previousRound(runDir,beforeRound){
 // Note: previousRound counts any rating answer file, sound or failed, so a round where every
 // seat failed is still the round read; its packets then list every seat as a failed read.
 
+// The word cap a seat was sent for one answer file: the round's packet.built log line for
+// that packet, else the "Under N words." line of the packet file, else null. check-answer.js
+// and roundAnswers use the same lookup, so a live check never applies a cap the seat was not sent.
+function capSent(runDir,round,answerFile,log){
+  var packetName=path.basename(answerFile).replace(/\.answer\.md$/,'.packet.md');
+  var seatId=path.basename(answerFile).replace(/(\.sn|\.redflag)?\.answer\.md$/,'');
+  log=log||readLog(runDir);
+  for(var i=log.length-1;i>=0;i--){
+    var e=log[i];
+    if(e.event==='packet.built'&&e.round===round&&e.seat===seatId&&e.file==='rounds/'+round+'/'+packetName&&typeof e.word_cap==='number')return e.word_cap;
+  }
+  var packetPath=path.join(runDir,'rounds',round,packetName);
+  if(fs.existsSync(packetPath)){
+    var m=/Under (\d+) words\./.exec(readText(packetPath));
+    if(m)return parseInt(m[1],10);
+  }
+  return null;
+}
+
 // Every seat's rating answer in one round: {seat, file, text} when present and sound,
 // {seat, missing:true} when there is no file, and {seat, missing:true, failed:true, reasons}
-// when the file is there but fails the rating contract (by the log's last check of it, or by
-// a live check when the log has none). A failed read is never carried to another seat and
-// never cited: nothing stands in for it.
+// when the file is there but fails the rating contract: by the log's last check of it, or
+// by a live check at the cap the seat was sent (capSent), falling back to the default cap
+// only when neither exists. A failed read is never carried to another seat and never cited:
+// nothing stands in for it.
 function roundAnswers(runDir,round,seats){
   var log=readLog(runDir);
   return seats.map(function(seat){
@@ -119,7 +139,8 @@ function roundAnswers(runDir,round,seats){
     var text=readText(p);
     var logged=null;
     for(var i=log.length-1;i>=0;i--){var e=log[i];if(e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract==='rating')){logged=e;break;}}
-    var check=checkAnswer(text,logged?logged.word_cap:null,'rating');
+    var cap=logged?logged.word_cap:capSent(runDir,round,p,log);
+    var check=checkAnswer(text,cap,'rating');
     if(!check.ok)return {seat:seat,round:round,file:p,missing:true,failed:true,reasons:check.reasons};
     return {seat:seat,round:round,file:p,text:text};
   });
@@ -271,6 +292,6 @@ module.exports={
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,seatLabel:seatLabel,
   listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
-  roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,flipInputs:flipInputs,wordCount:wordCount,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,flipInputs:flipInputs,wordCount:wordCount,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip
 };
