@@ -36,19 +36,21 @@ Delivers:
 - Word caps: 600 for synthesis packets, 250 for the final reads, 400 otherwise. An unreported model renders from its company, never a model name from code.
 - Tests: flip_check.js, record_check.js, the battle cases in packet_check.js, the final contracts in rating_contract_check.js.
 
-Status: delivered — 2026-10-08 — pull request 3 open, review fixes pushed: departure 9 names the app's code prompts, the red-flag packet carries the app's knowledge-cutoff clause, attribution accepts "seat 2" and "seat2" in any case and otherwise stays strict, battle has no round limit and reports the count; all six checks pass; `claude plugin validate --strict` passes on the plugin folder and the root.
+Status: merged — 2026-10-08 — pull request 3 merged to main with its review fixes.
 
 ## Part 4 — Presentation and directory readiness
 
 Delivers:
-- Output organized and easy on the eyes, with a visual element.
-- The help text in final form.
-- The plugin README's example prompts verified against the real commands.
-- A pass over the directory pre-submission checklist. Nothing is submitted.
-- Documentation under docs/.
-- Eval cases if `claude plugin eval` fits.
+- The visual: `render-board.js` writes `board.html` into the run folder after every round: one self-contained page, no outside request, light and dark, the scoreboard, each seat's rating across rounds as an inline SVG chart, flips valid or invalid, missing seats, the final reads, the credit line first. The host shows the text scoreboard always and the board as an artifact where it can.
+- `help` rewritten as the plain-words guide: the four stages, the commands with one example each, where files land, what runs where, the rating rule, the record, the credit line.
+- The READMEs updated for parts 2 and 3, with the three example prompts run for real in a scratch project and the first lines of the real output under each.
+- `docs/directory-checklist.md`: the pre-submission checklist and the submit page, item by item, pass or portal, with the file that satisfies each. The portal's Validate button is Israel's step.
+- Three `claude plugin eval` cases under `evals/` with a README naming the run flags, the cost ceiling and the sandbox the runner needs. The cases load and grade here; the runs need a sandbox this cloud session lacks, so the first full run is Israel's, on a machine with `bubblewrap` and `socat`.
+- Tests: `board_check.js`, `readme_check.js`.
+- The S/N and red-flag reads stay as `battle final` (ruled).
+- From the real run: a seat whose answer fails the contract is never carried to another seat; the agent prompt tells the seat to count words before writing.
 
-Status: not started — 2026-10-08 — waits on part 3.
+Status: delivered — 2026-10-08 — pull request open; board, help, READMEs, checklist, evals and tests in; all eight checks pass; `claude plugin validate --strict` passes on the plugin folder, the root and each component folder.
 
 ## Part 5 — The add-on
 

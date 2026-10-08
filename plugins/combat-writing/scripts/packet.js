@@ -13,8 +13,9 @@
 // Same snapshot for all: a packet carries the previous round only (the latest earlier
 // round that holds a rating answer), never anything from the current round, so no seat
 // sees another's new answer before giving its own. A seat with no answer in that round
-// is listed as missing. The seat's own previous answer rides as its earlier turn. The
-// full history lives in log.jsonl.
+// is listed as missing; a seat whose answer failed the rating contract is listed as a
+// failed read and not carried. The seat's own latest sound answer rides as its earlier
+// turn. The full history lives in log.jsonl.
 //
 // Nothing in the packet comes from the command line except file paths and flags. The
 // host never retypes a seat's words: the other seats' answers are copied from their
@@ -159,9 +160,10 @@ if(prev&&!cold&&!finalMode){
   });
   missing.forEach(function(o){
     out.push('');
-    out.push('### '+lib.seatLabel(o.seat)+' — missing');
+    out.push('### '+lib.seatLabel(o.seat)+' — '+(o.failed?'failed read':'missing'));
     out.push('');
-    out.push('This seat gave no answer in round '+prev+'. Nothing stands in for it.');
+    out.push(o.failed?'This seat\'s answer in round '+prev+' failed the rating contract ('+o.reasons.join('; ')+') and is not carried. Nothing stands in for it.'
+      :'This seat gave no answer in round '+prev+'. Nothing stands in for it.');
   });
 }
 out.push('');
@@ -173,5 +175,5 @@ lib.appendLog(runDir,{event:'packet.built',round:args.round,seat:seat.id,model:s
   question:question?path.basename(question.file):null,sfq:sfq?path.basename(sfq.file):null,sn:sn?path.basename(sn.file):null,
   reads_round:prev,own_previous:own?own.round:null,
   carried:carried.map(function(o){return {seat:o.seat.id,round:o.round};}),
-  missing:missing.map(function(o){return o.seat.id;}),word_cap:cap});
+  missing:missing.map(function(o){return o.seat.id;}),failed:missing.filter(function(o){return o.failed;}).map(function(o){return o.seat.id;}),word_cap:cap});
 process.stdout.write(packetPath+'\n');

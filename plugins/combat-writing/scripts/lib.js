@@ -103,22 +103,34 @@ function previousRound(runDir,beforeRound){
   }
   return null;
 }
+// Note: previousRound counts any rating answer file, sound or failed, so a round where every
+// seat failed is still the round read; its packets then list every seat as a failed read.
 
-// Every seat's rating answer in one round: {seat, file, text} when present, {seat, missing:true} when not.
+// Every seat's rating answer in one round: {seat, file, text} when present and sound,
+// {seat, missing:true} when there is no file, and {seat, missing:true, failed:true, reasons}
+// when the file is there but fails the rating contract (by the log's last check of it, or by
+// a live check when the log has none). A failed read is never carried to another seat and
+// never cited: nothing stands in for it.
 function roundAnswers(runDir,round,seats){
+  var log=readLog(runDir);
   return seats.map(function(seat){
     var p=path.join(runDir,'rounds',round,seat.id+'.answer.md');
-    if(fs.existsSync(p))return {seat:seat,round:round,file:p,text:readText(p)};
-    return {seat:seat,round:round,missing:true};
+    if(!fs.existsSync(p))return {seat:seat,round:round,missing:true};
+    var text=readText(p);
+    var logged=null;
+    for(var i=log.length-1;i>=0;i--){var e=log[i];if(e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract==='rating')){logged=e;break;}}
+    var check=checkAnswer(text,logged?logged.word_cap:null,'rating');
+    if(!check.ok)return {seat:seat,round:round,file:p,missing:true,failed:true,reasons:check.reasons};
+    return {seat:seat,round:round,file:p,text:text};
   });
 }
 
-// The seat's own latest rating answer in any earlier non-final round: its earlier turn.
+// The seat's own latest sound rating answer in any earlier non-final round: its earlier turn.
 function latestOwnAnswer(runDir,seat,beforeRound){
   var rounds=listRounds(runDir).filter(function(r){return (!beforeRound||r<beforeRound)&&!isFinalRound(r);});
   for(var i=rounds.length-1;i>=0;i--){
-    var p=path.join(runDir,'rounds',rounds[i],seat.id+'.answer.md');
-    if(fs.existsSync(p))return {seat:seat,round:rounds[i],file:p,text:readText(p)};
+    var a=roundAnswers(runDir,rounds[i],[seat])[0];
+    if(!a.missing)return a;
   }
   return null;
 }

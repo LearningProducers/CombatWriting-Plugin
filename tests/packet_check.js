@@ -151,6 +151,26 @@ check(/Quote the other seats by name, in double quotes, word for word/.test(t3)&
 check(/Under 600 words/.test(t3),'battle packet: cap is not 600');
 check(/=== DRAFT BEGIN ===/.test(t3)&&/untrusted content/.test(t3),'battle packet: draft not fenced as untrusted');
 
+// A failed read is never carried: seat-3 writes a 7/10 in round 3 (checked and failed); a round-4
+// packet for seat-2 lists seat-3 as a failed read, carries nothing of it, and the log says so.
+write(path.join(run,'rounds','03-battle','seat-3.answer.md'),'RATING: 7/10\nSeat three hedges.\n');
+node('check-answer.js',[path.join(run,'rounds','03-battle','seat-3.answer.md'),'--run',run]);
+write(path.join(run,'rounds','03-battle','seat-1.answer.md'),'RATING: 8/10\nSeat one, round three.\n');
+var pfr=node('packet.js',['--run',run,'--round','04-battle','--seat','seat-2']);
+var tfr=pfr.status===0?read(pfr.stdout.trim()):'';
+check(/### Test Model 1\.0 \(Anthropic\), seat-3 — failed read/.test(tfr)&&/failed the rating contract \(rating is 7; 7 is forbidden[^)]*\) and is not carried/.test(tfr),'failed read: seat-3 not listed as a failed read');
+check(tfr.indexOf('Seat three hedges')<0,'failed read: the failed answer was carried');
+check(tfr.indexOf('Seat one, round three')>=0,'failed read: seat-1\'s sound answer should still be carried');
+var lfr=logOf(run).filter(function(e){return e.event==='packet.built'&&e.round==='04-battle'&&e.seat==='seat-2';})[0]||{};
+check(JSON.stringify(lfr.missing)===JSON.stringify(['seat-3'])&&JSON.stringify(lfr.failed)===JSON.stringify(['seat-3']),'failed read: log missing/failed wrong: '+JSON.stringify(lfr.missing)+' '+JSON.stringify(lfr.failed));
+// seat-3's own earlier turn skips its failed answer and falls back to its last sound one.
+var pfo=node('packet.js',['--run',run,'--round','04-battle','--seat','seat-3']);
+var tfo=pfo.status===0?read(pfo.stdout.trim()):'';
+check(/## Your earlier turn \(round 01-sparring\)/.test(tfo)&&tfo.indexOf('Seat three hedges')<0,'failed read: seat-3\'s earlier turn should fall back to its last sound answer');
+fs.unlinkSync(path.join(run,'rounds','03-battle','seat-3.answer.md'));
+fs.unlinkSync(path.join(run,'rounds','03-battle','seat-1.answer.md'));
+fs.rmSync(path.join(run,'rounds','04-battle'),{recursive:true,force:true});
+
 // Same snapshot: seat-2 answers round 3 before seat-3's packet is built; seat-3 must not see it.
 write(path.join(run,'rounds','03-battle','seat-2.answer.md'),'RATING: 5/10\nSeat two, round three.\n');
 var p3c=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-3']);

@@ -7,7 +7,7 @@ Run one Battle round of Combat Writing on `$ARGUMENTS`. The rules that hold acro
 
 ## 1. Record the paste, then read the arguments
 
-If `$ARGUMENTS` carries pasted text (an SFQ, an SN, a revised draft), write the whole of it first, unchanged, to `combat-writing/inbox/<slug>.paste.md` in the project, then cut the pieces from that file: the SFQ to `<slug>.sfq.md`, the SN to `<slug>.sn.md`, a pasted revised draft to `<slug>.draft.md`, each per-seat line to `<slug>.<seat>.question.md`.
+If `$ARGUMENTS` carries pasted text (an SFQ, an SN, a revised draft), write the whole of it first, unchanged, to `combat-writing/inbox/<slug>.paste.md` in the project, then cut the pieces from that file: the SFQ to `<slug>.sfq.md`, the SN to `<slug>.sn.md`, a pasted revised draft to `<slug>.draft.md`, each per-seat line to `<slug>.<seat>.question.md`. Cut the label off: the SN file holds the note itself, not the words "Navigation note:", because the packet adds its own label.
 
 - `final` as the first word: the two final reads of step 14 (S/N ratio and red flags), on the draft alone. See step 6.
 - `run: <folder>` names the run. Default: the newest folder under `combat-writing/runs/`. If there is none, say so and point at `/combat-writing:sparring`; battle never starts a run.
@@ -84,8 +84,9 @@ It records whether the seat held (Stand) or flipped, and whether a flip's quote 
 
 ```
 node ${CLAUDE_PLUGIN_ROOT}/scripts/render-record.js --run <folder> --short
+node ${CLAUDE_PLUGIN_ROOT}/scripts/render-board.js --run <folder>
 ```
 
-It rebuilds `record.md` in the run folder and prints the short form: the credit line, the crew line, the scoreboard. Show that short form as it is, then one line with the round just run and the count of battle rounds in the run (for example "Round 04-battle; this run holds 3 battle rounds"), then each seat's new critique in full with its rating line first, then one short paragraph of your own on where the seats moved and why, quoting them by model name. The first rating stays visible in the scoreboard beside every flip. No verdict of yours above the scoreboard. Point at `record.md` for the full record.
+The first rebuilds `record.md` and prints the short form: the credit line, the crew line, the scoreboard. The second rebuilds `board.html`. Show the short form as it is, then the board as an artifact or preview where you have a tool for that, else its path in one line; then one line with the round just run and the count of battle rounds in the run (for example "Round 04-battle; this run holds 3 battle rounds"), then each seat's new critique in full with its rating line first, then one short paragraph of your own on where the seats moved and why, quoting them by model name. The first rating stays visible in the scoreboard beside every flip. No verdict of yours above the scoreboard. Point at `record.md` for the full record.
 
 Close with what the person can do next: another battle round with a new SFQ or SN, a revised draft, or `final`.
