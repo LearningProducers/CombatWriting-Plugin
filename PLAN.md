@@ -9,7 +9,7 @@ The terms (seat, crew, host, fresh reader, packet, flip, credit line), the stand
 
 Delivers: the layout; CLAUDE.md; this file; LICENSES/ with both texts verbatim; NOTICE; CONTRIBUTING.md; the repository README and the plugin README; plugin.json (name combat-writing, version 0.1.0, license field, author Learning Producers Inc.); marketplace.json naming both plugins; SPDX headers; tests/license_check.js; the CI workflow with `claude plugin validate --strict`.
 
-Status: delivered — 2026-10-08 — pull request open; `claude plugin validate --strict` passes on plugins/combat-writing and on the repository root; license_check passes.
+Status: merged — 2026-10-08 — pull request 1 squash-merged to main.
 
 ## Part 2 — The method and Sparring
 
@@ -18,19 +18,20 @@ Delivers:
 - The combat-writing skill: the method, the rating contract (first line, 1 to 10, 7 forbidden), the stages, the vocabulary.
 - The `help` command: explains the plugin.
 - The `sparring` command: every seat reads the draft and gives its own critique with its rating on the first line; the person may put a different focus question or navigation note to each seat; seats may be shown each other's answers and debate the scores.
-- Seat agents as fresh readers. Only agent files name models and companies. How an agent file sets its model (inherit, or an alias) is Israel's ruling at part 2.
-- Scripts: packet assembly (each seat's answer carried to the others by code), rating parsing, the record writer skeleton (every transcript opens with the credit line).
+- One seat agent as a fresh reader, `model: inherit`, no model name or alias in any file (ruled 2026-10-08). The output names each seat from what the host knows about the agent it ran; the record says so.
+- Scripts: `new-run.js` (the run folder), `packet.js` (each seat's packet from files on disk; the other seats' answers carried by code), `check-answer.js` (the rating contract), `lib.js`.
 - The "one company's models" notice when no add-on is present. The plugin never fakes a seat.
-- Tests: the rating contract, the packet builder, no model name in code outside agents/.
+- The draft is untrusted content, in the agent prompt and in every packet.
+- Tests: the rating contract, the packet builder.
 
-Status: not started — 2026-10-08 — waits on part 1 merge.
+Status: delivered — 2026-10-08 — pull request open; method text, skill, help, sparring, seat agent, scripts and tests in; license_check, rating_contract_check and packet_check pass; `claude plugin validate --strict` passes on the plugin folder and the root.
 
 ## Part 3 — Battle
 
 Delivers:
 - The `battle` command: every seat reads the other seats' latest answers and gives a new critique and a new rating, quoting the others by model name. A focus question or navigation note may ride with the round.
 - Flips: a seat that changes its rating carries an attributed quote and the reasoning.
-- The record: the rating leads every result; a ship, revise or kill verdict never replaces it; scores are never averaged; the transcript opens with the credit line.
+- The rendered record (`record.md` in the run folder): the rating leads every result; a ship, revise or kill verdict never replaces it; scores are never averaged; the record opens with the credit line.
 - Where the S/N ratio and red-flag reads live (in the app they are Battle's two automatic reads of the final draft). Israel rules.
 - Tests: the flip record, the attribution, the headline rule.
 

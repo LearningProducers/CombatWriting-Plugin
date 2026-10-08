@@ -4,10 +4,15 @@
 //
 // What it pins:
 //   - Every file that can carry a comment has exactly one SPDX-License-Identifier
-//     header within its first 12 lines, and the identifier matches the path rule:
-//     docs/** and plugins/*/method/** are CC-BY-NC-SA-4.0; everything else is
-//     LicenseRef-PolyForm-Shield-1.0.0. JSON files, NOTICE files, LICENSES/,
-//     plugins/*/LICENSE*, images and fonts carry no header. No file carries two.
+//     header: on line 1 for a plain file, or on the line after the closing ---
+//     for a Markdown file that opens with YAML frontmatter. A skill, command or
+//     agent file must open with frontmatter on line 1. The identifier
+//     matches the path rule: docs/** and plugins/*/method/** are CC-BY-NC-SA-4.0;
+//     everything else is LicenseRef-PolyForm-Shield-1.0.0. JSON files, NOTICE
+//     files, LICENSES/, plugins/*/LICENSE*, images and fonts carry no header.
+//     No file carries two.
+//   - The CC prose shipped inside the plugin (plugins/combat-writing/method/*.md)
+//     is byte-identical to its mirror under docs/.
 //   - NOTICE holds every ruled line: the Required Notice, the Licensor Line of
 //     Business naming the plugin, training and writing-analysis services, the CC
 //     attribution designation with the canonical URL, the internal-use paragraph
@@ -23,7 +28,7 @@
 //   - No lockfile beside a package.json at the repository root or a plugin root.
 //   - No bin/ at the repository root or a plugin root.
 //   - plugin.json's license field is the Shield identifier; marketplace.json
-//     names combat-writing.
+//     names both combat-writing and combat-writing-crew.
 //
 // Run from the repo root:   node tests/license_check.js
 // Optional first argument: a path to a different repository root to check.
@@ -34,7 +39,6 @@ var root=path.resolve(process.argv[2]||path.join(__dirname,'..'));
 
 var SHIELD='LicenseRef-PolyForm-Shield-1.0.0';
 var CC='CC-BY-NC-SA-4.0';
-var HEADER_LINES=12;
 var SIZE_LIMIT=256*1024;
 var LICENSE_HASHES={
   'LICENSES/LicenseRef-PolyForm-Shield-1.0.0.md':'56328093d57c87dcf2811ddcc824caf2723a07ffc332e6fbe4f9f108a2893a91', // polyformproject/polyform-licenses @ 76a278c
@@ -97,7 +101,18 @@ files.forEach(function(rel){
     return;
   }
   if(headers.length!==1){ fail(rel+': expected exactly one SPDX-License-Identifier header, found '+headers.length); return; }
-  check(headers[0].line<=HEADER_LINES,rel+': header on line '+headers[0].line+', must be within the first '+HEADER_LINES);
+  // Line 1 for a plain file. For a Markdown file that opens with YAML frontmatter, the
+  // line after the closing ---, because the loader reads frontmatter only on line 1.
+  var wantLine=1;
+  var isComponent=/^plugins\/[^/]+\/(skills|commands|agents)\/.+\.md$/.test(rel);
+  if(isComponent&&lines[0].replace(/\r$/,'')!=='---'){ fail(rel+': a skill, command or agent file must open with YAML frontmatter on line 1; the header goes after it'); return; }
+  if(lines[0].replace(/\r$/,'')==='---'){
+    var close=-1;
+    for(var i=1;i<lines.length;i++){ if(lines[i].replace(/\r$/,'')==='---'){close=i;break;} }
+    if(close<0){ fail(rel+': frontmatter opened on line 1 but never closed'); return; }
+    wantLine=close+2;
+  }
+  check(headers[0].line===wantLine,rel+': header on line '+headers[0].line+', must be on line '+wantLine+(wantLine===1?'':' (the line after the closing ---)'));
   check(headers[0].id===want,rel+': header says '+headers[0].id+', path rule says '+want);
 });
 
@@ -119,6 +134,12 @@ check(pluginRoots.indexOf('plugins/combat-writing')>=0,'plugins/combat-writing: 
 check(exists('plugins/combat-writing/NOTICE')&&read('plugins/combat-writing/NOTICE')===notice,'plugins/combat-writing/NOTICE: missing or differs from the root NOTICE');
 check(exists('plugins/combat-writing/LICENSE.md')&&exists('LICENSES/LicenseRef-PolyForm-Shield-1.0.0.md')&&sha256('plugins/combat-writing/LICENSE.md')===sha256('LICENSES/LicenseRef-PolyForm-Shield-1.0.0.md'),'plugins/combat-writing/LICENSE.md: missing or differs from the root Shield text');
 
+// The CC prose shipped inside the plugin is mirrored under docs/, byte for byte.
+files.filter(function(f){return /^plugins\/combat-writing\/method\/.+\.md$/.test(f);}).forEach(function(rel){
+  var mirror='docs/'+path.basename(rel);
+  check(exists(mirror)&&sha256(mirror)===sha256(rel),rel+': docs/ mirror '+mirror+' missing or differs');
+});
+
 // LICENSES/: both texts verbatim.
 Object.keys(LICENSE_HASHES).forEach(function(rel){
   check(exists(rel)&&sha256(rel)===LICENSE_HASHES[rel],rel+': missing or its SHA-256 differs from the source text');
@@ -136,6 +157,7 @@ readmes.forEach(function(rel){
 var OPEN_SOURCE=/open[\s-]source/i;
 files.forEach(function(rel){
   if(rel==='CLAUDE.md'||rel==='tests/license_check.js'||rel.indexOf('LICENSES/')===0)return;
+  if(/^plugins\/[^/]+\/LICENSE(\.[a-z]+)?$/i.test(rel))return;
   if(IMAGE_OR_FONT.test(rel))return;
   check(!OPEN_SOURCE.test(read(rel)),rel+': says "open source"');
 });
