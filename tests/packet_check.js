@@ -37,8 +37,9 @@
 //     written about draft.md; --draft draft.md selects the original.
 //   - --final sn|redflag builds <seat>.sn.packet.md / <seat>.redflag.packet.md with the
 //     app's prompt verbatim, the app's first-line contract, no brief, no other answers,
-//     no earlier turn, a 250-word cap; a final round without --final and --final
-//     outside a final round are refused.
+//     no earlier turn, a 250-word cap; the red-flag packet also carries the app's
+//     firsthand-account rule and its knowledge-cutoff clause, the S/N packet does not;
+//     a final round without --final and --final outside a final round are refused.
 //   - Nothing from the command line but paths and flags reaches the packet: no flag on
 //     packet.js accepts free text, and a draft that contains an instruction is carried
 //     verbatim inside the fence.
@@ -195,7 +196,9 @@ var frf=node('packet.js',['--run',run,'--round','06-final','--seat','seat-1','--
 var trf=frf.status===0?read(frf.stdout.trim()):'';
 check(frf.status===0&&/seat-1\.redflag\.packet\.md$/.test(frf.stdout.trim()),'final redflag: exit '+frf.status);
 check(trf.indexOf('Check this final draft for red flags. Your first line must be exactly: NO RED FLAGS or RED FLAGS FOUND: X')>=0,'final redflag: app prompt missing');
-check(/firsthand accounts are never red flags/.test(trf),'final redflag: the app\'s firsthand-account rule missing');
+check(/firsthand accounts, direct personal observations and lived experience are never red flags/.test(trf),'final redflag: the app\'s firsthand-account rule missing');
+check(/KNOWLEDGE CUTOFF AWARENESS: Your training data may predate the document's timeframe\./.test(trf)&&/internally inconsistent within the document itself/.test(trf)&&/do not manufacture issues/.test(trf),'final redflag: the app\'s knowledge-cutoff clause missing');
+check(tsn.indexOf('KNOWLEDGE CUTOFF')<0,'final sn: the knowledge-cutoff clause belongs to the red-flag read only');
 check(node('packet.js',['--run',run,'--round','06-final','--seat','seat-2']).status===2,'final round without --final should exit 2');
 check(node('packet.js',['--run',run,'--round','05-battle','--seat','seat-3','--final','sn']).status===2,'--final outside a final round should exit 2');
 check(node('packet.js',['--run',run,'--round','06-final','--seat','seat-2','--final','both']).status===2,'--final both should exit 2');

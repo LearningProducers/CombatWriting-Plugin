@@ -21,7 +21,7 @@ Fresh readers if you can start a separate agent and run `node`; otherwise one se
 
 ## 3. Count the rounds
 
-List `rounds/` in the run. Battle rounds are named `<nn>-battle`; the next number continues from the last round of any kind (a revised draft does not restart the count; the record says which draft each round read). If the run already holds 5 battle rounds, stop and ask the person whether to go on before building a sixth; the method says iterate until structure emerges, then stop and publish.
+List `rounds/` in the run. Battle rounds are named `<nn>-battle`; the next number continues from the last round of any kind (a revised draft does not restart the count; the record says which draft each round read). There is no round limit: the person decides when to stop. After every round, say which round this was and how many battle rounds the run now holds; the method says iterate until structure and insights emerge, then stop and publish.
 
 ## 4. Add the revised draft, if any
 
@@ -86,6 +86,6 @@ It records whether the seat held (Stand) or flipped, and whether a flip's quote 
 node ${CLAUDE_PLUGIN_ROOT}/scripts/render-record.js --run <folder> --short
 ```
 
-It rebuilds `record.md` in the run folder and prints the short form: the credit line, the crew line, the scoreboard. Show that short form as it is, then each seat's new critique in full with its rating line first, then one short paragraph of your own on where the seats moved and why, quoting them by model name. The first rating stays visible in the scoreboard beside every flip. No verdict of yours above the scoreboard. Point at `record.md` for the full record.
+It rebuilds `record.md` in the run folder and prints the short form: the credit line, the crew line, the scoreboard. Show that short form as it is, then one line with the round just run and the count of battle rounds in the run (for example "Round 04-battle; this run holds 3 battle rounds"), then each seat's new critique in full with its rating line first, then one short paragraph of your own on where the seats moved and why, quoting them by model name. The first rating stays visible in the scoreboard beside every flip. No verdict of yours above the scoreboard. Point at `record.md` for the full record.
 
 Close with what the person can do next: another battle round with a new SFQ or SN, a revised draft, or `final`.

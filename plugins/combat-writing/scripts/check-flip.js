@@ -6,7 +6,8 @@
 // Reads the seat's answer in the round, the seat's own earlier turn (the one its packet
 // carried, from the packet.built log line, else its latest earlier answer), and the other
 // seats' answers in the round the packet read. A seat whose rating changed must quote a line from another seat's answer,
-// in double quotes, attributed to that seat by id, label or (when unambiguous) model name;
+// in double quotes, attributed to that seat by id ("seat-2", "seat 2" or "seat2", any case)
+// or, when the name belongs to exactly one other seat, by model name;
 // the quote is matched word for word, whitespace and quote marks normalized, against the
 // cited seat's answer file. A quote that does not match there marks the flip invalid. A
 // seat that holds its rating should say Stand.

@@ -115,7 +115,12 @@ out.push('');
 out.push('## Contract');
 out.push('');
 if(finalMode==='sn')out.push('Your first line must be exactly `S/N RATIO: XX%`, XX a whole number from 0 to 100, nothing else on that line. Then what is signal (specific, earned, consequential) and what is noise (vague, hedged, redundant, posturing), with direct citations from the text. Under '+cap+' words. This read is not a rating; the 7 rule does not apply here.');
-else if(finalMode==='redflag')out.push('Your first line must be exactly `NO RED FLAGS` or `RED FLAGS FOUND: X`, X a whole number of 1 or more, nothing else on that line. A red flag is a specific factual error or direct logical contradiction that would cause an informed reader to distrust the piece; metaphors, hyperbole and stylistic choices are never red flags, and the author\'s firsthand accounts are never red flags. Then each flag with its citation from the text. Under '+cap+' words. This read is not a rating; the 7 rule does not apply here.');
+else if(finalMode==='redflag'){
+  out.push('Your first line must be exactly `NO RED FLAGS` or `RED FLAGS FOUND: X`, X a whole number of 1 or more, nothing else on that line. A red flag is a specific factual error or direct logical contradiction that would cause an informed reader to distrust the piece; metaphors, hyperbole and stylistic choices are never red flags, and the author\'s firsthand accounts, direct personal observations and lived experience are never red flags; they are primary evidence. Then each flag with its citation from the text. Under '+cap+' words. This read is not a rating; the 7 rule does not apply here.');
+  out.push('');
+  // The app's knowledge-cutoff clause for this read, as its code sends it.
+  out.push('KNOWLEDGE CUTOFF AWARENESS: Your training data may predate the document\'s timeframe. Dates that seem "future" to you may be present or past to the author — the real-world clock has advanced past your knowledge cutoff. Do NOT flag current or recent-seeming dates as "future dates," "fiction," or "speculative" on cutoff grounds alone. Only flag dates if they are internally inconsistent within the document itself (e.g., an event dated before its stated prerequisites). Cite exact lines for any flags. No analysis, no suggestions, no summaries beyond the flags. It is completely acceptable to return NO RED FLAGS — do not manufacture issues.');
+}
 else out.push('Your first line must be exactly `RATING: X/10`, uppercase, X a whole number from 1 to 10, never 7, nothing else on that line. Then your reasoning with specific evidence from the draft. Under '+cap+' words.');
 out.push('');
 if(brief){

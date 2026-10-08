@@ -195,15 +195,20 @@ function checkAnswer(text,wordCap,contract){
 
 // Quotes in an answer, each with the other seat it is attributed to. A quote is a span in
 // straight or curly double quotes, at least three words long. It is attributed to a seat when
-// the same line, or the line before it, names that seat by id or by its full label, or by its
-// model name when that name belongs to exactly one other seat.
+// the same line, or the line before it, names that seat by id ("seat-2", "seat 2" or "seat2",
+// any case; "seat-12" never names seat-1) or by its model name when that name belongs to
+// exactly one other seat (matched exactly). Nothing else counts as attribution.
 function normalizeQuote(s){ return s.replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/\s+/g,' ').replace(/^[\s"'.,;:!?…-]+|[\s"'.,;:!?…-]+$/g,''); }
+function seatIdPattern(id){
+  var m=/^seat-(\d+)$/.exec(id);
+  return m?new RegExp('\\bseat[-\\s]?'+m[1]+'\\b','i'):new RegExp('(^|[^A-Za-z0-9-])'+id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'($|[^A-Za-z0-9-])');
+}
 function attributedQuotes(text,self,others){
   var lines=text.split(/\r?\n/), out=[];
   var modelCount={}; others.forEach(function(s){modelCount[s.model]=(modelCount[s.model]||0)+1;});
   function namedIn(line){
     return others.filter(function(s){
-      if(line.indexOf(s.id)>=0||line.indexOf(seatLabel(s))>=0)return true;
+      if(seatIdPattern(s.id).test(line))return true;
       return s.model&&s.model!==MODEL_UNREPORTED&&modelCount[s.model]===1&&line.indexOf(s.model)>=0;
     });
   }

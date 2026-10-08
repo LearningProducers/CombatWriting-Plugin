@@ -36,7 +36,7 @@ Delivers:
 - Word caps: 600 for synthesis packets, 250 for the final reads, 400 otherwise. An unreported model renders from its company, never a model name from code.
 - Tests: flip_check.js, record_check.js, the battle cases in packet_check.js, the final contracts in rating_contract_check.js.
 
-Status: delivered — 2026-10-08 — pull request open; battle, the flip check, the record and the final reads in; all six checks pass; `claude plugin validate --strict` passes on the plugin folder and the root.
+Status: delivered — 2026-10-08 — pull request 3 open, review fixes pushed: departure 9 names the app's code prompts, the red-flag packet carries the app's knowledge-cutoff clause, attribution accepts "seat 2" and "seat2" in any case and otherwise stays strict, battle has no round limit and reports the count; all six checks pass; `claude plugin validate --strict` passes on the plugin folder and the root.
 
 ## Part 4 — Presentation and directory readiness
 
