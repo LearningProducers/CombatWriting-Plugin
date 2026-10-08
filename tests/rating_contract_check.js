@@ -15,7 +15,10 @@
 // --run appends an answer.checked line to the run's log; with --run and no
 // --word-cap the cap is the one the seat was sent: a packet built at 600 lets a
 // 502-word answer pass, the same answer fails without the run, and --word-cap
-// still overrides the packet's cap.
+// still overrides the packet's cap. The app's two final contracts are picked from the
+// file name (<seat>.sn.answer.md: S/N RATIO: XX%, 0 to 100; <seat>.redflag.answer.md:
+// NO RED FLAGS or RED FLAGS FOUND: X, X 1 or more), with no 7 rule and a 250 cap, and
+// --contract overrides the name.
 //
 // Run from the repo root:   node tests/rating_contract_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -109,6 +112,36 @@ var capLog=path.join(capRun,'log.jsonl');
 fs.writeFileSync(capLog,fs.readFileSync(capLog,'utf8').split('\n').filter(function(l){return l&&l.indexOf('packet.built')<0;}).join('\n')+'\n');
 var c4=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),capAns,'--run',capRun],{encoding:'utf8'});
 check(c4.status===0&&/"word_cap":600/.test(c4.stdout),'cap from packet file: expected pass at 600 without the log line, got exit '+c4.status);
+
+// The app's two final contracts, picked from the file name: <seat>.sn.answer.md and
+// <seat>.redflag.answer.md. No 7 rule on either. --contract overrides the name.
+function named(name,text,extra){
+  var f=path.join(tmp,name); fs.writeFileSync(f,text);
+  var r=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),f].concat(extra||[]),{encoding:'utf8'});
+  var lines=r.stdout.trim().split('\n'); var s=null; try{s=JSON.parse(lines[lines.length-1]);}catch(e){}
+  return {code:r.status,first:lines[0]||'',summary:s};
+}
+var sn=named('seat-1.sn.answer.md','S/N RATIO: 70%\nSignal: the number. Noise: the posture.\n');
+check(sn.code===0&&sn.summary&&sn.summary.contract==='sn'&&sn.summary.value===70&&sn.summary.word_cap===250,'sn: expected pass with value 70 under cap 250, got '+sn.code+' '+JSON.stringify(sn.summary));
+check(named('seat-1.sn.answer.md','S/N RATIO: 7%\nAlmost all noise.\n').code===0,'sn: 7% must pass, the 7 rule is a rating rule');
+check(named('seat-1.sn.answer.md','S/N RATIO: 101%\nx\n').code===1,'sn: 101% must fail');
+check(named('seat-1.sn.answer.md','S/N RATIO: 70\nx\n').code===1,'sn: missing percent sign must fail');
+check(named('seat-1.sn.answer.md','S/N Ratio: 70%\nx\n').code===1,'sn: lowercase must fail');
+check(named('seat-1.sn.answer.md','S/N RATIO: 70% because\nx\n').code===1,'sn: trailing text must fail');
+check(named('seat-1.sn.answer.md','RATING: 8/10\nx\n').code===1,'sn: a rating line is not an S/N line');
+check(named('seat-1.sn.answer.md','S/N RATIO: 70%\n'+new Array(260).join('word ')+'\n').code===1,'sn: over 250 words must fail');
+var rf0=named('seat-1.redflag.answer.md','NO RED FLAGS\nNothing an informed reader would distrust.\n');
+check(rf0.code===0&&rf0.summary.contract==='redflag'&&rf0.summary.value===0,'redflag: NO RED FLAGS should pass with value 0, got '+JSON.stringify(rf0.summary));
+var rf2=named('seat-1.redflag.answer.md','RED FLAGS FOUND: 2\nFirst. Second.\n');
+check(rf2.code===0&&rf2.summary.value===2,'redflag: RED FLAGS FOUND: 2 should pass with value 2');
+check(named('seat-1.redflag.answer.md','RED FLAGS FOUND: 0\nx\n').code===1,'redflag: FOUND: 0 must fail');
+check(named('seat-1.redflag.answer.md','No red flags\nx\n').code===1,'redflag: lowercase must fail');
+check(named('seat-1.redflag.answer.md','RED FLAGS FOUND: 2 — see below\nx\n').code===1,'redflag: trailing text must fail');
+check(named('seat-1.redflag.answer.md','NO RED FLAGS\n').code===1,'redflag: no reasoning must fail');
+var ov=named('seat-1.answer.md','S/N RATIO: 70%\nx\n',['--contract','sn']);
+check(ov.code===0&&ov.summary.contract==='sn','--contract sn on a plain answer file should apply the sn contract');
+check(named('seat-1.answer.md','S/N RATIO: 70%\nx\n').code===1,'a plain answer file holds the rating contract');
+check(named('seat-1.answer.md','RATING: 8/10\nx\n',['--contract','nope']).code===2,'--contract nope should exit 2');
 
 // Misuse exits 2.
 var mis=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js')],{encoding:'utf8'});

@@ -24,18 +24,19 @@ Delivers:
 - The draft is untrusted content, in the agent prompt and in every packet.
 - Tests: the rating contract, the packet builder.
 
-Status: delivered — 2026-10-08 — pull request 2 open, review fixes pushed: the checker reads the word cap from the packet, the paste is written whole before parsing, method_check.js pins the step text; license_check, rating_contract_check, packet_check and method_check pass; `claude plugin validate --strict` passes on the plugin folder and the root.
+Status: merged — 2026-10-08 — pull request 2 merged to main with its review fixes.
 
 ## Part 3 — Battle
 
 Delivers:
-- The `battle` command: every seat reads the other seats' latest answers and gives a new critique and a new rating, quoting the others by model name. A focus question or navigation note may ride with the round.
-- Flips: a seat that changes its rating carries an attributed quote and the reasoning.
-- The rendered record (`record.md` in the run folder): the rating leads every result; a ship, revise or kill verdict never replaces it; scores are never averaged; the record opens with the credit line.
-- Where the S/N ratio and red-flag reads live (in the app they are Battle's two automatic reads of the final draft). Israel rules.
-- Tests: the flip record, the attribution, the headline rule.
+- The `battle` command: every seat reads the previous round's answers, labeled by model and company, plus its own earlier turn, and gives a new critique with a new rating line first. An SFQ or SN may ride with the round; a revised draft may be added first (`add-draft.js`, `draft-2.md`, numbering continues). All packets built before any seat starts; a packet carries the previous round only; a missing seat is marked missing, never replaced. With one seat (chat) it says there are no other seats and offers a solo re-read.
+- The flip check in code (`check-flip.js`): a changed rating must quote a line from another seat, attributed, matched word for word against the cited seat's answer; no match marks the flip invalid with the rating still shown; a held rating says Stand.
+- The record (`render-record.js` → `record.md`): the credit line, the crew, the drafts and brief, the scoreboard (one row per seat, one column per round, flips valid or invalid with the earlier number kept, Stand, missing, the final reads' two numbers), every answer in full by round, the log of what was sent. Rebuilt after every round from the files and `log.jsonl`. Nothing averaged.
+- The S/N ratio and red-flag reads as `battle final`: the app's two prompts verbatim, on the newest draft, no other seats' answers, the app's first-line contracts, both numbers per seat. Placement still Israel's ruling.
+- Word caps: 600 for synthesis packets, 250 for the final reads, 400 otherwise. An unreported model renders from its company, never a model name from code.
+- Tests: flip_check.js, record_check.js, the battle cases in packet_check.js, the final contracts in rating_contract_check.js.
 
-Status: not started — 2026-10-08 — waits on part 2.
+Status: delivered — 2026-10-08 — pull request open; battle, the flip check, the record and the final reads in; all six checks pass; `claude plugin validate --strict` passes on the plugin folder and the root.
 
 ## Part 4 — Presentation and directory readiness
 

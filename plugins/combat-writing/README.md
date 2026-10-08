@@ -33,11 +33,13 @@ From the Claude plugin directory once it is listed, or from Learning Producers' 
 /combat-writing:battle Navigation note: the second seat called the close weak; everyone answer that.
 ```
 
-`help` and `sparring` are here. `battle` is coming.
+With `battle`, an SFQ (synthesis focus question) or an SN (navigation note) may ride with the round, a revised draft may be added first, and `final` runs the two final reads of step 14, the S/N ratio and the red-flag check, on the draft alone.
 
 ## What a run looks like
 
-Each seat is a fresh reader: a separate agent started for one job, with no memory of your conversation, never the assistant you are talking to. A script assembles each seat's packet from files on disk (the draft, your brief, the other seats' latest answers labeled by model and company, your question) and carries it; nothing is retyped. Every run leaves a folder in your project, `combat-writing/runs/<run-id>/`, with the draft snapshot, the brief, every packet, every answer and a timestamped log. In a host that cannot start separate agents, the crew is one seat, the host, and every result says so.
+Each seat is a fresh reader: a separate agent started for one job, with no memory of your conversation, never the assistant you are talking to. A script assembles each seat's packet from files on disk (the draft, your brief, the seat's own earlier turn, the other seats' answers from the previous round labeled by model and company, your question) and carries it; nothing is retyped. Every packet of a round is built before any seat starts, so no seat sees another's new answer before giving its own. A seat that fails is shown as missing, never replaced.
+
+Every run leaves a folder in your project, `combat-writing/runs/<run-id>/`, with the draft snapshot and any revisions, the brief, every packet, every answer, a timestamped log, and `record.md`: a scoreboard with one row per seat and one column per round, every rating on its own, flips marked valid or invalid with the earlier number kept visible, Stand marked, missing seats marked missing, then every answer in full. A flip is valid only when the seat's quote matches, word for word, the seat it names. Nothing is averaged. In a host that cannot start separate agents, the crew is one seat, the host, and every result says so.
 
 ## What it runs, sends and fetches
 

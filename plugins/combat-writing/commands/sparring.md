@@ -59,8 +59,14 @@ node ${CLAUDE_PLUGIN_ROOT}/scripts/check-answer.js <answer file> --run <folder>
 
 With `--run` the checker uses the word cap the seat was actually sent, read from the run's log; `--word-cap N` overrides it only when the person asks for a different cap. On FAIL, start the same seat once more with the same packet and the check's reasons appended to its task ("Your previous answer failed the rating contract: <reasons>. Write it again."). If it fails twice, keep the failed file, record it, and show that seat as `FAILED READ` on the board with the reasons. Never edit a seat's answer. Never fill in a rating for it.
 
-## 6. Show the result
+## 6. Render and show the result
 
-As the skill says: the credit line, the crew line, the board (rating first, ten-block bar, seat label), every critique in full with its rating line first, then your one paragraph on where the seats agree and split, quoting them by model name. Add the run folder path at the end. In the one-seat case, the board has one row labeled `the host`, and the crew line reads "one seat, the host"; your critique follows the same contract: rating line first, under 400 words, no 7.
+For a `debate` round, also run `check-flip.js --run <folder> --round <round> --seat <seat id>` for each seat, as battle does. Then:
 
-Close with what the person can do next: a `debate` round on this run, another sparring round with a different question per seat, or battle (a later part).
+```
+node ${CLAUDE_PLUGIN_ROOT}/scripts/render-record.js --run <folder> --short
+```
+
+Show what it prints as it is (the credit line, the crew line, the scoreboard), then every critique in full with its rating line first, then your one paragraph on where the seats agree and split, quoting them by model name. Point at `record.md` in the run folder. In the one-seat case there is no run folder: write the credit line, the crew line "one seat, the host", a one-row board, and your critique under the same contract: rating line first, under 400 words, no 7.
+
+Close with what the person can do next: a `debate` round on this run, another sparring round with a different question per seat, or `/combat-writing:battle`.
