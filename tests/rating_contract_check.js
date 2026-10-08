@@ -12,7 +12,10 @@
 // rating on the second line fails; an empty first line fails; a rating with no
 // reasoning fails; an answer over the word cap fails and under a raised cap
 // passes; a BOM before the rating line still passes; CRLF line endings pass;
-// --run appends an answer.checked line to the run's log.
+// --run appends an answer.checked line to the run's log; with --run and no
+// --word-cap the cap is the one the seat was sent: a packet built at 600 lets a
+// 502-word answer pass, the same answer fails without the run, and --word-cap
+// still overrides the packet's cap.
 //
 // Run from the repo root:   node tests/rating_contract_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -80,6 +83,32 @@ check(logLines.length===1,'--run: expected one log line, got '+logLines.length);
 var entry=logLines.length?JSON.parse(logLines[0]):{};
 check(entry.event==='answer.checked'&&entry.seat==='seat-2'&&entry.round==='01-sparring'&&entry.rating===8&&entry.ok===true,'--run: log line wrong: '+JSON.stringify(entry));
 check(typeof entry.ts==='string'&&!isNaN(Date.parse(entry.ts)),'--run: log line has no timestamp');
+
+// The cap comes from the packet the seat was sent. Build a real run with the real
+// scripts, a packet at --word-cap 600, and a 502-word answer.
+var proj=path.join(tmp,'proj'); fs.mkdirSync(proj);
+fs.writeFileSync(path.join(proj,'draft.md'),'A draft.\n');
+var nr=cp.spawnSync(process.execPath,[path.join(scripts,'new-run.js'),'--draft','draft.md','--name','cap'],{cwd:proj,encoding:'utf8'});
+check(nr.status===0,'cap run: new-run exit '+nr.status+' '+nr.stderr);
+var capRun=nr.stdout.trim();
+var pk=cp.spawnSync(process.execPath,[path.join(scripts,'packet.js'),'--run',capRun,'--round','01-sparring','--seat','seat-1','--word-cap','600'],{encoding:'utf8'});
+check(pk.status===0,'cap run: packet exit '+pk.status+' '+pk.stderr);
+var long502='RATING: 8/10\n'+new Array(500).join('word ')+'end\n';
+check(lib.wordCount(long502)===502,'cap run: fixture is '+lib.wordCount(long502)+' words, expected 502');
+var capAns=path.join(capRun,'rounds','01-sparring','seat-1.answer.md'); fs.writeFileSync(capAns,long502);
+var c1=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),capAns,'--run',capRun],{encoding:'utf8'});
+check(c1.status===0,'cap from packet: expected pass at 600, got exit '+c1.status+' ('+c1.stdout.split('\n')[0]+')');
+var c1s=JSON.parse(c1.stdout.trim().split('\n').pop());
+check(c1s.word_cap===600&&c1s.word_cap_source==='packet','cap from packet: summary says cap '+c1s.word_cap+' from '+c1s.word_cap_source);
+var c2=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),capAns],{encoding:'utf8'});
+check(c2.status===1&&/over the cap of 400/.test(c2.stdout),'cap without run: expected fail at 400, got exit '+c2.status);
+var c3=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),capAns,'--run',capRun,'--word-cap','500'],{encoding:'utf8'});
+check(c3.status===1&&/over the cap of 500/.test(c3.stdout),'--word-cap override: expected fail at 500, got exit '+c3.status);
+// With the log line gone, the cap still comes from the packet file's "Under N words." line.
+var capLog=path.join(capRun,'log.jsonl');
+fs.writeFileSync(capLog,fs.readFileSync(capLog,'utf8').split('\n').filter(function(l){return l&&l.indexOf('packet.built')<0;}).join('\n')+'\n');
+var c4=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),capAns,'--run',capRun],{encoding:'utf8'});
+check(c4.status===0&&/"word_cap":600/.test(c4.stdout),'cap from packet file: expected pass at 600 without the log line, got exit '+c4.status);
 
 // Misuse exits 2.
 var mis=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js')],{encoding:'utf8'});

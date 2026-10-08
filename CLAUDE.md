@@ -47,7 +47,9 @@ The motto is "Reading is Peace. Writing is War." It is brand. It is never soften
 
 ## The run folder
 
-The on-disk record of a run lives in the person's project, never in the plugin, at `combat-writing/runs/<run-id>/`, run id `YYYY-MM-DD-HHMM-<slug>` (UTC). It holds `draft.md` (the snapshot, never changed), `brief.md` when given, `seats.json`, `log.jsonl` (one JSON object per line, timestamped), and `rounds/<nn>-<kind>/<seat>.question.md|packet.md|answer.md`. Every record the plugin writes opens with the credit line; a seat's answer file opens with its rating line, because it is the seat's writing. The scripts in `plugins/combat-writing/scripts/` are the only writers: `new-run.js`, `packet.js`, `check-answer.js`, with `lib.js` shared. A packet is built from files on disk only, never from text the host supplies. The rendered record (`record.md`) is part 3.
+The on-disk record of a run lives in the person's project, never in the plugin, at `combat-writing/runs/<run-id>/`, run id `YYYY-MM-DD-HHMM-<slug>` (UTC). It holds `draft.md` (the snapshot, never changed), `brief.md` when given, `seats.json`, `log.jsonl` (one JSON object per line, timestamped), and `rounds/<nn>-<kind>/<seat>.question.md|packet.md|answer.md`. Every record the plugin writes opens with the credit line; a seat's answer file opens with its rating line, because it is the seat's writing. The scripts in `plugins/combat-writing/scripts/` are the only writers inside it: `new-run.js`, `packet.js`, `check-answer.js`, with `lib.js` shared. A packet is built from files on disk only, never from text the host supplies. The rendered record (`record.md`) is part 3.
+
+The second and only other write location is `combat-writing/inbox/` in the person's project, for what the person pastes: the host writes the whole paste to `combat-writing/inbox/<slug>.paste.md` before parsing anything, then the draft to `<slug>.md`, the brief to `<slug>.brief.md` and any per-seat question to `<slug>.<seat>.question.md`, all cut from that file. `new-run.js` and `packet.js` then read those paths. A draft given as a path is read from where it is.
 
 ## Layout
 

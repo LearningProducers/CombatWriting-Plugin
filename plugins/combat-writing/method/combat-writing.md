@@ -5,7 +5,7 @@
 
 Combat Writing™ methodology by Learning Producers Inc., Israel Hernandez, founder. https://combatwriting.learningproducers.com. Licensed under CC BY-NC-SA 4.0. The full license text is in LICENSES/CC-BY-NC-SA-4.0.txt at the repository root; the attribution designation, the internal-use permission and the brand statement are in NOTICE.
 
-This file holds the 19 steps as they stand in the Combat Writing app (v41.9, Methodology tab), the four stages, the rating contract, the terms the plugin uses, and a list of every place where the plugin departs from the steps. The steps are kept as written. The plugin's departures are listed at the end, not folded into the steps.
+This file holds the 19 steps as they stand in the Combat Writing app's Methodology tab, the four stages, the rating contract, the terms the plugin uses, and a list of every place where the plugin departs from the steps. The steps are kept as written. The plugin's departures are listed at the end, not folded into the steps.
 
 ## Terms
 

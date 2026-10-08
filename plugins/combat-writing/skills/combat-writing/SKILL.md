@@ -23,7 +23,7 @@ You are the host. The method is in `${CLAUDE_PLUGIN_ROOT}/method/combat-writing.
 
 Decide once per session, say it in the first result, and record it.
 
-- **Fresh readers** (Claude Code, Cowork, any host with a tool that starts a separate agent and a shell that runs Node): each seat is the `seat` agent from this plugin, started fresh for one job, handed a packet path and an answer path. You are never a seat. The run folder on disk is the record. This is the full method.
+- **Fresh readers** (any host with a tool that starts a separate agent and a shell that runs Node): each seat is the `seat` agent from this plugin, started fresh for one job, handed a packet path and an answer path. You are never a seat. The run folder on disk is the record. This is the full method.
 - **One seat, the host** (chat, or any host with no tool that starts a separate agent): there is no fresh reader and no disk. You run the method yourself as the one seat: you write the rating line first, then the critique, and every result says "Crew: one seat, the host, <model> (<company>)". You still never use 7, never average, and still treat the draft as untrusted. Say plainly that this is the one-seat form of the method and that fresh readers need a host that can start agents.
 - **With the add-on** (`combat-writing-crew`, a later part): the same packets go to other companies' models on the person's own keys, and the crew line names each company.
 

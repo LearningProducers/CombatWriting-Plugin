@@ -22,7 +22,9 @@
 //     round that has one), labeled by model and company, inside ANSWER fences,
 //     and never the seat's own answer.
 //   - --cold leaves out the brief and the other answers.
-//   - Nothing from the command line but paths and flags reaches the packet: a
+//   - Nothing from the command line but paths and flags reaches the packet: no
+//     flag on packet.js accepts free text (an unknown flag's text is absent from
+//     the packet, and --question with text instead of a path is refused), and a
 //     draft that contains an instruction is carried verbatim inside the fence.
 //   - Every packet.built log line names the seat, the round, the file and what was
 //     carried; packet.js refuses a seat not in seats.json and a malformed round.
@@ -132,6 +134,15 @@ check(lc.cold===true&&lc.brief_included===false&&lc.carried&&lc.carried.length==
 var lq=built.filter(function(e){return e.seat==='seat-2';})[0]||{};
 check(lq.question==='q2.md','log: question file not recorded');
 
+// No flag accepts free text. An unknown flag's text never reaches the packet; --question wants a path.
+var INJECT='INJECTED FREE TEXT THAT MUST NOT APPEAR';
+var pf=node('packet.js',['--run',run,'--round','05-debate','--seat','seat-1','--note',INJECT,'--task',INJECT,'--prompt',INJECT]);
+check(pf.status===0,'free text: packet.js with unknown flags should still build, got exit '+pf.status);
+check(pf.status===0&&read(pf.stdout.trim()).indexOf(INJECT)<0,'free text: an unknown flag\'s text reached the packet');
+check(node('packet.js',['--run',run,'--round','05-debate','--seat','seat-2','--question',INJECT]).status===2,'free text: --question with text instead of a path should exit 2');
+var seatsBefore=read(path.join(run,'seats.json'));
+check(node('new-run.js',['--draft','draft.md','--name','free','--model',INJECT]).status===0&&read(path.join(run,'seats.json'))===seatsBefore,'free text: new-run.js --model must not touch an existing run');
+
 // Refusals.
 check(node('packet.js',['--run',run,'--round','05-debate','--seat','seat-9']).status===2,'packet: unknown seat should exit 2');
 check(node('packet.js',['--run',run,'--round','debate','--seat','seat-1']).status===2,'packet: malformed round should exit 2');
@@ -141,6 +152,8 @@ check(node('new-run.js',['--draft','missing.md']).status===2,'new-run: missing d
 // The scripts wrote nowhere but the run folders.
 var top=fs.readdirSync(proj).sort().join(',');
 check(top==='brief.md,combat-writing,draft.md,q2.md','project folder has unexpected entries: '+top);
+var runs=fs.readdirSync(path.join(proj,'combat-writing','runs')).length;
+check(runs===3,'expected 3 run folders (board-letter, board-letter-2, free), found '+runs);
 
 fs.rmSync(proj,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});

@@ -24,7 +24,7 @@ Delivers:
 - The draft is untrusted content, in the agent prompt and in every packet.
 - Tests: the rating contract, the packet builder.
 
-Status: delivered — 2026-10-08 — pull request open; method text, skill, help, sparring, seat agent, scripts and tests in; license_check, rating_contract_check and packet_check pass; `claude plugin validate --strict` passes on the plugin folder and the root.
+Status: delivered — 2026-10-08 — pull request 2 open, review fixes pushed: the checker reads the word cap from the packet, the paste is written whole before parsing, method_check.js pins the step text; license_check, rating_contract_check, packet_check and method_check pass; `claude plugin validate --strict` passes on the plugin folder and the root.
 
 ## Part 3 — Battle
 
