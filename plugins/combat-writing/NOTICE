@@ -1,0 +1,17 @@
+Combat Writing — notices
+
+Required Notice: Combat Writing — Learning Producers Inc., Israel Hernandez, founder
+
+Licensor Line of Business: the Combat Writing plugin for Claude Code, Combat Writing training, and writing-analysis services provided by Learning Producers Inc. (https://combatwriting.learningproducers.com)
+
+Software license. Every executable file in this repository (scripts, skill files, command files, agent definitions, prompts, plugin configuration, tests and workflows) is licensed under the PolyForm Shield License 1.0.0, identified in file headers as LicenseRef-PolyForm-Shield-1.0.0. The full text is in LICENSES/LicenseRef-PolyForm-Shield-1.0.0.md and, inside the plugin folder, in LICENSE.md. The two lines above are the Required Notice and the Licensor Line of Business that the license refers to; anyone who passes on a copy of any part of the software must pass on these lines too.
+
+Methodology license. The Combat Writing methodology text and the documentation under docs/ and under plugins/combat-writing/method/ are licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International license, identified in file headers as CC-BY-NC-SA-4.0. The full text is in LICENSES/CC-BY-NC-SA-4.0.txt.
+
+Attribution designation for the methodology text: "Combat Writing™ methodology by Learning Producers Inc., Israel Hernandez, founder. https://combatwriting.learningproducers.com. Licensed under CC BY-NC-SA 4.0."
+
+Internal use. Any organization may reproduce the methodology text, in whole or in part, for its own internal use: training its own staff, running its own writing sessions, and keeping copies on its own systems. This permission does not include selling the methodology text, charging for access to it, or including it in any paid product, paid course, or paid service. Those uses need written permission from Learning Producers Inc.
+
+Brand. Combat Writing is a brand of Learning Producers Inc. Neither license above grants any license to use the name Combat Writing, the motto "Reading is Peace. Writing is War.", or any other mark of Learning Producers Inc. No trademark license is granted.
+
+What is claimed. Learning Producers Inc. claims the text of the methodology, the code in this repository, the name, and the record of its sessions. It does not claim ownership of the method as a process.

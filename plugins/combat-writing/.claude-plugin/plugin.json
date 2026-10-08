@@ -1,0 +1,14 @@
+{
+  "name": "combat-writing",
+  "displayName": "Combat Writing",
+  "version": "0.1.0",
+  "description": "Combat Writing: a crew of AI model seats attacks your draft. Sparring: every seat rates it 1 to 10 on its first line, 7 forbidden, with its own critique. Battle: every seat reads the others, quotes them by model name, and rates again; a changed rating carries the quote and the reasoning. The rating leads every result; scores are never averaged. Help explains the method.",
+  "author": {
+    "name": "Learning Producers Inc.",
+    "url": "https://learningproducers.com"
+  },
+  "homepage": "https://combatwriting.learningproducers.com",
+  "repository": "https://github.com/LearningProducers/CombatWriting-Plugin",
+  "license": "LicenseRef-PolyForm-Shield-1.0.0",
+  "keywords": ["writing", "critique", "editing", "review", "drafts"]
+}
