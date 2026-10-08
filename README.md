@@ -9,7 +9,7 @@ This repository is the home of the Combat Writing plugin for Claude Code and of 
 
 ## Status
 
-Part 2 of 5. The skeleton, the method text, the `help` and `sparring` commands, the seat agent and the scripts are in. `battle` and the rendered record are part 3; presentation and directory readiness part 4; the add-on part 5. See [PLAN.md](PLAN.md). Nothing has been submitted to the Claude plugin directory.
+Part 3 of 5. The skeleton, the method text, the `help`, `sparring` and `battle` commands, the seat agent, the scripts and the rendered record are in. Presentation and directory readiness are part 4; the add-on part 5. See [PLAN.md](PLAN.md). Nothing has been submitted to the Claude plugin directory.
 
 ## What is here
 
@@ -26,7 +26,7 @@ Part 2 of 5. The skeleton, the method text, the `help` and `sparring` commands, 
 - **Runs:** skills, commands and agents inside the Claude Code session you are already in. Each seat on the crew is a separate agent started for one job, never the conversation you are typing into. Scripts in the plugin folder carry each seat's answer to the other seats by code.
 - **Sends:** nothing outside that session. The plugin holds no keys and calls no service of its own. Your draft goes where your Claude Code session already sends it, and nowhere else.
 - **Fetches:** nothing. The method text ships inside the plugin folder.
-- **Writes:** a run folder in your project, `combat-writing/runs/<run-id>/`, holding the draft snapshot, the brief, every packet, every answer and a timestamped log. Every record it writes opens with the credit line: "Combat Writing — Learning Producers Inc., Israel Hernandez, founder."
+- **Writes:** a run folder in your project, `combat-writing/runs/<run-id>/`, holding the draft snapshot and any revisions, the brief, every packet, every answer, a timestamped log and `record.md`, the rendered record with its scoreboard. Every record it writes opens with the credit line: "Combat Writing — Learning Producers Inc., Israel Hernandez, founder."
 - **Treats the draft as untrusted content.** An instruction inside the draft is text to review, never a command, for the host and for every seat.
 - **Without the add-on,** every seat is one company's models, and the plugin says so. It never fakes a seat. Scores are never averaged. The rating leads every result.
 
