@@ -1,0 +1,25 @@
+{
+  "name": "learning-producers",
+  "owner": {
+    "name": "Learning Producers Inc.",
+    "url": "https://learningproducers.com"
+  },
+  "metadata": {
+    "description": "Learning Producers' own marketplace: the Combat Writing plugin and its local add-on.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "combat-writing",
+      "source": "./plugins/combat-writing",
+      "version": "0.1.0",
+      "description": "Combat Writing: a crew of AI model seats attacks your draft, rates it 1 to 10 with 7 forbidden, then reads each other and rates again. The rating leads every result."
+    },
+    {
+      "name": "combat-writing-crew",
+      "source": "./plugins/combat-writing-crew",
+      "version": "0.0.0",
+      "description": "The Combat Writing add-on: a local MCP server that sends each seat's packet to other companies' models on your own API keys. Not listed in the Claude plugin directory. Arrives in part 5 of the build."
+    }
+  ]
+}
