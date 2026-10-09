@@ -41,7 +41,7 @@ node ${CLAUDE_PLUGIN_ROOT}/scripts/packet.js --run <folder> --round <nn>-battle 
 
 Build all packets before any seat starts: every packet reads the same previous round, and no seat sees another's new answer before giving its own. The packet carries the draft (fenced as untrusted content), the brief, the seat's own earlier turn, and the other seats' answers from the previous round labeled by model and company; a seat that gave no answer in that round is listed as missing, and nothing stands in for it. The word cap is 600 in battle because seats quote others.
 
-Then start all seats in one go, in parallel, each as the `seat` agent from this plugin, with this and only this as its task:
+Then start all seats in one go. Each fresh reader (a seat in `seats.json` with no `provider` field) starts as the `seat` agent from this plugin, with this and only this as its task; each outside seat (a seat with a `provider` field, added by the add-on's `crew_register`) goes through the add-on instead: call `crew_answer` with `run`, `round` and `seat`, which reads the same packet and writes the same answer file. If a run has no outside seats and the add-on is present, `crew_register` may be called on it first.
 
 ```
 Packet: <absolute packet path>
@@ -60,7 +60,7 @@ node ${CLAUDE_PLUGIN_ROOT}/scripts/packet.js --run <folder> --round <nn>-final -
 node ${CLAUDE_PLUGIN_ROOT}/scripts/packet.js --run <folder> --round <nn>-final --seat <seat id> --final redflag
 ```
 
-The answer files are `<seat>.sn.answer.md` and `<seat>.redflag.answer.md`. These reads use the app's own first lines, `S/N RATIO: XX%` and `NO RED FLAGS` or `RED FLAGS FOUND: X`; they are not ratings and the 7 rule does not apply to them. No other seat's answer is carried. Both numbers go on the scoreboard per seat and are never averaged.
+The answer files are `<seat>.sn.answer.md` and `<seat>.redflag.answer.md`. For an outside seat, call `crew_answer` twice, with `read: sn` and `read: redflag`, instead of starting agents. These reads use the app's own first lines, `S/N RATIO: XX%` and `NO RED FLAGS` or `RED FLAGS FOUND: X`; they are not ratings and the 7 rule does not apply to them. No other seat's answer is carried. Both numbers go on the scoreboard per seat and are never averaged.
 
 ## 7. Check every answer
 

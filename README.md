@@ -9,7 +9,7 @@ This repository is the home of the Combat Writing plugin for Claude Code and of 
 
 ## Status
 
-Part 4 of 5. The skeleton, the method text, the `help`, `sparring` and `battle` commands, the seat agent, the scripts, the rendered record, the visual board, the eval cases and the directory checklist pass ([docs/directory-checklist.md](docs/directory-checklist.md)) are in. The add-on is part 5. See [PLAN.md](PLAN.md). Nothing has been submitted to the Claude plugin directory; the portal's Validate button is the owner's step.
+Part 5 of 5. The skeleton, the method text, the `help`, `sparring` and `battle` commands, the seat agent, the scripts, the rendered record, the visual board, the eval cases, the directory checklist pass ([docs/directory-checklist.md](docs/directory-checklist.md)) and the add-on are in. See [PLAN.md](PLAN.md). Nothing has been submitted to the Claude plugin directory; the portal's Validate button is the owner's step.
 
 ## What is here
 
@@ -32,7 +32,7 @@ Part 4 of 5. The skeleton, the method text, the `help`, `sparring` and `battle` 
 
 ## The add-on
 
-`plugins/combat-writing-crew/` is a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew can be more than one company's models. It is installed from this repository as a marketplace, not from the directory. Keys are never stored in a file. It arrives in part 5.
+`plugins/combat-writing-crew/` is a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew can be more than one company's models. It is installed from this repository as a marketplace, not from the directory. Each key goes only to its own provider, never to Learning Producers, and is never stored in a file: a masked prompt first, an environment variable only when the prompt is empty. One free Groq key seats two outside models beside the fresh readers. See [its README](plugins/combat-writing-crew/README.md).
 
 ## Licensing
 

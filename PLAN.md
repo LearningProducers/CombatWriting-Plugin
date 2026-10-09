@@ -55,10 +55,11 @@ Status: delivered — 2026-10-08 — pull request 4 open, review fixes pushed: t
 ## Part 5 — The add-on
 
 Delivers:
-- plugins/combat-writing-crew/ as a local MCP server, shipped from this repository through LPI's own marketplace, not listed in the directory.
-- Packets sent to other companies' models on the person's own keys. Seats named by model and company.
-- The key route. Proposed: a masked prompt (`userConfig` with `sensitive: true`) first; an environment variable only when the prompt's value is empty; never a file. Israel rules at part 5.
-- The marketplace entry completed. The listed plugin's "one company's models" notice replaced by the real crew when the add-on is present.
-- Tests.
+- `plugins/combat-writing-crew/`: a local MCP server over stdio (`server.js`, plain Node, no dependencies) with `crew_list`, `crew_register` and `crew_answer`; `crew-lib.js`; `providers.json` (Groq first; xAI, Perplexity, OpenAI, Mistral, Gemini's compatible endpoint and Ollama as entries; Anthropic as a stub); the manifest with masked key prompts and the server entry; README, LICENSE.md and NOTICE copies.
+- The key route as ruled: the masked prompt first, an environment variable only when the prompt is empty, never a file. Each key goes only to its own provider.
+- Outside seats named from the model field the API returns, by model and maker with the serving provider stated; models resolved from the live catalog by family (largest live gpt-oss, newest live Qwen), no id in code; the record carries the returned id.
+- The app's call budget (8,000-token wall, 1,200 floor, 2,800 ceiling), "Too long to send" before sending, a per-provider window with a wait, one Retry-After retry on 429; a failed, refused or keyless seat is missing.
+- The listed plugin's skill and commands use the crew tools when `crew_list` is present and say "one company's models" when it is not; the record and board name each seat's provider and both name sources.
+- Tests: `crew_check.js` against a fake OpenAI-compatible server on localhost, `marketplace_check.js`; CI validates the add-on folder too; the checklist confirms the listed plugin still holds no keys and makes no outside call.
 
-Status: not started — 2026-10-08 — waits on part 4.
+Status: delivered — 2026-10-09 — pull request open, stacked on part 4's branch because pull request 4 was still open; all ten checks pass; `claude plugin validate --strict` passes on both plugin folders, the root and each component folder. Not run from this machine: a real provider call; the first real run is Israel's.

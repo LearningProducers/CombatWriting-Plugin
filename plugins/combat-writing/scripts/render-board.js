@@ -143,7 +143,7 @@ html.push('</style></head><body><main>');
 html.push('<p class="credit">'+esc(lib.CREDIT)+'</p>');
 html.push('<p class="motto">Reading is Peace. Writing is War.</p>');
 html.push('<div class="bar"><h1>Combat Writing board — '+esc(path.basename(runDir))+'</h1><button type="button" id="theme" aria-label="Switch light and dark">Light / dark</button></div>');
-html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies.')+' Seat names come from the agent configuration, not from an API field.</p>');
+html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies: '+esc(companies.join(', '))+'.')+' '+esc(lib.nameSources(seats))+'</p>');
 html.push('<p class="meta"><strong>Drafts:</strong> '+esc(drafts.join(', '))+'.'+(fs.existsSync(path.join(runDir,'brief.md'))?' <strong>Brief:</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
 
 html.push('<h2>Scoreboard</h2>');

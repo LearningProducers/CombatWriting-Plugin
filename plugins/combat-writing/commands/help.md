@@ -38,7 +38,7 @@ A crew of seats attacks your draft. Each seat is one model judging it. Every sea
 
 - **Fresh readers.** The host can start separate agents and run Node: each seat is a separate reader started for one job, with no memory of this conversation, never the host itself.
 - **One seat, the host.** The host cannot start separate agents: it reads as the one seat, says so in every result, and still follows every rule.
-- **With the add-on.** `combat-writing-crew`, installed from the same repository, sends the packets to other companies' models on your own keys; then the crew is more than one company.
+- **With the add-on.** `combat-writing-crew`, installed from the same repository (`/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin`), sends the packets to other companies' models on your own keys, each key only to its own provider; then the crew is more than one company, and one free Groq key seats two outside models.
 - Without the add-on, every seat is one company's models, and every result says so. The plugin never fakes a seat.
 - [Right now: which of the three applies.]
 

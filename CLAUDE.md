@@ -37,10 +37,11 @@ The motto is "Reading is Peace. Writing is War." It is brand. It is never soften
 - Sparring: each seat reads the draft alone; the person may put a different focus question or navigation note to each seat; seats may be shown each other's answers and debate the scores.
 - Battle (the `battle` command): every seat reads the other seats' latest answers and gives a new critique and a new rating, quoting the others by model name. Most synthesis happens here.
 - A flip carries an attributed quote and the reasoning.
-- Every seat is named by model and company. No anonymous round. Agent files set `model: inherit`; no model name or alias in any file. The name in the output comes from what the host knows about the agent it ran, and the record says the name comes from the agent configuration, not from an API field. When the host cannot tell, the seat is recorded as "model unreported" with its company.
+- Every seat is named by model and company. No anonymous round. Agent files set `model: inherit`; no model name or alias in any file. A fresh reader's name comes from what the host knows about the agent it ran, and the record says that name comes from the agent configuration, not from an API field; an outside seat's name comes from the model field its provider's API returned, and the record says so. When the host cannot tell a fresh reader's model, the seat is recorded as "model unreported" with its company.
 - Claude's seat is a fresh reader (an agent), never the host's running conversation. Where no agent tool exists (chat), the skill says plainly that the crew is one seat, the host, and still runs the method.
 - Each seat's answer is carried to the other seats by code, never copied by hand.
-- A crew with no paid keys is allowed. The plugin never fakes a seat. With no add-on it says the crew is one company's models.
+- A crew with no paid keys is allowed: the fresh readers plus Groq's free models through the add-on. The plugin never fakes a seat. With no add-on it says the crew is one company's models.
+- The add-on (`plugins/combat-writing-crew/`, ruled 2026-10-08): a local MCP server, installed from this repository's marketplace, never listed. It sends each seat's packet to other companies' models on the person's own keys; each key goes only to its own provider, never to LPI, never into a file. Keys come from the masked prompt (`userConfig`, `sensitive: true`) first, from an environment variable only when the prompt's value is empty, never from a file. Outside seats are named from the model field the API returns, by model and maker with the serving provider stated; no model id is written in the add-on, and a seat resolves from the provider's live catalog by family (a pattern and a preference). The host knows the add-on is present when the `crew_list` tool is in its tool list. Outside seats read the same packets and write into the same run folder as the fresh readers. A seat that fails, has no key or is too long to send is shown as missing.
 - Output is organized and easy on the eyes, with a visual element. A help command explains the plugin.
 - The method text ships inside the plugin folder. Nothing is fetched.
 - The 19 steps are kept as written in the app. Only lines naming the host are reworded to "the host"; seat names stay. Every departure the plugin makes from the steps is listed in the method text under "Where the plugin departs from the steps".
@@ -81,7 +82,13 @@ plugins/combat-writing/                the listed plugin
   method/combat-writing.md             the methodology text, CC-licensed; mirrored at docs/combat-writing.md
   evals/                               three claude plugin eval cases and their README; results/ is ignored
 docs/directory-checklist.md            the pre-submission checklist pass, item by item
-plugins/combat-writing-crew/           the add-on: a local MCP server (part 5)
+plugins/combat-writing-crew/           the add-on: a local MCP server, never listed
+  .claude-plugin/plugin.json           the manifest: license, userConfig (masked keys), the mcpServers entry for server.js
+  README.md                            what it is, install, keys and surfaces, what it sends where, rate limits
+  LICENSE.md, NOTICE                   byte-identical copies of the root texts
+  server.js                            the MCP server over stdio: crew_list, crew_register, crew_answer
+  crew-lib.js                          the key route, the catalog filter, the budget, the window
+  providers.json                       provider entries: address, key names, families, budget; no model id
 ```
 
 Everything the listed plugin runs lives inside plugins/combat-writing/. The directory scans only that folder.
@@ -113,8 +120,8 @@ The manifest description follows the directory policy line "Descriptions must no
 
 ## Test style
 
-Plain Node, no dependencies, one file per concern named `*_check.js`, a header comment that says what the test pins and how to run it, run from the repository root, exit 0 on pass and 1 on any failure, one printed line per failure. CI runs every `tests/*_check.js` on each pull request and on main, then `claude plugin validate --strict` on the plugin folder and on the repository root.
+Plain Node, no dependencies, one file per concern named `*_check.js`, a header comment that says what the test pins and how to run it, run from the repository root, exit 0 on pass and 1 on any failure, one printed line per failure. A test of a network client runs it against a fake server on localhost, never a real provider. CI runs every `tests/*_check.js` on each pull request and on main, then `claude plugin validate --strict` on both plugin folders and on the repository root.
 
 ## Rulings pending
 
-- Part 5: the key route. Proposed: a masked prompt (`userConfig` with `sensitive: true`) first; an environment variable only when the prompt's value is empty; never a file.
+None. The key route was ruled on 2026-10-08 as proposed: the masked prompt first, an environment variable only when the prompt's value is empty, never a file.

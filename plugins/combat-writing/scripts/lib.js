@@ -71,9 +71,18 @@ function readSeats(runDir){
 
 // A seat's label as it appears in every packet and every result: model and company, never anonymous.
 // When the host could not tell the model, the company carries the name; no model name lives in this code.
+// An outside seat (from the crew add-on) also names the provider that served it.
 function seatLabel(seat){
   if(!seat.model||seat.model===MODEL_UNREPORTED)return seat.company+' model, name not reported, '+seat.id;
-  return seat.model+' ('+seat.company+'), '+seat.id;
+  return seat.model+' ('+seat.company+(seat.served_by?', served by '+seat.served_by:'')+'), '+seat.id;
+}
+// Where the seats' names come from, for the crew line: the agent configuration for fresh readers,
+// the provider's API response for outside seats, or both.
+function nameSources(seats){
+  var fresh=seats.some(function(s){return !s.provider;}), outside=seats.some(function(s){return !!s.provider;});
+  if(fresh&&outside)return 'Fresh readers are named from the agent configuration; outside seats from the model field their provider\'s API returned.';
+  if(outside)return 'Seat names come from the model field each provider\'s API returned.';
+  return 'Seat names come from the agent configuration, not from an API field.';
 }
 
 // Drafts in order: draft.md, draft-2.md, draft-3.md ... The last is the newest.
@@ -290,7 +299,7 @@ module.exports={
   CREDIT:CREDIT,RUNS_DIR:RUNS_DIR,DEFAULT_WORD_CAP:DEFAULT_WORD_CAP,DEFAULT_SYNTHESIS_WORD_CAP:DEFAULT_SYNTHESIS_WORD_CAP,
   DEFAULT_FINAL_WORD_CAP:DEFAULT_FINAL_WORD_CAP,DEFAULT_COMPANY:DEFAULT_COMPANY,MODEL_UNREPORTED:MODEL_UNREPORTED,
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
-  parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,seatLabel:seatLabel,
+  parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,seatLabel:seatLabel,nameSources:nameSources,
   listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   capSent:capSent,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,flipInputs:flipInputs,wordCount:wordCount,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip

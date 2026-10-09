@@ -29,7 +29,9 @@ New run, with the draft and brief files from step 1 (or the paths the person gav
 node ${CLAUDE_PLUGIN_ROOT}/scripts/new-run.js --draft <draft file> [--brief <brief file>] [--seats N] --model "<the model you know you are running, or omit>"
 ```
 
-It prints the run folder. Continuing: use the folder given. The round name is the next two-digit number plus the kind: `01-sparring`, `02-debate`, `02-sparring` for a second plain round, `01-cold` for a cold read. List `rounds/` to find the next number.
+It prints the run folder. Continuing: use the folder given.
+
+If the add-on is present (a `crew_list` tool from the `combat-writing-crew` server), call `crew_register` with the new run folder now, before any packet: the available outside seats join `seats.json`. Without the add-on, skip this; the crew is one company's models and the result says so. The round name is the next two-digit number plus the kind: `01-sparring`, `02-debate`, `02-sparring` for a second plain round, `01-cold` for a cold read. List `rounds/` to find the next number.
 
 ## 4. Build every packet, then start every seat at once
 
@@ -39,7 +41,7 @@ For each seat in `seats.json`: if it has a question or note, copy its question f
 node ${CLAUDE_PLUGIN_ROOT}/scripts/packet.js --run <folder> --round <round> --seat <seat id> [--question rounds/<round>/<seat>.question.md] [--cold]
 ```
 
-Then start all seats in one go, in parallel, each as the `seat` agent from this plugin, with this and only this as its task:
+Then start all seats in one go. Each fresh reader (a seat in `seats.json` with no `provider` field) starts as the `seat` agent from this plugin, with this and only this as its task; each outside seat (a seat with a `provider` field) goes through the add-on instead: call `crew_answer` with `run`, `round` and `seat`, which reads the same packet and writes the same answer file.
 
 ```
 Packet: <absolute packet path>

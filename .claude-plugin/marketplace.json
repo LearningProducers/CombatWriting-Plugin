@@ -18,8 +18,8 @@
     {
       "name": "combat-writing-crew",
       "source": "./plugins/combat-writing-crew",
-      "version": "0.0.0",
-      "description": "The Combat Writing add-on: a local MCP server that sends each seat's packet to other companies' models on your own API keys. Not listed in the Claude plugin directory. Arrives in part 5 of the build."
+      "version": "0.1.0",
+      "description": "The Combat Writing add-on: a local MCP server that sends each seat's packet to other companies' models on your own API keys, each key only to its own provider. Groq's free models need one Groq key. Not listed in the Claude plugin directory."
     }
   ]
 }
