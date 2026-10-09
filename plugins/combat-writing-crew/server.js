@@ -11,7 +11,8 @@
 //   crew_register  adds the available outside seats to a run's seats.json and logs it; the
 //                  listed plugin's packet.js then builds their packets like any seat's.
 //   crew_answer    takes a run folder, a round and a seat id (and `read`: rating, sn or
-//                  redflag); reads the packet file; checks it against the provider's call
+//                  redflag; and on a retry `note`, the failed check's reasons, appended after
+//                  the packet); reads the packet file; checks it against the provider's call
 //                  budget and reply floor; waits out the per-minute window; sends; writes the
 //                  answer file and a log line with the timestamp and the model id the API
 //                  returned; returns the path and the id. The answer text is never the thing
@@ -170,6 +171,9 @@ function answer(args){
   var round=String(args.round||'');
   var seatId=String(args.seat||'');
   var read=String(args.read||'rating');
+  // A retry note: the failed check's reasons, so an outside seat's second try is not blind. It rides after
+  // the packet in the user message, the way the host appends the reasons to a fresh reader's task.
+  var note=args.note!==undefined&&args.note!==null&&String(args.note).trim()?String(args.note).trim():'';
   if(!fs.existsSync(path.join(runDir,'seats.json')))throw new Error('run folder not found or not a Combat Writing run: '+runDir);
   if(!/^\d\d-[a-z][a-z0-9-]*$/.test(round))throw new Error('round must look like 02-battle');
   if(['rating','sn','redflag'].indexOf(read)<0)throw new Error('read must be rating, sn or redflag');
@@ -189,6 +193,7 @@ function answer(args){
     return Promise.resolve({ok:false,seat:seatId,missing:true,reason:'no key for '+provider.name+'; '+lib.keyHint(provider)+'. The seat is missing this round.'});
   }
   var packet=lib.readText(packetPath);
+  if(note)packet=packet.replace(/\s+$/,'')+'\n\n## Note from the host on this retry\n\nYour previous answer failed the check: '+note+'\nWrite it again, meeting the contract above.\n';
   var systemPrompt=systemPromptFor(read,seat);
   var budget=lib.budgetFor(provider,systemPrompt,packet);
   if(!budget.ok){
@@ -213,20 +218,23 @@ function answer(args){
         lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,model_requested:seat.model,model_returned:returned,file:path.relative(runDir,packetPath),reason:'empty reply'});
         return {ok:false,seat:seatId,missing:true,reason:'the provider returned an empty reply. The seat is missing this round.'};
       }
-      fs.writeFileSync(answerPath,text.replace(/\s+$/,'')+'\n');
-      // The record carries the id the API returned; the seat's name follows it.
+      // Trailing whitespace off every line, so a rating line the model padded still meets the contract.
+      text=text.split('\n').map(function(l){return l.replace(/[ \t\r]+$/,'');}).join('\n').replace(/\s+$/,'');
+      fs.writeFileSync(answerPath,text+'\n');
+      // The id requested is read before the seat's name follows the id the API returned, so the log shows both.
+      var requested=seat.model;
       if(returned&&returned!==seat.model){
         seat.model=returned;
         lib.writeSeats(runDir,seatsFile);
       }
       var usage=res.json.usage||{};
       lib.appendLog(runDir,{event:'crew.answered',round:round,seat:seatId,provider:provider.id,served_by:provider.name,company:seat.company,
-        model_requested:body_model(seat,returned),model_returned:returned,model_source:'API response model field',
-        file:path.relative(runDir,answerPath),packet:path.relative(runDir,packetPath),read:read,
+        model_requested:requested,model_returned:returned,model_changed:!!(returned&&returned!==requested),model_source:'API response model field',
+        file:path.relative(runDir,answerPath),packet:path.relative(runDir,packetPath),read:read,retry_note:note||null,
         input_tokens_estimated:budget.input,reservation:budget.reservation,
         usage:{prompt_tokens:usage.prompt_tokens||null,completion_tokens:usage.completion_tokens||null,total_tokens:usage.total_tokens||null},
         waited_ms:out.waited_ms,key_source:k.source});
-      return {ok:true,seat:seatId,file:answerPath,model_returned:returned,model_source:'API response model field',served_by:provider.name,company:seat.company,waited_ms:out.waited_ms,
+      return {ok:true,seat:seatId,file:answerPath,model_requested:requested,model_returned:returned,model_source:'API response model field',served_by:provider.name,company:seat.company,waited_ms:out.waited_ms,
         next:'run the listed plugin\'s check-answer.js on the file, then check-flip.js for a battle round'};
     });
   });
@@ -236,8 +244,6 @@ function answer(args){
     return {ok:false,seat:seatId,missing:true,reason:err.message+'. The seat is missing this round.'};
   });
 }
-function body_model(seat,returned){ return returned&&returned!==seat.model?seat.model+' (now '+returned+')':seat.model; }
-
 // ---- MCP over stdio ------------------------------------------------------------------------
 
 var TOOLS=[
@@ -246,7 +252,7 @@ var TOOLS=[
   {name:'crew_register',description:'Add every available outside seat to a Combat Writing run: appends them to the run\'s seats.json (named by the model id and its maker, served by the provider) and logs it. Run it once per run after new-run.js and before building packets. Returns the seats added and the ones unavailable with the reason.',
     inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder, combat-writing/runs/<run-id>'}},required:['run'],additionalProperties:false}},
   {name:'crew_answer',description:'Send one outside seat\'s packet for one round to its provider on the person\'s own key and write the answer file beside the packet. Checks the packet against the provider\'s call budget first (refuses with "Too long to send"), waits out the per-minute window, and records the model id the API returned. Returns the answer path and the id, never the text. A failed call leaves the seat missing for the round.',
-    inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder'},round:{type:'string',description:'the round, such as 02-battle'},seat:{type:'string',description:'the seat id, such as seat-4'},read:{type:'string',enum:['rating','sn','redflag'],description:'rating (default), or sn / redflag for the final reads'}},required:['run','round','seat'],additionalProperties:false}}
+    inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder'},round:{type:'string',description:'the round, such as 02-battle'},seat:{type:'string',description:'the seat id, such as seat-4'},read:{type:'string',enum:['rating','sn','redflag'],description:'rating (default), or sn / redflag for the final reads'},note:{type:'string',description:'on a retry only: the failed check\'s reasons, appended after the packet so the seat knows what to fix'}},required:['run','round','seat'],additionalProperties:false}}
 ];
 
 function textResult(obj,isError){ return {content:[{type:'text',text:JSON.stringify(obj,null,2)}],isError:!!isError}; }

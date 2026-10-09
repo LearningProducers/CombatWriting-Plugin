@@ -189,9 +189,9 @@ function contractOf(file){
   return 'rating';
 }
 
-// The first line's number under the rating contract, or null.
+// The first line's number under the rating contract, or null. Trailing whitespace is tolerated.
 function parseRating(text){
-  var first=(text||'').replace(/^﻿/,'').split(/\r?\n/)[0]||'';
+  var first=((text||'').replace(/^﻿/,'').split(/\r?\n/)[0]||'').replace(/[ \t]+$/,'');
   var m=/^RATING: (\d{1,2})\/10$/.exec(first);
   return m?parseInt(m[1],10):null;
 }
@@ -200,12 +200,14 @@ function parseRating(text){
 //   rating:  RATING: X/10, uppercase, X 1 to 10, never 7, nothing else on the line.
 //   sn:      S/N RATIO: XX%, XX 0 to 100, nothing else on the line. (The app's; no 7 ban.)
 //   redflag: NO RED FLAGS, or RED FLAGS FOUND: X with X 1 or more, nothing else on the line. (The app's.)
+//   Trailing spaces or tabs on the first line are tolerated on every contract; trailing text is not.
 function checkAnswer(text,wordCap,contract){
   contract=contract||'rating';
   var reasons=[];
   var cap=wordCap||(contract==='rating'?DEFAULT_WORD_CAP:DEFAULT_FINAL_WORD_CAP);
   var lines=text.replace(/^﻿/,'').split(/\r?\n/);
-  var first=lines[0]||'';
+  // Trailing spaces or tabs on the first line are tolerated; trailing text is not.
+  var first=(lines[0]||'').replace(/[ \t]+$/,'');
   var rating=null, value=null, m;
   if(first.trim()===''){
     reasons.push('first line is empty; the '+(contract==='rating'?'rating':contract==='sn'?'S/N RATIO':'red-flag')+' line must come first');

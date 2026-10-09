@@ -59,7 +59,7 @@ For each seat:
 node ${CLAUDE_PLUGIN_ROOT}/scripts/check-answer.js <answer file> --run <folder>
 ```
 
-With `--run` the checker uses the word cap the seat was actually sent, read from the run's log; `--word-cap N` overrides it only when the person asks for a different cap. On FAIL, start the same seat once more with the same packet and the check's reasons appended to its task ("Your previous answer failed the rating contract: <reasons>. Write it again."). If it fails twice, keep the failed file, record it, and show that seat as `FAILED READ` on the board with the reasons. Never edit a seat's answer. Never fill in a rating for it.
+With `--run` the checker uses the word cap the seat was actually sent, read from the run's log; `--word-cap N` overrides it only when the person asks for a different cap. On FAIL, start the same seat once more with the same packet and the check's reasons appended to its task ("Your previous answer failed the rating contract: <reasons>. Write it again."); for an outside seat, call `crew_answer` again with `note` set to those reasons, which the add-on appends after the packet. If it fails twice, keep the failed file, record it, and show that seat as `FAILED READ` on the board with the reasons. Never edit a seat's answer. Never fill in a rating for it.
 
 ## 6. Render and show the result
 

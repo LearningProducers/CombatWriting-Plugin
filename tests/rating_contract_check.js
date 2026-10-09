@@ -11,7 +11,8 @@
 // fail; lowercase "Rating:" fails; a rating line with trailing text fails; a
 // rating on the second line fails; an empty first line fails; a rating with no
 // reasoning fails; an answer over the word cap fails and under a raised cap
-// passes; a BOM before the rating line still passes; CRLF line endings pass;
+// passes; a BOM before the rating line still passes; CRLF line endings pass; trailing
+// spaces or a tab on the first line pass on every contract while trailing text fails;
 // --run appends an answer.checked line to the run's log; with --run and no
 // --word-cap the cap is the one the seat was sent: a packet built at 600 lets a
 // 502-word answer pass, the same answer fails without the run, and --word-cap
@@ -74,6 +75,12 @@ expectFail('lowered cap','RATING: 6/10\n'+new Array(60).join('word ')+'\n',/over
 
 expectPass('BOM','﻿RATING: 9/10\nReasoning.\n');
 expectPass('CRLF','RATING: 9/10\r\nReasoning.\r\n');
+// Trailing whitespace on the rating line is tolerated; trailing text is not.
+var sp=expectPass('two trailing spaces','RATING: 8/10  \nReasoning.\n');
+check(sp.summary&&sp.summary.rating===8,'two trailing spaces: rating not parsed');
+expectPass('trailing tab','RATING: 8/10\t\nReasoning.\n');
+expectFail('trailing text still fails','RATING: 8/10 ok\nReasoning.\n',/uppercase|not the rating line/);
+check(lib.parseRating('RATING: 6/10   \nx')===6,'parseRating: trailing spaces should still parse');
 
 // --run appends to the log.
 var runDir=path.join(tmp,'run'); fs.mkdirSync(path.join(runDir,'rounds','01-sparring'),{recursive:true});
@@ -128,6 +135,7 @@ check(named('seat-1.sn.answer.md','S/N RATIO: 101%\nx\n').code===1,'sn: 101% mus
 check(named('seat-1.sn.answer.md','S/N RATIO: 70\nx\n').code===1,'sn: missing percent sign must fail');
 check(named('seat-1.sn.answer.md','S/N Ratio: 70%\nx\n').code===1,'sn: lowercase must fail');
 check(named('seat-1.sn.answer.md','S/N RATIO: 70% because\nx\n').code===1,'sn: trailing text must fail');
+check(named('seat-1.sn.answer.md','S/N RATIO: 70%  \nx\n').code===0,'sn: two trailing spaces must pass');
 check(named('seat-1.sn.answer.md','RATING: 8/10\nx\n').code===1,'sn: a rating line is not an S/N line');
 check(named('seat-1.sn.answer.md','S/N RATIO: 70%\n'+new Array(260).join('word ')+'\n').code===1,'sn: over 250 words must fail');
 var rf0=named('seat-1.redflag.answer.md','NO RED FLAGS\nNothing an informed reader would distrust.\n');
@@ -137,6 +145,8 @@ check(rf2.code===0&&rf2.summary.value===2,'redflag: RED FLAGS FOUND: 2 should pa
 check(named('seat-1.redflag.answer.md','RED FLAGS FOUND: 0\nx\n').code===1,'redflag: FOUND: 0 must fail');
 check(named('seat-1.redflag.answer.md','No red flags\nx\n').code===1,'redflag: lowercase must fail');
 check(named('seat-1.redflag.answer.md','RED FLAGS FOUND: 2 — see below\nx\n').code===1,'redflag: trailing text must fail');
+check(named('seat-1.redflag.answer.md','NO RED FLAGS  \nx\n').code===0,'redflag: two trailing spaces must pass');
+check(named('seat-1.redflag.answer.md','RED FLAGS FOUND: 2 \nx\n').code===0,'redflag: a trailing space on the count line must pass');
 check(named('seat-1.redflag.answer.md','NO RED FLAGS\n').code===1,'redflag: no reasoning must fail');
 var ov=named('seat-1.answer.md','S/N RATIO: 70%\nx\n',['--contract','sn']);
 check(ov.code===0&&ov.summary.contract==='sn','--contract sn on a plain answer file should apply the sn contract');
