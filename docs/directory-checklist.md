@@ -20,7 +20,7 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 | File and folder names valid on Windows and macOS: no colon, trailing dot or space, device names, or names differing only by case | pass | every tracked name is letters, digits, hyphens, dots and underscores; no name holds a colon, a trailing dot or space, or a Windows device name; no two names differ only by case (`git ls-files` lowercased has no duplicate). Fourteen names carry uppercase letters (README.md, LICENSE.md, NOTICE, SKILL.md and the like), which the rule allows |
 | Path to the plugin made of letters, digits, dots, hyphens, underscores | pass | `plugins/combat-writing` |
 | No `export-ignore`, `export-subst`, `filter` or content-rewriting attributes in any `.gitattributes` | pass | no `.gitattributes` in the repository |
-| Repository under 50 MiB archived and 256 MiB unpacked, fewer than 10,000 entries; every plugin file under 5 MiB | pass | the repository's tracked files total 528 KiB on disk (53 files); the largest file in the repository is `tests/packet_check.js` at 26,578 bytes, and the largest in the plugin folder is `scripts/render-board.js` at 17,129 bytes, both measured on 2026-10-08 |
+| Repository under 50 MiB archived and 256 MiB unpacked, fewer than 10,000 entries; every plugin file under 5 MiB | pass | the repository's tracked files total under 1 MiB (reproduce with `git ls-files -z \| xargs -0 wc -c`; the exact total moves with every commit, so it is not pinned here); the largest file in the repository is `tests/packet_check.js` at 26,578 bytes, and the largest in the plugin folder is `scripts/render-board.js` at 17,214 bytes, as of 2026-10-09 |
 
 ## Manifest and plugin name
 
@@ -46,7 +46,7 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 
 | Item | Result | Satisfied by |
 |---|---|---|
-| Every non-image, non-font file under 256 KiB | pass | `tests/license_check.js` fails any file at or over 262,144 bytes; the largest plugin file is `scripts/render-board.js` at 17,129 bytes (2026-10-08) |
+| Every non-image, non-font file under 256 KiB | pass | `tests/license_check.js` fails any file at or over 262,144 bytes; the largest plugin file is `scripts/render-board.js` at 17,214 bytes (2026-10-09) |
 | 512 files or fewer | pass | the plugin folder holds 32 tracked files (2026-10-08) |
 | Only text files, SVG, complete PNG, JPEG, GIF, WebP and fonts; no other binary | pass | every file in the plugin folder is text (Markdown, JavaScript, JSON, YAML) |
 | Bundled images referenced only by Markdown image syntax, never from commands, hooks or scripts | n/a | the plugin bundles no image or font |

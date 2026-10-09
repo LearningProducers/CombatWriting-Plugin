@@ -21,7 +21,7 @@ From the Claude plugin directory once it is listed, or from Learning Producers' 
 
 ## Example prompts
 
-Each prompt below was run for real in October 2026, in a scratch project, with three seats. The block after each prompt is the first lines of what came back, labeled as example output; the model named in it is the one that answered that day, and yours may differ. The ratings are the seats' own; the draft was a CEO's letter asking a board to approve a letter of intent.
+Each prompt below was run for real on 2026-10-08, in a scratch project, with three seats. The block after each prompt is the first lines of what came back, labeled as example output; the model named in it is the one that answered that day, and yours may differ. The ratings are the seats' own; the draft was a CEO's letter asking a board to approve a letter of intent.
 
 ```
 /combat-writing:help

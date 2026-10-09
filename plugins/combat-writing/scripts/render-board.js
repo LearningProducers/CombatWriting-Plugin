@@ -77,7 +77,8 @@ for(var v=1;v<=10;v++){
 }
 svg.push('<line class="seven" x1="'+PL+'" x2="'+(PL+plotW)+'" y1="'+y(7).toFixed(1)+'" y2="'+y(7).toFixed(1)+'"/>');
 svg.push('<text class="tick seven-label" x="'+(PL+4)+'" y="'+(y(7)-4).toFixed(1)+'">7 is forbidden</text>');
-svg.push('<text class="tick" x="'+(PL-8)+'" y="'+(MISSING_Y+4).toFixed(1)+'" text-anchor="end">missing</text>');
+// The row label ends 14px left of the first column, clear of a marker there (radius 7).
+svg.push('<text class="tick" x="'+(PL-14)+'" y="'+(MISSING_Y+4).toFixed(1)+'" text-anchor="end">missing</text>');
 ratingRounds.forEach(function(r,i){ svg.push('<text class="tick" x="'+x(i).toFixed(1)+'" y="'+(H-PB+54)+'" text-anchor="middle">'+esc(r)+'</text>'); });
 // End labels: one per seat at its last point, nudged apart when seats end on the same rating.
 var endLabels=[];
@@ -101,7 +102,7 @@ seats.forEach(function(s,si){
     var c=grid[s.id][r];
     var cx=x(i).toFixed(1);
     if(c.rating===null){
-      var my=MISSING_Y+si*0;  // every missing seat sits on the missing row; the readout names the seat
+      var my=MISSING_Y;  // every missing seat sits on the missing row; the readout names the seat
       svg.push('<g class="pt missing" tabindex="0" data-seat="'+esc(lib.seatLabel(s))+'" data-round="'+esc(r)+'" data-value="'+esc(c.text)+'"><circle cx="'+cx+'" cy="'+my.toFixed(1)+'" r="7"/><line x1="'+(x(i)-4).toFixed(1)+'" x2="'+(x(i)+4).toFixed(1)+'" y1="'+(my-4).toFixed(1)+'" y2="'+(my+4).toFixed(1)+'"/><line x1="'+(x(i)-4).toFixed(1)+'" x2="'+(x(i)+4).toFixed(1)+'" y1="'+(my+4).toFixed(1)+'" y2="'+(my-4).toFixed(1)+'"/></g>');
       return;
     }
