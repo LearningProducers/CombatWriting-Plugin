@@ -25,10 +25,14 @@
 //   - crew_register appends the available seats to seats.json with provider, served_by, company
 //     and a source that names the API response, logs crew.registered, and is idempotent.
 //   - crew_answer reads the packet file, sends it with the system line and the resolved id, writes
-//     rounds/<round>/<seat>.answer.md with the reply, updates the seat's model to the id the API
-//     RETURNED (which the fake server makes differ from the request), and logs crew.answered with
-//     the timestamp, both ids, the usage, the key route and the file. The read of a final packet
-//     writes <seat>.sn.answer.md with the S/N contract in the system line.
+//     rounds/<round>/<seat>.answer.md with the reply (trailing whitespace stripped from every
+//     line), updates the seat's model to the id the API RETURNED (which the fake server makes
+//     differ from the request), and logs crew.answered with the timestamp, the id requested and
+//     the id returned as two separate fields, the usage, the key route and the file. The read
+//     of a final packet writes <seat>.sn.answer.md with the S/N contract in the system line.
+//   - A retry with `note` appends the failed check's reasons after the packet in the user
+//     message, logs the note, and requests the id the API returned last time; a blank note is
+//     no note.
 //   - A packet over the provider's budget is refused with "Too long to send" before any request,
 //     logged as crew.refused, and the seat is missing.
 //   - The per-minute window is honored: the fake Groq keeps the real 8,000-token wall with a
@@ -81,8 +85,11 @@ var fake=http.createServer(function(req,res){
       if(/EMPTYME/.test(user))return json(200,{model:body.model,choices:[{message:{role:'assistant',content:''}}]});
       if(/RATELIMIT/.test(user)&&!rateLimited){rateLimited=true;return json(429,{error:{message:'rate limit'}},{'Retry-After':'1'});}
       var sys=body.messages[0].content;
-      var content=/S\/N RATIO/.test(sys)?'S/N RATIO: 70%\nSignal: the ask. Noise: the posture.\n':/RED FLAGS/.test(sys)?'NO RED FLAGS\nNothing an informed reader would distrust.\n':'RATING: 8/10\nThe ask lands. seat-1 wrote "The ask lands in the first line." and I agree.\n';
-      return json(200,{id:'chatcmpl-1',model:body.model+'-0725',choices:[{message:{role:'assistant',content:content},finish_reason:'stop'}],usage:{prompt_tokens:321,completion_tokens:40,total_tokens:361}});
+      // The reply pads its lines with trailing spaces, as a real model did; the server must strip them.
+      var retried=/Note from the host on this retry/.test(user);
+      var content=/S\/N RATIO/.test(sys)?'S/N RATIO: 70%  \nSignal: the ask. Noise: the posture.   \n':/RED FLAGS/.test(sys)?'NO RED FLAGS \nNothing an informed reader would distrust.\n':(retried?'RATING: 6/10  \nSecond try, shorter. seat-1 wrote "The ask lands in the first line." and I agree.\n':'RATING: 8/10  \nThe ask lands. seat-1 wrote "The ask lands in the first line." and I agree.  \n');
+      // The returned id differs from the requested one by a date suffix, as a real provider's did; the suffix is not stacked on a re-request of the returned id.
+      return json(200,{id:'chatcmpl-1',model:body.model.replace(/-0725$/,'')+'-0725',choices:[{message:{role:'assistant',content:content},finish_reason:'stop'}],usage:{prompt_tokens:321,completion_tokens:40,total_tokens:361}});
     }
     json(404,{error:{message:'no route '+req.url}});
   });
@@ -172,7 +179,10 @@ fake.listen(0,'127.0.0.1',function(){
   }).then(function(r){
     check(!r.isError&&r.data.ok===true,'crew_answer: '+JSON.stringify(r.data));
     var ans=path.join(run,'rounds','01-sparring','seat-2.answer.md');
-    check(r.data.file===ans&&fs.existsSync(ans)&&/^RATING: 8\/10\n/.test(fs.readFileSync(ans,'utf8')),'crew_answer: answer file wrong or missing');
+    var ansText=fs.existsSync(ans)?fs.readFileSync(ans,'utf8'):'';
+    check(r.data.file===ans&&/^RATING: 8\/10\n/.test(ansText),'crew_answer: answer file wrong or missing');
+    check(!/[ \t]\n/.test(ansText)&&/\n$/.test(ansText)&&!/\n\n$/.test(ansText),'crew_answer: trailing whitespace must be stripped from every line, got '+JSON.stringify(ansText.slice(0,60)));
+    check(r.data.model_requested==='openai/gpt-oss-120b','crew_answer: the result should carry the id requested, got '+r.data.model_requested);
     check(r.data.model_returned==='openai/gpt-oss-120b-0725'&&r.data.model_source==='API response model field'&&r.data.served_by==='Groq'&&r.data.company==='OpenAI','crew_answer: model id must come from the response '+JSON.stringify(r.data));
     check(!('text' in r.data)&&!/The ask lands\. seat-1/.test(JSON.stringify(r.data)),'crew_answer: must return the path, never the answer text');
     var seats=JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats;
@@ -181,16 +191,31 @@ fake.listen(0,'127.0.0.1',function(){
     check(!!req&&req.auth==='Bearer gsk_FROM_THE_PROMPT'&&req.body.model==='openai/gpt-oss-120b'&&req.body.messages.length===2&&req.body.messages[0].role==='system'&&/RATING: X\/10/.test(req.body.messages[0].content)&&req.body.messages[1].content.indexOf('=== DRAFT BEGIN ===')>=0&&req.body.max_tokens>=1200&&req.body.max_tokens<=2800&&req.body.reasoning_effort==='low','crew_answer: request wrong '+JSON.stringify(req&&{auth:req.auth,model:req.body.model,max:req.body.max_tokens,extras:req.body.reasoning_effort}));
     check(req.body.messages[1].content===fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.packet.md'),'utf8'),'crew_answer: the user message must be the packet file, verbatim');
     var e=logOf(run).filter(function(x){return x.event==='crew.answered';})[0]||{};
-    check(e.ts&&e.round==='01-sparring'&&e.seat==='seat-2'&&e.provider==='groq'&&e.served_by==='Groq'&&e.company==='OpenAI'&&/openai\/gpt-oss-120b/.test(e.model_requested)&&e.model_returned==='openai/gpt-oss-120b-0725'&&e.model_source==='API response model field'&&e.file==='rounds/01-sparring/seat-2.answer.md'&&e.packet==='rounds/01-sparring/seat-2.packet.md'&&e.read==='rating'&&e.usage&&e.usage.total_tokens===361&&typeof e.waited_ms==='number'&&e.key_source==='prompt'&&typeof e.input_tokens_estimated==='number'&&typeof e.reservation==='number','crew_answer: log line incomplete '+JSON.stringify(e));
+    check(e.ts&&e.round==='01-sparring'&&e.seat==='seat-2'&&e.provider==='groq'&&e.served_by==='Groq'&&e.company==='OpenAI'&&e.model_requested==='openai/gpt-oss-120b'&&e.model_returned==='openai/gpt-oss-120b-0725'&&e.model_changed===true&&e.retry_note===null&&e.model_source==='API response model field'&&e.file==='rounds/01-sparring/seat-2.answer.md'&&e.packet==='rounds/01-sparring/seat-2.packet.md'&&e.read==='rating'&&e.usage&&e.usage.total_tokens===361&&typeof e.waited_ms==='number'&&e.key_source==='prompt'&&typeof e.input_tokens_estimated==='number'&&typeof e.reservation==='number','crew_answer: log line incomplete '+JSON.stringify(e));
     check(!/gsk_/.test(fs.readFileSync(path.join(run,'log.jsonl'),'utf8')),'log: a key value leaked into the log');
     // The listed plugin's checks read the outside seat's answer as any seat's.
     var ca=node('check-answer.js',[ans,'--run',run]);
     check(ca.status===0,'check-answer on the outside seat: exit '+ca.status+' '+ca.stdout.split('\n')[0]);
+    // A retry with a note: the failed check's reasons ride after the packet, and the log records the note.
+    return s1.call('crew_answer',{run:run,round:'01-sparring',seat:'seat-2',note:'rating is 7; 7 is forbidden, commit to 6 or 8; 530 words, over the cap of 500'});
+  }).then(function(r){
+    check(!r.isError&&r.data.ok&&/^RATING: 6\/10\nSecond try/.test(fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.answer.md'),'utf8')),'retry note: the second answer should replace the first, got '+JSON.stringify(r.data));
+    var req=requests.filter(function(q){return q.url==='/v1/chat/completions';}).pop();
+    var packetText=fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.packet.md'),'utf8');
+    check(req.body.messages[1].content.indexOf(packetText.replace(/\s+$/,''))===0&&/## Note from the host on this retry\n\nYour previous answer failed the check: rating is 7; 7 is forbidden, commit to 6 or 8; 530 words, over the cap of 500\nWrite it again/.test(req.body.messages[1].content),'retry note: the note must ride after the packet in the user message');
+    check(req.body.model==='openai/gpt-oss-120b-0725','retry note: the retry should request the id the API returned last time, got '+req.body.model);
+    var e2=logOf(run).filter(function(x){return x.event==='crew.answered';}).pop()||{};
+    check(e2.retry_note&&/7 is forbidden/.test(e2.retry_note)&&e2.model_requested==='openai/gpt-oss-120b-0725'&&e2.model_returned==='openai/gpt-oss-120b-0725'&&e2.model_changed===false,'retry note: log line wrong '+JSON.stringify(e2));
+    // A note with only whitespace is no note.
+    return s1.call('crew_answer',{run:run,round:'01-sparring',seat:'seat-2',note:'   '});
+  }).then(function(r){
+    var req=requests.filter(function(q){return q.url==='/v1/chat/completions';}).pop();
+    check(!r.isError&&r.data.ok&&req.body.messages[1].content.indexOf('Note from the host')<0&&/^RATING: 8\/10/.test(fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.answer.md'),'utf8')),'blank note: should send the packet alone');
     return s1.call('crew_answer',{run:run,round:'01-sparring',seat:'seat-3'});
   }).then(function(r){
     check(!r.isError&&r.data.ok&&r.data.model_returned==='qwen/qwen3.6-27b-0725'&&r.data.company==='Alibaba','crew_answer seat-3: '+JSON.stringify(r.data));
-    var req=requests.filter(function(q){return q.url==='/v1/chat/completions';})[1];
-    check(req&&req.body.reasoning_effort==='none','crew_answer: the qwen request extras were not applied');
+    var req=requests.filter(function(q){return q.url==='/v1/chat/completions';}).pop();
+    check(req&&req.body.model==='qwen/qwen3.6-27b'&&req.body.reasoning_effort==='none','crew_answer: the qwen request extras were not applied');
     // Battle: packets carry the outside seats' answers; the flip check and the record read them.
     node('check-answer.js',[path.join(run,'rounds','01-sparring','seat-3.answer.md'),'--run',run]);
     ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','02-battle','--seat',s]); });

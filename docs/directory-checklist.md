@@ -119,7 +119,7 @@ The add-on, `plugins/combat-writing-crew/`, is a separate plugin that is never s
 
 ## Items that need a ruling
 
-- **The description's scope.** `plugin.json` now describes sparring, battle, the flip check, the record and the board. When the add-on ships (part 5), the listed plugin's description must still describe only the listed plugin.
+- **The description's scope.** `plugin.json` describes sparring, battle, the flip check, the record and the board. The add-on (part 5) ships as its own plugin, and the listed plugin's description describes only the listed plugin; `tests/marketplace_check.js` keeps the two apart.
 - **The data handling answers** above are drafted from the code; Israel confirms them in the portal.
 
 ## Evals

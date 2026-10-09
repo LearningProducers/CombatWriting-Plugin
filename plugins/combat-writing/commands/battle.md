@@ -70,7 +70,7 @@ For each answer file:
 node ${CLAUDE_PLUGIN_ROOT}/scripts/check-answer.js <answer file> --run <folder>
 ```
 
-On FAIL, start the same seat once more with the same packet and the check's reasons appended to its task. If it fails twice, keep the failed file and record it; the record shows that seat as a failed read. Never edit a seat's answer. Never fill in a number for it. A seat that never answered is shown as missing, never replaced.
+On FAIL, start the same seat once more with the same packet and the check's reasons appended to its task; for an outside seat, call `crew_answer` again with `note` set to those reasons, which the add-on appends after the packet. If it fails twice, keep the failed file and record it; the record shows that seat as a failed read. Never edit a seat's answer. Never fill in a number for it. A seat that never answered is shown as missing, never replaced.
 
 Then, for every rating answer in a battle round:
 
