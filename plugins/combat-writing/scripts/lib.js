@@ -34,7 +34,12 @@ var MODEL_UNREPORTED='model unreported';
 var SN_PROMPT='Evaluate the signal-to-noise ratio of this final draft. Your first line must be: S/N RATIO: XX%';
 var REDFLAG_PROMPT='Check this final draft for red flags. Your first line must be exactly: NO RED FLAGS or RED FLAGS FOUND: X';
 var DEFAULT_READ_PROMPT='Read this rough draft and rate it on a scale from 1–10, you cannot use 7. Explain your reasoning with evidence.';
-var DEFAULT_SYNTHESIS_PROMPT='Read the other seats\' latest answers. Where do your interpretations overlap and where do they diverge? Give a new critique and a new rating of the draft.';
+// Battle (ruled 2026-10-09): a battle round asks for no rating unless the person asks with
+// `rerate`. The synthesis prompt has one form for each case.
+var DEFAULT_SYNTHESIS_PROMPT='Read the other seats\' latest answers. Where do your interpretations overlap and where do they diverge? Give a new critique of the structure and content of the draft.';
+var DEFAULT_SYNTHESIS_RERATE_PROMPT='Read the other seats\' latest answers. Where do your interpretations overlap and where do they diverge? Give a new critique and a new rating of the draft.';
+// The line a packet carries when the round asks for no rating; the checker and the add-on read it.
+var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your critique.';
 
 function parseArgs(argv){
   var out={_:[]};
@@ -103,7 +108,7 @@ function roundKind(round){ return round.replace(/^\d\d-/,''); }
 function isFinalRound(round){ return roundKind(round)==='final'; }
 
 // The round a synthesis packet reads: the latest round before `beforeRound` that holds
-// at least one rating answer. Final rounds are never read back; they rate nothing.
+// at least one answer (rated or not). Final rounds are never read back; they rate nothing.
 function previousRound(runDir,beforeRound){
   var rounds=listRounds(runDir).filter(function(r){return (!beforeRound||r<beforeRound)&&!isFinalRound(r);});
   for(var i=rounds.length-1;i>=0;i--){
@@ -112,21 +117,31 @@ function previousRound(runDir,beforeRound){
   }
   return null;
 }
-// Note: previousRound counts any rating answer file, sound or failed, so a round where every
+// Note: previousRound counts any answer file, sound or failed, so a round where every
 // seat failed is still the round read; its packets then list every seat as a failed read.
 
-// The word cap a seat was sent for one answer file: the round's packet.built log line for
-// that packet, else the "Under N words." line of the packet file, else null. check-answer.js
-// and roundAnswers use the same lookup, so a live check never applies a cap the seat was not sent.
-function capSent(runDir,round,answerFile,log){
+// The packet.built log line for one answer file, if any: the round's line for that packet.
+function packetLine(runDir,round,answerFile,log){
   var packetName=path.basename(answerFile).replace(/\.answer\.md$/,'.packet.md');
   var seatId=path.basename(answerFile).replace(/(\.sn|\.redflag)?\.answer\.md$/,'');
   log=log||readLog(runDir);
   for(var i=log.length-1;i>=0;i--){
     var e=log[i];
-    if(e.event==='packet.built'&&e.round===round&&e.seat===seatId&&e.file==='rounds/'+round+'/'+packetName&&typeof e.word_cap==='number')return e.word_cap;
+    if(e.event==='packet.built'&&e.round===round&&e.seat===seatId&&e.file==='rounds/'+round+'/'+packetName)return e;
   }
-  var packetPath=path.join(runDir,'rounds',round,packetName);
+  return null;
+}
+function packetPathOf(runDir,round,answerFile){
+  return path.join(runDir,'rounds',round,path.basename(answerFile).replace(/\.answer\.md$/,'.packet.md'));
+}
+
+// The word cap a seat was sent for one answer file: the round's packet.built log line for
+// that packet, else the "Under N words." line of the packet file, else null. check-answer.js
+// and roundAnswers use the same lookup, so a live check never applies a cap the seat was not sent.
+function capSent(runDir,round,answerFile,log){
+  var e=packetLine(runDir,round,answerFile,log);
+  if(e&&typeof e.word_cap==='number')return e.word_cap;
+  var packetPath=packetPathOf(runDir,round,answerFile);
   if(fs.existsSync(packetPath)){
     var m=/Under (\d+) words\./.exec(readText(packetPath));
     if(m)return parseInt(m[1],10);
@@ -134,28 +149,54 @@ function capSent(runDir,round,answerFile,log){
   return null;
 }
 
-// Every seat's rating answer in one round: {seat, file, text} when present and sound,
+// The first-line contract a seat was sent for one answer file (ruled 2026-10-09: a battle
+// round asks for no rating unless the person asks with `rerate`): the packet.built line's
+// contract, else the packet file's no-rating line, else the contract the file name implies.
+// Every live check of an answer file uses this, so a seat is never held to a contract it
+// was not sent.
+function contractSent(runDir,round,answerFile,log){
+  var e=packetLine(runDir,round,answerFile,log);
+  if(e&&e.contract)return e.contract;
+  var packetPath=packetPathOf(runDir,round,answerFile);
+  if(fs.existsSync(packetPath)&&readText(packetPath).indexOf(NO_RATING_LINE)>=0)return 'critique';
+  return contractOf(answerFile);
+}
+
+// What one round asked of its seats, from its packet.built lines: 'final', 'critique' or
+// 'rating'. With no packet line, 'rating' (the fallback for a round built by hand).
+function roundContract(runDir,round,log){
+  if(isFinalRound(round))return 'final';
+  log=log||readLog(runDir);
+  for(var i=0;i<log.length;i++){
+    var e=log[i];
+    if(e.event==='packet.built'&&e.round===round&&e.contract)return e.contract;
+  }
+  return 'rating';
+}
+
+// Every seat's answer in one round: {seat, file, text, contract} when present and sound,
 // {seat, missing:true} when there is no file, and {seat, missing:true, failed:true, reasons}
-// when the file is there but fails the rating contract: by the log's last check of it, or
-// by a live check at the cap the seat was sent (capSent), falling back to the default cap
-// only when neither exists. A failed read is never carried to another seat and never cited:
-// nothing stands in for it.
+// when the file is there but fails the contract it was sent (contractSent): by the log's last
+// check of it, or by a live check at the cap the seat was sent (capSent), falling back to the
+// default cap only when neither exists. A failed read is never carried to another seat and
+// never cited: nothing stands in for it.
 function roundAnswers(runDir,round,seats){
   var log=readLog(runDir);
   return seats.map(function(seat){
     var p=path.join(runDir,'rounds',round,seat.id+'.answer.md');
     if(!fs.existsSync(p))return {seat:seat,round:round,missing:true};
     var text=readText(p);
+    var contract=contractSent(runDir,round,p,log);
     var logged=null;
-    for(var i=log.length-1;i>=0;i--){var e=log[i];if(e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract==='rating')){logged=e;break;}}
+    for(var i=log.length-1;i>=0;i--){var e=log[i];if(e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract===contract)){logged=e;break;}}
     var cap=logged?logged.word_cap:capSent(runDir,round,p,log);
-    var check=checkAnswer(text,cap,'rating');
-    if(!check.ok)return {seat:seat,round:round,file:p,missing:true,failed:true,reasons:check.reasons};
-    return {seat:seat,round:round,file:p,text:text};
+    var check=checkAnswer(text,cap,contract);
+    if(!check.ok)return {seat:seat,round:round,file:p,missing:true,failed:true,reasons:check.reasons,contract:contract};
+    return {seat:seat,round:round,file:p,text:text,contract:contract,rating:check.rating};
   });
 }
 
-// The seat's own latest sound rating answer in any earlier non-final round: its earlier turn.
+// The seat's own latest sound answer in any earlier non-final round, rated or not: its earlier turn.
 function latestOwnAnswer(runDir,seat,beforeRound){
   var rounds=listRounds(runDir).filter(function(r){return (!beforeRound||r<beforeRound)&&!isFinalRound(r);});
   for(var i=rounds.length-1;i>=0;i--){
@@ -164,24 +205,44 @@ function latestOwnAnswer(runDir,seat,beforeRound){
   }
   return null;
 }
+// The seat's own latest sound RATED answer in any earlier non-final round: the number a new
+// rating is held against or flipped from.
+function latestOwnRating(runDir,seat,beforeRound){
+  var rounds=listRounds(runDir).filter(function(r){return (!beforeRound||r<beforeRound)&&!isFinalRound(r);});
+  for(var i=rounds.length-1;i>=0;i--){
+    var a=roundAnswers(runDir,rounds[i],[seat])[0];
+    if(!a.missing&&a.contract==='rating')return a;
+  }
+  return null;
+}
 
 // What a seat's packet in `round` read, for the flip check and the record: the round it read
 // (from the packet.built log line, else the previous round), the other seats' answers in that
-// round, and the seat's own earlier turn (from the log line, else its latest earlier answer).
+// round, the seat's own earlier turn (from the log line, else its latest earlier answer), and
+// the seat's latest earlier rating (from the log line's own_rating, else looked up), which is
+// what a flip is measured from when the earlier turn carried no rating.
 function flipInputs(runDir,seat,round,seats){
-  var reads=null, ownRound=null;
-  readLog(runDir).forEach(function(e){ if(e.event==='packet.built'&&e.round===round&&e.seat===seat.id&&e.mode!=='final-sn'&&e.mode!=='final-redflag'){reads=e.reads_round||null;ownRound=e.own_previous||null;} });
-  if(!reads)reads=previousRound(runDir,round);
-  var prevAnswers=reads?roundAnswers(runDir,reads,seats):[];
+  var reads=null, ownRound=null, ratedRound=null, line=null;
+  readLog(runDir).forEach(function(e){ if(e.event==='packet.built'&&e.round===round&&e.seat===seat.id&&e.mode!=='final-sn'&&e.mode!=='final-redflag'){line=e;reads=e.reads_round||null;ownRound=e.own_previous||null;ratedRound=e.own_rating||null;} });
+  // A packet that shared no other seat (an N round) gives the flip check nothing to match:
+  // the seat never saw those answers. Only a packet with no log line falls back to the previous round.
+  var shared=line?line.shares!==false:true;
+  if(!reads&&!line)reads=previousRound(runDir,round);
+  var prevAnswers=(reads&&shared)?roundAnswers(runDir,reads,seats):[];
   var own=null;
   if(ownRound){var p=path.join(runDir,'rounds',ownRound,seat.id+'.answer.md');if(fs.existsSync(p))own={seat:seat,round:ownRound,file:p,text:readText(p)};}
   if(!own)own=latestOwnAnswer(runDir,seat,round);
-  return {readsRound:reads,own:own,prevAnswers:prevAnswers};
+  var ownRated=null;
+  if(ratedRound){var q=path.join(runDir,'rounds',ratedRound,seat.id+'.answer.md');if(fs.existsSync(q)&&parseRating(readText(q))!==null)ownRated={seat:seat,round:ratedRound,file:q,text:readText(q)};}
+  if(!ownRated)ownRated=latestOwnRating(runDir,seat,round);
+  return {readsRound:reads,own:own,ownRated:ownRated,prevAnswers:prevAnswers};
 }
 
 function wordCount(text){ return text.split(/\s+/).filter(Boolean).length; }
 
-// Which first-line contract an answer file is under, from its name.
+// Which first-line contract an answer file is under, from its name alone. A battle answer
+// in a round that asked for no rating is under the 'critique' contract instead; contractSent
+// reads that from the packet, since the file name is the same.
 function contractOf(file){
   var b=path.basename(file);
   if(/\.sn\.answer\.md$/.test(b))return 'sn';
@@ -197,20 +258,24 @@ function parseRating(text){
 }
 
 // The contracts, checked on a seat's answer. Returns {ok, contract, rating, value, words, reasons}.
-//   rating:  RATING: X/10, uppercase, X 1 to 10, never 7, nothing else on the line.
-//   sn:      S/N RATIO: XX%, XX 0 to 100, nothing else on the line. (The app's; no 7 ban.)
-//   redflag: NO RED FLAGS, or RED FLAGS FOUND: X with X 1 or more, nothing else on the line. (The app's.)
+//   rating:   RATING: X/10, uppercase, X 1 to 10, never 7, nothing else on the line.
+//   critique: a battle round that asked for no rating (ruled 2026-10-09): no RATING line
+//             anywhere on the first line; the critique opens the answer.
+//   sn:       S/N RATIO: XX%, XX 0 to 100, nothing else on the line. (The app's; no 7 ban.)
+//   redflag:  NO RED FLAGS, or RED FLAGS FOUND: X with X 1 or more, nothing else on the line. (The app's.)
 //   Trailing spaces or tabs on the first line are tolerated on every contract; trailing text is not.
 function checkAnswer(text,wordCap,contract){
   contract=contract||'rating';
   var reasons=[];
-  var cap=wordCap||(contract==='rating'?DEFAULT_WORD_CAP:DEFAULT_FINAL_WORD_CAP);
+  var cap=wordCap||(contract==='rating'||contract==='critique'?DEFAULT_WORD_CAP:DEFAULT_FINAL_WORD_CAP);
   var lines=text.replace(/^﻿/,'').split(/\r?\n/);
   // Trailing spaces or tabs on the first line are tolerated; trailing text is not.
   var first=(lines[0]||'').replace(/[ \t]+$/,'');
   var rating=null, value=null, m;
   if(first.trim()===''){
-    reasons.push('first line is empty; the '+(contract==='rating'?'rating':contract==='sn'?'S/N RATIO':'red-flag')+' line must come first');
+    reasons.push(contract==='critique'?'first line is empty; open with your critique':'first line is empty; the '+(contract==='rating'?'rating':contract==='sn'?'S/N RATIO':'red-flag')+' line must come first');
+  }else if(contract==='critique'){
+    if(/^\s*rating\s*:/i.test(first))reasons.push('this round asked for no rating; remove the RATING line and open with your critique');
   }else if(contract==='rating'){
     m=/^RATING: (\d{1,2})\/10$/.exec(first);
     if(!m){
@@ -230,8 +295,8 @@ function checkAnswer(text,wordCap,contract){
     else if((m=/^RED FLAGS FOUND: (\d+)$/.exec(first))){value=parseInt(m[1],10);if(value<1)reasons.push('RED FLAGS FOUND: 0 is not a count; say NO RED FLAGS');}
     else reasons.push('first line is "'+first.slice(0,80)+'", must be exactly "NO RED FLAGS" or "RED FLAGS FOUND: X"');
   }else die('unknown contract '+contract);
-  var body=lines.slice(1).join('\n');
-  if(body.trim()==='')reasons.push('no reasoning after the first line');
+  var body=lines.slice(contract==='critique'?0:1).join('\n');
+  if(body.trim()==='')reasons.push(contract==='critique'?'no critique':'no reasoning after the first line');
   var words=wordCount(text);
   if(words>cap)reasons.push(words+' words, over the cap of '+cap);
   return {ok:reasons.length===0,contract:contract,rating:rating,value:value,words:words,reasons:reasons};
@@ -301,8 +366,9 @@ module.exports={
   CREDIT:CREDIT,RUNS_DIR:RUNS_DIR,DEFAULT_WORD_CAP:DEFAULT_WORD_CAP,DEFAULT_SYNTHESIS_WORD_CAP:DEFAULT_SYNTHESIS_WORD_CAP,
   DEFAULT_FINAL_WORD_CAP:DEFAULT_FINAL_WORD_CAP,DEFAULT_COMPANY:DEFAULT_COMPANY,MODEL_UNREPORTED:MODEL_UNREPORTED,
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
+  DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,NO_RATING_LINE:NO_RATING_LINE,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,seatLabel:seatLabel,nameSources:nameSources,
   listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
-  capSent:capSent,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,flipInputs:flipInputs,wordCount:wordCount,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip
 };

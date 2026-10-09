@@ -17,6 +17,9 @@
 //   - A valid flip is marked with the earlier number kept visible; an invalid flip is
 //     marked INVALID; Stand is marked; a missing seat reads "missing" in the table and
 //     has a missing marker in the chart; a failed read is marked as such.
+//   - A battle round built without --rerate (ruled 2026-10-09) is a scoreboard column whose
+//     sound answer reads "critique" and adds no chart point; the chart's x axis holds the
+//     rated rounds only.
 //   - The final round's S/N and red-flag numbers appear per seat.
 //   - No averaged number: no "average", "mean", "overall", "consensus" or "total" rating,
 //     no fractional rating.
@@ -38,27 +41,33 @@ function write(p,t){ fs.writeFileSync(p,t); }
 
 fs.writeFileSync(path.join(proj,'draft.md'),'Dear board, buy the company.\n');
 fs.writeFileSync(path.join(proj,'brief.md'),'CEO. Get a yes.\n');
-var run=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','board','--model','Test Model']).stdout.trim();
+var run=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','board','--model','Test Model','--seats','3']).stdout.trim();
 var S2LINE='The board will ask for numbers and find none.';
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','01-sparring','--seat',s]); });
 var r1=path.join(run,'rounds','01-sparring');
 write(path.join(r1,'seat-1.answer.md'),'RATING: 8/10\nThe ask lands in the first line.\n');
 write(path.join(r1,'seat-2.answer.md'),'RATING: 4/10\n'+S2LINE+'\n');
 ['seat-1','seat-2'].forEach(function(s){ node('check-answer.js',[path.join(r1,s+'.answer.md'),'--run',run]); });
-['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','02-battle','--seat',s]); });
+['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','02-battle','--seat',s,'--rerate']); });
 var r2=path.join(run,'rounds','02-battle');
 write(path.join(r2,'seat-1.answer.md'),'RATING: 6/10\nseat-2 wrote "'+S2LINE+'" and that moved me.\n');
 write(path.join(r2,'seat-2.answer.md'),'RATING: 4/10\nStand. Nothing new.\n');
 write(path.join(r2,'seat-3.answer.md'),'RATING: 7/10\nHedging on purpose.\n');
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('check-answer.js',[path.join(r2,s+'.answer.md'),'--run',run]); node('check-flip.js',['--run',run,'--round','02-battle','--seat',s]); });
-['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','03-battle','--seat',s]); });
+['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','03-battle','--seat',s,'--rerate']); });
 var r3=path.join(run,'rounds','03-battle');
 write(path.join(r3,'seat-1.answer.md'),'RATING: 8/10\nseat-2 wrote "the numbers are all there" so I moved back up.\n');
 write(path.join(r3,'seat-2.answer.md'),'RATING: 4/10\nStand.\n');
 ['seat-1','seat-2'].forEach(function(s){ node('check-answer.js',[path.join(r3,s+'.answer.md'),'--run',run]); node('check-flip.js',['--run',run,'--round','03-battle','--seat',s]); });
+// 04-battle without --rerate: a critique round. seat-1 critiques, seat-2 is missing, seat-3 writes a RATING line anyway.
+['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','04-battle','--seat',s]); });
+var rc=path.join(run,'rounds','04-battle');
+write(path.join(rc,'seat-1.answer.md'),'The close is the problem, as seat-2 said.\n');
+write(path.join(rc,'seat-3.answer.md'),'RATING: 8/10\nRating anyway.\n');
+['seat-1','seat-3'].forEach(function(s){ node('check-answer.js',[path.join(rc,s+'.answer.md'),'--run',run]); });
 node('add-draft.js',['--run',run,'--file','draft.md']);
-['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','04-final','--seat',s,'--final','sn']); node('packet.js',['--run',run,'--round','04-final','--seat',s,'--final','redflag']); });
-var r4=path.join(run,'rounds','04-final');
+['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','05-final','--seat',s,'--final','sn']); node('packet.js',['--run',run,'--round','05-final','--seat',s,'--final','redflag']); });
+var r4=path.join(run,'rounds','05-final');
 write(path.join(r4,'seat-1.sn.answer.md'),'S/N RATIO: 70%\nSignal.\n');
 write(path.join(r4,'seat-1.redflag.answer.md'),'RED FLAGS FOUND: 1\nOne.\n');
 write(path.join(r4,'seat-2.sn.answer.md'),'S/N RATIO: 55%\nHalf.\n');
@@ -85,7 +94,12 @@ check(hrefs.length===1&&hrefs[0]==='href="record.md"','board: hrefs are '+JSON.s
   check(n>=3,'board: '+s+' named by model and company fewer than 3 times ('+n+')');
   check(new RegExp('<g class="series" data-seat="'+s+'"').test(html),'board: no chart series for '+s);
 });
-['01-sparring','02-battle','03-battle','04-final'].forEach(function(r){ check(new RegExp('<th>'+r+'</th>').test(html),'board: no scoreboard column for '+r); });
+['01-sparring','02-battle','03-battle','04-battle','05-final'].forEach(function(r){ check(new RegExp('<th>'+r+'</th>').test(html),'board: no scoreboard column for '+r); });
+// The critique round: a column, a "critique" cell, a failed read for the RATING line, no chart point and no x-axis tick.
+check(/<td class="num critique"><span class="critique" title="this round asked for no rating">critique<\/span><\/td>/.test(html),'board: no critique cell for the no-rating round');
+check(/<span class="failed" title="this round asked for no rating[^"]*">failed read<\/span>/.test(html),'board: a RATING line in a no-rating round should be a failed read');
+check(!/text-anchor="middle">04-battle<\/text>/.test(html)&&/text-anchor="middle">03-battle<\/text>/.test(html),'board: the chart x axis should hold the rated rounds only');
+check(/A round that asked for no rating has no point here/.test(html),'board: the readout should say a no-rating round has no point');
 check((html.match(/<g class="pt /g)||[]).length===9,'board: expected 9 chart points (3 seats × 3 rating rounds), got '+(html.match(/<g class="pt /g)||[]).length);
 check((html.match(/data-value="/g)||[]).length===9,'board: every point should carry a readout value');
 
@@ -120,7 +134,7 @@ check(/<button type="button" id="theme"/.test(html),'board: no theme toggle');
 
 // The log and a refusal.
 var log=fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);});
-check(log.some(function(e){return e.event==='board.rendered'&&e.file==='board.html'&&e.rounds===4;}),'log: board.rendered missing');
+check(log.some(function(e){return e.event==='board.rendered'&&e.file==='board.html'&&e.rounds===5;}),'log: board.rendered missing');
 var bad=path.join(proj,'nothing'); fs.mkdirSync(bad);
 check(node('render-board.js',['--run',bad]).status===2,'render-board: a folder with no seats.json should exit 2');
 

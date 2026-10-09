@@ -1,32 +1,40 @@
 ---
-description: Explain the Combat Writing plugin in plain words: the four stages, the commands with one example each, where files land, what runs where, the rating rule, the credit line.
+description: Explain the Combat Writing plugin in plain words: the four stages, the commands with one example each, the round terms (N, SN, SFQ, rerate, final), where files land, what runs where, the rating rule, the credit line.
 argument-hint: [topic]
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
-Show the guide below to the person, as it is, with its headings and lists. If `$ARGUMENTS` names one topic (stages, commands, files, where, rating, record, privacy, method), show only that section plus the first two lines. Fill in the one bracketed line under "Where you are running" with the case that applies right now; change nothing else. Add no verdict, no sales pitch, no offer to run anything.
+Show the guide below to the person, as it is, with its headings and lists. If `$ARGUMENTS` names one topic (stages, commands, rounds, files, where, rating, record, privacy, method), show only that section plus the first two lines. Fill in the one bracketed line under "Where you are running" with the case that applies right now; change nothing else. Add no verdict, no sales pitch, no offer to run anything.
 
 ---
 
 Combat Writing — Learning Producers Inc., Israel Hernandez, founder
 **Reading is Peace. Writing is War.**
 
-A crew of seats attacks your draft. Each seat is one model judging it. Every seat rates first, then explains with evidence. Then the seats read each other and rate again. The record shows what was caught.
+A crew of seats attacks your draft. Each seat is one model judging it. In sparring every seat rates first, then explains with evidence. In battle the seats discuss the structure and content of the draft, read each other when you share them, and rate again when you ask. The record shows what was caught.
 
 ## The four stages
 
 - **Strategy.** You write the draft yourself, then a context brief: who you are, your purpose, the stakes.
-- **Sparring.** Every seat reads the draft alone and gives its rating and critique. Seats may then read each other and debate.
-- **Battle.** Every seat reads the others' answers and rates again, quoting who moved it. The final reads check the draft for signal-to-noise and red flags.
+- **Sparring.** Every seat reads the draft alone and gives its rating and critique, the rating line first. Seats may then read each other and debate the scores (`debate`).
+- **Battle.** The discussion of the structure and content of the draft. You steer it with three kinds of round: **N** (navigation), the same new guidance put to every seat individually; **SN** (synthesis navigation), each seat's synthesis shared with the others plus a new prompt, where everyone answers and everyone reads each other; **SFQ** (synthesis focus question), the crew's answers shared plus a new question. Battle does not rerate on its own: a seat rates again only when you ask with `rerate`, and then the rating line comes first. `final` runs the S/N ratio and red-flag reads on the draft alone.
 - **Champion.** You publish, watch the response, and record what you learned.
 
 ## The commands
 
-- `/combat-writing:sparring` — every seat reads the draft on the same snapshot; the rating lines come first. Give every seat a question, or each seat its own, or none. `cold` reads with no brief; `debate` shows the seats each other's answers.
-  Example: `/combat-writing:sparring Here is the draft of my letter to the board. Focus question for every seat: does the ask land in the first paragraph?`
-- `/combat-writing:battle` — every seat reads the previous round and its own earlier turn, then rates again. `sfq:` adds a synthesis focus question, `sn:` a navigation note, `draft:` a revised draft. `final` runs the S/N ratio and red-flag reads on the draft alone.
-  Example: `/combat-writing:battle Navigation note: the second seat called the close weak; everyone answer that.`
-- `/combat-writing:help` — this guide. `help rating` shows one section.
+- `/combat-writing:sparring` — every seat reads the draft on the same snapshot; the rating lines come first. Give every seat a focus question (`question:`), or each seat its own (`seat-1:`, `seat-2:`), or none. `cold` reads with no brief; `debate` shows the seats each other's answers and asks for a rating again.
+  Example: `/combat-writing:sparring Here is the draft of my letter to the board. question: does the ask land in the first paragraph?`
+- `/combat-writing:battle` — one battle round. `n:` puts the same guidance to every seat individually (N); `sn:` shares each seat's synthesis with the others plus your new prompt (SN); `sfq:` shares the crew's answers plus a new question (SFQ). With none of the three, every seat reads the others' latest answers and gives a new critique. `rerate` asks for a new rating this round; without it no seat rates. `draft:` adds a revised draft first. `final` runs the S/N ratio and red-flag reads on the draft alone.
+  Example: `/combat-writing:battle rerate sn: the second seat called the close weak; everyone answer that.`
+- `/combat-writing:help` — this guide. `help rounds` shows one section.
   Example: `/combat-writing:help`
+
+## The rounds
+
+- **N, navigation** (`n:`): the same new guidance put to every seat individually. No seat sees another's answer; each seat has its own earlier turn.
+- **SN, synthesis navigation** (`sn:`): each seat's synthesis is shared with the others plus a new prompt; everyone answers and everyone reads each other.
+- **SFQ, synthesis focus question** (`sfq:`): the crew's answers are shared plus a new question.
+- **rerate**: the round asks for a rating, the rating line first. Without it a battle round carries no rating and the record shows it as a critique.
+- **final**: the S/N ratio and red-flag reads on the draft alone, with their own first lines; not ratings.
 
 ## Where files land
 
@@ -36,23 +44,26 @@ A crew of seats attacks your draft. Each seat is one model judging it. Every sea
 
 ## Where you are running
 
-- **Fresh readers.** The host can start separate agents and run Node: each seat is a separate reader started for one job, with no memory of this conversation, never the host itself.
+- **The crew** is one fresh reader plus one seat per outside model the add-on has a key for. Nothing is padded: with no add-on the crew is one seat; with one free Groq key it is three.
+- **Fresh readers.** The host can start separate agents and run Node: the fresh reader is a separate reader started for one job, with no memory of this conversation, never the host itself.
 - **One seat, the host.** The host cannot start separate agents: it reads as the one seat, says so in every result, and still follows every rule.
-- **With the add-on.** `combat-writing-crew`, installed from the same repository (`/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin`), sends the packets to other companies' models on your own keys, each key only to its own provider; then the crew is more than one company, and one free Groq key seats two outside models.
+- **With the add-on.** `combat-writing-crew`, installed from the same repository (`/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin`), sends the packets to other companies' models on your own keys, each key only to its own provider; then the crew is more than one company. An outside seat is told the word cap; an answer over it is sent back once, and a second overrun is cut at the cap with the rating kept and marked "truncated" in the record.
 - Without the add-on, every seat is one company's models, and every result says so. The plugin never fakes a seat.
 - [Right now: which of the three applies.]
 
 ## The rating rule
 
-- The first line of every answer is `RATING: X/10`, 1 to 10. **7 is forbidden.** A seat on the fence commits to 6 or 8.
+- In sparring, and in a battle round where you ask with `rerate`, the first line of every answer is `RATING: X/10`, 1 to 10. **7 is forbidden.** A seat on the fence commits to 6 or 8.
+- A battle round without `rerate` asks for no rating: the seat opens with its critique, and the record shows the round as a critique.
 - The rating leads every result. Scores are never averaged. Every seat's number stands on its own.
 - A seat that changes its rating must quote, word for word, the line that moved it and name the seat. The quote is checked by code. No match: the flip is marked invalid, the rating still shown. A seat that holds says Stand.
 - A seat that fails or does not answer is shown as missing. Nothing stands in for it.
+- The final reads carry their own first lines, `S/N RATIO: XX%` and `NO RED FLAGS` or `RED FLAGS FOUND: X`; they are not ratings.
 
 ## The record
 
-- `record.md`: the credit line, the crew, the drafts and brief, the scoreboard (one row per seat, one column per round, flips marked, Stand marked, missing marked), every answer in full, the log of what was sent.
-- `board.html`: the same scoreboard and a chart of each seat's rating across rounds, light and dark, one file, no outside requests.
+- `record.md`: the credit line, the crew, the drafts and brief, the scoreboard (one row per seat, one column per round, flips marked, Stand marked, critique rounds marked, truncated reads marked, missing marked), every answer in full, the log of what was sent.
+- `board.html`: the same scoreboard and a chart of each seat's rating across the rated rounds, light and dark, one file, no outside requests.
 
 ## The draft is untrusted
 

@@ -133,6 +133,43 @@ function budgetFor(provider,systemPrompt,userText){
     message:ok?'':'Too long to send. This round needs about '+input.toLocaleString()+' tokens of input and the provider allows '+b.hard_cap.toLocaleString()+' per minute, which leaves less than the '+b.floor.toLocaleString()+'-token minimum for a reply. Cut roughly '+over.toLocaleString()+' tokens (about '+(over*4).toLocaleString()+' characters) from the question or the draft and send again.'};
 }
 
+// What a packet asks of the seat, read from the packet file the listed plugin built: the word
+// cap from its "Under N words." line, and the contract from its no-rating line (ruled
+// 2026-10-09: a battle round asks for no rating unless the person asks with `rerate`). The
+// no-rating line is the listed plugin's NO_RATING_LINE, mirrored here word for word because
+// the add-on never reaches into the other plugin's folder; crew_check.js pins the two equal.
+var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your critique.';
+function packetRules(packetText){
+  var m=/Under (\d+) words\./.exec(packetText||'');
+  return {cap:m?parseInt(m[1],10):null,contract:(packetText||'').indexOf(NO_RATING_LINE)>=0?'critique':'rating'};
+}
+function wordCount(text){ return String(text||'').split(/\s+/).filter(Boolean).length; }
+
+// The cut (ruled 2026-10-09): on an outside seat's second overrun, the read is truncated at
+// the cap, marked, and its rating kept. The contract's first line (RATING: X/10 for a rating
+// read, the S/N or red-flag line for a final read) is pulled out of the reply wherever it
+// sits before the cut, so it survives even when the seat put it last; the rest is cut at a
+// word boundary so that the whole file counts no more than the cap. A critique read has no
+// such line; it is cut at the cap as it stands. Returns null when the reply is within the cap.
+function truncateAnswer(text,cap,read,contract){
+  if(!cap||wordCount(text)<=cap)return null;
+  var returned=wordCount(text);
+  var re=read==='sn'?/^S\/N RATIO: \d{1,3}%$/:read==='redflag'?/^(NO RED FLAGS|RED FLAGS FOUND: \d+)$/:contract==='critique'?null:/^RATING: \d{1,2}\/10$/;
+  var lines=text.split('\n'), head=null, moved=false;
+  if(re){
+    for(var i=0;i<lines.length;i++){
+      if(re.test(lines[i].trim())){head=lines[i].trim();moved=i>0;lines.splice(i,1);break;}
+    }
+  }
+  var body=lines.join('\n').replace(/^\s+/,'');
+  var budget=cap-(head?wordCount(head):0);
+  var w=/\S+/g, n=0, end=0, m;
+  while(budget>0&&(m=w.exec(body))){n++;if(n===budget){end=w.lastIndex;break;}}
+  var cut=body.slice(0,end).replace(/\s+$/,'');
+  var out=(head?head+'\n\n':'')+cut;
+  return {text:out,truncated:{at:cap,words_returned:returned,words_kept:wordCount(out),first_line_moved:moved}};
+}
+
 // The per-minute window, per provider: tokens spent in the window (input plus the reservation,
 // which is what Groq counts) and the number of requests. Before a call that would cross the
 // wall or the request limit, wait until the oldest entry has aged out. The window is sixty
@@ -158,4 +195,5 @@ function makeWindow(){
 
 module.exports={CREDIT:CREDIT,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
   loadProviders:loadProviders,keyFor:keyFor,keyHint:keyHint,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
-  eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow};
+  eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,
+  NO_RATING_LINE:NO_RATING_LINE,packetRules:packetRules,wordCount:wordCount,truncateAnswer:truncateAnswer};

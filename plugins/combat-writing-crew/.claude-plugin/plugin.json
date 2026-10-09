@@ -1,8 +1,8 @@
 {
   "name": "combat-writing-crew",
   "displayName": "Combat Writing Crew (add-on)",
-  "version": "0.1.0",
-  "description": "The Combat Writing add-on: a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew can be more than one company's models. Groq's free models need one Groq key. Each key goes only to its own provider, never to Learning Producers, never into a file. Not listed in the Claude plugin directory; installed from the Learning Producers marketplace.",
+  "version": "0.2.0",
+  "description": "The Combat Writing add-on: a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew is the fresh reader plus one seat per outside model you hold a key for. One free Groq key seats two: a crew of three. Each key goes only to its own provider, never to Learning Producers, never into a file. An outside seat's second overrun of the word cap is cut at the cap with its rating kept and marked in the record. Not listed in the Claude plugin directory; installed from the Learning Producers marketplace.",
   "author": {
     "name": "Learning Producers Inc.",
     "url": "https://learningproducers.com"

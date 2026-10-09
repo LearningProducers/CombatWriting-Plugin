@@ -6,20 +6,20 @@
   },
   "metadata": {
     "description": "Learning Producers' own marketplace: the Combat Writing plugin and its local add-on.",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "plugins": [
     {
       "name": "combat-writing",
       "source": "./plugins/combat-writing",
-      "version": "0.1.0",
-      "description": "Combat Writing: a crew of AI model seats attacks your draft, rates it 1 to 10 with 7 forbidden, then reads each other and rates again. The rating leads every result."
+      "version": "0.2.0",
+      "description": "Combat Writing: a crew of AI model seats attacks your draft, rates it 1 to 10 with 7 forbidden, then reads each other in battle and rates again when you ask. The rating leads every result."
     },
     {
       "name": "combat-writing-crew",
       "source": "./plugins/combat-writing-crew",
-      "version": "0.1.0",
-      "description": "The Combat Writing add-on: a local MCP server that sends each seat's packet to other companies' models on your own API keys, each key only to its own provider. Groq's free models need one Groq key. Not listed in the Claude plugin directory."
+      "version": "0.2.0",
+      "description": "The Combat Writing add-on: a local MCP server that sends each seat's packet to other companies' models on your own API keys, each key only to its own provider. One free Groq key seats two outside models beside the fresh reader, a crew of three. Not listed in the Claude plugin directory."
     }
   ]
 }

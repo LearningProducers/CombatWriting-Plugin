@@ -5,8 +5,13 @@
 //                   [--model "<model name>"] [--company "<company>"] [--root <dir>]
 //
 // Copies the draft (and the brief, when given) into a new folder under
-// <root>/combat-writing/runs/<run-id>/, writes seats.json for <n> seats (default 3),
-// and opens log.jsonl with the credit line. Prints the run folder path on stdout.
+// <root>/combat-writing/runs/<run-id>/, writes seats.json for <n> fresh readers, and
+// opens log.jsonl with the credit line. Prints the run folder path on stdout.
+//
+// The crew (ruled 2026-10-09): one fresh reader, seat-1, plus one seat per outside
+// model the crew add-on has a key for; the add-on's crew_register appends those. So
+// <n> defaults to 1 and is never padded. --seats <n> seats more fresh readers only when
+// the person asks for them by name.
 //
 // The run id is the UTC date and time plus the slug: 2026-10-08-1930-board-letter.
 // The slug comes from --name, else from the draft's file name.
@@ -27,7 +32,7 @@ if(!fs.existsSync(args.draft))lib.die('draft not found: '+args.draft);
 if(args.brief&&!fs.existsSync(args.brief))lib.die('brief not found: '+args.brief);
 
 var root=path.resolve(args.root&&args.root!==true?args.root:process.cwd());
-var seatsN=parseInt(args.seats||'3',10);
+var seatsN=parseInt(args.seats||'1',10);
 if(!(seatsN>=1&&seatsN<=12))lib.die('--seats must be 1 to 12');
 var model=(args.model&&args.model!==true)?String(args.model).trim():lib.MODEL_UNREPORTED;
 var company=(args.company&&args.company!==true)?String(args.company).trim():lib.DEFAULT_COMPANY;
@@ -59,5 +64,5 @@ lib.appendLog(runDir,{credit:lib.CREDIT,event:'run.created',run:path.basename(ru
   draft:{file:'draft.md',sha256:lib.sha256(draft),words:lib.wordCount(draft.toString('utf8'))},
   brief:briefHash?{file:'brief.md',sha256:briefHash}:null,
   seats:seats.map(function(s){return {id:s.id,model:s.model,company:s.company};}),
-  crew_note:'every seat is '+company+'\'s models; the plugin never fakes a seat'});
+  crew_note:(seatsN===1?'one fresh reader, ':'')+'every seat is '+company+'\'s models until the crew add-on registers outside seats; the plugin never fakes a seat'});
 process.stdout.write(runDir+'\n');

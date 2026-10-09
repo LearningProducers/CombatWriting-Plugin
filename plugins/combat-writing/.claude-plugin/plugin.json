@@ -1,8 +1,8 @@
 {
   "name": "combat-writing",
   "displayName": "Combat Writing",
-  "version": "0.1.0",
-  "description": "Combat Writing: a crew of AI model seats attacks your draft. Sparring: every seat rates it 1 to 10 on its first line, 7 forbidden, with its own critique. Battle: every seat reads the others, quotes them by model name, and rates again; a changed rating is checked against the quote. Final reads for signal-to-noise and red flags. Every run leaves a record and a visual board in your project. The rating leads every result; scores are never averaged. Help explains the method.",
+  "version": "0.2.0",
+  "description": "Combat Writing: a crew of AI model seats attacks your draft. Sparring: every seat rates it 1 to 10 on its first line, 7 forbidden, with its own critique. Battle: the seats discuss the structure and content of the draft, reading each other and quoting by model name, in navigation (N), synthesis navigation (SN) and synthesis focus question (SFQ) rounds; they rate again when you ask with rerate, and a changed rating is checked against the quote. Final reads for signal-to-noise and red flags. Every run leaves a record and a visual board in your project. The rating leads every result; scores are never averaged. Help explains the method.",
   "author": {
     "name": "Learning Producers Inc.",
     "url": "https://learningproducers.com"
