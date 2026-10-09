@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
-# PLAN.md — the five parts
+# PLAN.md — the parts
 
 This file is the only memory between build sessions. Each part is one session and one pull request. Every session updates its part's status line before opening the pull request. Status line format: `Status: <state> — <date> — <one line>`. States: not started, in progress, delivered (pull request open), merged.
 
@@ -65,3 +65,16 @@ Delivers:
 Status: merged — 2026-10-09 — pull request 5 merged to main.
 
 First real run, 2026-10-09: Israel ran a cross-company round through the add-on on his machine (the build session never called a provider). The record and the board rendered with the outside seats beside the fresh readers. Seats, from the run's `log.jsonl`: claude-fable-5-1 (Anthropic, the fresh reader, named from the agent configuration); openai/gpt-oss-120b (OpenAI, served by Groq); qwen/qwen3.8-27b (Alibaba, served by Groq), the two outside ids as the provider's API returned them. The run surfaced four fixes, shipped in pull request 6: trailing whitespace on a returned rating line (the add-on now strips every line; the checker tolerates it), a blind retry for an outside seat (`crew_answer` takes a `note`), and the log showing only one id when the returned id differed from the requested one (both are logged, with `model_changed`).
+
+## Part 6 — The founder's rulings of 2026-10-09
+
+Rulings, from the second real run (`2026-10-09-1908-matthew-hotel-doc`, which seated three Claude seats beside the two Groq seats and failed qwen's read out at 597 words twice):
+
+1. **Crew composition.** One host seat (Claude, the fresh reader) plus one seat per outside model the add-on has a key for. Never padded. With the Groq key alone the crew is three. `new-run.js` seats one fresh reader; `--seats` adds more only when the person asks by name.
+2. **Round terms.** N, navigation (`n:`): the same new guidance put to every seat individually. SN, synthesis navigation (`sn:`): each seat's synthesis shared with the others plus a new prompt; everyone answers and everyone reads each other. SFQ, synthesis focus question (`sfq:`): the crew's answers shared plus a new question. Battle: the discussion of the structure and content of the draft. `final`: the S/N ratio and red-flag reads on the draft alone. Help, the command descriptions, the four-stages section and the Next line use these; wherever `sn:` is offered, `n:` is.
+3. **Rating.** Sparring rates, the rating line first. Battle does not rerate on its own; it rates only on `rerate`, then the rating line is first. A battle round without `rerate` is a critique (no RATING line; the checker holds the seat to that; the record and board show "critique"). A new rating is held against the seat's latest earlier rating. The final reads keep the app's own first lines (`S/N RATIO: XX%`, `NO RED FLAGS` / `RED FLAGS FOUND: X`), as ruled 2026-10-08.
+4. **Word cap for outside seats.** The add-on states the cap in the system prompt. On a second overrun it cuts the read at the cap, pulls the RATING line (or the final read's line) out of the reply wherever it sits and keeps it first, logs `truncated`, and the record and board mark "truncated at N words" with the rating shown.
+
+Delivers: `new-run.js` default one seat; `packet.js` `--n`, `--rerate`, the critique contract for `<nn>-battle` without `--rerate`, `contract`, `shares`, `own_rating` and `n` in the packet.built line; `lib.js` `contractSent`, `roundContract`, `latestOwnRating`, the `critique` contract; `check-answer.js` reads the contract from the packet; `check-flip.js` flips against the latest earlier rating and says "no rating" in a critique round; the record and board show critique cells and truncation marks, the chart on rated rounds only; the add-on's `packetRules`, `truncateAnswer`, the cap in the system line, `truncated` in the log and the result; help, sparring, battle, the skill, the seat agent, both READMEs, the add-on README, the method departures 2, 3, 5, 6 and 12 (mirror kept identical), CLAUDE.md, both manifests and the marketplace at 0.2.0; the tests updated and extended (`crew_check.js`: three seats with one key, four with two, the cap in the system line, the truncation with the rating last; `packet_check.js`: one seat by default, the N packet, the critique contract; `flip_check.js`: a flip across a critique round; `record_check.js` and `board_check.js`: critique cells and the truncation mark).
+
+Status: delivered — 2026-10-09 — pull request 7 open; all ten checks pass; `claude plugin validate --strict` passes on both plugin folders and the root.

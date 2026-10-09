@@ -3,20 +3,21 @@
 //
 //   node check-flip.js --run <run folder> --round <nn-kind> --seat <seat id>
 //
-// Reads the seat's answer in the round, the seat's own earlier turn (the one its packet
-// carried, from the packet.built log line, else its latest earlier answer), and the other
-// seats' answers in the round the packet read. A seat whose rating changed must quote a line from another seat's answer,
-// in double quotes, attributed to that seat by id ("seat-2", "seat 2" or "seat2", any case)
-// or, when the name belongs to exactly one other seat, by model name;
-// the quote is matched word for word, whitespace and quote marks normalized, against the
-// cited seat's answer file. A quote that does not match there marks the flip invalid. A
-// seat that holds its rating should say Stand.
+// Reads the seat's answer in the round, the seat's latest earlier rating (from the
+// packet.built log line, else looked up; an earlier turn that carried no rating is not a
+// number to flip from), and the other seats' answers in the round the packet read. A seat
+// whose rating changed must quote a line from another seat's answer, in double quotes,
+// attributed to that seat by id ("seat-2", "seat 2" or "seat2", any case) or, when the name
+// belongs to exactly one other seat, by model name; the quote is matched word for word,
+// whitespace and quote marks normalized, against the cited seat's answer file. A quote that
+// does not match there marks the flip invalid. A seat that holds its rating should say Stand.
 //
-// Statuses: first (no earlier answer of its own), stand, held (held without saying Stand),
+// Statuses: first (no earlier rating of its own), stand, held (held without saying Stand),
 // flip-valid, flip-invalid, unrated (the first line is not a rating line), missing (no
-// answer file). Prints one line and a JSON summary, appends flip.checked to log.jsonl.
-// Exit 0 for first, stand, held and flip-valid; 1 for flip-invalid, unrated and missing;
-// 2 on misuse. The record shows the seat's rating whatever the status.
+// answer file), no-rating (the round asked for no rating; nothing to check). Prints one
+// line and a JSON summary, appends flip.checked to log.jsonl. Exit 0 for first, stand,
+// held, flip-valid and no-rating; 1 for flip-invalid, unrated and missing; 2 on misuse.
+// The record shows the seat's rating whatever the status.
 
 var fs=require('fs'), path=require('path');
 var lib=require('./lib.js');
@@ -31,11 +32,13 @@ if(lib.isFinalRound(args.round))lib.die('a final round has no rating to flip');
 var answerPath=path.join(runDir,'rounds',args.round,seat.id+'.answer.md');
 var result;
 if(!fs.existsSync(answerPath))result={status:'missing',from:null,to:null,reason:'no answer file'};
+else if(lib.contractSent(runDir,args.round,answerPath)==='critique')result={status:'no-rating',from:null,to:null,reason:'this round asked for no rating'};
 else{
   var inputs=lib.flipInputs(runDir,seat,args.round,seats);
-  result=lib.checkFlip(lib.readText(answerPath),seat,inputs.own?inputs.own.text:null,inputs.prevAnswers);
+  result=lib.checkFlip(lib.readText(answerPath),seat,inputs.ownRated?inputs.ownRated.text:null,inputs.prevAnswers);
   result.reads_round=inputs.readsRound;
   result.own_previous=inputs.own?inputs.own.round:null;
+  result.own_rating=inputs.ownRated?inputs.ownRated.round:null;
 }
 var summary=Object.assign({round:args.round,seat:seat.id},result);
 lib.appendLog(runDir,Object.assign({event:'flip.checked'},summary));
@@ -43,6 +46,7 @@ var line={first:'FIRST rating '+result.to+'/10, nothing earlier to hold or flip'
   stand:'STAND at '+result.to+'/10',held:'HELD at '+result.to+'/10 without saying Stand',
   'flip-valid':'FLIP '+result.from+' to '+result.to+', valid: quoted '+result.cited,
   'flip-invalid':'FLIP '+result.from+' to '+result.to+', INVALID: '+result.reason,
-  unrated:'UNRATED: the first line is not a rating line',missing:'MISSING: no answer file'}[result.status];
+  unrated:'UNRATED: the first line is not a rating line',missing:'MISSING: no answer file',
+  'no-rating':'NO RATING: this round asked for none'}[result.status];
 process.stdout.write(line+'\n'+JSON.stringify(summary)+'\n');
-process.exit(['first','stand','held','flip-valid'].indexOf(result.status)>=0?0:1);
+process.exit(['first','stand','held','flip-valid','no-rating'].indexOf(result.status)>=0?0:1);

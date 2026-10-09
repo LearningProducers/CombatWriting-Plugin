@@ -19,7 +19,11 @@
 // still overrides the packet's cap. The app's two final contracts are picked from the
 // file name (<seat>.sn.answer.md: S/N RATIO: XX%, 0 to 100; <seat>.redflag.answer.md:
 // NO RED FLAGS or RED FLAGS FOUND: X, X 1 or more), with no 7 rule and a 250 cap, and
-// --contract overrides the name.
+// --contract overrides the name. The critique contract (ruled 2026-10-09: a battle round
+// asks for no rating unless --rerate): an answer with no RATING line passes, one that
+// opens with a RATING line fails, an empty one fails; with --run the contract comes from
+// the packet the seat was sent, so the same RATING answer passes in a --rerate battle
+// packet and fails in one built without it, and a plain critique does the reverse.
 //
 // Run from the repo root:   node tests/rating_contract_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -152,6 +156,38 @@ var ov=named('seat-1.answer.md','S/N RATIO: 70%\nx\n',['--contract','sn']);
 check(ov.code===0&&ov.summary.contract==='sn','--contract sn on a plain answer file should apply the sn contract');
 check(named('seat-1.answer.md','S/N RATIO: 70%\nx\n').code===1,'a plain answer file holds the rating contract');
 check(named('seat-1.answer.md','RATING: 8/10\nx\n',['--contract','nope']).code===2,'--contract nope should exit 2');
+
+// The critique contract: no RATING line.
+var cr=named('seat-1.answer.md','The ask lands, but the close reads like an apology.\nCut the last paragraph.\n',['--contract','critique']);
+check(cr.code===0&&cr.summary&&cr.summary.contract==='critique'&&cr.summary.rating===null&&cr.summary.word_cap===500,'critique: a plain critique should pass under 500, got '+cr.code+' '+JSON.stringify(cr.summary));
+var crr=named('seat-1.answer.md','RATING: 8/10\nThe ask lands.\n',['--contract','critique']);
+check(crr.code===1&&/asked for no rating/.test(crr.first),'critique: a RATING line must fail, got '+crr.first);
+check(named('seat-1.answer.md','rating: 8\nThe ask lands.\n',['--contract','critique']).code===1,'critique: a lowercase rating line must fail too');
+check(named('seat-1.answer.md','\n\n',['--contract','critique']).code===1,'critique: an empty answer must fail');
+check(named('seat-1.answer.md','Critique.\n'+new Array(520).join('word ')+'\n',['--contract','critique']).code===1,'critique: over 500 words must fail');
+check(lib.checkAnswer('No rating here, just the critique.\n',null,'critique').ok===true&&lib.checkAnswer('RATING: 6/10\nx\n',null,'critique').ok===false,'critique: lib.checkAnswer disagrees with the script');
+// With --run the contract comes from the packet: a <nn>-battle packet asks for no rating unless --rerate.
+fs.writeFileSync(path.join(capRun,'rounds','01-sparring','seat-1.answer.md'),good);
+var pk2=cp.spawnSync(process.execPath,[path.join(scripts,'packet.js'),'--run',capRun,'--round','02-battle','--seat','seat-1'],{encoding:'utf8'});
+check(pk2.status===0,'battle packet: exit '+pk2.status+' '+pk2.stderr);
+var bAns=path.join(capRun,'rounds','02-battle','seat-1.answer.md');
+fs.writeFileSync(bAns,'RATING: 8/10\nStill fine.\n');
+var b1=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),bAns,'--run',capRun],{encoding:'utf8'});
+check(b1.status===1&&/asked for no rating/.test(b1.stdout)&&/"contract":"critique"/.test(b1.stdout),'battle without rerate: a RATING answer should fail the critique contract, got '+b1.stdout.split('\n')[0]);
+fs.writeFileSync(bAns,'Still fine. The ask lands and the close holds.\n');
+var b2=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),bAns,'--run',capRun],{encoding:'utf8'});
+check(b2.status===0&&/OK critique, no rating this round/.test(b2.stdout),'battle without rerate: a critique should pass, got '+b2.stdout.split('\n')[0]);
+var pk3=cp.spawnSync(process.execPath,[path.join(scripts,'packet.js'),'--run',capRun,'--round','03-battle','--seat','seat-1','--rerate'],{encoding:'utf8'});
+var rAns=path.join(capRun,'rounds','03-battle','seat-1.answer.md');
+fs.writeFileSync(rAns,'Still fine. The ask lands and the close holds.\n');
+var b3=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),rAns,'--run',capRun],{encoding:'utf8'});
+check(pk3.status===0&&b3.status===1&&/not the rating line/.test(b3.stdout)&&/"contract":"rating"/.test(b3.stdout),'battle with rerate: a critique with no rating should fail the rating contract, got '+b3.stdout.split('\n')[0]);
+fs.writeFileSync(rAns,'RATING: 8/10\nStill fine.\n');
+check(cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),rAns,'--run',capRun],{encoding:'utf8'}).status===0,'battle with rerate: a RATING answer should pass');
+// With the packet.built line gone, the packet file's no-rating line still gives the contract.
+fs.writeFileSync(capLog,fs.readFileSync(capLog,'utf8').split('\n').filter(function(l){return l&&!(l.indexOf('packet.built')>=0&&l.indexOf('02-battle')>=0);}).join('\n')+'\n');
+fs.writeFileSync(bAns,'RATING: 8/10\nStill fine.\n');
+check(cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),bAns,'--run',capRun],{encoding:'utf8'}).status===1,'contract from the packet file: the no-rating line should apply when the log line is gone');
 
 // Misuse exits 2.
 var mis=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js')],{encoding:'utf8'});

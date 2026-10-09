@@ -9,8 +9,9 @@
 //
 // What it pins:
 //   - new-run.js creates combat-writing/runs/<date-time-slug>/ with draft.md (byte-
-//     identical to the source), brief.md, seats.json (three seats by default, each
-//     with model, company and the source of the name), rounds/, and log.jsonl whose
+//     identical to the source), brief.md, seats.json (ONE fresh reader by default, ruled
+//     2026-10-09: the crew is never padded; --seats N seats more only when asked; each
+//     seat with model, company and the source of the name), rounds/, and log.jsonl whose
 //     first line opens with the credit line and records the draft's SHA-256.
 //   - --model names every seat; without it the seat is stored as "model unreported"
 //     and rendered as "<company> model, name not reported, <seat>", never a raw string
@@ -33,7 +34,13 @@
 //     fence; the seat's own answer never appears among the others; the cap is 600.
 //   - Same snapshot: an answer already written in the current round by another seat is
 //     not carried into a packet built afterwards for this round.
-//   - --sfq and --sn files ride labeled in the task; both together are refused.
+//   - --sfq, --sn and --n files ride labeled in the task (SFQ, SN, N); two together are
+//     refused; --n carries the seat's own earlier turn and NO other seat's answer, at a
+//     500 cap, logged as mode navigation with shares false.
+//   - A <nn>-battle packet asks for no rating unless --rerate: without it the Contract
+//     section carries the no-rating line and the log says contract critique; with it
+//     the rating contract, the seat's latest rating named, and contract rating. Every
+//     sparring packet asks for a rating.
 //   - --cold leaves out the brief, the earlier turn and the other answers.
 //   - add-draft.js adds draft-2.md without touching draft.md; the next packet reads
 //     draft-2.md by default, says it is a revision and that the carried answers were
@@ -70,7 +77,7 @@ write(path.join(proj,'draft.md'),draftText);
 write(path.join(proj,'brief.md'),briefText);
 
 // new-run.js
-var r=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','Board letter','--model','Test Model 1.0']);
+var r=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','Board letter','--model','Test Model 1.0','--seats','3']);
 check(r.status===0,'new-run: exit '+r.status+' '+r.stderr);
 var run=r.stdout.trim();
 check(/[\\/]combat-writing[\\/]runs[\\/]\d{4}-\d{2}-\d{2}-\d{4}-board-letter$/.test(run),'new-run: folder is '+run);
@@ -79,7 +86,7 @@ check(read(path.join(run,'draft.md'))===draftText,'new-run: draft.md is not byte
 check(read(path.join(run,'brief.md'))===briefText,'new-run: brief.md is not byte-identical to the source');
 var seats=JSON.parse(read(path.join(run,'seats.json')));
 check(seats.credit===CREDIT,'new-run: seats.json does not open with the credit line');
-check(seats.seats.length===3,'new-run: expected 3 seats, got '+seats.seats.length);
+check(seats.seats.length===3,'new-run --seats 3: expected 3 seats, got '+seats.seats.length);
 check(seats.seats.every(function(s){return s.model==='Test Model 1.0'&&s.company==='Anthropic'&&/agent configuration/.test(s.source)&&/not read from an API field/.test(s.source);}),'new-run: seat fields wrong: '+JSON.stringify(seats.seats[0]));
 check(seats.seats.map(function(s){return s.id;}).join(',')==='seat-1,seat-2,seat-3','new-run: seat ids wrong');
 var log=logOf(run);
@@ -137,7 +144,7 @@ write(path.join(run,'rounds','02-debate','seat-2.answer.md'),'RATING: 8/10\nSeat
 // Battle: the round-3 packet for seat-1 reads round 2 only: seat-2's round-2 answer; seat-3 missing (its
 // round-1 answer is NOT carried); seat-1's own earlier turn is its round-1 answer, in its own fence.
 write(path.join(proj,'sfq.md'),'Where do you overlap and where do you split?\n');
-var p3=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-1','--sfq','sfq.md']);
+var p3=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-1','--sfq','sfq.md','--rerate']);
 check(p3.status===0,'battle packet: exit '+p3.status+' '+p3.stderr);
 var t3=read(p3.stdout.trim());
 check(t3.indexOf('## The other seats\' answers (round 02-debate)')>=0,'battle packet: does not name the round it reads');
@@ -152,6 +159,13 @@ check((t3.match(/=== ANSWER BEGIN ===/g)||[]).length===1,'battle packet: expecte
 check(t3.indexOf('Synthesis focus question (SFQ): Where do you overlap and where do you split?')>=0,'battle packet: SFQ missing or unlabeled');
 check(/Quote the other seats by name, in double quotes, word for word/.test(t3)&&/say Stand and why/.test(t3),'battle packet: synthesis instructions missing');
 check(/Under 600 words/.test(t3),'battle packet: cap is not 600');
+check(/RATING: X\/10/.test(t3)&&/Your latest rating was 8\/10, in round 01-sparring/.test(t3)&&t3.indexOf('No rating this round')<0,'rerate packet: rating contract or latest rating missing');
+// Without --rerate a battle packet asks for no rating: the no-rating line, no rating contract, no flip instruction.
+var p3n=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2']);
+var t3n=p3n.status===0?read(p3n.stdout.trim()):'';
+check(p3n.status===0&&t3n.indexOf('No rating this round: do not write a RATING line. Open with your critique.')>=0&&t3n.indexOf('RATING: X/10')<0&&!/say Stand and why/.test(t3n)&&/Give a new critique of the structure and content of the draft\./.test(t3n)&&/Quote the other seats by name/.test(t3n),'critique packet: should ask for no rating, got '+t3n.slice(0,400));
+var l3n=logOf(run).filter(function(e){return e.event==='packet.built'&&e.round==='03-battle'&&e.seat==='seat-2';}).pop()||{};
+check(l3n.contract==='critique'&&l3n.rerate===false&&l3n.shares===true&&l3n.word_cap===600,'critique packet: log line wrong '+JSON.stringify(l3n));
 check(/=== DRAFT BEGIN ===/.test(t3)&&/untrusted content/.test(t3),'battle packet: draft not fenced as untrusted');
 
 // A failed read is never carried: seat-3 writes a 7/10 in round 3 (checked and failed); a round-4
@@ -177,7 +191,7 @@ fs.rmSync(path.join(run,'rounds','04-battle'),{recursive:true,force:true});
 // The live check uses the cap the seat was sent. A fresh run: seat-1's packet is built at 300;
 // seat-1 writes 350 words and no check is logged. seat-2's packet at the default; seat-2 writes
 // 350 words. A round-2 packet for seat-3 lists seat-1 as a failed read (over 300) and carries seat-2.
-var runC=node('new-run.js',['--draft','draft.md','--name','caps','--model','Test Model 1.0']).stdout.trim();
+var runC=node('new-run.js',['--draft','draft.md','--name','caps','--model','Test Model 1.0','--seats','3']).stdout.trim();
 node('packet.js',['--run',runC,'--round','01-sparring','--seat','seat-1','--word-cap','300']);
 node('packet.js',['--run',runC,'--round','01-sparring','--seat','seat-2']);
 node('packet.js',['--run',runC,'--round','01-sparring','--seat','seat-3']);
@@ -208,8 +222,22 @@ check(/## Your earlier turn \(round 01-sparring\)[\s\S]*Seat three, round one/.t
 // SN rides labeled; SFQ and SN together are refused.
 write(path.join(proj,'sn.md'),'Everyone answer the close.\n');
 var psn=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--sn','sn.md']);
-check(psn.status===0&&read(psn.stdout.trim()).indexOf('Navigation note (SN): Everyone answer the close.')>=0,'SN: not labeled in the task');
+check(psn.status===0&&read(psn.stdout.trim()).indexOf('Synthesis navigation (SN): Everyone answer the close.')>=0,'SN: not labeled in the task');
 check(node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--sn','sn.md','--sfq','sfq.md']).status===2,'SFQ and SN together should exit 2');
+// N: the same guidance to every seat individually: labeled, the own earlier turn carried, no other seat, cap 500.
+write(path.join(proj,'n.md'),'Answer the close first, then the ask.\n');
+var pn=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--n','n.md']);
+var tn=pn.status===0?read(pn.stdout.trim()):'';
+check(pn.status===0&&tn.indexOf('Navigation (N): Answer the close first, then the ask.')>=0&&/navigation round \(N\)/.test(tn),'N: not labeled in the task');
+check(tn.indexOf('=== ANSWER BEGIN ===')<0&&tn.indexOf('The other seats\' answers')<0&&tn.indexOf('Seat one, round one')<0,'N: another seat\'s answer was carried');
+check(/## Your earlier turn \(round 02-debate\)[\s\S]*Seat two, round two, moved by seat one/.test(tn),'N: the seat\'s own earlier turn missing');
+check(/Under 500 words/.test(tn)&&tn.indexOf('No rating this round')>=0,'N: cap should be 500 and no rating without --rerate');
+var ln=logOf(run).filter(function(e){return e.event==='packet.built'&&e.round==='03-battle'&&e.seat==='seat-2';}).pop()||{};
+check(ln.mode==='navigation'&&ln.n==='n.md'&&ln.shares===false&&ln.reads_round===null&&ln.own_previous==='02-debate'&&ln.carried.length===0&&ln.contract==='critique','N: log line wrong '+JSON.stringify(ln));
+var pnr=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--n','n.md','--rerate']);
+check(pnr.status===0&&/Your latest rating was 8\/10, in round 02-debate/.test(read(pnr.stdout.trim()))&&/then rate the draft again/.test(read(pnr.stdout.trim())),'N with --rerate: should name the latest rating and ask for a new one');
+check(node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--n','n.md','--sn','sn.md']).status===2,'N and SN together should exit 2');
+check(node('packet.js',['--run',run,'--round','04-cold','--seat','seat-3','--cold','--n','n.md']).status===2,'N with --cold should exit 2');
 
 // Cold read: no brief, no other answers, no earlier turn.
 var pc=node('packet.js',['--run',run,'--round','04-cold','--seat','seat-3','--cold']);
@@ -223,7 +251,7 @@ var ad=node('add-draft.js',['--run',run,'--file','rev.md']);
 check(ad.status===0&&ad.stdout.trim()==='draft-2.md','add-draft: expected draft-2.md, got '+ad.stdout.trim()+' '+ad.stderr);
 check(read(path.join(run,'draft.md'))===draftText,'add-draft: draft.md changed');
 check(read(path.join(run,'draft-2.md'))===read(path.join(proj,'rev.md')),'add-draft: draft-2.md is not the revised text');
-var p5=node('packet.js',['--run',run,'--round','05-battle','--seat','seat-1']);
+var p5=node('packet.js',['--run',run,'--round','05-battle','--seat','seat-1','--rerate']);
 var t5=read(p5.stdout.trim());
 check(t5.indexOf('## The draft (draft-2.md, a revision)')>=0&&t5.indexOf('revenue is up 40%')>=0,'revised draft: not read by default');
 check(/The draft below is draft-2\.md\. The answers below were written about draft\.md\. Rate the draft below\./.test(t5),'revised draft: no note that the carried answers were about the earlier draft');
@@ -253,12 +281,12 @@ check(node('packet.js',['--run',run,'--round','06-final','--seat','seat-2','--fi
 // The log names every packet and what it carried.
 var built=logOf(run).filter(function(e){return e.event==='packet.built';});
 var l3=built.filter(function(e){return e.round==='03-battle'&&e.seat==='seat-1';})[0]||{};
-check(l3.mode==='synthesis'&&l3.model==='Test Model 1.0'&&l3.company==='Anthropic'&&l3.file==='rounds/03-battle/seat-1.packet.md'&&l3.draft==='draft.md'&&l3.reads_round==='02-debate'&&l3.own_previous==='01-sparring'&&l3.sfq==='sfq.md'&&l3.word_cap===600,'log: battle line wrong: '+JSON.stringify(l3));
+check(l3.mode==='synthesis'&&l3.model==='Test Model 1.0'&&l3.company==='Anthropic'&&l3.file==='rounds/03-battle/seat-1.packet.md'&&l3.draft==='draft.md'&&l3.reads_round==='02-debate'&&l3.own_previous==='01-sparring'&&l3.own_rating==='01-sparring'&&l3.sfq==='sfq.md'&&l3.word_cap===600&&l3.contract==='rating'&&l3.rerate===true&&l3.shares===true,'log: battle line wrong: '+JSON.stringify(l3));
 check(JSON.stringify(l3.carried)===JSON.stringify([{seat:'seat-2',round:'02-debate'}])&&JSON.stringify(l3.missing)===JSON.stringify(['seat-3']),'log: battle carried/missing wrong: '+JSON.stringify(l3.carried)+' '+JSON.stringify(l3.missing));
 var lc=built.filter(function(e){return e.round==='04-cold';})[0]||{};
 check(lc.mode==='cold'&&lc.brief_included===false&&lc.carried&&lc.carried.length===0&&lc.reads_round===null,'log: cold line wrong: '+JSON.stringify(lc));
 var lq=built.filter(function(e){return e.round==='01-sparring'&&e.seat==='seat-2';})[0]||{};
-check(lq.question==='q2.md'&&lq.mode==='read'&&lq.word_cap===500,'log: question line wrong: '+JSON.stringify(lq));
+check(lq.question==='q2.md'&&lq.mode==='read'&&lq.word_cap===500&&lq.contract==='rating','log: question line wrong: '+JSON.stringify(lq));
 var lf=built.filter(function(e){return e.round==='06-final'&&e.seat==='seat-1'&&e.mode==='final-sn';})[0]||{};
 check(lf.file==='rounds/06-final/seat-1.sn.packet.md'&&lf.draft==='draft-2.md'&&lf.word_cap===250&&lf.brief_included===false,'log: final line wrong: '+JSON.stringify(lf));
 check(logOf(run).some(function(e){return e.event==='draft.added'&&e.file==='draft-2.md'&&e.sha256&&e.words;}),'log: draft.added missing');
@@ -270,8 +298,15 @@ check(pf.status===0,'free text: packet.js with unknown flags should still build,
 check(pf.status===0&&read(pf.stdout.trim()).indexOf(INJECT)<0,'free text: an unknown flag\'s text reached the packet');
 check(node('packet.js',['--run',run,'--round','05-battle','--seat','seat-2','--question',INJECT]).status===2,'free text: --question with text instead of a path should exit 2');
 check(node('packet.js',['--run',run,'--round','05-battle','--seat','seat-2','--sfq',INJECT]).status===2,'free text: --sfq with text instead of a path should exit 2');
+check(node('packet.js',['--run',run,'--round','05-battle','--seat','seat-2','--n',INJECT]).status===2,'free text: --n with text instead of a path should exit 2');
 var seatsBefore=read(path.join(run,'seats.json'));
-check(node('new-run.js',['--draft','draft.md','--name','free','--model',INJECT]).status===0&&read(path.join(run,'seats.json'))===seatsBefore,'free text: new-run.js --model must not touch an existing run');
+var freeRun=node('new-run.js',['--draft','draft.md','--name','free','--model',INJECT]);
+check(freeRun.status===0&&read(path.join(run,'seats.json'))===seatsBefore,'free text: new-run.js --model must not touch an existing run');
+// The default crew is one fresh reader, seat-1: never padded.
+var freeSeats=JSON.parse(read(path.join(freeRun.stdout.trim(),'seats.json'))).seats;
+check(freeSeats.length===1&&freeSeats[0].id==='seat-1','default crew: expected one fresh reader, got '+freeSeats.length);
+var freeLog=logOf(freeRun.stdout.trim())[0]||{};
+check(/one fresh reader/.test(freeLog.crew_note||'')&&/never fakes a seat/.test(freeLog.crew_note||''),'default crew: run.created should say one fresh reader, got '+freeLog.crew_note);
 
 // Refusals.
 check(node('packet.js',['--run',run,'--round','07-debate','--seat','seat-9']).status===2,'packet: unknown seat should exit 2');
@@ -283,7 +318,7 @@ check(node('add-draft.js',['--run',run,'--file','missing.md']).status===2,'add-d
 
 // The scripts wrote nowhere but the run folders.
 var top=fs.readdirSync(proj).sort().join(',');
-check(top==='brief.md,combat-writing,draft.md,q2.md,rev.md,sfq.md,sn.md','project folder has unexpected entries: '+top);
+check(top==='brief.md,combat-writing,draft.md,n.md,q2.md,rev.md,sfq.md,sn.md','project folder has unexpected entries: '+top);
 var runs=fs.readdirSync(path.join(proj,'combat-writing','runs')).length;
 check(runs===4,'expected 4 run folders (board-letter, board-letter-2, free, caps), found '+runs);
 

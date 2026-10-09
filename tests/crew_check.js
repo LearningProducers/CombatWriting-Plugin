@@ -44,6 +44,17 @@
 //     the request limit, and not otherwise.
 //   - The listed plugin's checker, flip check and record then read the outside seat's answer as
 //     any seat's, and the record's crew line names two companies and both name sources.
+//   - The crew (ruled 2026-10-09) is never padded: new-run.js seats one fresh reader, and with
+//     the Groq key alone crew_register makes the crew three (seat-1 fresh, seat-2 and seat-3
+//     from Groq); with a second provider's key present it is four. A dry run prints the seats.
+//   - The cap for outside seats (ruled 2026-10-09): the system line states the packet's cap as
+//     a number and the contract (a rating line, or no rating in a battle round without
+//     --rerate); the add-on's no-rating line equals the listed plugin's. On a retry whose
+//     reply is over the cap again, the reply is cut at the cap, the RATING line is pulled out
+//     of the reply (here placed last) and kept first, the log and the result say truncated with
+//     the counts, the listed plugin's checker passes the cut file, and the record and the board
+//     mark the read "truncated at N words" (600 there, the cap that packet was sent). A critique read through the add-on carries no
+//     RATING line and passes the critique contract.
 //
 // Run from the repo root:   node tests/crew_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -75,7 +86,8 @@ var fake=http.createServer(function(req,res){
         {id:'whisper-large-v3',owned_by:'OpenAI',created:400,context_window:0,max_completion_tokens:0,active:true},
         {id:'meta-llama/llama-guard-4-12b',owned_by:'Meta',created:400,context_window:131072,max_completion_tokens:1024,active:true},
         {id:'openai/gpt-oss-safeguard-20b',owned_by:'OpenAI',created:500,context_window:131072,max_completion_tokens:32768,active:true},
-        {id:'qwen/qwen-tiny',owned_by:'Alibaba Cloud',created:900,context_window:8192,max_completion_tokens:4096,active:true}
+        {id:'qwen/qwen-tiny',owned_by:'Alibaba Cloud',created:900,context_window:8192,max_completion_tokens:4096,active:true},
+        {id:'grok-test-1',owned_by:'xAI',created:700,context_window:131072,max_completion_tokens:16384,active:true}
       ]});
     }
     if(req.method==='POST'&&req.url==='/v1/chat/completions'){
@@ -87,7 +99,11 @@ var fake=http.createServer(function(req,res){
       var sys=body.messages[0].content;
       // The reply pads its lines with trailing spaces, as a real model did; the server must strip them.
       var retried=/Note from the host on this retry/.test(user);
-      var content=/S\/N RATIO/.test(sys)?'S/N RATIO: 70%  \nSignal: the ask. Noise: the posture.   \n':/RED FLAGS/.test(sys)?'NO RED FLAGS \nNothing an informed reader would distrust.\n':(retried?'RATING: 6/10  \nSecond try, shorter. seat-1 wrote "The ask lands in the first line." and I agree.\n':'RATING: 8/10  \nThe ask lands. seat-1 wrote "The ask lands in the first line." and I agree.  \n');
+      // On a retry marked TRUNCATEME the reply is 600-odd words with the rating line LAST, as a real seat did twice.
+      var content=/S\/N RATIO/.test(sys)?'S/N RATIO: 70%  \nSignal: the ask. Noise: the posture.   \n':/RED FLAGS/.test(sys)?'NO RED FLAGS \nNothing an informed reader would distrust.\n'
+        :/asks for no rating/.test(sys)?'The ask lands and the close still apologizes. seat-1 wrote "The ask lands in the first line." and I agree.\n'
+        :/TRUNCATEME/.test(user)?'Opening line. The ask lands. '+new Array(350).join('alpha ')+'\n\nSecond paragraph. '+new Array(350).join('beta ')+'\n\nRATING: 8/10  \n'
+        :(retried?'RATING: 6/10  \nSecond try, shorter. seat-1 wrote "The ask lands in the first line." and I agree.\n':'RATING: 8/10  \nThe ask lands. seat-1 wrote "The ask lands in the first line." and I agree.  \n');
       // The returned id differs from the requested one by a date suffix, as a real provider's did; the suffix is not stacked on a re-request of the returned id.
       return json(200,{id:'chatcmpl-1',model:body.model.replace(/-0725$/,'')+'-0725',choices:[{message:{role:'assistant',content:content},finish_reason:'stop'}],usage:{prompt_tokens:321,completion_tokens:40,total_tokens:361}});
     }
@@ -130,8 +146,10 @@ fake.listen(0,'127.0.0.1',function(){
 
   // A run from the listed plugin's own scripts.
   fs.writeFileSync(path.join(proj,'draft.md'),'Dear board, buy the company. The ask lands in the first line.\n');
-  var run=node('new-run.js',['--draft','draft.md','--name','crew','--model','Test Model','--seats','1']).stdout.trim();
+  var run=node('new-run.js',['--draft','draft.md','--name','crew','--model','Test Model']).stdout.trim();
   check(!!run&&fs.existsSync(run),'new-run failed');
+  check(JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats.length===1,'new-run: the default crew should be one fresh reader');
+  check(lib.NO_RATING_LINE===require(path.join(scripts,'lib.js')).NO_RATING_LINE,'the add-on\'s no-rating line must equal the listed plugin\'s');
 
   var s1=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'gsk_FROM_THE_PROMPT',GROQ_API_KEY:'gsk_FROM_THE_ENVIRONMENT'}));
   s1.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'crew_check',version:'1'}}).then(function(m){
@@ -151,7 +169,7 @@ fake.listen(0,'127.0.0.1',function(){
     var b=seats.filter(function(s){return s.slot==='groq-b';})[0]||{};
     check(a.available===true&&a.model==='openai/gpt-oss-120b'&&a.maker==='OpenAI'&&a.served_by==='Groq'&&a.key_source==='prompt','crew_list: groq-a wrong '+JSON.stringify(a));
     check(b.available===true&&b.model==='qwen/qwen3.6-27b'&&b.maker==='Alibaba'&&b.served_by==='Groq','crew_list: groq-b should be the newest live qwen id, got '+JSON.stringify(b));
-    check(a.catalog_size===4,'crew_list: expected 4 eligible catalog records after excluding whisper, guard, safeguard and the small-context id, got '+a.catalog_size);
+    check(a.catalog_size===5,'crew_list: expected 5 eligible catalog records after excluding whisper, guard, safeguard and the small-context id, got '+a.catalog_size);
     var x=seats.filter(function(s){return s.slot==='xai';})[0]||{};
     check(x.available===false&&/no key/.test(x.reason)&&/XAI_API_KEY/.test(x.reason)&&!/gsk_/.test(JSON.stringify(seats)),'crew_list: xai with no key should be unavailable with names only, got '+JSON.stringify(x));
     var o=seats.filter(function(s){return s.slot==='ollama';})[0]||{};
@@ -164,7 +182,8 @@ fake.listen(0,'127.0.0.1',function(){
   }).then(function(r){
     check(!r.isError&&r.data.added&&r.data.added.length===2,'crew_register: expected 2 seats added, got '+JSON.stringify(r.data&&r.data.added));
     var seats=JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats;
-    check(seats.length===3&&seats[1].id==='seat-2'&&seats[1].provider==='groq'&&seats[1].served_by==='Groq'&&seats[1].company==='OpenAI'&&seats[1].model==='openai/gpt-oss-120b'&&/API returns/.test(seats[1].source),'crew_register: seats.json wrong '+JSON.stringify(seats[1]));
+    check(seats.length===3&&seats[0].id==='seat-1'&&!seats[0].provider&&seats[1].id==='seat-2'&&seats[1].provider==='groq'&&seats[1].served_by==='Groq'&&seats[1].company==='OpenAI'&&seats[1].model==='openai/gpt-oss-120b'&&/API returns/.test(seats[1].source),'crew_register: with the Groq key alone the crew should be three, seat-1 the fresh reader; got '+JSON.stringify(seats.map(function(x){return x.id+' '+x.model;})));
+    console.log('crew with the Groq key alone: '+seats.map(function(x){return x.id+' = '+x.model+' ('+x.company+(x.served_by?', served by '+x.served_by:'')+')';}).join('; '));
     check(seats[2].company==='Alibaba'&&seats[2].model==='qwen/qwen3.6-27b','crew_register: seat-3 wrong '+JSON.stringify(seats[2]));
     check(logOf(run).some(function(e){return e.event==='crew.registered'&&e.credit===CREDIT&&e.added.length===2&&e.unavailable.length>=2;}),'crew_register: log line missing');
     return s1.call('crew_register',{run:run});
@@ -189,6 +208,8 @@ fake.listen(0,'127.0.0.1',function(){
     check(seats[1].model==='openai/gpt-oss-120b-0725','crew_answer: seats.json should carry the returned id, got '+seats[1].model);
     var req=requests.filter(function(q){return q.url==='/v1/chat/completions';})[0];
     check(!!req&&req.auth==='Bearer gsk_FROM_THE_PROMPT'&&req.body.model==='openai/gpt-oss-120b'&&req.body.messages.length===2&&req.body.messages[0].role==='system'&&/RATING: X\/10/.test(req.body.messages[0].content)&&req.body.messages[1].content.indexOf('=== DRAFT BEGIN ===')>=0&&req.body.max_tokens>=1200&&req.body.max_tokens<=2800&&req.body.reasoning_effort==='low','crew_answer: request wrong '+JSON.stringify(req&&{auth:req.auth,model:req.body.model,max:req.body.max_tokens,extras:req.body.reasoning_effort}));
+    check(!!req&&/Under 500 words in all, the first line included/.test(req.body.messages[0].content)&&/a second overrun is cut at 500 words/.test(req.body.messages[0].content),'system line: the cap must be stated as a number, got '+(req&&req.body.messages[0].content.slice(0,400)));
+    console.log('system line (sparring, rating): '+(req?req.body.messages[0].content:''));
     check(req.body.messages[1].content===fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.packet.md'),'utf8'),'crew_answer: the user message must be the packet file, verbatim');
     var e=logOf(run).filter(function(x){return x.event==='crew.answered';})[0]||{};
     check(e.ts&&e.round==='01-sparring'&&e.seat==='seat-2'&&e.provider==='groq'&&e.served_by==='Groq'&&e.company==='OpenAI'&&e.model_requested==='openai/gpt-oss-120b'&&e.model_returned==='openai/gpt-oss-120b-0725'&&e.model_changed===true&&e.retry_note===null&&e.model_source==='API response model field'&&e.file==='rounds/01-sparring/seat-2.answer.md'&&e.packet==='rounds/01-sparring/seat-2.packet.md'&&e.read==='rating'&&e.usage&&e.usage.total_tokens===361&&typeof e.waited_ms==='number'&&e.key_source==='prompt'&&typeof e.input_tokens_estimated==='number'&&typeof e.reservation==='number','crew_answer: log line incomplete '+JSON.stringify(e));
@@ -202,7 +223,7 @@ fake.listen(0,'127.0.0.1',function(){
     check(!r.isError&&r.data.ok&&/^RATING: 6\/10\nSecond try/.test(fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.answer.md'),'utf8')),'retry note: the second answer should replace the first, got '+JSON.stringify(r.data));
     var req=requests.filter(function(q){return q.url==='/v1/chat/completions';}).pop();
     var packetText=fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.packet.md'),'utf8');
-    check(req.body.messages[1].content.indexOf(packetText.replace(/\s+$/,''))===0&&/## Note from the host on this retry\n\nYour previous answer failed the check: rating is 7; 7 is forbidden, commit to 6 or 8; 530 words, over the cap of 500\nWrite it again/.test(req.body.messages[1].content),'retry note: the note must ride after the packet in the user message');
+    check(req.body.messages[1].content.indexOf(packetText.replace(/\s+$/,''))===0&&/## Note from the host on this retry\n\nYour previous answer failed the check: rating is 7; 7 is forbidden, commit to 6 or 8; 530 words, over the cap of 500\nWrite it again, meeting the contract above, within 500 words\./.test(req.body.messages[1].content),'retry note: the note must ride after the packet in the user message, naming the cap');
     check(req.body.model==='openai/gpt-oss-120b-0725','retry note: the retry should request the id the API returned last time, got '+req.body.model);
     var e2=logOf(run).filter(function(x){return x.event==='crew.answered';}).pop()||{};
     check(e2.retry_note&&/7 is forbidden/.test(e2.retry_note)&&e2.model_requested==='openai/gpt-oss-120b-0725'&&e2.model_returned==='openai/gpt-oss-120b-0725'&&e2.model_changed===false,'retry note: log line wrong '+JSON.stringify(e2));
@@ -218,7 +239,7 @@ fake.listen(0,'127.0.0.1',function(){
     check(req&&req.body.model==='qwen/qwen3.6-27b'&&req.body.reasoning_effort==='none','crew_answer: the qwen request extras were not applied');
     // Battle: packets carry the outside seats' answers; the flip check and the record read them.
     node('check-answer.js',[path.join(run,'rounds','01-sparring','seat-3.answer.md'),'--run',run]);
-    ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','02-battle','--seat',s]); });
+    ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','02-battle','--seat',s,'--rerate']); });
     var p1=fs.readFileSync(path.join(run,'rounds','02-battle','seat-1.packet.md'),'utf8');
     check(/### openai\/gpt-oss-120b-0725 \(OpenAI, served by Groq\), seat-2\n\n=== ANSWER BEGIN ===\nRATING: 8\/10/.test(p1),'battle packet: the outside seat\'s answer is not carried under its returned id');
     fs.writeFileSync(path.join(run,'rounds','02-battle','seat-1.answer.md'),'RATING: 8/10\nseat-2 wrote "The ask lands." and that moved me from 6 to 8.\n');
@@ -246,44 +267,83 @@ fake.listen(0,'127.0.0.1',function(){
     return s1.call('crew_answer',{run:run,round:'03-final',seat:'seat-2',read:'redflag'});
   }).then(function(r){
     check(!r.isError&&r.data.ok&&/^NO RED FLAGS/.test(fs.readFileSync(path.join(run,'rounds','03-final','seat-2.redflag.answer.md'),'utf8')),'final redflag through the add-on: '+JSON.stringify(r.data));
+    // The second overrun (ruled 2026-10-09): a rerate packet, a retry note, and a reply over the cap with the
+    // rating line placed last. The add-on cuts it at the cap, keeps the rating first, and says so.
+    node('packet.js',['--run',run,'--round','04-battle','--seat','seat-2','--rerate']);
+    return s1.call('crew_answer',{run:run,round:'04-battle',seat:'seat-2',note:'597 words, over the cap of 500 (TRUNCATEME)'});
+  }).then(function(r){
+    var f=path.join(run,'rounds','04-battle','seat-2.answer.md');
+    var t=fs.existsSync(f)?fs.readFileSync(f,'utf8'):'';
+    var words=t.split(/\s+/).filter(Boolean).length;
+    // The packet carried the other seats, so the cap it was sent is 600; the cut is at that cap.
+    check(!r.isError&&r.data.ok&&r.data.truncated&&r.data.truncated.at===600&&r.data.truncated.words_returned>600&&r.data.truncated.first_line_moved===true&&/cut at 600 words/.test(r.data.next),'truncation: the result should say the reply was cut at the cap sent, got '+JSON.stringify(r.data));
+    check(/^RATING: 8\/10\n/.test(t)&&words===600&&t.indexOf('The ask lands.')>=0&&(t.match(/RATING:/g)||[]).length===1,'truncation: the file should open with the rating pulled from the end and hold 600 words, got '+words+' words, first line '+JSON.stringify(t.split('\n')[0]));
+    var req=requests.filter(function(q){return q.url==='/v1/chat/completions';}).pop();
+    check(/Under 600 words in all/.test(req.body.messages[0].content),'truncation: the system line should state the cap sent, 600');
+    var e=logOf(run).filter(function(x){return x.event==='crew.answered'&&x.round==='04-battle';}).pop()||{};
+    check(e.truncated&&e.truncated.at===e.word_cap&&e.truncated.words_returned>e.word_cap&&e.truncated.words_kept===e.word_cap&&e.truncated.first_line_moved===true&&e.contract==='rating','truncation: log line wrong '+JSON.stringify(e.truncated)+' cap '+e.word_cap);
+    var ca=node('check-answer.js',[f,'--run',run]);
+    check(ca.status===0&&/OK rating 8\/10/.test(ca.stdout),'truncation: the listed plugin\'s checker should pass the cut file, got '+ca.stdout.split('\n')[0]);
+    node('check-flip.js',['--run',run,'--round','04-battle','--seat','seat-2']);
+    node('render-record.js',['--run',run]); node('render-board.js',['--run',run]);
+    var rec=fs.readFileSync(path.join(run,'record.md'),'utf8'), html=fs.readFileSync(path.join(run,'board.html'),'utf8');
+    check(/\| 04-battle \|/.test(rec.split('\n').filter(function(l){return l.indexOf('| Seat |')===0;})[0]||'')&&/seat-2 \|[^\n]*\| 8\/10[^|]*truncated at 600 words/.test(rec),'record: the truncated read should be marked in the scoreboard with the rating shown');
+    check(/\*Truncated at 600 words by the crew add-on on the seat's second overrun; the seat returned \d+ words; its first line was found lower in the reply and moved to the top\.\*/.test(rec),'record: the answer should carry the truncation note');
+    check(/8\/10<br><span class="mark"[^>]*>[^<]*truncated at 600 words<\/span>/.test(html),'board: the truncated read should be marked with the rating shown');
+    var sc=(rec.match(/\| openai\/gpt-oss-120b-0725 \(OpenAI, served by Groq\), seat-2 \|[^\n]*/)||[''])[0];
+    console.log('scoreboard row after the cut: '+sc);
+    // A battle round without --rerate through the add-on: the system line says no rating, the reply has none,
+    // and the listed plugin's checker holds the seat to the critique contract.
+    node('packet.js',['--run',run,'--round','05-battle','--seat','seat-2']);
+    return s1.call('crew_answer',{run:run,round:'05-battle',seat:'seat-2'});
+  }).then(function(r){
+    var f=path.join(run,'rounds','05-battle','seat-2.answer.md');
+    var req=requests.filter(function(q){return q.url==='/v1/chat/completions';}).pop();
+    check(!r.isError&&r.data.ok&&/This round asks for no rating: do not write a RATING line/.test(req.body.messages[0].content)&&!/RATING: X\/10/.test(req.body.messages[0].content),'critique read: the system line should ask for no rating, got '+req.body.messages[0].content.slice(0,300));
+    console.log('system line (battle, no rerate): '+req.body.messages[0].content);
+    check(fs.existsSync(f)&&!/^RATING/.test(fs.readFileSync(f,'utf8'))&&/The ask lands and the close still apologizes/.test(fs.readFileSync(f,'utf8')),'critique read: the answer should carry no RATING line');
+    var ca=node('check-answer.js',[f,'--run',run]);
+    check(ca.status===0&&/OK critique, no rating this round/.test(ca.stdout),'critique read: the checker should pass it under the critique contract, got '+ca.stdout.split('\n')[0]);
+    var e=logOf(run).filter(function(x){return x.event==='crew.answered'&&x.round==='05-battle';}).pop()||{};
+    check(e.contract==='critique'&&e.truncated===null&&e.word_cap===600,'critique read: log line wrong '+JSON.stringify({contract:e.contract,truncated:e.truncated,cap:e.word_cap}));
     // Too long to send: a packet that leaves less than the floor for a reply is refused before any request.
-    fs.mkdirSync(path.join(run,'rounds','04-battle'),{recursive:true});
-    fs.writeFileSync(path.join(run,'rounds','04-battle','seat-2.packet.md'),CREDIT+'\n\n'+new Array(7200).join('word ')+'\n');
+    fs.mkdirSync(path.join(run,'rounds','06-battle'),{recursive:true});
+    fs.writeFileSync(path.join(run,'rounds','06-battle','seat-2.packet.md'),CREDIT+'\n\n'+new Array(7200).join('word ')+'\n');
     var before=requests.length;
-    return s1.call('crew_answer',{run:run,round:'04-battle',seat:'seat-2'}).then(function(r2){
+    return s1.call('crew_answer',{run:run,round:'06-battle',seat:'seat-2'}).then(function(r2){
       check(r2.isError&&r2.data.ok===false&&r2.data.missing===true&&/^Too long to send\. This round needs about [\d,]+ tokens of input and the provider allows 8,000 per minute, which leaves less than the 1,200-token minimum for a reply\. Cut roughly [\d,]+ tokens/.test(r2.data.reason),'too long: '+JSON.stringify(r2.data));
       check(requests.length===before,'too long: a request was sent anyway');
-      check(!fs.existsSync(path.join(run,'rounds','04-battle','seat-2.answer.md')),'too long: an answer file appeared');
-      check(logOf(run).some(function(e){return e.event==='crew.refused'&&e.round==='04-battle'&&e.seat==='seat-2'&&/Too long to send/.test(e.reason)&&e.input_tokens>8000;}),'too long: crew.refused not logged');
+      check(!fs.existsSync(path.join(run,'rounds','06-battle','seat-2.answer.md')),'too long: an answer file appeared');
+      check(logOf(run).some(function(e){return e.event==='crew.refused'&&e.round==='06-battle'&&e.seat==='seat-2'&&/Too long to send/.test(e.reason)&&e.input_tokens>8000;}),'too long: crew.refused not logged');
     });
   }).then(function(){
     // A 429 with Retry-After: 1 is waited out and retried once.
-    fs.mkdirSync(path.join(run,'rounds','05-battle'),{recursive:true});
-    fs.writeFileSync(path.join(run,'rounds','05-battle','seat-2.packet.md'),CREDIT+'\n\nRATELIMIT please rate this.\n');
+    fs.mkdirSync(path.join(run,'rounds','07-battle'),{recursive:true});
+    fs.writeFileSync(path.join(run,'rounds','07-battle','seat-2.packet.md'),CREDIT+'\n\nRATELIMIT please rate this.\n');
     var t0=Date.now();
-    return s1.call('crew_answer',{run:run,round:'05-battle',seat:'seat-2'}).then(function(r){
+    return s1.call('crew_answer',{run:run,round:'07-battle',seat:'seat-2'}).then(function(r){
       check(!r.isError&&r.data.ok&&r.data.waited_ms>=1000&&Date.now()-t0>=1000,'rate limit: expected a wait of at least 1 s and a retry, got '+JSON.stringify(r.data));
       var calls=requests.filter(function(q){return q.url==='/v1/chat/completions'&&/RATELIMIT/.test(q.body.messages[1].content);});
       check(calls.length===2,'rate limit: expected exactly two attempts, got '+calls.length);
-      check(logOf(run).some(function(e){return e.event==='crew.answered'&&e.round==='05-battle'&&e.waited_ms>=1000;}),'rate limit: the wait is not in the log');
+      check(logOf(run).some(function(e){return e.event==='crew.answered'&&e.round==='07-battle'&&e.waited_ms>=1000;}),'rate limit: the wait is not in the log');
     });
   }).then(function(){
     // A failed call and an empty reply are missing, with no answer file.
-    fs.mkdirSync(path.join(run,'rounds','06-battle'),{recursive:true});
-    fs.writeFileSync(path.join(run,'rounds','06-battle','seat-2.packet.md'),CREDIT+'\n\nFAILME\n');
-    fs.writeFileSync(path.join(run,'rounds','06-battle','seat-3.packet.md'),CREDIT+'\n\nEMPTYME\n');
-    return s1.call('crew_answer',{run:run,round:'06-battle',seat:'seat-2'}).then(function(r){
+    fs.mkdirSync(path.join(run,'rounds','08-battle'),{recursive:true});
+    fs.writeFileSync(path.join(run,'rounds','08-battle','seat-2.packet.md'),CREDIT+'\n\nFAILME\n');
+    fs.writeFileSync(path.join(run,'rounds','08-battle','seat-3.packet.md'),CREDIT+'\n\nEMPTYME\n');
+    return s1.call('crew_answer',{run:run,round:'08-battle',seat:'seat-2'}).then(function(r){
       check(r.isError&&r.data.missing===true&&/HTTP 500/.test(r.data.reason)&&/missing this round/.test(r.data.reason),'failed call: '+JSON.stringify(r.data));
-      check(!fs.existsSync(path.join(run,'rounds','06-battle','seat-2.answer.md')),'failed call: an answer file appeared');
-      check(logOf(run).some(function(e){return e.event==='crew.failed'&&e.round==='06-battle'&&e.seat==='seat-2'&&e.status===500;}),'failed call: crew.failed not logged');
-      return s1.call('crew_answer',{run:run,round:'06-battle',seat:'seat-3'});
+      check(!fs.existsSync(path.join(run,'rounds','08-battle','seat-2.answer.md')),'failed call: an answer file appeared');
+      check(logOf(run).some(function(e){return e.event==='crew.failed'&&e.round==='08-battle'&&e.seat==='seat-2'&&e.status===500;}),'failed call: crew.failed not logged');
+      return s1.call('crew_answer',{run:run,round:'08-battle',seat:'seat-3'});
     }).then(function(r){
-      check(r.isError&&r.data.missing===true&&/empty reply/.test(r.data.reason)&&!fs.existsSync(path.join(run,'rounds','06-battle','seat-3.answer.md')),'empty reply: '+JSON.stringify(r.data));
-      // Round 06 holds no sound answer, so the next packet reads the latest round that does (05-battle, where
+      check(r.isError&&r.data.missing===true&&/empty reply/.test(r.data.reason)&&!fs.existsSync(path.join(run,'rounds','08-battle','seat-3.answer.md')),'empty reply: '+JSON.stringify(r.data));
+      // Round 08 holds no sound answer, so the next packet reads the latest round that does (07-battle, where
       // only seat-2 answered): seat-2 carried from there, seat-3 listed as missing, nothing standing in.
-      ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','07-battle','--seat',s]); });
-      var p3=fs.readFileSync(path.join(run,'rounds','07-battle','seat-1.packet.md'),'utf8');
-      check(/## The other seats' answers \(round 05-battle\)/.test(p3)&&/seat-2\n\n=== ANSWER BEGIN ===/.test(p3)&&/seat-3 — missing/.test(p3),'after failures: the next packet should read the latest round with a sound answer and list seat-3 as missing');
+      ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','09-battle','--seat',s]); });
+      var p3=fs.readFileSync(path.join(run,'rounds','09-battle','seat-1.packet.md'),'utf8');
+      check(/## The other seats' answers \(round 07-battle\)/.test(p3)&&/seat-2\n\n=== ANSWER BEGIN ===/.test(p3)&&/seat-3 — missing/.test(p3),'after failures: the next packet should read the latest round with a sound answer and list seat-3 as missing');
     });
   }).then(function(){
     // Misuse.
@@ -329,6 +389,26 @@ fake.listen(0,'127.0.0.1',function(){
       check(r.isError&&r.data.missing===true&&/no key/.test(r.data.reason)&&!/NEVER_READ/.test(JSON.stringify(r.data))&&requests.length===0,'key route: crew_answer with no key should be missing without a request, got '+JSON.stringify(r.data));
       check(!/NEVER_READ/.test(fs.readFileSync(path.join(run,'log.jsonl'),'utf8')),'key route: a key from a file reached the log');
       s3.stop();
+    });
+  }).then(function(){
+    // The crew scales by key (ruled 2026-10-09): with a second provider's key present, crew_register seats
+    // one more, and the crew is four. A dry run: new-run.js and crew_register only, no packet sent.
+    requests.length=0;
+    var s4=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'gsk_FROM_THE_PROMPT',CW_CREW_XAI_KEY:'xai_FROM_THE_PROMPT'}));
+    var run4=node('new-run.js',['--draft','draft.md','--name','four','--model','Test Model']).stdout.trim();
+    return s4.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'t',version:'1'}}).then(function(){
+      return s4.call('crew_list');
+    }).then(function(r){
+      var x=(r.data.seats||[]).filter(function(s){return s.slot==='xai';})[0]||{};
+      check(x.available===true&&x.model==='grok-test-1'&&x.maker==='xAI'&&x.served_by==='xAI','scaling: the xai seat should resolve with its key present, got '+JSON.stringify(x));
+      check(r.data.available===3,'scaling: expected 3 outside seats available with two keys, got '+r.data.available);
+      return s4.call('crew_register',{run:run4});
+    }).then(function(r){
+      var seats=JSON.parse(fs.readFileSync(path.join(run4,'seats.json'),'utf8')).seats;
+      check(!r.isError&&r.data.added.length===3&&seats.length===4&&seats[0].id==='seat-1'&&!seats[0].provider&&seats[3].provider==='xai'&&seats[3].model==='grok-test-1','scaling: with Groq and xAI keys the crew should be four, got '+JSON.stringify(seats.map(function(x){return x.id+' '+x.model;})));
+      check(!requests.some(function(q){return q.url==='/v1/chat/completions';}),'scaling: the dry run must send no packet');
+      console.log('crew with the Groq and xAI keys: '+seats.map(function(x){return x.id+' = '+x.model+' ('+x.company+(x.served_by?', served by '+x.served_by:'')+')';}).join('; '));
+      s4.stop();
     });
   }).then(function(){
     // The window arithmetic.

@@ -9,7 +9,7 @@ This repository is the home of the Combat Writing plugin for Claude Code and of 
 
 ## Status
 
-Part 5 of 5. The skeleton, the method text, the `help`, `sparring` and `battle` commands, the seat agent, the scripts, the rendered record, the visual board, the eval cases, the directory checklist pass ([docs/directory-checklist.md](docs/directory-checklist.md)) and the add-on are in. See [PLAN.md](PLAN.md). Nothing has been submitted to the Claude plugin directory; the portal's Validate button is the owner's step.
+Version 0.2.0. The skeleton, the method text, the `help`, `sparring` and `battle` commands, the seat agent, the scripts, the rendered record, the visual board, the eval cases, the directory checklist pass ([docs/directory-checklist.md](docs/directory-checklist.md)) and the add-on are in, and the founder's rulings of 2026-10-09 (the crew is never padded, the round terms N, SN and SFQ, a rating in battle only on `rerate`, the outside-seat cap) are applied. See [PLAN.md](PLAN.md). Nothing has been submitted to the Claude plugin directory; the portal's Validate button is the owner's step.
 
 ## What is here
 
@@ -23,7 +23,7 @@ Part 5 of 5. The skeleton, the method text, the `help`, `sparring` and `battle` 
 
 ## What the plugin does, sends and fetches
 
-- **Runs:** skills, commands and agents inside the Claude Code session you are already in. Each seat on the crew is a separate agent started for one job, never the conversation you are typing into. Scripts in the plugin folder carry each seat's answer to the other seats by code.
+- **Runs:** skills, commands and agents inside the Claude Code session you are already in. The crew is one fresh reader, a separate agent started for one job, never the conversation you are typing into, plus one seat per outside model the add-on has a key for; nothing is padded. Scripts in the plugin folder carry each seat's answer to the other seats by code. In sparring every seat rates first; in battle the seats discuss the draft in N, SN and SFQ rounds and rate again only when you ask with `rerate`.
 - **Sends:** nothing outside that session. The plugin holds no keys and calls no service of its own. Your draft goes where your Claude Code session already sends it, and nowhere else.
 - **Fetches:** nothing. The method text ships inside the plugin folder.
 - **Writes:** a run folder in your project, `combat-writing/runs/<run-id>/`, holding the draft snapshot and any revisions, the brief, every packet, every answer, a timestamped log, `record.md` (the rendered record with its scoreboard) and `board.html` (the visual board, one self-contained page that loads nothing from anywhere). What you paste is written whole to `combat-writing/inbox/` before it is parsed. Every record it writes opens with the credit line: "Combat Writing — Learning Producers Inc., Israel Hernandez, founder".
@@ -32,7 +32,7 @@ Part 5 of 5. The skeleton, the method text, the `help`, `sparring` and `battle` 
 
 ## The add-on
 
-`plugins/combat-writing-crew/` is a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew can be more than one company's models. It is installed from this repository as a marketplace, not from the directory. Each key goes only to its own provider, never to Learning Producers, and is never stored in a file: a masked prompt first, an environment variable only when the prompt is empty. One free Groq key seats two outside models beside the fresh readers. See [its README](plugins/combat-writing-crew/README.md).
+`plugins/combat-writing-crew/` is a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew can be more than one company's models. It is installed from this repository as a marketplace, not from the directory. Each key goes only to its own provider, never to Learning Producers, and is never stored in a file: a masked prompt first, an environment variable only when the prompt is empty. One free Groq key seats two outside models beside the fresh reader: a crew of three. Each outside seat is told the word cap; a second overrun is cut at the cap with the rating kept and marked in the record. See [its README](plugins/combat-writing-crew/README.md).
 
 ## Licensing
 

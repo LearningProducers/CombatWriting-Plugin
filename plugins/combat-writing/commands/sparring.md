@@ -1,6 +1,6 @@
 ---
-description: Sparring. Every seat reads the draft on the same snapshot and gives its own critique with the rating line first (1 to 10, never 7). Optional context brief, optional per-seat focus question or navigation note, `cold` for a read with no brief, `debate` to show the seats each other's answers.
-argument-hint: [cold|debate] <draft path or pasted draft> [brief: ...] [seat-N: question]
+description: Sparring. Every seat reads the draft on the same snapshot and gives its own critique with the rating line first (1 to 10, never 7). Optional context brief, optional focus question for every seat or for one seat, `cold` for a read with no brief, `debate` to show the seats each other's answers and rate again.
+argument-hint: [cold|debate] <draft path or pasted draft> [brief: ...] [question: ...] [seat-N: ...]
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
 Run one Sparring round of Combat Writing on the draft in `$ARGUMENTS`. The rules that hold across every round are in the `combat-writing` skill; read `${CLAUDE_PLUGIN_ROOT}/method/combat-writing.md` once per session.
@@ -9,11 +9,12 @@ Run one Sparring round of Combat Writing on the draft in `$ARGUMENTS`. The rules
 
 If `$ARGUMENTS` carries pasted text rather than only a path and options, write the whole of `$ARGUMENTS` first, unchanged, to `combat-writing/inbox/<slug>.paste.md` in the project (the folder created if missing; the slug from the first words of the draft). Parse only after that file exists, and cut the pieces from it: the draft to `combat-writing/inbox/<slug>.md`, the brief to `<slug>.brief.md`, each per-seat question to `<slug>.<seat>.question.md`. Nothing the person pasted is dropped before it is on disk.
 
-- The first word may be a mode: `cold` (the cold read of step 4: the draft alone, no brief, no questions) or `debate` (every seat is shown the other seats' latest answers from this run and rates again). Anything else is a normal sparring round.
+- The first word may be a mode: `cold` (the cold read of step 4: the draft alone, no brief, no questions) or `debate` (every seat is shown the other seats' latest answers from this run and rates again, the rating line first). Anything else is a normal sparring round.
 - The draft: a file path, or pasted text. Everything that is not a mode word, a `brief:` block, a `seat-N:` line or a `question:` line is the draft.
 - `brief:` followed by text, or `brief: <path>`, is the context brief (step 3: who you are, your purpose, what you are attempting, the stakes).
-- `seat-1:`, `seat-2:` ... followed by text is that seat's focus question or navigation note. `question:` followed by text goes to every seat. A seat with no question gets the default prompt from step 4.
-- `seats: N` sets the crew size (default 3). `run: <folder>` continues an existing run (required for `debate`, used when the person wants a second read of the same draft).
+- `question:` followed by text is a focus question (FQ) put to every seat. `seat-1:`, `seat-2:` ... followed by text is a focus question for that seat alone. A seat with no question gets the default prompt from step 4. Navigation (`n:`), synthesis navigation (`sn:`) and the synthesis focus question (`sfq:`) are battle rounds; point at `/combat-writing:battle` if one is given here.
+- `run: <folder>` continues an existing run (required for `debate`, used when the person wants a second read of the same draft).
+- The crew is one fresh reader plus one seat per outside model the add-on has a key for; nothing is padded. `seats: N` seats N fresh readers instead of one, only when the person asks for that by name.
 
 If there is no draft and no run to continue, ask for the draft and stop.
 
@@ -29,19 +30,19 @@ New run, with the draft and brief files from step 1 (or the paths the person gav
 node ${CLAUDE_PLUGIN_ROOT}/scripts/new-run.js --draft <draft file> [--brief <brief file>] [--seats N] --model "<the model you know you are running, or omit>"
 ```
 
-It prints the run folder. Continuing: use the folder given.
+It prints the run folder and seats one fresh reader, `seat-1`. Continuing: use the folder given.
 
-If the add-on is present (a `crew_list` tool from the `combat-writing-crew` server), call `crew_register` with the new run folder now, before any packet: the available outside seats join `seats.json`. Without the add-on, skip this; the crew is one company's models and the result says so. The round name is the next two-digit number plus the kind: `01-sparring`, `02-debate`, `02-sparring` for a second plain round, `01-cold` for a cold read. List `rounds/` to find the next number.
+If the add-on is present (a `crew_list` tool from the `combat-writing-crew` server), call `crew_register` with the new run folder now, before any packet: every available outside seat joins `seats.json` after the fresh reader, one seat per model the person holds a key for (with one Groq key, `seat-2` and `seat-3`: a crew of three). Without the add-on, skip this; the crew is the one fresh reader, one company's models, and the result says so. The round name is the next two-digit number plus the kind: `01-sparring`, `02-debate`, `02-sparring` for a second plain round, `01-cold` for a cold read. List `rounds/` to find the next number.
 
 ## 4. Build every packet, then start every seat at once
 
-For each seat in `seats.json`: if it has a question or note, copy its question file from step 1 to `rounds/<round>/<seat>.question.md` first (or write it there when the person gave it on its own, after the run exists). Then:
+For each seat in `seats.json`: if it has a question, copy its question file from step 1 to `rounds/<round>/<seat>.question.md` first (or write it there when the person gave it on its own, after the run exists). Then:
 
 ```
 node ${CLAUDE_PLUGIN_ROOT}/scripts/packet.js --run <folder> --round <round> --seat <seat id> [--question rounds/<round>/<seat>.question.md] [--cold]
 ```
 
-Then start all seats in one go. Each fresh reader (a seat in `seats.json` with no `provider` field) starts as the `seat` agent from this plugin, with this and only this as its task; each outside seat (a seat with a `provider` field) goes through the add-on instead: call `crew_answer` with `run`, `round` and `seat`, which reads the same packet and writes the same answer file.
+Every sparring packet asks for a rating. Then start all seats in one go. Each fresh reader (a seat in `seats.json` with no `provider` field) starts as the `seat` agent from this plugin, with this and only this as its task; each outside seat (a seat with a `provider` field) goes through the add-on instead: call `crew_answer` with `run`, `round` and `seat`, which reads the same packet and writes the same answer file.
 
 ```
 Packet: <absolute packet path>
@@ -59,11 +60,11 @@ For each seat:
 node ${CLAUDE_PLUGIN_ROOT}/scripts/check-answer.js <answer file> --run <folder>
 ```
 
-With `--run` the checker uses the word cap the seat was actually sent, read from the run's log; `--word-cap N` overrides it only when the person asks for a different cap. On FAIL, start the same seat once more with the same packet and the check's reasons appended to its task ("Your previous answer failed the rating contract: <reasons>. Write it again."); for an outside seat, call `crew_answer` again with `note` set to those reasons, which the add-on appends after the packet. If it fails twice, keep the failed file, record it, and show that seat as `FAILED READ` on the board with the reasons. Never edit a seat's answer. Never fill in a rating for it.
+With `--run` the checker uses the word cap and the contract the seat was actually sent, read from the run's log; `--word-cap N` overrides the cap only when the person asks for a different one. On FAIL, start the same seat once more with the same packet and the check's reasons appended to its task ("Your previous answer failed the rating contract: <reasons>. Write it again."); for an outside seat, call `crew_answer` again with `note` set to those reasons, which the add-on appends after the packet. An outside seat is told the cap in its system line; if its second answer is over the cap again, the add-on cuts it at the cap with the rating line kept and the result says `truncated`; run the checker on the cut file as usual, and the record marks the read "truncated at N words". If a seat fails twice for any other reason, keep the failed file, record it, and show that seat as `FAILED READ` on the board with the reasons. Never edit a seat's answer. Never fill in a rating for it.
 
 ## 6. Render and show the result
 
-For a `debate` round, also run `check-flip.js --run <folder> --round <round> --seat <seat id>` for each seat, as battle does. Then:
+For a `debate` round, also run `check-flip.js --run <folder> --round <round> --seat <seat id>` for each seat, as a rerate round of battle does. Then:
 
 ```
 node ${CLAUDE_PLUGIN_ROOT}/scripts/render-record.js --run <folder> --short
@@ -72,4 +73,4 @@ node ${CLAUDE_PLUGIN_ROOT}/scripts/render-board.js --run <folder>
 
 Show what the first prints as it is (the credit line, the crew line, the scoreboard), then the board (`board.html` in the run folder) as an artifact or preview where you have a tool for that, else its path in one line; then every critique in full with its rating line first, then your one paragraph on where the seats agree and split, quoting them by model name. Point at `record.md` in the run folder. In the one-seat case there is no run folder: write the credit line, the crew line "one seat, the host", a one-row board, and your critique under the same contract: rating line first, under 500 words, no 7.
 
-Close with what the person can do next: a `debate` round on this run, another sparring round with a different question per seat, or `/combat-writing:battle`.
+Close with the Next line, in these terms: `/combat-writing:sparring debate` (the seats read each other and rate again); `/combat-writing:battle n: <guidance>` (N, navigation: the same new guidance put to every seat individually); `/combat-writing:battle sn: <prompt>` (SN, synthesis navigation: each seat's synthesis shared with the others plus your new prompt, everyone answers and everyone reads each other); `/combat-writing:battle sfq: <question>` (SFQ, synthesis focus question: the crew's answers shared plus a new question); add `rerate` to any battle round for a new rating; `/combat-writing:battle final` (the S/N ratio and red-flag reads on the draft alone). With one seat in the run, say that SN and SFQ have no other seat to share, and offer N or the add-on.

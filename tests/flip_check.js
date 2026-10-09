@@ -49,7 +49,7 @@ var S3LINE='The close reads like an apology, not an ask.';
 fs.writeFileSync(path.join(r1,'seat-1.answer.md'),'RATING: 8/10\nThe ask lands in the first line.\n');
 fs.writeFileSync(path.join(r1,'seat-2.answer.md'),'RATING: 4/10\nThere is no evidence. '+S2LINE+'\n');
 fs.writeFileSync(path.join(r1,'seat-3.answer.md'),'RATING: 6/10\n'+S3LINE+' Fix the close.\n');
-['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','02-battle','--seat',s]); });
+['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','02-battle','--seat',s,'--rerate']); });
 var r2=path.join(run,'rounds','02-battle');
 
 // Each case: write seat-1's round-2 answer, run check-flip, compare with lib.checkFlip.
@@ -108,7 +108,7 @@ var r31=path.join(run3,'rounds','01-sparring');
 fs.writeFileSync(path.join(r31,'seat-1.answer.md'),'RATING: 8/10\nFine as it is.\n');
 fs.writeFileSync(path.join(r31,'seat-2.answer.md'),'RATING: 4/10\n'+S2LINE+'\n');
 fs.writeFileSync(path.join(r31,'seat-3.answer.md'),'RATING: 6/10\n'+S3LINE+'\n');
-['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run3,'--round','02-battle','--seat',s]); });
+['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run3,'--round','02-battle','--seat',s,'--rerate']); });
 var r32=path.join(run3,'rounds','02-battle');
 function modelCase(name,seatId,text,wantStatus,wantExit,extra){
   fs.writeFileSync(path.join(r32,seatId+'.answer.md'),text);
@@ -132,6 +132,36 @@ node('packet.js',['--run',run2,'--round','01-sparring','--seat','seat-1']);
 fs.writeFileSync(path.join(run2,'rounds','01-sparring','seat-1.answer.md'),'RATING: 8/10\nFine.\n');
 var rf=node('check-flip.js',['--run',run2,'--round','01-sparring','--seat','seat-1']);
 check(rf.status===0&&/"status":"first"/.test(rf.stdout),'first: expected status first exit 0, got '+rf.status+' '+rf.stdout.split('\n')[0]);
+
+// A rating across a round that asked for none (ruled 2026-10-09): seat-1 rates 8 in sparring,
+// gives a critique in 02-battle (no --rerate), then rates 6 in 03-battle with --rerate, quoting
+// seat-2's 02-battle critique. The flip is from 8, the latest earlier rating, and the quote is
+// matched against the round the packet carried (02-battle). The critique round itself has no
+// rating to check.
+var run4=node('new-run.js',['--draft','draft.md','--name','across','--model','Test Model','--seats','2']).stdout.trim();
+['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',run4,'--round','01-sparring','--seat',s]); });
+fs.writeFileSync(path.join(run4,'rounds','01-sparring','seat-1.answer.md'),'RATING: 8/10\nFine as it is.\n');
+fs.writeFileSync(path.join(run4,'rounds','01-sparring','seat-2.answer.md'),'RATING: 4/10\nThin.\n');
+['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',run4,'--round','02-battle','--seat',s]); });
+var C2LINE='The numbers you cite are not in the letter.';
+fs.writeFileSync(path.join(run4,'rounds','02-battle','seat-1.answer.md'),'seat-2 wrote "Thin." and I half agree.\n');
+fs.writeFileSync(path.join(run4,'rounds','02-battle','seat-2.answer.md'),C2LINE+' Stand.\n');
+var nr=node('check-flip.js',['--run',run4,'--round','02-battle','--seat','seat-1']);
+check(nr.status===0&&/"status":"no-rating"/.test(nr.stdout),'critique round: check-flip should say no-rating and exit 0, got '+nr.status+' '+nr.stdout.split('\n')[0]);
+['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',run4,'--round','03-battle','--seat',s,'--rerate']); });
+fs.writeFileSync(path.join(run4,'rounds','03-battle','seat-1.answer.md'),'RATING: 6/10\nseat-2 wrote "'+C2LINE+'" and that moved me.\n');
+var ar=node('check-flip.js',['--run',run4,'--round','03-battle','--seat','seat-1']);
+var arSum=null; try{arSum=JSON.parse(ar.stdout.trim().split('\n').pop());}catch(e){}
+check(ar.status===0&&arSum&&arSum.status==='flip-valid'&&arSum.from===8&&arSum.to===6&&arSum.cited==='seat-2'&&arSum.own_rating==='01-sparring'&&arSum.own_previous==='02-battle'&&arSum.reads_round==='02-battle','across a critique round: expected flip-valid from 8 to 6 citing seat-2, got '+JSON.stringify(arSum));
+fs.writeFileSync(path.join(run4,'rounds','03-battle','seat-1.answer.md'),'RATING: 8/10\nStand. seat-2 wrote "'+C2LINE+'" but the letter does not need them.\n');
+var st=node('check-flip.js',['--run',run4,'--round','03-battle','--seat','seat-1']);
+check(st.status===0&&/"status":"stand"/.test(st.stdout)&&/"from":8/.test(st.stdout),'across a critique round: holding the latest rating should be stand, got '+st.stdout.split('\n')[0]);
+// An N round with --rerate carries no other seat: a changed rating has no quote to rest on.
+fs.writeFileSync(path.join(proj,'n.md'),'Answer the close.\n');
+['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',run4,'--round','04-battle','--seat',s,'--n','n.md','--rerate']); });
+fs.writeFileSync(path.join(run4,'rounds','04-battle','seat-1.answer.md'),'RATING: 4/10\nseat-2 wrote "'+C2LINE+'" and on the close I now agree.\n');
+var nn=node('check-flip.js',['--run',run4,'--round','04-battle','--seat','seat-1']);
+check(nn.status===1&&/"status":"flip-invalid"/.test(nn.stdout)&&/"from":8/.test(nn.stdout)&&/no quote attributed/.test(nn.stdout),'N with rerate: a changed rating should be a flip with no quote to rest on, got '+nn.stdout.split('\n')[0]);
 
 // The log carries every check.
 var flips=logOf(run).filter(function(e){return e.event==='flip.checked';});

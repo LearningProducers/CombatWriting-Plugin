@@ -3,15 +3,19 @@
 
 **Reading is Peace. Writing is War.**
 
-The listed Combat Writing plugin seats fresh readers from one company. This add-on seats other companies' models beside them, on your own API keys, so a round can be read by more than one company. It is a local MCP server. It is **not in the Claude plugin directory**; it is installed from this repository as Learning Producers' own marketplace. The add-on is source-available under the same terms as the listed plugin.
+The listed Combat Writing plugin seats one fresh reader from one company. This add-on seats other companies' models beside it, one seat per model you hold a key for, on your own API keys, so a round can be read by more than one company. The crew is never padded: with one free Groq key it is three seats. It is a local MCP server. It is **not in the Claude plugin directory**; it is installed from this repository as Learning Producers' own marketplace. The add-on is source-available under the same terms as the listed plugin.
 
 ## What it does
 
 - `crew_list` says which outside seats are available with the keys you set, each named by the model id resolved from the provider's live catalog and by the model's maker, with the serving provider stated.
 - `crew_register` adds those seats to a run's `seats.json`, so the listed plugin builds their packets like any seat's.
-- `crew_answer` sends one seat's packet for one round to its provider, waits out the per-minute window, writes the answer file beside the packet, and logs the model id the API returned. The listed plugin's checks, battle, final reads, record and board then work across companies with nothing copied by hand.
+- `crew_answer` sends one seat's packet for one round to its provider, with the packet's word cap and first-line contract stated in the system line, waits out the per-minute window, writes the answer file beside the packet, and logs the model id the API returned. The listed plugin's checks, battle, final reads, record and board then work across companies with nothing copied by hand.
 
 A seat that fails, has no key, or whose packet is too long to send is shown as missing, never silently replaced. Nothing is faked.
+
+## The word cap
+
+Every packet states its cap: 500 words for a read alone, 600 when other seats' answers are carried, 250 for a final read. The add-on repeats the number in the system line it sends, so the outside seat knows the cap before it writes. An answer over the cap fails the listed plugin's check and the host sends the seat back once, with the reasons in `note`. If that second answer is over the cap again, the add-on cuts it at the cap: the contract's first line (`RATING: X/10`, or the S/N or red-flag line) is pulled out of the reply wherever the seat put it and kept at the top, the rest is cut at a word boundary so the file counts no more than the cap, and the log line says `truncated` with the word counts. The record and the board mark that read "truncated at N words" with the rating shown. A read in a round that asked for no rating is cut the same way with no line to keep. The answer file holds only the seat's own words; the mark lives in the log.
 
 ## Install
 
@@ -40,7 +44,7 @@ Each key goes only to its own provider. No key is ever sent to Learning Producer
 
 Which surfaces show the prompt: **Claude Code** shows it (the install dialog, the VS Code extension's form, and `/plugin configure`). **Cowork** does not prompt for plugin options and ignores an option with no default, so on Cowork the environment variable is the only route. **Claude in chat** does not start local MCP servers at all, so the add-on does not run there; the crew is one seat, the host.
 
-A crew with no paid keys is allowed: one free Groq key seats two outside models (OpenAI's open-weight line and Alibaba's Qwen line, both served by Groq) beside the listed plugin's fresh readers.
+A crew with no paid keys is allowed: one free Groq key seats two outside models (OpenAI's open-weight line and Alibaba's Qwen line, both served by Groq) beside the listed plugin's fresh reader, a crew of three. Every further key adds one seat.
 
 ## Which models
 
@@ -61,15 +65,15 @@ An Anthropic API-key seat is a stub: Claude's seat is the fresh reader inside th
 
 ## What it sends where
 
-- To each provider, over HTTPS: the seat's packet (the draft fenced as untrusted content, the brief, the other seats' answers from the previous round, the question) and a short system line naming the seat and its first-line contract, with your key for that provider in the request header. Nothing else.
-- To your project: the answer file beside the packet, the seat's entry in `seats.json`, and one log line per event in `log.jsonl` (timestamp, provider, the model id requested and the id returned, token counts the provider reported, how long the server waited, and which key route was used, never a key).
+- To each provider, over HTTPS: the seat's packet (the draft fenced as untrusted content, the brief, the other seats' answers from the previous round when the round shares them, the guidance or question) and a short system line naming the seat, its first-line contract and the word cap, with your key for that provider in the request header. Nothing else.
+- To your project: the answer file beside the packet, the seat's entry in `seats.json`, and one log line per event in `log.jsonl` (timestamp, provider, the model id requested and the id returned, the cap and contract sent, whether the reply was truncated, token counts the provider reported, how long the server waited, and which key route was used, never a key).
 - To Learning Producers: nothing. The add-on makes no call to any address but the provider's.
 
 ## Rate limits and size
 
 The server keeps the Combat Writing app's call budget for each provider: an 8,000-token per-minute wall, a 1,200-token reply floor and a 2,800-token reply ceiling, with input estimated at four characters per token. A packet that leaves less than the floor for a reply is refused before anything is sent, with the app's message: "Too long to send", and how much to cut. The server tracks what it sent to each provider in the last sixty seconds and waits before a call that would cross the wall or the request limit; on a 429 it waits the provider's `Retry-After` (at most seventy seconds) and tries once more, then records the seat as missing. Calls to one provider go one at a time.
 
-Groq's free tier, as the app documents it: 8,000 tokens and 30 requests per minute, 1,000 requests per day, and Groq counts the reply reservation as well as the input. A sparring packet costs about 3,600 tokens of window (a short input plus the 2,800 reply ceiling), so the two Groq seats fit in one minute; a battle packet carries the other seats' answers and costs about 5,300, so the second Groq seat in a battle round waits for the window, about a minute, and the final reads (two packets per seat) take two to three minutes at the wall. The server waits by itself; nothing is lost, only time.
+Groq's free tier, as the app documents it: 8,000 tokens and 30 requests per minute, 1,000 requests per day, and Groq counts the reply reservation as well as the input. A sparring packet costs about 3,600 tokens of window (a short input plus the 2,800 reply ceiling), so the two Groq seats fit in one minute; an SN or SFQ packet carries the other seats' answers and costs about 5,300, so the second Groq seat in such a round waits for the window, about a minute; an N packet carries no other seat and costs about what a sparring packet does; the final reads (two packets per seat) take two to three minutes at the wall. The server waits by itself; nothing is lost, only time.
 
 ## License
 

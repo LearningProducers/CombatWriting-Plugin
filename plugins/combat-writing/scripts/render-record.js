@@ -6,9 +6,11 @@
 // record.md opens with the credit line, then the crew line, the drafts and the brief, the
 // scoreboard (one row per seat, one column per round, every rating shown on its own, flips
 // marked valid or invalid with the earlier number kept visible, Stand marked, missing seats
-// marked missing, the final round's S/N and red-flag counts per seat), then every answer in
-// full by round under its seat's name, then the log of what was sent. Nothing is averaged,
-// summed or ranked. Rebuilt after every round; the log and the answer files are the truth.
+// marked missing, a battle round that asked for no rating marked "critique", an outside
+// seat's read the add-on cut marked "truncated at N words", the final round's S/N and
+// red-flag counts per seat), then every answer in full by round under its seat's name, then
+// the log of what was sent. Nothing is averaged, summed or ranked. Rebuilt after every
+// round; the log and the answer files are the truth.
 //
 // --short prints the scoreboard and the crew line to stdout for the host to show, and still
 // writes record.md. Without it, prints the record's path.
@@ -27,6 +29,14 @@ var created=log.filter(function(e){return e.event==='run.created';})[0]||{};
 function bar(n){ return n===null?'          ':new Array(n+1).join('█')+new Array(11-n).join('░'); }
 function lastLog(pred){ for(var i=log.length-1;i>=0;i--){ if(pred(log[i]))return log[i]; } return null; }
 
+// The add-on's cut of an outside seat's read (ruled 2026-10-09): the last crew.answered line
+// for that seat, round and read says whether the reply was truncated at the cap.
+function truncationOf(seat,round,read){
+  var e=lastLog(function(x){return x.event==='crew.answered'&&x.round===round&&x.seat===seat.id&&(x.read||'rating')===read;});
+  return e&&e.truncated?e.truncated:null;
+}
+function truncMark(t){ return t?' · truncated at '+t.at+' words':''; }
+
 // One seat in one round: the facts from the files, with the log's verdicts where it has them.
 function cell(seat,round){
   if(lib.isFinalRound(round)){
@@ -37,29 +47,32 @@ function cell(seat,round){
       var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&e.contract===c;});
       var cap=logged?logged.word_cap:null;
       if(cap)r=lib.checkAnswer(lib.readText(p),cap,c);
-      return {c:c,ok:r.ok,value:r.value,reasons:r.reasons};
+      return {c:c,ok:r.ok,value:r.value,reasons:r.reasons,truncated:truncationOf(seat,round,c)};
     });
     var snP=parts[0], rfP=parts[1];
-    var snText=snP.missing?'S/N missing':snP.ok?'S/N '+snP.value+'%':'S/N failed read';
-    var rfText=rfP.missing?'red flags missing':rfP.ok?(rfP.value===0?'no red flags':rfP.value+' red flag'+(rfP.value===1?'':'s')):'red-flag read failed';
+    var snText=(snP.missing?'S/N missing':snP.ok?'S/N '+snP.value+'%':'S/N failed read')+(snP.truncated?' (truncated at '+snP.truncated.at+' words)':'');
+    var rfText=(rfP.missing?'red flags missing':rfP.ok?(rfP.value===0?'no red flags':rfP.value+' red flag'+(rfP.value===1?'':'s')):'red-flag read failed')+(rfP.truncated?' (truncated at '+rfP.truncated.at+' words)':'');
     return {text:snText+' · '+rfText,rating:null,final:true,sn:snP,redflag:rfP};
   }
   var p=path.join(runDir,'rounds',round,seat.id+'.answer.md');
   if(!fs.existsSync(p))return {text:'missing',rating:null,missing:true};
   var text=lib.readText(p);
-  var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract==='rating');});
-  var check=lib.checkAnswer(text,logged?logged.word_cap:null,'rating');
-  if(!check.ok)return {text:'failed read ('+check.reasons[0]+')'+(check.rating!==null?' · wrote '+check.rating+'/10':''),rating:null,failed:true,reasons:check.reasons};
+  var contract=lib.contractSent(runDir,round,p,log);
+  var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract===contract);});
+  var check=lib.checkAnswer(text,logged?logged.word_cap:null,contract);
+  var trunc=truncationOf(seat,round,'rating');
+  if(!check.ok)return {text:'failed read ('+check.reasons[0]+')'+(check.rating!==null?' · wrote '+check.rating+'/10':'')+truncMark(trunc),rating:null,failed:true,reasons:check.reasons,truncated:trunc};
+  if(contract==='critique')return {text:'critique'+truncMark(trunc),rating:null,critique:true,truncated:trunc};
   var flip=lastLog(function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
   if(!flip){
     var inputs=lib.flipInputs(runDir,seat,round,seats);
-    flip=lib.checkFlip(text,seat,inputs.own?inputs.own.text:null,inputs.prevAnswers);
+    flip=lib.checkFlip(text,seat,inputs.ownRated?inputs.ownRated.text:null,inputs.prevAnswers);
   }
   var r=check.rating+'/10';
   var mark={first:'',stand:' · Stand','held':' · held, no Stand',
     'flip-valid':' · flip from '+flip.from+', valid (quoted '+flip.cited+')',
     'flip-invalid':' · flip from '+flip.from+', INVALID ('+(flip.reason||'quote not found')+')',unrated:''}[flip.status]||'';
-  return {text:r+mark,rating:check.rating,flip:flip};
+  return {text:r+mark+truncMark(trunc),rating:check.rating,flip:flip,truncated:trunc};
 }
 
 var grid={}; seats.forEach(function(s){grid[s.id]={};rounds.forEach(function(r){grid[s.id][r]=cell(s,r);});});
@@ -82,7 +95,7 @@ if(fs.existsSync(path.join(runDir,'brief.md'))){
 out.push('');
 out.push('## Scoreboard');
 out.push('');
-out.push('Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. The bar is the seat\'s latest rating.');
+out.push('Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Critique means the round asked for no rating (a battle round rates only on `rerate`). Truncated means the add-on cut an outside seat\'s second overrun at the cap, with its first line kept. The bar is the seat\'s latest rating.');
 out.push('');
 if(rounds.length){
   out.push('| Seat | '+rounds.join(' | ')+' | Latest |');
@@ -99,7 +112,7 @@ rounds.forEach(function(r){
   out.push('### Round '+r);
   var pb=log.filter(function(e){return e.event==='packet.built'&&e.round===r;})[0];
   if(pb)out.push('');
-  if(pb)out.push('Draft read: '+pb.draft+'.'+(pb.reads_round?' Answers carried from round '+pb.reads_round+'.':'')+(pb.sfq?' SFQ: '+pb.sfq+'.':'')+(pb.sn?' SN: '+pb.sn+'.':''));
+  if(pb)out.push('Draft read: '+pb.draft+'.'+(pb.reads_round?' Answers carried from round '+pb.reads_round+'.':'')+(pb.mode==='navigation'?' Navigation round: no other seat\'s answer carried.':'')+(pb.sfq?' SFQ: '+pb.sfq+'.':'')+(pb.sn?' SN: '+pb.sn+'.':'')+(pb.n?' N: '+pb.n+'.':'')+(pb.contract==='critique'?' No rating this round.':pb.rerate?' Rerate: a new rating asked.':''));
   seats.forEach(function(s){
     var files=lib.isFinalRound(r)?[s.id+'.sn.answer.md',s.id+'.redflag.answer.md']:[s.id+'.answer.md'];
     files.forEach(function(f){
@@ -110,6 +123,8 @@ rounds.forEach(function(r){
       if(!fs.existsSync(p)){out.push('*Missing: no answer file.*');return;}
       var q=path.join(runDir,'rounds',r,s.id+'.question.md');
       if(fs.existsSync(q)&&f===s.id+'.answer.md'){out.push('*Question to this seat:* '+lib.readText(q).trim());out.push('');}
+      var t=truncationOf(s,r,f.indexOf('.sn.')>=0?'sn':f.indexOf('.redflag.')>=0?'redflag':'rating');
+      if(t){out.push('*Truncated at '+t.at+' words by the crew add-on on the seat\'s second overrun; the seat returned '+t.words_returned+' words'+(t.first_line_moved?'; its first line was found lower in the reply and moved to the top':'')+'.*');out.push('');}
       out.push(lib.readText(p).replace(/\s+$/,''));
     });
   });
@@ -120,7 +135,7 @@ out.push('');
 out.push('| When (UTC) | Round | Seat | Packet | Draft | Mode | Carried | Missing | Cap |');
 out.push('|---|---|---|---|---|---|---|---|---|');
 log.filter(function(e){return e.event==='packet.built';}).forEach(function(e){
-  out.push('| '+e.ts+' | '+e.round+' | '+e.seat+' | '+e.file+' | '+e.draft+' | '+e.mode+(e.question?' + question':'')+' | '+((e.carried||[]).map(function(c){return c.seat;}).join(', ')||'—')+' | '+((e.missing||[]).join(', ')||'—')+' | '+e.word_cap+' |');
+  out.push('| '+e.ts+' | '+e.round+' | '+e.seat+' | '+e.file+' | '+e.draft+' | '+e.mode+(e.contract==='critique'?' (no rating)':e.rerate?' + rerate':'')+(e.question?' + question':'')+' | '+((e.carried||[]).map(function(c){return c.seat;}).join(', ')||'—')+' | '+((e.missing||[]).join(', ')||'—')+' | '+e.word_cap+' |');
 });
 out.push('');
 out.push('Full log: log.jsonl in this folder.');

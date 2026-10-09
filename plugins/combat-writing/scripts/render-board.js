@@ -23,27 +23,39 @@ var runDir=path.resolve(args.run);
 var seats=lib.readSeats(runDir).seats;
 var log=lib.readLog(runDir);
 var rounds=lib.listRounds(runDir);
-var ratingRounds=rounds.filter(function(r){return !lib.isFinalRound(r);});
+// The chart's x axis: the rounds that asked for a rating. A battle round with no `rerate`
+// is a critique round (ruled 2026-10-09): a scoreboard column, never a chart point.
+var tableRounds=rounds.filter(function(r){return !lib.isFinalRound(r);});
+var ratingRounds=tableRounds.filter(function(r){return lib.roundContract(runDir,r,log)==='rating';});
 var finalRounds=rounds.filter(lib.isFinalRound);
 var drafts=lib.listDrafts(runDir);
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function lastLog(pred){ for(var i=log.length-1;i>=0;i--){ if(pred(log[i]))return log[i]; } return null; }
+// The add-on's cut of an outside seat's read: the last crew.answered line for the seat, round and read.
+function truncationOf(seat,round,read){
+  var e=lastLog(function(x){return x.event==='crew.answered'&&x.round===round&&x.seat===seat.id&&(x.read||'rating')===read;});
+  return e&&e.truncated?e.truncated:null;
+}
+function withTrunc(mark,t){ return t?(mark?mark+' · ':'')+'truncated at '+t.at+' words':mark; }
 
-// One seat in one rating round, from the files with the log's verdicts where it has them.
+// One seat in one non-final round, from the files with the log's verdicts where it has them.
 function cell(seat,round){
   var p=path.join(runDir,'rounds',round,seat.id+'.answer.md');
   if(!fs.existsSync(p))return {kind:'missing',text:'missing',rating:null};
   var text=lib.readText(p);
-  var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract==='rating');});
-  var check=lib.checkAnswer(text,logged?logged.word_cap:null,'rating');
-  if(!check.ok)return {kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null};
+  var contract=lib.contractSent(runDir,round,p,log);
+  var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract===contract);});
+  var check=lib.checkAnswer(text,logged?logged.word_cap:null,contract);
+  var trunc=truncationOf(seat,round,'rating');
+  if(!check.ok)return {kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,mark:withTrunc('',trunc)};
+  if(contract==='critique')return {kind:'critique',text:'critique',title:'this round asked for no rating',rating:null,mark:withTrunc('',trunc)};
   var flip=lastLog(function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
-  if(!flip){var inputs=lib.flipInputs(runDir,seat,round,seats);flip=lib.checkFlip(text,seat,inputs.own?inputs.own.text:null,inputs.prevAnswers);}
+  if(!flip){var inputs=lib.flipInputs(runDir,seat,round,seats);flip=lib.checkFlip(text,seat,inputs.ownRated?inputs.ownRated.text:null,inputs.prevAnswers);}
   var kind={first:'first',stand:'stand',held:'held','flip-valid':'flip-valid','flip-invalid':'flip-invalid',unrated:'first'}[flip.status]||'first';
   var mark={first:'',stand:'Stand',held:'held, no Stand','flip-valid':'flip from '+flip.from+', valid','flip-invalid':'flip from '+flip.from+', INVALID'}[kind]||'';
   var title={'flip-valid':'quoted '+flip.cited,'flip-invalid':flip.reason||'quote not found'}[kind]||'';
-  return {kind:kind,rating:check.rating,text:check.rating+'/10',mark:mark,title:title,from:flip.from};
+  return {kind:kind,rating:check.rating,text:check.rating+'/10',mark:withTrunc(mark,trunc),title:title,from:flip.from};
 }
 function finalCell(seat,round){
   return ['sn','redflag'].map(function(c){
@@ -51,11 +63,11 @@ function finalCell(seat,round){
     if(!fs.existsSync(p))return {c:c,missing:true};
     var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&e.contract===c;});
     var r=lib.checkAnswer(lib.readText(p),logged?logged.word_cap:null,c);
-    return {c:c,ok:r.ok,value:r.value};
+    return {c:c,ok:r.ok,value:r.value,truncated:truncationOf(seat,round,c)};
   });
 }
 
-var grid={}; seats.forEach(function(s){grid[s.id]={};ratingRounds.forEach(function(r){grid[s.id][r]=cell(s,r);});});
+var grid={}; seats.forEach(function(s){grid[s.id]={};tableRounds.forEach(function(r){grid[s.id][r]=cell(s,r);});});
 
 // The chart: x = rating rounds in order, y = 1 to 10, one series per seat (categorical, fixed order).
 var LIGHT=['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#4a3aa7','#e34948'];
@@ -136,7 +148,7 @@ html.push(':root[data-theme="dark"]{color-scheme:dark;--surface:#1a1a19;--surfac
 html.push('*{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:0 16px 48px}main{max-width:960px;margin:0 auto}');
 html.push('.credit{font-size:13px;color:var(--ink-2);margin:20px 0 4px}.motto{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:0 0 20px}h1{font-size:22px;margin:0 0 6px}h2{font-size:16px;margin:28px 0 8px}p{margin:6px 0}.meta{color:var(--ink-2)}');
 html.push('.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}button{font:inherit;font-size:13px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--rule);border-radius:6px;padding:4px 10px;cursor:pointer}');
-html.push('table{border-collapse:collapse;width:100%;font-size:14px;margin-top:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top}th{color:var(--ink-2);font-weight:600}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mark{color:var(--ink-2);font-size:12px}.flip-valid .mark{color:var(--good)}.flip-invalid .mark{color:var(--bad)}.missing,.failed{color:var(--ink-3);font-style:italic}.key{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}');
+html.push('table{border-collapse:collapse;width:100%;font-size:14px;margin-top:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top}th{color:var(--ink-2);font-weight:600}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mark{color:var(--ink-2);font-size:12px}.flip-valid .mark{color:var(--good)}.flip-invalid .mark{color:var(--bad)}.missing,.failed{color:var(--ink-3);font-style:italic}.critique{color:var(--ink-2)}code{font-size:13px}.key{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}');
 html.push('.chart{width:100%;height:auto;display:block;margin-top:8px}.grid{stroke:var(--rule);stroke-width:1}.seven{stroke:var(--seven);stroke-width:1;stroke-dasharray:4 4}.tick{fill:var(--ink-3);font-size:11px}.seven-label{fill:var(--ink-3)}.line{fill:none;stroke:var(--c);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}.ring{fill:var(--surface)}.dot{fill:var(--c)}.pt.missing circle{fill:var(--surface);stroke:var(--ink-3);stroke-width:1.5}.pt.missing line{stroke:var(--ink-3);stroke-width:1.5}.pt{cursor:default;outline:none}.pt:focus .dot,.pt:hover .dot{r:6}.flag{fill:var(--ink-2);font-size:12px}.end-label{fill:var(--ink-2);font-size:12px}');
 html.push('.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin:6px 0}.readout{min-height:22px;font-size:13px;color:var(--ink-2);margin:4px 0 0}.note{font-size:13px;color:var(--ink-2)}a{color:inherit}');
 html.push('</style></head><body><main>');
@@ -147,7 +159,7 @@ html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel)
 html.push('<p class="meta"><strong>Drafts:</strong> '+esc(drafts.join(', '))+'.'+(fs.existsSync(path.join(runDir,'brief.md'))?' <strong>Brief:</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
 
 html.push('<h2>Scoreboard</h2>');
-html.push('<p class="note">Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round.</p>');
+html.push('<p class="note">Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Critique means the round asked for no rating (a battle round rates only on <code>rerate</code>). Truncated means the add-on cut an outside seat\'s second overrun at the cap, with its first line kept.</p>');
 if(rounds.length){
   html.push('<table><thead><tr><th>Seat</th>'+rounds.map(function(r){return '<th>'+esc(r)+'</th>';}).join('')+'</tr></thead><tbody>');
   seats.forEach(function(s,si){
@@ -155,14 +167,16 @@ if(rounds.length){
     rounds.forEach(function(r){
       if(lib.isFinalRound(r)){
         var f=finalCell(s,r);
-        var snT=f[0].missing?'<span class="missing">S/N missing</span>':f[0].ok?'S/N '+f[0].value+'%':'<span class="failed">S/N failed read</span>';
-        var rfT=f[1].missing?'<span class="missing">red flags missing</span>':f[1].ok?(f[1].value===0?'no red flags':f[1].value+' red flag'+(f[1].value===1?'':'s')):'<span class="failed">red-flag read failed</span>';
+        var tr=function(x){return x.truncated?' <span class="mark">truncated at '+x.truncated.at+' words</span>':'';};
+        var snT=(f[0].missing?'<span class="missing">S/N missing</span>':f[0].ok?'S/N '+f[0].value+'%':'<span class="failed">S/N failed read</span>')+tr(f[0]);
+        var rfT=(f[1].missing?'<span class="missing">red flags missing</span>':f[1].ok?(f[1].value===0?'no red flags':f[1].value+' red flag'+(f[1].value===1?'':'s')):'<span class="failed">red-flag read failed</span>')+tr(f[1]);
         html.push('<td class="num">'+snT+'<br>'+rfT+'</td>');
         return;
       }
       var c=grid[s.id][r];
       if(c.kind==='missing')html.push('<td class="num"><span class="missing">missing</span></td>');
-      else if(c.kind==='failed')html.push('<td class="num"><span class="failed" title="'+esc(c.title)+'">failed read</span></td>');
+      else if(c.kind==='failed')html.push('<td class="num"><span class="failed" title="'+esc(c.title)+'">failed read</span>'+(c.mark?'<br><span class="mark">'+esc(c.mark)+'</span>':'')+'</td>');
+      else if(c.kind==='critique')html.push('<td class="num critique"><span class="critique" title="'+esc(c.title)+'">critique</span>'+(c.mark?'<br><span class="mark">'+esc(c.mark)+'</span>':'')+'</td>');
       else html.push('<td class="num '+c.kind+'">'+c.text+(c.mark?'<br><span class="mark"'+(c.title?' title="'+esc(c.title)+'"':'')+'>'+esc(c.mark)+'</span>':'')+'</td>');
     });
     html.push('</tr>');
@@ -174,7 +188,7 @@ if(ratingRounds.length){
   html.push('<h2>Ratings across rounds</h2>');
   html.push('<div class="legend">'+seats.map(function(s,si){return '<span><span class="key" style="background:var(--series-'+(si%8+1)+')"></span>'+esc(lib.seatLabel(s))+'</span>';}).join('')+'</div>');
   html.push(svg.join('\n'));
-  html.push('<p class="readout" id="readout" aria-live="polite">Hover or focus a point for its seat, round and mark. ✓ a valid flip, ✗ an invalid flip; a × on the missing row below the axis is a seat with no sound answer that round.</p>');
+  html.push('<p class="readout" id="readout" aria-live="polite">Hover or focus a point for its seat, round and mark. ✓ a valid flip, ✗ an invalid flip; a × on the missing row below the axis is a seat with no sound answer that round. A round that asked for no rating has no point here; the table above holds it.</p>');
 }
 if(finalRounds.length){
   html.push('<h2>Final reads</h2>');
