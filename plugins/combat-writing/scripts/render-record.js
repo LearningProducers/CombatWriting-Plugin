@@ -6,13 +6,15 @@
 // record.md opens with the credit line, then the crew line, the drafts and the brief, the
 // scoreboard (one row per seat, one column per round, every rating shown on its own, flips
 // marked valid or invalid with the earlier number kept visible, Stand marked, missing seats
-// marked missing, a battle round that asked for no rating marked "critique", an outside
+// marked missing, a seat the round was not put to marked "not asked" (a round of seat lines
+// alone goes to the named seats only), a battle round that asked for no rating marked "critique", an outside
 // seat's read the add-on cut marked "truncated at N words", the final round's S/N and
 // red-flag counts per seat), then every answer in full by round under its seat's name, then
 // the log of what was sent. Nothing is averaged, summed or ranked. Rebuilt after every
 // round; the log and the answer files are the truth.
 //
-// --short prints the scoreboard and the crew line to stdout for the host to show, and still
+// --short prints the scoreboard and the crew line to stdout for the host to show, ending with
+// the seat key (one line, every seat by id and short name, from the live crew), and still
 // writes record.md. Without it, prints the record's path.
 
 var fs=require('fs'), path=require('path');
@@ -55,7 +57,7 @@ function cell(seat,round){
     return {text:snText+' · '+rfText,rating:null,final:true,sn:snP,redflag:rfP};
   }
   var p=path.join(runDir,'rounds',round,seat.id+'.answer.md');
-  if(!fs.existsSync(p))return {text:'missing',rating:null,missing:true};
+  if(!fs.existsSync(p))return lib.wasAsked(runDir,round,seat.id,log)?{text:'missing',rating:null,missing:true}:{text:'not asked',rating:null,missing:true,notAsked:true};
   var text=lib.readText(p);
   var contract=lib.contractSent(runDir,round,p,log);
   var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract===contract);});
@@ -85,6 +87,8 @@ out.push('');
 var companies=seats.map(function(s){return s.company;}).filter(function(v,i,a){return a.indexOf(v)===i;});
 out.push('**Crew:** '+seats.map(lib.seatLabel).join('; ')+'. '+(companies.length===1?'One company\'s models ('+companies[0]+').':companies.length+' companies: '+companies.join(', ')+'.')+' '+lib.nameSources(seats));
 out.push('');
+out.push('**Seat key:** '+lib.seatKey(seats));
+out.push('');
 out.push('**Drafts:** '+drafts.map(function(d){var e=lastLog(function(x){return (x.event==='draft.added'&&x.file===d)||(x.event==='run.created'&&d==='draft.md');});var sha=e?(e.sha256||(e.draft&&e.draft.sha256)):null;return d+(sha?' (sha256 '+sha.slice(0,12)+'…)':'');}).join(', ')+'.');
 if(fs.existsSync(path.join(runDir,'brief.md'))){
   out.push('');
@@ -95,7 +99,7 @@ if(fs.existsSync(path.join(runDir,'brief.md'))){
 out.push('');
 out.push('## Scoreboard');
 out.push('');
-out.push('Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Critique means the round asked for no rating (a battle round rates only on `rerate`). Truncated means the add-on cut an outside seat\'s second overrun at the cap, with its first line kept. The bar is the seat\'s latest rating.');
+out.push('Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Not asked means the round was put to other seats only. Critique means the round asked for no rating (a battle round rates only on `rerate`). Truncated means the add-on cut an outside seat\'s second overrun at the cap, with its first line kept. The bar is the seat\'s latest rating.');
 out.push('');
 if(rounds.length){
   out.push('| Seat | '+rounds.join(' | ')+' | Latest |');
@@ -112,7 +116,11 @@ rounds.forEach(function(r){
   out.push('### Round '+r);
   var pb=log.filter(function(e){return e.event==='packet.built'&&e.round===r;})[0];
   if(pb)out.push('');
-  if(pb)out.push('Draft read: '+pb.draft+'.'+(pb.reads_round?' Answers carried from round '+pb.reads_round+'.':'')+(pb.mode==='navigation'?' Navigation round: no other seat\'s answer carried.':'')+(pb.sfq?' SFQ: '+pb.sfq+'.':'')+(pb.sn?' SN: '+pb.sn+'.':'')+(pb.n?' N: '+pb.n+'.':'')+(pb.contract==='critique'?' No rating this round.':pb.rerate?' Rerate: a new rating asked.':''));
+  if(pb)out.push('Draft read: '+pb.draft+'.'+(pb.reads_round?' Answers carried from round '+pb.reads_round+'.':'')+(pb.mode==='navigation'?' Navigation round: no other seat\'s answer carried.':'')+(pb.mode==='focus'?' Focus-question round: no other seat\'s answer carried.':'')+(pb.sfq?' SFQ: '+pb.sfq+'.':'')+(pb.sn?' SN: '+pb.sn+'.':'')+(pb.n?' N: '+pb.n+'.':'')+(pb.fq?' FQ: '+pb.fq+'.':'')+(pb.contract==='critique'?' No rating this round.':pb.rerate?' Rerate: a new rating asked.':''));
+  var askedHere=lib.askedIn(runDir,r,log);
+  var notAskedHere=askedHere?seats.filter(function(s){return !askedHere[s.id];}).map(function(s){return s.id;}):[];
+  if(notAskedHere.length)out.push('');
+  if(notAskedHere.length)out.push('Put to '+seats.filter(function(s){return askedHere[s.id];}).map(function(s){return s.id;}).join(', ')+' only; not asked: '+notAskedHere.join(', ')+'.');
   seats.forEach(function(s){
     var files=lib.isFinalRound(r)?[s.id+'.sn.answer.md',s.id+'.redflag.answer.md']:[s.id+'.answer.md'];
     files.forEach(function(f){
@@ -120,7 +128,7 @@ rounds.forEach(function(r){
       out.push('');
       out.push('#### '+lib.seatLabel(s)+(f.indexOf('.sn.')>=0?' — S/N ratio':f.indexOf('.redflag.')>=0?' — red flags':''));
       out.push('');
-      if(!fs.existsSync(p)){out.push('*Missing: no answer file.*');return;}
+      if(!fs.existsSync(p)){out.push(lib.isFinalRound(r)||lib.wasAsked(runDir,r,s.id,log)?'*Missing: no answer file.*':'*Not asked this round.*');return;}
       var q=path.join(runDir,'rounds',r,s.id+'.question.md');
       if(fs.existsSync(q)&&f===s.id+'.answer.md'){out.push('*Question to this seat:* '+lib.readText(q).trim());out.push('');}
       var t=truncationOf(s,r,f.indexOf('.sn.')>=0?'sn':f.indexOf('.redflag.')>=0?'redflag':'rating');
@@ -135,7 +143,7 @@ out.push('');
 out.push('| When (UTC) | Round | Seat | Packet | Draft | Mode | Carried | Missing | Cap |');
 out.push('|---|---|---|---|---|---|---|---|---|');
 log.filter(function(e){return e.event==='packet.built';}).forEach(function(e){
-  out.push('| '+e.ts+' | '+e.round+' | '+e.seat+' | '+e.file+' | '+e.draft+' | '+e.mode+(e.contract==='critique'?' (no rating)':e.rerate?' + rerate':'')+(e.question?' + question':'')+' | '+((e.carried||[]).map(function(c){return c.seat;}).join(', ')||'—')+' | '+((e.missing||[]).join(', ')||'—')+' | '+e.word_cap+' |');
+  out.push('| '+e.ts+' | '+e.round+' | '+e.seat+' | '+e.file+' | '+e.draft+' | '+e.mode+(e.contract==='critique'?' (no rating)':e.rerate?' + rerate':'')+(e.question&&e.mode!=='seat'?' + question':'')+' | '+((e.carried||[]).map(function(c){return c.seat;}).join(', ')||'—')+' | '+((e.missing||[]).join(', ')||'—')+' | '+e.word_cap+' |');
 });
 out.push('');
 out.push('Full log: log.jsonl in this folder.');
@@ -151,5 +159,6 @@ if(args.short===true){
   if(firstRow>0)board.splice(firstRow,0,'');
   s=s.concat(board);
   s.push('','Record: '+path.join(runDir,'record.md'));
+  s.push('','Seat key: '+lib.seatKey(seats));
   process.stdout.write(s.join('\n')+'\n');
 }else process.stdout.write(path.join(runDir,'record.md')+'\n');

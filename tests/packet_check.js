@@ -34,9 +34,14 @@
 //     fence; the seat's own answer never appears among the others; the cap is 600.
 //   - Same snapshot: an answer already written in the current round by another seat is
 //     not carried into a packet built afterwards for this round.
-//   - --sfq, --sn and --n files ride labeled in the task (SFQ, SN, N); two together are
-//     refused; --n carries the seat's own earlier turn and NO other seat's answer, at a
-//     500 cap, logged as mode navigation with shares false.
+//   - --sfq, --sn, --n and --fq files ride labeled in the task (SFQ, SN, N, FQ); two together
+//     are refused; --n carries the seat's own earlier turn and NO other seat's answer, at a
+//     500 cap, logged as mode navigation with shares false; --fq (ruled 2026-10-09: the same
+//     question to every seat, nothing shared) does the same, logged as mode focus.
+//   - A seat line alone in a battle round (--question with no --sn or --sfq) shares nothing
+//     and is logged as mode seat; a round put to one seat only leaves the others with no
+//     packet line, and the next round's packet lists them as "not asked", never "missing",
+//     with the log line naming them under not_asked.
 //   - A <nn>-battle packet asks for no rating unless --rerate: without it the Contract
 //     section carries the no-rating line and the log says contract critique; with it
 //     the rating contract, the seat's latest rating named, and contract rating. Every
@@ -239,6 +244,28 @@ check(pnr.status===0&&/Your latest rating was 8\/10, in round 02-debate/.test(re
 check(node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--n','n.md','--sn','sn.md']).status===2,'N and SN together should exit 2');
 check(node('packet.js',['--run',run,'--round','04-cold','--seat','seat-3','--cold','--n','n.md']).status===2,'N with --cold should exit 2');
 
+// FQ: the same question to every seat, nothing shared: labeled, the own earlier turn carried, no other seat, cap 500.
+write(path.join(proj,'fq.md'),'Does the close ask for the vote?\n');
+var pfq=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--fq','fq.md']);
+var tfq=pfq.status===0?read(pfq.stdout.trim()):'';
+check(pfq.status===0&&tfq.indexOf('Focus question (FQ): Does the close ask for the vote?')>=0&&/focus-question round \(FQ\)/.test(tfq),'FQ: not labeled in the task');
+check(tfq.indexOf('=== ANSWER BEGIN ===')<0&&tfq.indexOf('The other seats\' answers')<0&&tfq.indexOf('Seat one, round one')<0,'FQ: another seat\'s answer was carried');
+check(/## Your earlier turn \(round 02-debate\)[\s\S]*Seat two, round two, moved by seat one/.test(tfq)&&/against the question above/.test(tfq),'FQ: the seat\'s own earlier turn missing or mislabeled');
+check(/Under 500 words/.test(tfq)&&tfq.indexOf('No rating this round')>=0&&/Answer the focus question above on the draft below\./.test(tfq),'FQ: cap should be 500, no rating without --rerate, and the task line present');
+var lfq=logOf(run).filter(function(e){return e.event==='packet.built'&&e.round==='03-battle'&&e.seat==='seat-2';}).pop()||{};
+check(lfq.mode==='focus'&&lfq.fq==='fq.md'&&lfq.shares===false&&lfq.reads_round===null&&lfq.carried.length===0&&lfq.contract==='critique','FQ: log line wrong '+JSON.stringify(lfq));
+check(node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--fq','fq.md','--n','n.md']).status===2,'FQ and N together should exit 2');
+check(node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--fq','fq.md','--sfq','sfq.md']).status===2,'FQ and SFQ together should exit 2');
+// A seat line alone in a battle round shares nothing; with --sfq it shares as SFQ does.
+var pq1=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--question','q2.md']);
+var tq1=pq1.status===0?read(pq1.stdout.trim()):'';
+check(pq1.status===0&&/put to you alone this round/.test(tq1)&&tq1.indexOf('Does the ask land in the first paragraph?')>=0&&tq1.indexOf('=== ANSWER BEGIN ===')<0&&/Under 500 words/.test(tq1),'seat line alone: should carry the question, no other seat, cap 500');
+var lq1=logOf(run).filter(function(e){return e.event==='packet.built'&&e.round==='03-battle'&&e.seat==='seat-2';}).pop()||{};
+check(lq1.mode==='seat'&&lq1.question==='q2.md'&&lq1.shares===false,'seat line alone: log line wrong '+JSON.stringify(lq1));
+check(read(path.join(run,'rounds','03-battle','seat-2.question.md'))===read(path.join(proj,'q2.md')),'seat line: packet.js should copy the question file into the round folder as seat-2.question.md');
+var pq2=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--question','q2.md','--sfq','sfq.md']);
+check(pq2.status===0&&read(pq2.stdout.trim()).indexOf('## The other seats\' answers (round 02-debate)')>=0&&/Under 600 words/.test(read(pq2.stdout.trim())),'seat line with SFQ: should still share');
+
 // Cold read: no brief, no other answers, no earlier turn.
 var pc=node('packet.js',['--run',run,'--round','04-cold','--seat','seat-3','--cold']);
 check(pc.status===0,'packet cold: exit '+pc.status+' '+pc.stderr);
@@ -316,11 +343,26 @@ check(node('packet.js',['--run',run,'--round','07-debate','--seat','seat-1','--d
 check(node('new-run.js',['--draft','missing.md']).status===2,'new-run: missing draft should exit 2');
 check(node('add-draft.js',['--run',run,'--file','missing.md']).status===2,'add-draft: missing file should exit 2');
 
+// A round of seat lines alone: round 2 goes to seat-2 only. Round 3's packets list seat-1 and
+// seat-3 as "not asked" (no packet line in round 2), never "missing"; the log names them.
+var soRun=node('new-run.js',['--draft','draft.md','--name','seatonly','--model','Test Model 1.0','--seats','3']).stdout.trim();
+['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',soRun,'--round','01-sparring','--seat',s]); write(path.join(soRun,'rounds','01-sparring',s+'.answer.md'),'RATING: 8/10\nRound one, '+s+'.\n'); });
+node('packet.js',['--run',soRun,'--round','02-battle','--seat','seat-2','--question','q2.md']);
+write(path.join(soRun,'rounds','02-battle','seat-2.answer.md'),'Round two, seat-2 alone.\n');
+var pso=node('packet.js',['--run',soRun,'--round','03-battle','--seat','seat-2','--sfq','sfq.md']);
+var tso=pso.status===0?read(pso.stdout.trim()):'';
+check(pso.status===0&&/### Test Model 1\.0 \(Anthropic\), seat-1 — not asked\n\nRound 02-battle was not put to this seat\. Nothing stands in for it\./.test(tso)&&/seat-3 — not asked/.test(tso)&&!/— missing/.test(tso),'not asked: the next packet should list the unasked seats as not asked');
+check(tso.indexOf('Round one, seat-1')<0&&tso.indexOf('Round one, seat-3')<0,'not asked: an older answer of an unasked seat was carried');
+var lso=logOf(soRun).filter(function(e){return e.event==='packet.built'&&e.round==='03-battle';}).pop()||{};
+check(JSON.stringify(lso.not_asked)===JSON.stringify(['seat-1','seat-3'])&&JSON.stringify(lso.missing)===JSON.stringify(['seat-1','seat-3']),'not asked: log line wrong '+JSON.stringify(lso));
+var pso1=node('packet.js',['--run',soRun,'--round','03-battle','--seat','seat-1','--sfq','sfq.md']);
+check(pso1.status===0&&/## Your earlier turn \(round 01-sparring\)/.test(read(pso1.stdout.trim()))&&/seat-2\n\n=== ANSWER BEGIN ===\nRound two, seat-2 alone\./.test(read(pso1.stdout.trim())),'not asked: an unasked seat keeps its own earlier turn and reads the asked seat');
+
 // The scripts wrote nowhere but the run folders.
 var top=fs.readdirSync(proj).sort().join(',');
-check(top==='brief.md,combat-writing,draft.md,n.md,q2.md,rev.md,sfq.md,sn.md','project folder has unexpected entries: '+top);
+check(top==='brief.md,combat-writing,draft.md,fq.md,n.md,q2.md,rev.md,sfq.md,sn.md','project folder has unexpected entries: '+top);
 var runs=fs.readdirSync(path.join(proj,'combat-writing','runs')).length;
-check(runs===4,'expected 4 run folders (board-letter, board-letter-2, free, caps), found '+runs);
+check(runs===5,'expected 5 run folders (board-letter, board-letter-2, free, caps, seatonly), found '+runs);
 
 fs.rmSync(proj,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});

@@ -6,7 +6,7 @@
 // The page holds, in order: the credit line, the motto, the crew line, the drafts and
 // the brief, the scoreboard (one row per seat, one column per round, every rating on
 // its own, flips marked valid or invalid with the earlier number kept, Stand, missing,
-// failed reads), a line chart of each seat's rating across rounds as inline SVG with
+// not asked, failed reads), the seat key, a line chart of each seat's rating across rounds as inline SVG with
 // a legend, direct labels at the line ends and a hover readout, the final reads' S/N
 // and red-flag counts when a final round exists, and a link to record.md. Light and
 // dark follow the system setting, with a toggle. No external request of any kind: no
@@ -42,7 +42,7 @@ function withTrunc(mark,t){ return t?(mark?mark+' · ':'')+'truncated at '+t.at+
 // One seat in one non-final round, from the files with the log's verdicts where it has them.
 function cell(seat,round){
   var p=path.join(runDir,'rounds',round,seat.id+'.answer.md');
-  if(!fs.existsSync(p))return {kind:'missing',text:'missing',rating:null};
+  if(!fs.existsSync(p))return lib.wasAsked(runDir,round,seat.id,log)?{kind:'missing',text:'missing',rating:null}:{kind:'not-asked',text:'not asked',rating:null};
   var text=lib.readText(p);
   var contract=lib.contractSent(runDir,round,p,log);
   var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract===contract);});
@@ -113,6 +113,7 @@ seats.forEach(function(s,si){
   ratingRounds.forEach(function(r,i){
     var c=grid[s.id][r];
     var cx=x(i).toFixed(1);
+    if(c.kind==='not-asked')return;  // the round was not put to this seat: no point, not even on the missing row
     if(c.rating===null){
       var my=MISSING_Y;  // every missing seat sits on the missing row; the readout names the seat
       svg.push('<g class="pt missing" tabindex="0" data-seat="'+esc(lib.seatLabel(s))+'" data-round="'+esc(r)+'" data-value="'+esc(c.text)+'"><circle cx="'+cx+'" cy="'+my.toFixed(1)+'" r="7"/><line x1="'+(x(i)-4).toFixed(1)+'" x2="'+(x(i)+4).toFixed(1)+'" y1="'+(my-4).toFixed(1)+'" y2="'+(my+4).toFixed(1)+'"/><line x1="'+(x(i)-4).toFixed(1)+'" x2="'+(x(i)+4).toFixed(1)+'" y1="'+(my+4).toFixed(1)+'" y2="'+(my-4).toFixed(1)+'"/></g>');
@@ -156,10 +157,11 @@ html.push('<p class="credit">'+esc(lib.CREDIT)+'</p>');
 html.push('<p class="motto">Reading is Peace. Writing is War.</p>');
 html.push('<div class="bar"><h1>Combat Writing board — '+esc(path.basename(runDir))+'</h1><button type="button" id="theme" aria-label="Switch light and dark">Light / dark</button></div>');
 html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies: '+esc(companies.join(', '))+'.')+' '+esc(lib.nameSources(seats))+'</p>');
+html.push('<p class="meta"><strong>Seat key:</strong> '+esc(lib.seatKey(seats))+'</p>');
 html.push('<p class="meta"><strong>Drafts:</strong> '+esc(drafts.join(', '))+'.'+(fs.existsSync(path.join(runDir,'brief.md'))?' <strong>Brief:</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
 
 html.push('<h2>Scoreboard</h2>');
-html.push('<p class="note">Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Critique means the round asked for no rating (a battle round rates only on <code>rerate</code>). Truncated means the add-on cut an outside seat\'s second overrun at the cap, with its first line kept.</p>');
+html.push('<p class="note">Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Not asked means the round was put to other seats only. Critique means the round asked for no rating (a battle round rates only on <code>rerate</code>). Truncated means the add-on cut an outside seat\'s second overrun at the cap, with its first line kept.</p>');
 if(rounds.length){
   html.push('<table><thead><tr><th>Seat</th>'+rounds.map(function(r){return '<th>'+esc(r)+'</th>';}).join('')+'</tr></thead><tbody>');
   seats.forEach(function(s,si){
@@ -175,6 +177,7 @@ if(rounds.length){
       }
       var c=grid[s.id][r];
       if(c.kind==='missing')html.push('<td class="num"><span class="missing">missing</span></td>');
+      else if(c.kind==='not-asked')html.push('<td class="num"><span class="missing" title="the round was put to other seats only">not asked</span></td>');
       else if(c.kind==='failed')html.push('<td class="num"><span class="failed" title="'+esc(c.title)+'">failed read</span>'+(c.mark?'<br><span class="mark">'+esc(c.mark)+'</span>':'')+'</td>');
       else if(c.kind==='critique')html.push('<td class="num critique"><span class="critique" title="'+esc(c.title)+'">critique</span>'+(c.mark?'<br><span class="mark">'+esc(c.mark)+'</span>':'')+'</td>');
       else html.push('<td class="num '+c.kind+'">'+c.text+(c.mark?'<br><span class="mark"'+(c.title?' title="'+esc(c.title)+'"':'')+'>'+esc(c.mark)+'</span>':'')+'</td>');
@@ -188,7 +191,7 @@ if(ratingRounds.length){
   html.push('<h2>Ratings across rounds</h2>');
   html.push('<div class="legend">'+seats.map(function(s,si){return '<span><span class="key" style="background:var(--series-'+(si%8+1)+')"></span>'+esc(lib.seatLabel(s))+'</span>';}).join('')+'</div>');
   html.push(svg.join('\n'));
-  html.push('<p class="readout" id="readout" aria-live="polite">Hover or focus a point for its seat, round and mark. ✓ a valid flip, ✗ an invalid flip; a × on the missing row below the axis is a seat with no sound answer that round. A round that asked for no rating has no point here; the table above holds it.</p>');
+  html.push('<p class="readout" id="readout" aria-live="polite">Hover or focus a point for its seat, round and mark. ✓ a valid flip, ✗ an invalid flip; a × on the missing row below the axis is a seat with no sound answer that round. A round that asked for no rating, or a seat the round was not put to, has no point here; the table above holds it.</p>');
 }
 if(finalRounds.length){
   html.push('<h2>Final reads</h2>');

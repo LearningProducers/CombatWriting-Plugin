@@ -21,6 +21,9 @@
 //     sound answer reads "critique" and adds no chart point; the chart's x axis holds the
 //     rated rounds only.
 //   - The final round's S/N and red-flag numbers appear per seat.
+//   - The seat key (ruled 2026-10-09) sits under the crew line; a round put to one seat only
+//     shows "not asked" for the others and gives them no chart point, not even on the
+//     missing row.
 //   - No averaged number: no "average", "mean", "overall", "consensus" or "total" rating,
 //     no fractional rating.
 //   - Light and dark are both defined (a prefers-color-scheme block and a data-theme
@@ -99,7 +102,8 @@ check(hrefs.length===1&&hrefs[0]==='href="record.md"','board: hrefs are '+JSON.s
 check(/<td class="num critique"><span class="critique" title="this round asked for no rating">critique<\/span><\/td>/.test(html),'board: no critique cell for the no-rating round');
 check(/<span class="failed" title="this round asked for no rating[^"]*">failed read<\/span>/.test(html),'board: a RATING line in a no-rating round should be a failed read');
 check(!/text-anchor="middle">04-battle<\/text>/.test(html)&&/text-anchor="middle">03-battle<\/text>/.test(html),'board: the chart x axis should hold the rated rounds only');
-check(/A round that asked for no rating has no point here/.test(html),'board: the readout should say a no-rating round has no point');
+check(/A round that asked for no rating, or a seat the round was not put to, has no point here/.test(html),'board: the readout should say a no-rating round and an unasked seat have no point');
+check(/<p class="meta"><strong>Seat key:<\/strong> seat-1 Test Model · seat-2 Test Model · seat-3 Test Model<\/p>/.test(html),'board: the seat key line is missing or wrong');
 check((html.match(/<g class="pt /g)||[]).length===9,'board: expected 9 chart points (3 seats × 3 rating rounds), got '+(html.match(/<g class="pt /g)||[]).length);
 check((html.match(/data-value="/g)||[]).length===9,'board: every point should carry a readout value');
 
@@ -131,6 +135,20 @@ check(/@media \(prefers-color-scheme: dark\)/.test(html)&&/:root\[data-theme="da
 check(/7 is forbidden/.test(html)&&(html.match(/<text class="tick"/g)||[]).length>=13,'board: axis ticks or the 7 line missing');
 check(/<div class="legend">/.test(html),'board: no legend');
 check(/<button type="button" id="theme"/.test(html),'board: no theme toggle');
+
+// A round of seat lines alone: round 2 goes to seat-2 only, with rerate.
+var so=node('new-run.js',['--draft','draft.md','--name','seatonly','--model','Test Model','--seats','3']).stdout.trim();
+['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',so,'--round','01-sparring','--seat',s]); write(path.join(so,'rounds','01-sparring',s+'.answer.md'),'RATING: 8/10\nRound one.\n'); node('check-answer.js',[path.join(so,'rounds','01-sparring',s+'.answer.md'),'--run',so]); });
+write(path.join(proj,'q2.md'),'Does the close ask for the vote?\n');
+node('packet.js',['--run',so,'--round','02-battle','--seat','seat-2','--question','q2.md','--rerate']);
+write(path.join(so,'rounds','02-battle','seat-2.answer.md'),'RATING: 6/10\nNot in so many words.\n');
+node('check-answer.js',[path.join(so,'rounds','02-battle','seat-2.answer.md'),'--run',so]);
+node('check-flip.js',['--run',so,'--round','02-battle','--seat','seat-2']);
+node('render-board.js',['--run',so]);
+var soHtml=fs.readFileSync(path.join(so,'board.html'),'utf8');
+check((soHtml.match(/<span class="missing" title="the round was put to other seats only">not asked<\/span>/g)||[]).length===2,'board: a seat-only round should show two not-asked cells');
+check(!/<span class="missing">missing<\/span>/.test(soHtml)&&!/<g class="pt missing"/.test(soHtml),'board: an unasked seat must not be shown as missing in the table or the chart');
+check((soHtml.match(/<g class="pt /g)||[]).length===4,'board: expected 4 chart points (3 in round 1, 1 in round 2), got '+(soHtml.match(/<g class="pt /g)||[]).length);
 
 // The log and a refusal.
 var log=fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);});

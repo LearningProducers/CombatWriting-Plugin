@@ -23,7 +23,12 @@
 //   - Every answer appears in full, by round, under its seat's heading; the "What was
 //     sent" table lists every packet.
 //   - A revised draft is listed and the round that read it says so.
-//   - --short prints the credit line, the crew line and the scoreboard only.
+//   - The crew line is followed by the seat key, one line naming every seat by id and short
+//     name (ruled 2026-10-09), and --short prints the credit line, the crew line, the
+//     scoreboard and, last, the seat key, never the answers.
+//   - A round put to one seat only (a seat line alone): the other seats' cells read
+//     "not asked", never "missing"; the answers section says so; the round line names who
+//     was asked; the What was sent row shows mode seat.
 //   - Rendering appends record.rendered to the log; render-record.js refuses a folder
 //     with no seats.json (exit 2).
 //
@@ -83,6 +88,8 @@ var crew=lines.filter(function(l){return l.indexOf('**Crew:**')===0;})[0]||'';
 check(/Test Model \(Anthropic\), seat-1/.test(crew)&&/seat-3/.test(crew)&&/One company's models/.test(crew)&&/agent configuration/.test(crew),'record: crew line wrong: '+crew);
 check(/\*\*Drafts:\*\* draft\.md \(sha256 [0-9a-f]{12}…\), draft-2\.md \(sha256 [0-9a-f]{12}…\)\./.test(rec),'record: drafts line wrong');
 check(rec.indexOf('CEO. Get a yes.')>=0,'record: brief missing');
+var keyIdx=rec.indexOf('**Seat key:** seat-1 Test Model · seat-2 Test Model · seat-3 Test Model');
+check(keyIdx>0&&keyIdx>rec.indexOf('**Crew:**')&&keyIdx<rec.indexOf('## Scoreboard'),'record: the seat key line should follow the crew line');
 
 var header=lines.filter(function(l){return l.indexOf('| Seat |')===0;})[0]||'';
 check(header==='| Seat | 01-sparring | 02-battle | 03-battle | 04-final | Latest |','record: scoreboard header is "'+header+'"');
@@ -137,6 +144,25 @@ var sh=node('render-record.js',['--run',run,'--short']);
 check(sh.status===0&&sh.stdout.split('\n')[0]===CREDIT,'--short: does not open with the credit line');
 check(sh.stdout.indexOf('| Seat |')>=0&&sh.stdout.indexOf('## Answers')<0&&sh.stdout.indexOf(S2LINE)<0,'--short: should hold the scoreboard and not the answers');
 check(/Record: .*record\.md/.test(sh.stdout),'--short: no record path');
+check(sh.stdout.trim().split('\n').pop()==='Seat key: seat-1 Test Model · seat-2 Test Model · seat-3 Test Model','--short: the last line should be the seat key, got '+JSON.stringify(sh.stdout.trim().split('\n').pop()));
+
+// A round of seat lines alone (ruled 2026-10-09): round 2 goes to seat-2 only.
+var so=node('new-run.js',['--draft','draft.md','--name','seatonly','--model','Test Model','--seats','3']).stdout.trim();
+['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',so,'--round','01-sparring','--seat',s]); write(path.join(so,'rounds','01-sparring',s+'.answer.md'),'RATING: 8/10\nRound one.\n'); node('check-answer.js',[path.join(so,'rounds','01-sparring',s+'.answer.md'),'--run',so]); });
+write(path.join(proj,'q2.md'),'Does the close ask for the vote?\n');
+node('packet.js',['--run',so,'--round','02-battle','--seat','seat-2','--question','q2.md']);
+write(path.join(so,'rounds','02-battle','seat-2.answer.md'),'Not in so many words.\n');
+node('check-answer.js',[path.join(so,'rounds','02-battle','seat-2.answer.md'),'--run',so]);
+var soShort=node('render-record.js',['--run',so,'--short']).stdout;
+var soRec=fs.readFileSync(path.join(so,'record.md'),'utf8');
+var soRows={}; soRec.split('\n').forEach(function(l){var m=/^\| Test Model \(Anthropic\), (seat-\d) \| (.*) \|$/.exec(l); if(m)soRows[m[1]]=m[2].split(' | ');});
+check((soRows['seat-1']||[])[1]==='not asked'&&(soRows['seat-3']||[])[1]==='not asked'&&(soRows['seat-2']||[])[1]==='critique','seat-only round: cells should read not asked / critique / not asked, got '+JSON.stringify(soRows));
+check(/Not asked means the round was put to other seats only/.test(soRec),'seat-only round: the scoreboard note should explain not asked');
+var soR2=soRec.slice(soRec.indexOf('### Round 02-battle'),soRec.indexOf('## What was sent'));
+check(/Put to seat-2 only; not asked: seat-1, seat-3\./.test(soR2),'seat-only round: the round line should name who was asked');
+check(/#### Test Model \(Anthropic\), seat-1\n\n\*Not asked this round\.\*/.test(soR2)&&/\*Question to this seat:\* Does the close ask for the vote\?/.test(soR2)&&soR2.indexOf('Not in so many words.')>=0,'seat-only round: the answers section should mark the unasked seats and hold the asked seat\'s question and answer');
+check(/\| 02-battle \| seat-2 \| rounds\/02-battle\/seat-2\.packet\.md \| draft\.md \| seat \(no rating\) \| — \| — \| 500 \|/.test(soRec),'seat-only round: What was sent row wrong');
+check(soShort.indexOf('not asked')>=0&&soShort.indexOf('missing')<0,'seat-only round: --short should show not asked, not missing');
 
 // The log.
 var log=fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);});
