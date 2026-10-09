@@ -9,7 +9,7 @@ The motto is "Reading is Peace. Writing is War." It is brand. It is never soften
 
 - Open a pull request; never merge. One pull request per part.
 - Commit title at most 50 characters, a blank line, then the detail.
-- No model name pinned in code. If a file needs one, write the choice in the session report instead.
+- No model name pinned in code. If a file needs one, write the choice in the session report instead. A transcript quoted in a README may name the model that answered, because it is a record, not code.
 - Method prose, skill text and prompts never name Claude as the host. Write "the host" and "the seat". Only agent files and the add-on name models.
 - PLAN.md is the only memory between sessions. Update its status line for the current part before opening the pull request.
 - Never soften the motto. Never say "open source" (this repository is source-available). Never imply Anthropic endorsement.
@@ -47,13 +47,13 @@ The motto is "Reading is Peace. Writing is War." It is brand. It is never soften
 
 ## The run folder
 
-The on-disk record of a run lives in the person's project, never in the plugin, at `combat-writing/runs/<run-id>/`, run id `YYYY-MM-DD-HHMM-<slug>` (UTC). It holds `draft.md` (the snapshot, never changed) and any revised drafts as `draft-2.md`, `draft-3.md` (added by `add-draft.js`; the newest is read by default), `brief.md` when given, `seats.json`, `log.jsonl` (one JSON object per line, timestamped; the source of truth for what was sent and checked), `record.md` (rendered from the files and the log, rebuilt after every round), and `rounds/<nn>-<kind>/<seat>.question.md|packet.md|answer.md`, plus `<seat>.sn.*` and `<seat>.redflag.*` in a `final` round. Rounds are numbered in order across kinds; a revised draft continues the numbering, and the record says which draft each round read. Every record the plugin writes opens with the credit line; a seat's answer file opens with its contract's first line, because it is the seat's writing. The scripts in `plugins/combat-writing/scripts/` are the only writers inside it: `new-run.js`, `add-draft.js`, `packet.js`, `check-answer.js`, `check-flip.js`, `render-record.js`, with `lib.js` shared. A packet is built from files on disk only, never from text the host supplies.
+The on-disk record of a run lives in the person's project, never in the plugin, at `combat-writing/runs/<run-id>/`, run id `YYYY-MM-DD-HHMM-<slug>` (UTC). It holds `draft.md` (the snapshot, never changed) and any revised drafts as `draft-2.md`, `draft-3.md` (added by `add-draft.js`; the newest is read by default), `brief.md` when given, `seats.json`, `log.jsonl` (one JSON object per line, timestamped; the source of truth for what was sent and checked), `record.md` (rendered from the files and the log, rebuilt after every round), `board.html` (the visual board: one self-contained page, light and dark, no outside request, rebuilt with the record), and `rounds/<nn>-<kind>/<seat>.question.md|packet.md|answer.md`, plus `<seat>.sn.*` and `<seat>.redflag.*` in a `final` round. Rounds are numbered in order across kinds; a revised draft continues the numbering, and the record says which draft each round read. Every record the plugin writes opens with the credit line; a seat's answer file opens with its contract's first line, because it is the seat's writing. The scripts in `plugins/combat-writing/scripts/` are the only writers inside it: `new-run.js`, `add-draft.js`, `packet.js`, `check-answer.js`, `check-flip.js`, `render-record.js`, `render-board.js`, with `lib.js` shared. A packet is built from files on disk only, never from text the host supplies. After every round the host shows the text scoreboard, always, and the board as an artifact or preview where it has a tool for that, else the file's path.
 
-A packet carries the previous round only (the latest earlier round holding a rating answer): the other seats' answers from that round labeled by model and company, a seat with no answer there marked missing with nothing standing in for it, and the seat's own latest earlier answer as its earlier turn. Every packet of a round is built before any seat starts, so no seat sees another's new answer before giving its own. Word caps: 400 for a read alone, 600 when other seats' answers are carried, 250 for a final read; the checker reads the cap from the packet.
+A packet carries the previous round only (the latest earlier round holding a rating answer): the other seats' answers from that round labeled by model and company, a seat with no answer there marked missing with nothing standing in for it, a seat whose answer failed the rating contract marked as a failed read and not carried, and the seat's own latest sound earlier answer as its earlier turn. Every packet of a round is built before any seat starts, so no seat sees another's new answer before giving its own. Word caps: 500 for a read alone, 600 when other seats' answers are carried, 250 for a final read; the checker reads the cap the seat was sent from the packet, and so does every live check of an answer file; 500 is the fallback only when no packet exists.
 
 The flip check (`check-flip.js`): a seat whose rating changed must quote a line from another seat's answer, in double quotes, attributed by seat id ("seat-2", "seat 2" or "seat2", any case) or by a model name that belongs to exactly one other seat; the quote is matched word for word (whitespace and quote marks normalized) against the cited seat's answer; no match marks the flip invalid in the record with the rating still shown. A seat that holds says Stand.
 
-The final reads (`battle final`, step 14): the app's two prompts verbatim, sent to every seat on the newest draft with no other seats' answers, one packet and one answer file each. Their first lines are the app's, `S/N RATIO: XX%` and `NO RED FLAGS` or `RED FLAGS FOUND: X`; they are not ratings, the 7 rule does not apply to them, and both numbers go on the scoreboard per seat, never averaged. Their placement is still Israel's ruling (see Rulings pending).
+The final reads (`battle final`, step 14, ruled 2026-10-08): the app's two prompts verbatim, sent to every seat on the newest draft with no other seats' answers, one packet and one answer file each. Their first lines are the app's, `S/N RATIO: XX%` and `NO RED FLAGS` or `RED FLAGS FOUND: X`; they are not ratings, the 7 rule does not apply to them, and both numbers go on the scoreboard per seat, never averaged.
 
 The second and only other write location is `combat-writing/inbox/` in the person's project, for what the person pastes: the host writes the whole paste to `combat-writing/inbox/<slug>.paste.md` before parsing anything, then the draft to `<slug>.md`, the brief to `<slug>.brief.md` and any per-seat question to `<slug>.<seat>.question.md`, all cut from that file. `new-run.js` and `packet.js` then read those paths. A draft given as a path is read from where it is.
 
@@ -77,8 +77,10 @@ plugins/combat-writing/                the listed plugin
   skills/combat-writing/SKILL.md       how the host runs the method
   commands/                            help.md, sparring.md, battle.md
   agents/seat.md                       the fresh reader, model: inherit
-  scripts/                             lib.js, new-run.js, add-draft.js, packet.js, check-answer.js, check-flip.js, render-record.js
+  scripts/                             lib.js, new-run.js, add-draft.js, packet.js, check-answer.js, check-flip.js, render-record.js, render-board.js
   method/combat-writing.md             the methodology text, CC-licensed; mirrored at docs/combat-writing.md
+  evals/                               three claude plugin eval cases and their README; results/ is ignored
+docs/directory-checklist.md            the pre-submission checklist pass, item by item
 plugins/combat-writing-crew/           the add-on: a local MCP server (part 5)
 ```
 
@@ -115,5 +117,4 @@ Plain Node, no dependencies, one file per concern named `*_check.js`, a header c
 
 ## Rulings pending
 
-- The S/N ratio and red-flag reads are built as `battle final` (the app's two prompts on the newest draft, no other seats' answers, both numbers per seat on the scoreboard). Whether they stay there, move to their own command, or run automatically at some point is Israel's ruling.
 - Part 5: the key route. Proposed: a masked prompt (`userConfig` with `sensitive: true`) first; an environment variable only when the prompt's value is empty; never a file.

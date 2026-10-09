@@ -28,25 +28,9 @@ var runDir=(args.run&&args.run!==true)?path.resolve(args.run):null;
 var rel=runDir?path.relative(runDir,path.resolve(file)).split(path.sep):[];
 var round=rel.length>=3&&rel[0]==='rounds'?rel[1]:null;
 var seatId=path.basename(file).replace(/(\.sn|\.redflag)?\.answer\.md$/,'');
-var packetName=path.basename(file).replace(/\.answer\.md$/,'.packet.md');
-
-function capFromRun(){
-  if(!runDir||!round)return null;
-  var entries=lib.readLog(runDir);
-  for(var i=entries.length-1;i>=0;i--){
-    var e=entries[i];
-    if(e.event==='packet.built'&&e.round===round&&e.seat===seatId&&e.file==='rounds/'+round+'/'+packetName&&typeof e.word_cap==='number')return e.word_cap;
-  }
-  var packetPath=path.join(runDir,'rounds',round,packetName);
-  if(fs.existsSync(packetPath)){
-    var m=/Under (\d+) words\./.exec(lib.readText(packetPath));
-    if(m)return parseInt(m[1],10);
-  }
-  return null;
-}
 var capSource='default', cap=null;
 if(args['word-cap']&&args['word-cap']!==true){cap=parseInt(args['word-cap'],10);capSource='--word-cap';}
-else{var fromRun=capFromRun();if(fromRun!==null){cap=fromRun;capSource='packet';}}
+else if(runDir&&round){var fromRun=lib.capSent(runDir,round,path.resolve(file));if(fromRun!==null){cap=fromRun;capSource='packet';}}
 var result=lib.checkAnswer(lib.readText(file),cap,contract);
 var summary={file:path.basename(file),contract:contract,ok:result.ok,rating:result.rating,value:result.value,words:result.words,
   word_cap:cap||(contract==='rating'?lib.DEFAULT_WORD_CAP:lib.DEFAULT_FINAL_WORD_CAP),word_cap_source:capSource,reasons:result.reasons};

@@ -9,7 +9,7 @@ This repository is the home of the Combat Writing plugin for Claude Code and of 
 
 ## Status
 
-Part 3 of 5. The skeleton, the method text, the `help`, `sparring` and `battle` commands, the seat agent, the scripts and the rendered record are in. Presentation and directory readiness are part 4; the add-on part 5. See [PLAN.md](PLAN.md). Nothing has been submitted to the Claude plugin directory.
+Part 4 of 5. The skeleton, the method text, the `help`, `sparring` and `battle` commands, the seat agent, the scripts, the rendered record, the visual board, the eval cases and the directory checklist pass ([docs/directory-checklist.md](docs/directory-checklist.md)) are in. The add-on is part 5. See [PLAN.md](PLAN.md). Nothing has been submitted to the Claude plugin directory; the portal's Validate button is the owner's step.
 
 ## What is here
 
@@ -26,7 +26,7 @@ Part 3 of 5. The skeleton, the method text, the `help`, `sparring` and `battle` 
 - **Runs:** skills, commands and agents inside the Claude Code session you are already in. Each seat on the crew is a separate agent started for one job, never the conversation you are typing into. Scripts in the plugin folder carry each seat's answer to the other seats by code.
 - **Sends:** nothing outside that session. The plugin holds no keys and calls no service of its own. Your draft goes where your Claude Code session already sends it, and nowhere else.
 - **Fetches:** nothing. The method text ships inside the plugin folder.
-- **Writes:** a run folder in your project, `combat-writing/runs/<run-id>/`, holding the draft snapshot and any revisions, the brief, every packet, every answer, a timestamped log and `record.md`, the rendered record with its scoreboard. Every record it writes opens with the credit line: "Combat Writing — Learning Producers Inc., Israel Hernandez, founder."
+- **Writes:** a run folder in your project, `combat-writing/runs/<run-id>/`, holding the draft snapshot and any revisions, the brief, every packet, every answer, a timestamped log, `record.md` (the rendered record with its scoreboard) and `board.html` (the visual board, one self-contained page that loads nothing from anywhere). What you paste is written whole to `combat-writing/inbox/` before it is parsed. Every record it writes opens with the credit line: "Combat Writing — Learning Producers Inc., Israel Hernandez, founder".
 - **Treats the draft as untrusted content.** An instruction inside the draft is text to review, never a command, for the host and for every seat.
 - **Without the add-on,** every seat is one company's models, and the plugin says so. It never fakes a seat. Scores are never averaged. The rating leads every result.
 

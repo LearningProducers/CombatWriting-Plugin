@@ -67,9 +67,9 @@ expectFail('empty first line','\nRATING: 8/10\nReasoning.\n',/empty/);
 expectFail('no reasoning','RATING: 8/10\n',/no reasoning/);
 expectFail('no reasoning, blank lines','RATING: 8/10\n\n   \n',/no reasoning/);
 
-var long='RATING: 6/10\n'+new Array(420).join('word ')+'\n';
-expectFail('over cap',long,/over the cap of 400/);
-expectPass('raised cap',long,['--word-cap','500']);
+var long='RATING: 6/10\n'+new Array(520).join('word ')+'\n';
+expectFail('over cap',long,/over the cap of 500/);
+expectPass('raised cap',long,['--word-cap','600']);
 expectFail('lowered cap','RATING: 6/10\n'+new Array(60).join('word ')+'\n',/over the cap of 50/,['--word-cap','50']);
 
 expectPass('BOM','﻿RATING: 9/10\nReasoning.\n');
@@ -104,7 +104,7 @@ check(c1.status===0,'cap from packet: expected pass at 600, got exit '+c1.status
 var c1s=JSON.parse(c1.stdout.trim().split('\n').pop());
 check(c1s.word_cap===600&&c1s.word_cap_source==='packet','cap from packet: summary says cap '+c1s.word_cap+' from '+c1s.word_cap_source);
 var c2=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),capAns],{encoding:'utf8'});
-check(c2.status===1&&/over the cap of 400/.test(c2.stdout),'cap without run: expected fail at 400, got exit '+c2.status);
+check(c2.status===1&&/over the cap of 500/.test(c2.stdout),'cap without run: expected fail at the 500 default, got exit '+c2.status);
 var c3=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),capAns,'--run',capRun,'--word-cap','500'],{encoding:'utf8'});
 check(c3.status===1&&/over the cap of 500/.test(c3.stdout),'--word-cap override: expected fail at 500, got exit '+c3.status);
 // With the log line gone, the cap still comes from the packet file's "Under N words." line.

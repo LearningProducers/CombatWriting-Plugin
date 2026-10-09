@@ -22,8 +22,8 @@
 //   - Both texts in LICENSES/ match the SHA-256 of their sources.
 //   - Every README contains the trademark sign and "source-available". No file
 //     the directory or a reader sees says "open source"; only CLAUDE.md, this
-//     file and the license texts may contain the phrase, because they state or
-//     carry the rule.
+//     file, readme_check.js and the license texts may contain the phrase,
+//     because they state or carry the rule.
 //   - Every file that is not an image or a font is under 256 KiB.
 //   - No lockfile beside a package.json at the repository root or a plugin root.
 //   - No bin/ at the repository root or a plugin root.
@@ -156,7 +156,7 @@ readmes.forEach(function(rel){
 });
 var OPEN_SOURCE=/open[\s-]source/i;
 files.forEach(function(rel){
-  if(rel==='CLAUDE.md'||rel==='tests/license_check.js'||rel.indexOf('LICENSES/')===0)return;
+  if(rel==='CLAUDE.md'||rel==='tests/license_check.js'||rel==='tests/readme_check.js'||rel.indexOf('LICENSES/')===0)return;
   if(/^plugins\/[^/]+\/LICENSE(\.[a-z]+)?$/i.test(rel))return;
   if(IMAGE_OR_FONT.test(rel))return;
   check(!OPEN_SOURCE.test(read(rel)),rel+': says "open source"');
