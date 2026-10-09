@@ -131,8 +131,15 @@ check(/brand of Learning Producers Inc\./.test(notice)&&/No trademark license is
 check(/does not claim ownership of the method as a process/.test(notice),'NOTICE: the process disclaimer missing');
 var pluginRoots=files.map(function(f){var m=/^(plugins\/[^/]+)\//.exec(f);return m?m[1]:null;}).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;});
 check(pluginRoots.indexOf('plugins/combat-writing')>=0,'plugins/combat-writing: missing');
-check(exists('plugins/combat-writing/NOTICE')&&read('plugins/combat-writing/NOTICE')===notice,'plugins/combat-writing/NOTICE: missing or differs from the root NOTICE');
-check(exists('plugins/combat-writing/LICENSE.md')&&exists('LICENSES/LicenseRef-PolyForm-Shield-1.0.0.md')&&sha256('plugins/combat-writing/LICENSE.md')===sha256('LICENSES/LicenseRef-PolyForm-Shield-1.0.0.md'),'plugins/combat-writing/LICENSE.md: missing or differs from the root Shield text');
+// Every plugin folder with a manifest carries byte-identical copies of the root NOTICE and the Shield text,
+// and its manifest's license field is the Shield identifier.
+pluginRoots.filter(function(r){return exists(r+'/.claude-plugin/plugin.json');}).forEach(function(r){
+  check(exists(r+'/NOTICE')&&read(r+'/NOTICE')===notice,r+'/NOTICE: missing or differs from the root NOTICE');
+  check(exists(r+'/LICENSE.md')&&exists('LICENSES/LicenseRef-PolyForm-Shield-1.0.0.md')&&sha256(r+'/LICENSE.md')===sha256('LICENSES/LicenseRef-PolyForm-Shield-1.0.0.md'),r+'/LICENSE.md: missing or differs from the root Shield text');
+  var m=JSON.parse(read(r+'/.claude-plugin/plugin.json'));
+  check(m.license===SHIELD,r+'/.claude-plugin/plugin.json: license field is '+m.license+', expected '+SHIELD);
+  check(m.author&&m.author.name==='Learning Producers Inc.',r+'/.claude-plugin/plugin.json: author is not Learning Producers Inc.');
+});
 
 // The CC prose shipped inside the plugin is mirrored under docs/, byte for byte.
 files.filter(function(f){return /^plugins\/combat-writing\/method\/.+\.md$/.test(f);}).forEach(function(rel){

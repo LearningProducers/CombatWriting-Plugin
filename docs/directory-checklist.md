@@ -106,6 +106,17 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 | One submission per repository and folder; at most 10 submissions per organization per 24 hours | portal | Israel |
 | Raise `version` with every release | pass (to keep) | `plugin.json` |
 
+## With the add-on present (part 5)
+
+The add-on, `plugins/combat-writing-crew/`, is a separate plugin that is never submitted. Its presence changes nothing in the listed plugin's folder, and `tests/marketplace_check.js` pins the separation on every run:
+
+| Item | Result | Satisfied by |
+|---|---|---|
+| The listed plugin holds no keys | pass | `plugins/combat-writing/.claude-plugin/plugin.json` declares no `userConfig`, no `mcpServers` and no hooks; no `.mcp.json`; the check fails if any appears |
+| The listed plugin makes no outside call | pass | no script under `plugins/combat-writing/scripts/` requires a network module, calls `fetch`, or holds a URL outside a comment; the check fails if one does. Outside calls happen only in `plugins/combat-writing-crew/server.js`, a different plugin folder the directory never scans |
+| The listed plugin's description stays scoped (policy 2.B) | pass | its `plugin.json` description names sparring, battle, the final reads, the record and the board, all of which ship inside its folder; it does not promise other companies' models. The add-on's own manifest and README say the crew tools exist there |
+| The add-on's keys | n/a for the directory | masked prompts with `sensitive: true`, each mapped to the server's environment as `${user_config.<option>}`; the environment-variable fallback the rulings allow would be a reviewer hold if the add-on were submitted, which it is not |
+
 ## Items that need a ruling
 
 - **The description's scope.** `plugin.json` now describes sparring, battle, the flip check, the record and the board. When the add-on ships (part 5), the listed plugin's description must still describe only the listed plugin.

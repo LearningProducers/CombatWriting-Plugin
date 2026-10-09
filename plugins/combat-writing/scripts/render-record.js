@@ -70,7 +70,7 @@ out.push('');
 out.push('# Combat Writing record — '+path.basename(runDir));
 out.push('');
 var companies=seats.map(function(s){return s.company;}).filter(function(v,i,a){return a.indexOf(v)===i;});
-out.push('**Crew:** '+seats.map(lib.seatLabel).join('; ')+'. '+(companies.length===1?'One company\'s models ('+companies[0]+').':companies.length+' companies.')+' Seat names come from the agent configuration, not from an API field.');
+out.push('**Crew:** '+seats.map(lib.seatLabel).join('; ')+'. '+(companies.length===1?'One company\'s models ('+companies[0]+').':companies.length+' companies: '+companies.join(', ')+'.')+' '+lib.nameSources(seats));
 out.push('');
 out.push('**Drafts:** '+drafts.map(function(d){var e=lastLog(function(x){return (x.event==='draft.added'&&x.file===d)||(x.event==='run.created'&&d==='draft.md');});var sha=e?(e.sha256||(e.draft&&e.draft.sha256)):null;return d+(sha?' (sha256 '+sha.slice(0,12)+'…)':'');}).join(', ')+'.');
 if(fs.existsSync(path.join(runDir,'brief.md'))){

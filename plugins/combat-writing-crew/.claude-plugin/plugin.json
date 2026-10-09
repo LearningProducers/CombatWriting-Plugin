@@ -1,0 +1,72 @@
+{
+  "name": "combat-writing-crew",
+  "displayName": "Combat Writing Crew (add-on)",
+  "version": "0.1.0",
+  "description": "The Combat Writing add-on: a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew can be more than one company's models. Groq's free models need one Groq key. Each key goes only to its own provider, never to Learning Producers, never into a file. Not listed in the Claude plugin directory; installed from the Learning Producers marketplace.",
+  "author": {
+    "name": "Learning Producers Inc.",
+    "url": "https://learningproducers.com"
+  },
+  "homepage": "https://combatwriting.learningproducers.com",
+  "repository": "https://github.com/LearningProducers/CombatWriting-Plugin",
+  "license": "LicenseRef-PolyForm-Shield-1.0.0",
+  "keywords": ["writing", "critique", "crew", "mcp"],
+  "userConfig": {
+    "groq_api_key": {
+      "type": "string",
+      "title": "Groq API key",
+      "description": "Seats Groq's free models (OpenAI's open-weight line and Alibaba's Qwen line). Sent only to api.groq.com. Leave empty to use the GROQ_API_KEY environment variable instead.",
+      "sensitive": true
+    },
+    "xai_api_key": {
+      "type": "string",
+      "title": "xAI API key",
+      "description": "Seats xAI's Grok line. Sent only to api.x.ai. Leave empty to use XAI_API_KEY, or to leave the seat out.",
+      "sensitive": true
+    },
+    "perplexity_api_key": {
+      "type": "string",
+      "title": "Perplexity API key",
+      "description": "Seats Perplexity's Sonar line. Sent only to api.perplexity.ai. Leave empty to use PERPLEXITY_API_KEY, or to leave the seat out.",
+      "sensitive": true
+    },
+    "openai_api_key": {
+      "type": "string",
+      "title": "OpenAI API key",
+      "description": "Seats OpenAI's GPT line. Sent only to api.openai.com. Leave empty to use OPENAI_API_KEY, or to leave the seat out.",
+      "sensitive": true
+    },
+    "mistral_api_key": {
+      "type": "string",
+      "title": "Mistral API key",
+      "description": "Seats Mistral's large line. Sent only to api.mistral.ai. Leave empty to use MISTRAL_API_KEY, or to leave the seat out.",
+      "sensitive": true
+    },
+    "gemini_api_key": {
+      "type": "string",
+      "title": "Gemini API key",
+      "description": "Seats Google's Gemini line through its OpenAI-compatible endpoint. Sent only to generativelanguage.googleapis.com. Leave empty to use GEMINI_API_KEY, or to leave the seat out.",
+      "sensitive": true
+    },
+    "ollama_model": {
+      "type": "string",
+      "title": "Ollama model (local, optional)",
+      "description": "The name of a model your local Ollama serves, such as the one you pulled. Empty leaves the Ollama seat off. Nothing leaves your machine for this seat."
+    }
+  },
+  "mcpServers": {
+    "combat-writing-crew": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server.js"],
+      "env": {
+        "CW_CREW_GROQ_KEY": "${user_config.groq_api_key}",
+        "CW_CREW_XAI_KEY": "${user_config.xai_api_key}",
+        "CW_CREW_PERPLEXITY_KEY": "${user_config.perplexity_api_key}",
+        "CW_CREW_OPENAI_KEY": "${user_config.openai_api_key}",
+        "CW_CREW_MISTRAL_KEY": "${user_config.mistral_api_key}",
+        "CW_CREW_GEMINI_KEY": "${user_config.gemini_api_key}",
+        "CW_CREW_OLLAMA_MODEL": "${user_config.ollama_model}"
+      }
+    }
+  }
+}

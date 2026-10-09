@@ -30,5 +30,7 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code@2.1.294
       - name: Validate the plugin manifest
         run: claude plugin validate --strict plugins/combat-writing
+      - name: Validate the add-on manifest
+        run: claude plugin validate --strict plugins/combat-writing-crew
       - name: Validate the marketplace manifest
         run: claude plugin validate --strict .
