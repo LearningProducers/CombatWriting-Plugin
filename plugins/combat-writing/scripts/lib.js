@@ -81,6 +81,34 @@ function seatLabel(seat){
   if(!seat.model||seat.model===MODEL_UNREPORTED)return seat.company+' model, name not reported, '+seat.id;
   return seat.model+' ('+seat.company+(seat.served_by?', served by '+seat.served_by:'')+'), '+seat.id;
 }
+// The seat key (ruled 2026-10-09): one line naming every seat by id and a short name, from the
+// live crew, for the person to address a seat by id or short name. The short name is derived,
+// never pinned: the model id without its maker prefix, cut before its first digit (an id of the
+// form maker/name-120b gives "name"); an unreported model falls back to its company.
+function seatShortName(seat){
+  if(!seat.model||seat.model===MODEL_UNREPORTED)return seat.company;
+  var id=String(seat.model).replace(/^[^\/]+\//,'');
+  var m=/^[^0-9]+/.exec(id);
+  var short=m?m[0].replace(/[\s._-]+$/,''):'';
+  return short||id;
+}
+function seatKey(seats){
+  return seats.map(function(s){return s.id+' '+seatShortName(s);}).join(' · ');
+}
+
+// Which seats a round was put to, from its packet.built lines. A round built by hand (no
+// packet line at all) is taken as put to every seat.
+function askedIn(runDir,round,log){
+  log=log||readLog(runDir);
+  var asked={}, any=false;
+  log.forEach(function(e){ if(e.event==='packet.built'&&e.round===round){asked[e.seat]=true;any=true;} });
+  return any?asked:null;
+}
+function wasAsked(runDir,round,seatId,log){
+  var asked=askedIn(runDir,round,log);
+  return !asked||!!asked[seatId];
+}
+
 // Where the seats' names come from, for the crew line: the agent configuration for fresh readers,
 // the provider's API response for outside seats, or both.
 function nameSources(seats){
@@ -175,16 +203,19 @@ function roundContract(runDir,round,log){
 }
 
 // Every seat's answer in one round: {seat, file, text, contract} when present and sound,
-// {seat, missing:true} when there is no file, and {seat, missing:true, failed:true, reasons}
+// {seat, missing:true} when there is no file, {seat, missing:true, notAsked:true} when the
+// round was put to other seats only (ruled 2026-10-09: a round of seat lines alone goes to the
+// named seats; no packet was built for this one), and {seat, missing:true, failed:true, reasons}
 // when the file is there but fails the contract it was sent (contractSent): by the log's last
 // check of it, or by a live check at the cap the seat was sent (capSent), falling back to the
 // default cap only when neither exists. A failed read is never carried to another seat and
 // never cited: nothing stands in for it.
 function roundAnswers(runDir,round,seats){
   var log=readLog(runDir);
+  var asked=askedIn(runDir,round,log);
   return seats.map(function(seat){
     var p=path.join(runDir,'rounds',round,seat.id+'.answer.md');
-    if(!fs.existsSync(p))return {seat:seat,round:round,missing:true};
+    if(!fs.existsSync(p))return {seat:seat,round:round,missing:true,notAsked:!!asked&&!asked[seat.id]};
     var text=readText(p);
     var contract=contractSent(runDir,round,p,log);
     var logged=null;
@@ -367,7 +398,7 @@ module.exports={
   DEFAULT_FINAL_WORD_CAP:DEFAULT_FINAL_WORD_CAP,DEFAULT_COMPANY:DEFAULT_COMPANY,MODEL_UNREPORTED:MODEL_UNREPORTED,
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
   DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,NO_RATING_LINE:NO_RATING_LINE,
-  parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,seatLabel:seatLabel,nameSources:nameSources,
+  parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip

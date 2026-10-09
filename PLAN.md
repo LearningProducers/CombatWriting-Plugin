@@ -77,4 +77,20 @@ Rulings, from the second real run (`2026-10-09-1908-matthew-hotel-doc`, which se
 
 Delivers: `new-run.js` default one seat; `packet.js` `--n`, `--rerate`, the critique contract for `<nn>-battle` without `--rerate`, `contract`, `shares`, `own_rating` and `n` in the packet.built line; `lib.js` `contractSent`, `roundContract`, `latestOwnRating`, the `critique` contract; `check-answer.js` reads the contract from the packet; `check-flip.js` flips against the latest earlier rating and says "no rating" in a critique round; the record and board show critique cells and truncation marks, the chart on rated rounds only; the add-on's `packetRules`, `truncateAnswer`, the cap in the system line, `truncated` in the log and the result; help, sparring, battle, the skill, the seat agent, both READMEs, the add-on README, the method departures 2, 3, 5, 6 and 12 (mirror kept identical), CLAUDE.md, both manifests and the marketplace at 0.2.0; the tests updated and extended (`crew_check.js`: three seats with one key, four with two, the cap in the system line, the truncation with the rating last; `packet_check.js`: one seat by default, the N packet, the critique contract; `flip_check.js`: a flip across a critique round; `record_check.js` and `board_check.js`: critique cells and the truncation mark).
 
-Status: delivered — 2026-10-09 — pull request 7 open; all ten checks pass; `claude plugin validate --strict` passes on both plugin folders and the root.
+Status: merged — 2026-10-09 — pull request 7 merged to main.
+
+## Part 7 — The founder's rulings of 2026-10-09, second set: FQ, seat lines, the picker, the seat key, the hook
+
+Rulings:
+
+1. Battle gets `fq:` (the same question to every seat, nothing shared, the same as sparring's `question:`) and seat lines (`seat-N:`, a note or question to one seat only; a round of seat lines alone goes to the named seats and the record marks the others "not asked"; seat lines may combine with `fq:`).
+2. A missing keyword never errors: text with no keyword opens a one-keypress picker (AskUserQuestion) with the host's best guess first.
+3. Synonyms and typos map, case-insensitive: `question:` and `focus:` are FQ; `nav:` is N; `seat 2`, `seat2` and a seat's short name address a seat (logged by seat number); `rerate` counts anywhere.
+4. Bare `battle` or `sparring` opens the same picker, which ends with "/combat-writing:help for the full guide."
+5. Sparring gets the same picker for a question or seat note with no keyword.
+6. Every round's result ends with a one-line seat key under the Next line, from the live crew; each command carries an argument hint.
+7. A session-start hook prints one line when the plugin loads: "Combat Writing ready. /combat-writing:help for the guide."
+
+Delivers: `packet.js` `--fq` (mode `focus`, nothing shared, cap 500), a seat line alone in battle shares nothing (mode `seat`), a `--question` file copied into the round folder as `<seat>.question.md`, `not_asked` in the packet.built line and "not asked" in the carried list; `lib.js` `seatShortName`, `seatKey`, `askedIn`, `wasAsked`, `notAsked` in `roundAnswers`; the record and board show "not asked" cells (no chart point) and the seat key, and `render-record.js --short` prints the seat key last; `hooks/hooks.json` and `hooks/session-start.js` (the systemMessage line, since a SessionStart hook's plain stdout reaches only the host); the battle and sparring commands rewritten for FQ, seat lines, synonyms, the picker (four options, best guess first, the other two under "Other", because the tool holds four) and the seat key, with argument hints; help, the skill, both READMEs, the method departures 5, 6 and 11 (mirror kept identical), the checklist's hook rows, CLAUDE.md; both manifests and the marketplace at 0.3.0; tests: `hook_check.js` new, `marketplace_check.js` allows the one hook, `packet_check.js`, `record_check.js` and `board_check.js` extended. The picker's seat-key short name is derived from the model id in code, never written in a file.
+
+Status: delivered — 2026-10-09 — pull request 8 open; all eleven checks pass; `claude plugin validate --strict` passes on both plugin folders and the root; the hook was seen firing at startup in a one-turn session on Claude Code 2.1.296.

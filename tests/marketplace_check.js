@@ -13,8 +13,10 @@
 //     option is a string with sensitive: true and no default, every env value in the server
 //     entry is a ${user_config.<option>} reference to a declared option, and no value in the
 //     manifest looks like a credential.
-//   - The listed plugin's manifest declares no MCP server, no hooks and no userConfig: it
-//     holds no keys and makes no outside call.
+//   - The listed plugin's manifest declares no MCP server, no hooks field and no userConfig,
+//     and the folder has no .mcp.json: it holds no keys and makes no outside call. Its one
+//     hook file, hooks/hooks.json (the session-start line, ruled 2026-10-09), is pinned by
+//     tests/hook_check.js.
 //   - When the claude CLI is on PATH, `claude plugin validate --strict` passes on the root,
 //     on both plugin folders and on the listed plugin's component folders; otherwise that
 //     step is reported as skipped.
@@ -81,8 +83,9 @@ check(!crew.hooks&&!crew.commands&&!crew.agents,'crew manifest: the add-on shoul
 
 // The listed plugin holds no keys and makes no outside call.
 var listed=JSON.parse(read('plugins/combat-writing/.claude-plugin/plugin.json'));
-check(!listed.mcpServers&&!listed.hooks&&!listed.userConfig,'listed manifest: must declare no MCP server, hooks or userConfig');
-check(!exists('plugins/combat-writing/.mcp.json')&&!exists('plugins/combat-writing/hooks'),'listed plugin: must have no .mcp.json and no hooks/');
+check(!listed.mcpServers&&!listed.hooks&&!listed.userConfig,'listed manifest: must declare no MCP server, hooks field or userConfig');
+check(!exists('plugins/combat-writing/.mcp.json'),'listed plugin: must have no .mcp.json');
+check(exists('tests/hook_check.js'),'listed plugin: hooks/ is pinned by tests/hook_check.js, which is missing');
 var listedScripts=fs.readdirSync(path.join(root,'plugins/combat-writing/scripts')).map(function(f){return read('plugins/combat-writing/scripts/'+f);}).join('\n');
 check(!/require\(['"](https?|net|dgram|child_process)['"]\)/.test(listedScripts)&&!/\bfetch\(/.test(listedScripts),'listed plugin: a script requires a network module or calls fetch');
 check(!/https?:\/\//.test(listedScripts.replace(/\/\/[^\n]*/g,'')),'listed plugin: a script holds a URL outside a comment');
