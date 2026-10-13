@@ -8,6 +8,7 @@ The motto is "Reading is Peace. Writing is War." It is brand. It is never soften
 ## Standing rules
 
 - Open a pull request; never merge. One pull request per part.
+- Bump before opening the pull request (ruled 2026-10-12): a change to any file under `plugins/combat-writing/` bumps the version in that plugin's `plugin.json` and in its `marketplace.json` entry; the same for `plugins/combat-writing-crew/`. Changes outside the two plugin folders (docs, CI, tests) need no bump. CI fails a pull request that forgot, naming the plugin. On each push to main, CI tags every plugin version not yet tagged on origin as `<plugin-name>--v<version>` with the message `<plugin-name> <version>`, the name and message `claude plugin tag` produces; an already-tagged version is a no-op. A build session never tags.
 - Commit title at most 50 characters, a blank line, then the detail.
 - No model name pinned in code. If a file needs one, write the choice in the session report instead. A transcript quoted in a README may name the model that answered, because it is a record, not code.
 - Method prose, skill text and prompts never name Claude as the host. Write "the host" and "the seat". Only agent files and the add-on name models.
@@ -67,7 +68,7 @@ The second and only other write location is `combat-writing/inbox/` in the perso
 
 ```
 .claude-plugin/marketplace.json        LPI's own marketplace: names both plugins
-.github/workflows/checks.yml           CI: tests/*_check.js, then claude plugin validate
+.github/workflows/checks.yml           CI: the version-bump gate on pull requests, tests/*_check.js, then claude plugin validate; the tag job on push to main
 CLAUDE.md                              this file
 PLAN.md                                the parts and their status lines
 README.md                              the repository README
@@ -126,7 +127,7 @@ The manifest description follows the directory policy line "Descriptions must no
 
 ## Test style
 
-Plain Node, no dependencies, one file per concern named `*_check.js`, a header comment that says what the test pins and how to run it, run from the repository root, exit 0 on pass and 1 on any failure, one printed line per failure. A test of a network client runs it against a fake server on localhost, never a real provider. CI runs every `tests/*_check.js` on each pull request and on main, then `claude plugin validate --strict` on both plugin folders and on the repository root.
+Plain Node, no dependencies, one file per concern named `*_check.js`, a header comment that says what the test pins and how to run it, run from the repository root, exit 0 on pass and 1 on any failure, one printed line per failure. A test of a network client runs it against a fake server on localhost, never a real provider. CI runs every `tests/*_check.js` on each pull request and on main, then `claude plugin validate --strict` on both plugin folders and on the repository root; on a pull request the version-bump gate runs before the checks, and on a push to main the `tag` job follows them.
 
 ## Rulings pending
 

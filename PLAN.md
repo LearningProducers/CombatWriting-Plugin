@@ -110,4 +110,14 @@ Status: merged — 2026-10-12 — pull request 9 merged to main.
 
 Delivers: `.github/workflows/checks.yml` rewritten to the founder's spec of 2026-10-12: one job named `checks` on every pull request targeting main (and on each push to main, per the test-style rule in CLAUDE.md); check out, set up Node, install `@anthropic-ai/claude-code` globally from npm at an exact version, run all eleven `tests/*_check.js`, then `claude plugin validate --strict` on `plugins/combat-writing`, `plugins/combat-writing-crew` and the repository root. Any failing step fails the job. No other file changes.
 
-Status: delivered — 2026-10-12 — pull request open; all eleven checks and the three validations pass locally.
+Status: merged — 2026-10-12 — pull request 10 merged to main.
+
+## Part 10 — Release tags and the version-bump gate
+
+Delivers, to the founder's spec of 2026-10-12, in `.github/workflows/checks.yml` and one pull request:
+- A second job, `tag`, on push to main only, after `checks` passes, with `contents: write`: for each of `plugins/combat-writing` and `plugins/combat-writing-crew` it reads the version from `.claude-plugin/plugin.json` and, when the tag `<plugin-name>--v<version>` is not on origin, creates an annotated tag with that exact name and the message `<plugin-name> <version>` and pushes it. The name and message are what `claude plugin tag` produces, so the two never diverge. An already-tagged version is a no-op.
+- A version-bump gate in the `checks` job on pull requests only: if any file under a plugin folder differs from the pull request's base commit, that plugin's `plugin.json` version must differ from the base's; the job fails naming the plugin that needs a bump. Changes outside the two plugin folders need no bump. The marketplace entry must match each `plugin.json` version; the root validation and `tests/marketplace_check.js` already pin that and are kept.
+- The two action pins moved to their v5 releases (checkout v5.1.0, setup-node v5.0.0), by commit.
+- The bump rule in CLAUDE.md, so build sessions bump before opening a pull request. No plugin file changes, so this pull request needs no bump.
+
+Status: delivered — 2026-10-12 — pull request open; the gate and the tag loop were exercised in a scratch clone against a scratch remote; all eleven checks and the three validations pass locally.
