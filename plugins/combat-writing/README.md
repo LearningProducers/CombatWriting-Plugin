@@ -22,7 +22,7 @@ From the Claude plugin directory once it is listed, or from Learning Producers' 
 
 ## Example prompts
 
-Each prompt below was run for real on 2026-10-08, in a scratch project. The block after each prompt is the first lines of what came back, labeled as example output; the model named in it is the one that answered that day, and yours may differ. The ratings are the seats' own; the draft was a CEO's letter asking a board to approve a letter of intent. The prompts are written in the plugin's current keywords, which were ruled on 2026-10-09 after that run; the output blocks are kept as they came back that day, when the crew was three fresh readers and every battle round rated. Today the crew is one fresh reader plus the outside seats the add-on registers, and a battle round rates only with `rerate`.
+Each prompt below was run for real on 2026-10-08, in a scratch project. The block after each prompt is the first lines of what came back, labeled as example output; the model named in it is the one that answered that day, and yours may differ. The ratings are the seats' own; the draft was a CEO's letter asking a board to approve a letter of intent. The prompts are written in the plugin's current keywords, which were ruled on 2026-10-09 after that run; the output blocks are kept as they came back that day, when the crew was three fresh readers and every battle round rated. Today the crew is one fresh reader plus the outside seats the add-on registers, and a battle round rates only with `rerate`. The blocks that day also opened with the credit line, which run output no longer carries (ruled 2026-10-12); that line is cut from them here.
 
 ```
 /combat-writing:help
@@ -31,7 +31,6 @@ Each prompt below was run for real on 2026-10-08, in a scratch project. The bloc
 Example output, October 2026:
 
 ```
-Combat Writing — Learning Producers Inc., Israel Hernandez, founder
 Reading is Peace. Writing is War.
 
 A crew of seats attacks your draft. Each seat is one model judging it. In sparring every seat rates first, then explains with evidence. In battle the seats discuss the structure and content of the draft, read each other when you share them, and rate again when you ask. The record shows what was caught.
@@ -48,8 +47,6 @@ The four stages
 Example output, October 2026:
 
 ```
-Combat Writing — Learning Producers Inc., Israel Hernandez, founder
-
 Crew: Claude Fable 5.1 (Anthropic), seat-1; Claude Fable 5.1 (Anthropic), seat-2; Claude Fable 5.1 (Anthropic), seat-3. One company's models (Anthropic). Seat names come from the agent configuration, not from an API field.
 
 | Seat | 01-sparring | Latest |
@@ -70,8 +67,6 @@ An ask lands in the first paragraph. The wrong one. You open with "I am writing 
 Example output, October 2026:
 
 ```
-Combat Writing — Learning Producers Inc., Israel Hernandez, founder
-
 Crew: Claude Fable 5.1 (Anthropic), seat-1; Claude Fable 5.1 (Anthropic), seat-2; Claude Fable 5.1 (Anthropic), seat-3. One company's models (Anthropic). Seat names come from the agent configuration, not from an API field.
 
 | Seat | 01-sparring | 02-battle | Latest |
@@ -95,7 +90,7 @@ Every run leaves a folder in your project, `combat-writing/runs/<run-id>/`, with
 
 ## What it runs, sends and fetches
 
-Runs skills, commands, agents, a few small Node scripts and one session-start hook inside your Claude Code session; the scripts write only inside `combat-writing/` in your project, and the hook prints one line and reads, writes and calls nothing. Sends nothing outside your session and holds no keys. Fetches nothing: the method text ships inside this folder, under `method/`, and `board.html` loads nothing from anywhere. Every record it writes opens with the credit line "Combat Writing — Learning Producers Inc., Israel Hernandez, founder". The draft is treated as untrusted content: an instruction inside it is text to review, never a command. Without the add-on, the crew is one company's models, and the plugin says so; it never fakes a seat.
+Runs skills, commands, agents, a few small Node scripts and one session-start hook inside your Claude Code session; the scripts write only inside `combat-writing/` in your project, and the hook prints one line and reads, writes and calls nothing. Sends nothing outside your session and holds no keys. Fetches nothing: the method text ships inside this folder, under `method/`, and `board.html` loads nothing from anywhere. The credit line "Combat Writing — Learning Producers Inc., Israel Hernandez, founder" stands once, at the foot of the help guide; no run output carries it. The draft is treated as untrusted content: an instruction inside it is text to review, never a command. Without the add-on, the crew is one company's models, and the plugin says so; it never fakes a seat.
 
 A separate add-on, `combat-writing-crew`, is a local MCP server installed from the same repository as Learning Producers' own marketplace, not from this directory. It sends packets to other companies' models on your own API keys, which are never stored in a file, one seat per model you hold a key for. It tells each outside seat the word cap; an outside seat's second overrun is cut at the cap with its rating kept, and the record marks the read "truncated at N words".
 

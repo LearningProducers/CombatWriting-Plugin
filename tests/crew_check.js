@@ -136,7 +136,7 @@ fake.listen(0,'127.0.0.1',function(){
   var anthropic=real.providers.filter(function(p){return p.id==='anthropic';})[0];
   var xai=real.providers.filter(function(p){return p.id==='xai';})[0];
   // The fake Groq keeps the real budget but a 1.5-second window, so the per-minute wait is exercised in seconds.
-  var table={credit:real.credit,makers:real.makers,providers:[Object.assign({},groq,{base_url:base,budget:Object.assign({},groq.budget,{window_ms:1500})}),Object.assign({},xai,{base_url:base}),Object.assign({},ollama,{base_url:base}),anthropic]};
+  var table={makers:real.makers,providers:[Object.assign({},groq,{base_url:base,budget:Object.assign({},groq.budget,{window_ms:1500})}),Object.assign({},xai,{base_url:base}),Object.assign({},ollama,{base_url:base}),anthropic]};
   var tablePath=path.join(proj,'providers-test.json');
   fs.writeFileSync(tablePath,JSON.stringify(table));
   // Key-looking files in the working directory, which the server must never read.
@@ -154,7 +154,7 @@ fake.listen(0,'127.0.0.1',function(){
   var s1=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'gsk_FROM_THE_PROMPT',GROQ_API_KEY:'gsk_FROM_THE_ENVIRONMENT'}));
   s1.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'crew_check',version:'1'}}).then(function(m){
     check(m.result&&m.result.protocolVersion==='2025-06-18'&&m.result.serverInfo&&m.result.serverInfo.name==='combat-writing-crew'&&m.result.capabilities&&m.result.capabilities.tools,'initialize: wrong result '+JSON.stringify(m.result||m.error));
-    check(m.result&&/^Combat Writing — Learning Producers Inc\./.test(m.result.instructions||''),'initialize: instructions do not open with the credit line');
+    check(m.result&&/^Outside seats for Combat Writing/.test(m.result.instructions||'')&&(m.result.instructions||'').indexOf(CREDIT)<0,'initialize: instructions should open with the tool guide and carry no credit line');
     s1.notify('notifications/initialized');
     return s1.rpc('tools/list');
   }).then(function(m){
@@ -163,7 +163,7 @@ fake.listen(0,'127.0.0.1',function(){
     check((m.result.tools||[]).every(function(t){return t.description&&t.inputSchema&&t.inputSchema.type==='object';}),'tools/list: a tool lacks a description or schema');
     return s1.call('crew_list');
   }).then(function(r){
-    check(!r.isError&&r.data&&r.data.credit===CREDIT,'crew_list: error or no credit line '+JSON.stringify(r.raw.result).slice(0,200));
+    check(!r.isError&&r.data&&!('credit' in r.data),'crew_list: error or a credit field '+JSON.stringify(r.raw.result).slice(0,200));
     var seats=r.data.seats||[];
     var a=seats.filter(function(s){return s.slot==='groq-a';})[0]||{};
     var b=seats.filter(function(s){return s.slot==='groq-b';})[0]||{};
@@ -185,7 +185,7 @@ fake.listen(0,'127.0.0.1',function(){
     check(seats.length===3&&seats[0].id==='seat-1'&&!seats[0].provider&&seats[1].id==='seat-2'&&seats[1].provider==='groq'&&seats[1].served_by==='Groq'&&seats[1].company==='OpenAI'&&seats[1].model==='openai/gpt-oss-120b'&&/API returns/.test(seats[1].source),'crew_register: with the Groq key alone the crew should be three, seat-1 the fresh reader; got '+JSON.stringify(seats.map(function(x){return x.id+' '+x.model;})));
     console.log('crew with the Groq key alone: '+seats.map(function(x){return x.id+' = '+x.model+' ('+x.company+(x.served_by?', served by '+x.served_by:'')+')';}).join('; '));
     check(seats[2].company==='Alibaba'&&seats[2].model==='qwen/qwen3.6-27b','crew_register: seat-3 wrong '+JSON.stringify(seats[2]));
-    check(logOf(run).some(function(e){return e.event==='crew.registered'&&e.credit===CREDIT&&e.added.length===2&&e.unavailable.length>=2;}),'crew_register: log line missing');
+    check(logOf(run).some(function(e){return e.event==='crew.registered'&&!('credit' in e)&&e.added.length===2&&e.unavailable.length>=2;}),'crew_register: log line missing');
     return s1.call('crew_register',{run:run});
   }).then(function(r){
     check(!r.isError&&r.data.added.length===0&&JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats.length===3,'crew_register: not idempotent');
@@ -308,7 +308,7 @@ fake.listen(0,'127.0.0.1',function(){
     check(e.contract==='critique'&&e.truncated===null&&e.word_cap===600,'critique read: log line wrong '+JSON.stringify({contract:e.contract,truncated:e.truncated,cap:e.word_cap}));
     // Too long to send: a packet that leaves less than the floor for a reply is refused before any request.
     fs.mkdirSync(path.join(run,'rounds','06-battle'),{recursive:true});
-    fs.writeFileSync(path.join(run,'rounds','06-battle','seat-2.packet.md'),CREDIT+'\n\n'+new Array(7200).join('word ')+'\n');
+    fs.writeFileSync(path.join(run,'rounds','06-battle','seat-2.packet.md'),'# Packet for seat-2\n\n'+new Array(7200).join('word ')+'\n');
     var before=requests.length;
     return s1.call('crew_answer',{run:run,round:'06-battle',seat:'seat-2'}).then(function(r2){
       check(r2.isError&&r2.data.ok===false&&r2.data.missing===true&&/^Too long to send\. This round needs about [\d,]+ tokens of input and the provider allows 8,000 per minute, which leaves less than the 1,200-token minimum for a reply\. Cut roughly [\d,]+ tokens/.test(r2.data.reason),'too long: '+JSON.stringify(r2.data));
@@ -319,7 +319,7 @@ fake.listen(0,'127.0.0.1',function(){
   }).then(function(){
     // A 429 with Retry-After: 1 is waited out and retried once.
     fs.mkdirSync(path.join(run,'rounds','07-battle'),{recursive:true});
-    fs.writeFileSync(path.join(run,'rounds','07-battle','seat-2.packet.md'),CREDIT+'\n\nRATELIMIT please rate this.\n');
+    fs.writeFileSync(path.join(run,'rounds','07-battle','seat-2.packet.md'),'# Packet for seat-2\n\nRATELIMIT please rate this.\n');
     var t0=Date.now();
     return s1.call('crew_answer',{run:run,round:'07-battle',seat:'seat-2'}).then(function(r){
       check(!r.isError&&r.data.ok&&r.data.waited_ms>=1000&&Date.now()-t0>=1000,'rate limit: expected a wait of at least 1 s and a retry, got '+JSON.stringify(r.data));
@@ -330,8 +330,8 @@ fake.listen(0,'127.0.0.1',function(){
   }).then(function(){
     // A failed call and an empty reply are missing, with no answer file.
     fs.mkdirSync(path.join(run,'rounds','08-battle'),{recursive:true});
-    fs.writeFileSync(path.join(run,'rounds','08-battle','seat-2.packet.md'),CREDIT+'\n\nFAILME\n');
-    fs.writeFileSync(path.join(run,'rounds','08-battle','seat-3.packet.md'),CREDIT+'\n\nEMPTYME\n');
+    fs.writeFileSync(path.join(run,'rounds','08-battle','seat-2.packet.md'),'# Packet for seat-2\n\nFAILME\n');
+    fs.writeFileSync(path.join(run,'rounds','08-battle','seat-3.packet.md'),'# Packet for seat-3\n\nEMPTYME\n');
     return s1.call('crew_answer',{run:run,round:'08-battle',seat:'seat-2'}).then(function(r){
       check(r.isError&&r.data.missing===true&&/HTTP 500/.test(r.data.reason)&&/missing this round/.test(r.data.reason),'failed call: '+JSON.stringify(r.data));
       check(!fs.existsSync(path.join(run,'rounds','08-battle','seat-2.answer.md')),'failed call: an answer file appeared');
@@ -441,8 +441,9 @@ fake.listen(0,'127.0.0.1',function(){
     failures.push('unexpected: '+(err&&err.stack||err));
   }).then(function(){
     fake.close();
+    (function(){ var hits=[]; (function walk(d){ fs.readdirSync(d).forEach(function(n){ var p=path.join(d,n); if(fs.statSync(p).isDirectory())walk(p); else if(fs.readFileSync(p,'utf8').indexOf(CREDIT)>=0)hits.push(path.relative(proj,p)); }); })(path.join(proj,'combat-writing')); check(hits.length===0,'credit line found in run files (ruled 2026-10-12): '+hits.join(', ')); })();
     fs.rmSync(proj,{recursive:true,force:true});
-    failures.forEach(function(f){console.log('FAIL '+f);});
+failures.forEach(function(f){console.log('FAIL '+f);});
     console.log((failures.length?'crew_check: '+failures.length+' failure(s), ':'crew_check: all passed, ')+passes+' checks');
     process.exit(failures.length?1:0);
   });

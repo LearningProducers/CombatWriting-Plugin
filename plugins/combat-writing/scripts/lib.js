@@ -8,7 +8,7 @@
 //     brief.md                 the context brief, when the person gave one
 //     seats.json               the crew: id, model, company, and where the name came from
 //     log.jsonl                one JSON object per line, timestamped; the source of truth for what was sent
-//                              and checked; the first line opens with the credit line
+//                              and checked
 //     record.md                the rendered record, rebuilt by render-record.js after every round
 //     rounds/<nn>-<kind>/      one folder per round, nn two digits, kind a word (sparring, debate, battle, final)
 //       <seat>.question.md     the focus question or navigation note for that seat, when given
@@ -17,12 +17,11 @@
 //       <seat>.sn.packet.md / <seat>.sn.answer.md             the final mode's S/N read
 //       <seat>.redflag.packet.md / <seat>.redflag.answer.md   the final mode's red-flag read
 //
-// Every record the plugin writes opens with the credit line. A seat's answer is the seat's
-// writing and opens with its contract's first line instead.
+// No file in the run carries the credit line (ruled 2026-10-12): it stands once, at the foot of
+// the help guide. A seat's answer is the seat's writing and opens with its contract's first line.
 
 var fs=require('fs'), path=require('path'), crypto=require('crypto');
 
-var CREDIT='Combat Writing — Learning Producers Inc., Israel Hernandez, founder';
 var RUNS_DIR=path.join('combat-writing','runs');
 var DEFAULT_WORD_CAP=500;            // a read with no other seats' answers
 var DEFAULT_SYNTHESIS_WORD_CAP=600;  // a read that quotes other seats
@@ -72,6 +71,15 @@ function readSeats(runDir){
   var p=path.join(runDir,'seats.json');
   if(!fs.existsSync(p))die('no seats.json in '+runDir);
   return JSON.parse(readText(p));
+}
+// The crew (ruled 2026-10-09, enforced 2026-10-12): one fresh reader plus one seat per outside
+// model the add-on registers, never padded. A fresh reader is a seat with no provider field;
+// the first one in seats.json is the crew's. isPaddedSeat says whether a seat is a second fresh
+// reader, which packet.js refuses to seat in any round.
+function isFreshReader(seat){ return !seat.provider; }
+function isPaddedSeat(seats,seat){
+  var first=seats.filter(isFreshReader)[0];
+  return isFreshReader(seat)&&!!first&&first.id!==seat.id;
 }
 
 // A seat's label as it appears in every packet and every result: model and company, never anonymous.
@@ -394,11 +402,11 @@ function checkFlip(text,self,previousText,carried){
 }
 
 module.exports={
-  CREDIT:CREDIT,RUNS_DIR:RUNS_DIR,DEFAULT_WORD_CAP:DEFAULT_WORD_CAP,DEFAULT_SYNTHESIS_WORD_CAP:DEFAULT_SYNTHESIS_WORD_CAP,
+  RUNS_DIR:RUNS_DIR,DEFAULT_WORD_CAP:DEFAULT_WORD_CAP,DEFAULT_SYNTHESIS_WORD_CAP:DEFAULT_SYNTHESIS_WORD_CAP,
   DEFAULT_FINAL_WORD_CAP:DEFAULT_FINAL_WORD_CAP,DEFAULT_COMPANY:DEFAULT_COMPANY,MODEL_UNREPORTED:MODEL_UNREPORTED,
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
   DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,NO_RATING_LINE:NO_RATING_LINE,
-  parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
+  parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip

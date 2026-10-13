@@ -7,7 +7,8 @@
 // project (never a re-implementation).
 //
 // What it pins:
-//   - The first visible text in the page is the credit line, before the motto and the title.
+//   - The first visible text in the page is the motto, before the title; the credit line is
+//     nowhere in the page (ruled 2026-10-12).
 //   - The page makes no external request: no http://, https:// or protocol-relative URL
 //     in any src, href, url(), @import or fetch; no <link>, <script src>, <img src> or
 //     <iframe>; the only href is the relative link to record.md.
@@ -41,10 +42,14 @@ var failures=[], passes=0;
 function check(cond,msg){ if(cond)passes++; else failures.push(msg); }
 function node(script,args){ return cp.spawnSync(process.execPath,[path.join(scripts,script)].concat(args),{cwd:proj,encoding:'utf8'}); }
 function write(p,t){ fs.writeFileSync(p,t); }
+// The crew is one fresh reader, never padded (ruled 2026-10-09, enforced 2026-10-12): the extra
+// seats a test needs are written into seats.json the way the add-on's crew_register writes an
+// outside seat (a provider field), so packet.js seats them; a second fresh reader it refuses.
+function seatMore(run,n,model,company){ var f=path.join(run,'seats.json'); var sj=JSON.parse(fs.readFileSync(f,'utf8')); for(var i=sj.seats.length+1;i<=n;i++)sj.seats.push({id:'seat-'+i,model:model,company:company||'Anthropic',provider:'test-fixture',source:'test fixture: an outside seat as the add-on would register it'}); fs.writeFileSync(f,JSON.stringify(sj,null,2)+'\n'); return run; }
 
 fs.writeFileSync(path.join(proj,'draft.md'),'Dear board, buy the company.\n');
 fs.writeFileSync(path.join(proj,'brief.md'),'CEO. Get a yes.\n');
-var run=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','board','--model','Test Model','--seats','3']).stdout.trim();
+var run=seatMore(node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','board','--model','Test Model']).stdout.trim(),3,'Test Model');
 var S2LINE='The board will ask for numbers and find none.';
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','01-sparring','--seat',s]); });
 var r1=path.join(run,'rounds','01-sparring');
@@ -82,8 +87,8 @@ check(rb.status===0&&rb.stdout.trim()===path.join(run,'board.html'),'render-boar
 var html=fs.readFileSync(path.join(run,'board.html'),'utf8');
 var body=html.slice(html.indexOf('<body'));
 var textOnly=body.replace(/<script[\s\S]*?<\/script>/g,'').replace(/<[^>]+>/g,'\n').split('\n').map(function(l){return l.trim();}).filter(Boolean);
-check(textOnly[0]===CREDIT,'board: first visible text is "'+textOnly[0]+'", not the credit line');
-check(textOnly[1]==='Reading is Peace. Writing is War.','board: the motto does not follow the credit line');
+check(textOnly[0]==='Reading is Peace. Writing is War.','board: first visible text is "'+textOnly[0]+'", not the motto');
+check(html.indexOf(CREDIT)<0,'board: carries the credit line');
 
 // No external request.
 check(!/\b(https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(html),'board: an external URL appears');
@@ -137,7 +142,7 @@ check(/<div class="legend">/.test(html),'board: no legend');
 check(/<button type="button" id="theme"/.test(html),'board: no theme toggle');
 
 // A round of seat lines alone: round 2 goes to seat-2 only, with rerate.
-var so=node('new-run.js',['--draft','draft.md','--name','seatonly','--model','Test Model','--seats','3']).stdout.trim();
+var so=seatMore(node('new-run.js',['--draft','draft.md','--name','seatonly','--model','Test Model']).stdout.trim(),3,'Test Model');
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',so,'--round','01-sparring','--seat',s]); write(path.join(so,'rounds','01-sparring',s+'.answer.md'),'RATING: 8/10\nRound one.\n'); node('check-answer.js',[path.join(so,'rounds','01-sparring',s+'.answer.md'),'--run',so]); });
 write(path.join(proj,'q2.md'),'Does the close ask for the vote?\n');
 node('packet.js',['--run',so,'--round','02-battle','--seat','seat-2','--question','q2.md','--rerate']);

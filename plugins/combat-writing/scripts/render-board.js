@@ -3,7 +3,7 @@
 //
 //   node render-board.js --run <run folder>
 //
-// The page holds, in order: the credit line, the motto, the crew line, the drafts and
+// The page holds, in order: the motto, the crew line, the drafts and
 // the brief, the scoreboard (one row per seat, one column per round, every rating on
 // its own, flips marked valid or invalid with the earlier number kept, Stand, missing,
 // not asked, failed reads), the seat key, a line chart of each seat's rating across rounds as inline SVG with
@@ -147,13 +147,12 @@ html.push(':root{color-scheme:light;--surface:#fcfcfb;--surface-2:#f1f0ec;--ink:
 html.push('@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;--surface:#1a1a19;--surface-2:#242422;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#8f8e87;--rule:#34332f;--seven:#5a5955;--series-1:#3987e5;--series-2:#d95926;--series-3:#199e70;--series-4:#c98500;--series-5:#d55181;--series-6:#008300;--series-7:#9085e9;--series-8:#e66767;--good:#4caf6e;--bad:#ef6b6b;}}');
 html.push(':root[data-theme="dark"]{color-scheme:dark;--surface:#1a1a19;--surface-2:#242422;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#8f8e87;--rule:#34332f;--seven:#5a5955;--series-1:#3987e5;--series-2:#d95926;--series-3:#199e70;--series-4:#c98500;--series-5:#d55181;--series-6:#008300;--series-7:#9085e9;--series-8:#e66767;--good:#4caf6e;--bad:#ef6b6b;}');
 html.push('*{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:0 16px 48px}main{max-width:960px;margin:0 auto}');
-html.push('.credit{font-size:13px;color:var(--ink-2);margin:20px 0 4px}.motto{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:0 0 20px}h1{font-size:22px;margin:0 0 6px}h2{font-size:16px;margin:28px 0 8px}p{margin:6px 0}.meta{color:var(--ink-2)}');
+html.push('.motto{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:20px 0 20px}h1{font-size:22px;margin:0 0 6px}h2{font-size:16px;margin:28px 0 8px}p{margin:6px 0}.meta{color:var(--ink-2)}');
 html.push('.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}button{font:inherit;font-size:13px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--rule);border-radius:6px;padding:4px 10px;cursor:pointer}');
 html.push('table{border-collapse:collapse;width:100%;font-size:14px;margin-top:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top}th{color:var(--ink-2);font-weight:600}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mark{color:var(--ink-2);font-size:12px}.flip-valid .mark{color:var(--good)}.flip-invalid .mark{color:var(--bad)}.missing,.failed{color:var(--ink-3);font-style:italic}.critique{color:var(--ink-2)}code{font-size:13px}.key{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}');
 html.push('.chart{width:100%;height:auto;display:block;margin-top:8px}.grid{stroke:var(--rule);stroke-width:1}.seven{stroke:var(--seven);stroke-width:1;stroke-dasharray:4 4}.tick{fill:var(--ink-3);font-size:11px}.seven-label{fill:var(--ink-3)}.line{fill:none;stroke:var(--c);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}.ring{fill:var(--surface)}.dot{fill:var(--c)}.pt.missing circle{fill:var(--surface);stroke:var(--ink-3);stroke-width:1.5}.pt.missing line{stroke:var(--ink-3);stroke-width:1.5}.pt{cursor:default;outline:none}.pt:focus .dot,.pt:hover .dot{r:6}.flag{fill:var(--ink-2);font-size:12px}.end-label{fill:var(--ink-2);font-size:12px}');
 html.push('.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin:6px 0}.readout{min-height:22px;font-size:13px;color:var(--ink-2);margin:4px 0 0}.note{font-size:13px;color:var(--ink-2)}a{color:inherit}');
 html.push('</style></head><body><main>');
-html.push('<p class="credit">'+esc(lib.CREDIT)+'</p>');
 html.push('<p class="motto">Reading is Peace. Writing is War.</p>');
 html.push('<div class="bar"><h1>Combat Writing board — '+esc(path.basename(runDir))+'</h1><button type="button" id="theme" aria-label="Switch light and dark">Light / dark</button></div>');
 html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies: '+esc(companies.join(', '))+'.')+' '+esc(lib.nameSources(seats))+'</p>');
