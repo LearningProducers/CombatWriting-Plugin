@@ -37,7 +37,7 @@ With a bare command there is no text to guess from: mark nothing, and after the 
 
 ## 2. Decide where you are running
 
-Fresh readers if you can start a separate agent and run `node`; otherwise one seat, the host. The crew in a run is what `seats.json` holds: the fresh reader plus the outside seats the add-on registered. With one seat there is no other seat to read: SN and SFQ have nothing to share, so say so plainly and offer FQ or N (a question or guidance to the one seat, with its own earlier turn) or the add-on; in chat, with no run folder, offer a solo re-read instead (the one seat reads its own earlier answer and the draft, answers the guidance, and rates only when asked with `rerate`, saying Stand or quoting its own earlier line and why). Do not pretend a second seat exists.
+Fresh readers if you can start a separate agent and run `node`; otherwise one seat, the host. The crew in a run is what `seats.json` holds: the fresh reader plus the outside seats the add-on registered. With one seat there is no other seat to read: SN and SFQ have nothing to share, so say so plainly and offer FQ or N (a question or guidance to the one seat, with its own earlier turn) and the add-on's next command from the Seats line (the skill's three states; if the run has no state recorded and no `crew_list` tool, record it with `crew-state.js` first); in chat, with no run folder, offer a solo re-read instead (the one seat reads its own earlier answer and the draft, answers the guidance, and rates only when asked with `rerate`, saying Stand or quoting its own earlier line and why). Do not pretend a second seat exists.
 
 ## 3. Count the rounds
 

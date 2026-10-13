@@ -40,7 +40,7 @@ node ${CLAUDE_PLUGIN_ROOT}/scripts/new-run.js --draft <draft file> --brief <brie
 
 It prints the run folder, copies the draft to `draft.md` (the snapshot, never changed) and the brief to `brief.md`, and seats one fresh reader, `seat-1`. `--brief` is left out only when the person said there is no brief.
 
-If the add-on is present (a `crew_list` tool from the `combat-writing-crew` server), call `crew_register` with the run folder now, so the crew line below names every seat; it adds no seat twice, and sparring calls it again harmlessly. Without the add-on, skip this; the crew is the one fresh reader, one company's models, and the result says so. Build no packet and start no seat: strategy reads nothing.
+If the add-on is present (a `crew_list` tool from the `combat-writing-crew` server), call `crew_register` with the run folder now, so the crew line below names every seat; it adds no seat twice, and sparring calls it again harmlessly. Without the add-on's tools, the crew is the one fresh reader, one company's models: tell installed-but-down from absent with `claude plugin list` and record it with `crew-state.js --run <folder> --state down|absent` (the skill's three states), so the result names the state and the next command. Build no packet and start no seat: strategy reads nothing.
 
 ## 4. Render and show the result
 

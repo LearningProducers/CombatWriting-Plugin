@@ -37,6 +37,18 @@ var DEFAULT_READ_PROMPT='Read this rough draft and rate it on a scale from 1–1
 // `rerate`. The synthesis prompt has one form for each case.
 var DEFAULT_SYNTHESIS_PROMPT='Read the other seats\' latest answers. Where do your interpretations overlap and where do they diverge? Give a new critique of the structure and content of the draft.';
 var DEFAULT_SYNTHESIS_RERATE_PROMPT='Read the other seats\' latest answers. Where do your interpretations overlap and where do they diverge? Give a new critique and a new rating of the draft.';
+// Fewer seats than the person expects (ruled 2026-10-13): every result names the reason and the
+// exact next command. Three states. The host records `absent` and `down` with crew-state.js (no
+// add-on tool is there to do it); the add-on records the third, running with no key, in the
+// crew.registered log line it writes, naming the key field to fill. crewStateLines renders
+// whichever the log holds, and the record, the board and the short form print it under the crew line.
+var ADDON_INSTALL='/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin';
+var ADDON_CONFIGURE='/plugin configure combat-writing-crew';
+var ADDON_STATE={
+  absent:'The crew add-on is not installed, so the crew is one seat. Next: '+ADDON_INSTALL+', then /reload-plugins or a new session, then '+ADDON_CONFIGURE+' to enter a key.',
+  down:'The crew add-on is installed but its server is not running in this session (no crew_list tool), so the crew is one seat. Next: /mcp, find combat-writing-crew: if it shows failed or disconnected, reconnect it there and run the command again; if it is not listed, /plugin to check the add-on is enabled, then /reload-plugins.'
+};
+
 // The line a packet carries when the round asks for no rating; the checker and the add-on read it.
 var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your critique.';
 
@@ -124,6 +136,35 @@ function nameSources(seats){
   if(fresh&&outside)return 'Fresh readers are named from the agent configuration; outside seats from the model field their provider\'s API returned.';
   if(outside)return 'Seat names come from the model field each provider\'s API returned.';
   return 'Seat names come from the agent configuration, not from an API field.';
+}
+
+// The Seats lines for a run: why the crew has fewer seats than the person expects, with the next
+// command, from the latest addon.state or crew.registered line in the log. Empty when nothing
+// is missing. With no outside seat and nothing recorded, the line says so and points at the help.
+function crewStateLines(runDir,seats,log){
+  log=log||readLog(runDir);
+  var outside=seats.filter(function(s){return !!s.provider;}).length;
+  var last=null;
+  log.forEach(function(e){ if(e.event==='addon.state'||e.event==='crew.registered')last=e; });
+  var lines=[];
+  if(last&&last.event==='crew.registered'){
+    var un=last.unavailable||[];
+    var noKey=un.filter(function(u){return /^no key/.test(u.reason||'');});
+    var failed=un.filter(function(u){return !/^(no key|off:|not built)/.test(u.reason||'');});
+    if(!outside&&noKey.length){
+      var fields=[]; noKey.forEach(function(u){ var f=u.field||'the key field'; if(fields.indexOf(f)<0)fields.push(f); });
+      var named=noKey.filter(function(u){return u.field;}).map(function(u){return u.field+' ('+(u.field_title||u.provider_name||u.provider)+')';}).filter(function(v,i,a){return a.indexOf(v)===i;});
+      lines.push('The crew add-on is running and no provider has a key, so the crew is one seat. Next: '+(noKey[0].next||ADDON_CONFIGURE)+' and fill a key field: '+(named.length?named.join(', '):fields.join(', '))+'; a free Groq key seats two. Or set the provider\'s environment variable when the prompt is empty.');
+    }
+    failed.forEach(function(u){
+      lines.push('Not seated: '+(u.provider_name||u.provider)+(u.family?' ('+u.family+')':'')+': '+u.reason+'. Next: run the command again; if it repeats, '+(u.next||ADDON_CONFIGURE)+' to check the '+(u.field||'key')+' field.');
+    });
+  }else if(last&&last.event==='addon.state'&&!outside){
+    lines.push(ADDON_STATE[last.state]||('The add-on state recorded, '+last.state+', is not one the record knows.'));
+  }else if(!outside){
+    lines.push('No outside seat, and the add-on\'s state was not recorded in this run. Next: /combat-writing:help crew for the three states and the command for each.');
+  }
+  return lines;
 }
 
 // Drafts in order: draft.md, draft-2.md, draft-3.md ... The last is the newest.
@@ -405,7 +446,7 @@ module.exports={
   RUNS_DIR:RUNS_DIR,DEFAULT_WORD_CAP:DEFAULT_WORD_CAP,DEFAULT_SYNTHESIS_WORD_CAP:DEFAULT_SYNTHESIS_WORD_CAP,
   DEFAULT_FINAL_WORD_CAP:DEFAULT_FINAL_WORD_CAP,DEFAULT_COMPANY:DEFAULT_COMPANY,MODEL_UNREPORTED:MODEL_UNREPORTED,
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
-  DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,NO_RATING_LINE:NO_RATING_LINE,
+  DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,NO_RATING_LINE:NO_RATING_LINE,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,

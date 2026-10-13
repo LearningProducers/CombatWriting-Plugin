@@ -88,6 +88,8 @@ out.push('');
 var companies=seats.map(function(s){return s.company;}).filter(function(v,i,a){return a.indexOf(v)===i;});
 out.push('**Crew:** '+seats.map(lib.seatLabel).join('; ')+'. '+(companies.length===1?'One company\'s models ('+companies[0]+').':companies.length+' companies: '+companies.join(', ')+'.')+' '+lib.nameSources(seats));
 out.push('');
+// Fewer seats than expected (ruled 2026-10-13): the reason and the next command, from the log.
+lib.crewStateLines(runDir,seats,log).forEach(function(l){ out.push('**Seats:** '+l); out.push(''); });
 out.push('**Seat key:** '+lib.seatKey(seats));
 out.push('');
 out.push('**Drafts:** '+drafts.map(function(d){var e=lastLog(function(x){return (x.event==='draft.added'&&x.file===d)||(x.event==='run.created'&&d==='draft.md');});var sha=e?(e.sha256||(e.draft&&e.draft.sha256)):null;return d+(sha?' (sha256 '+sha.slice(0,12)+'…)':'');}).join(', ')+'.');
@@ -153,6 +155,7 @@ fs.writeFileSync(path.join(runDir,'record.md'),out.join('\n'));
 lib.appendLog(runDir,{event:'record.rendered',file:'record.md',rounds:rounds.length});
 if(args.short===true){
   var s=[out.filter(function(l){return l.indexOf('**Crew:**')===0;})[0],''];
+  out.filter(function(l){return l.indexOf('**Seats:**')===0;}).forEach(function(l){ s.push(l,''); });
   var tableStart=out.indexOf('## Scoreboard');
   var tableEnd=out.indexOf('## Answers');
   var board=out.slice(tableStart+1,tableEnd).filter(function(l){return l.trim();});

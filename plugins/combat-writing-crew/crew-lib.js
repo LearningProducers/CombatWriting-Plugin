@@ -44,9 +44,24 @@ function keyFor(provider){
   if(fromEnv)return {key:fromEnv,source:'environment'};
   return null;
 }
-// What to tell the person when a key is missing: the prompt's name and the variable's name, never a value.
+// What to tell the person when a key is missing (ruled 2026-10-13: the exact next command and the
+// key field, never a value): the configure command, the option's id and title from the add-on's own
+// manifest, and the environment variable that serves when the prompt is empty.
+var CONFIGURE_COMMAND='/plugin configure combat-writing-crew';
+var manifestOptions=null;
+function optionTitle(option){
+  if(manifestOptions===null){
+    try{manifestOptions=JSON.parse(readText(path.join(__dirname,'.claude-plugin','plugin.json'))).userConfig||{};}catch(e){manifestOptions={};}
+  }
+  return (manifestOptions[option]&&manifestOptions[option].title)||option;
+}
+function keyField(provider){
+  var option=provider.key_option||(provider.id+'_api_key');
+  return {next:CONFIGURE_COMMAND,field:option,field_title:optionTitle(option),env:provider.key_env};
+}
 function keyHint(provider){
-  return 'set it in the plugin\'s settings (the masked prompt) or, when that is empty, in the '+provider.key_env+' environment variable';
+  var f=keyField(provider);
+  return 'next: '+f.next+', the '+f.field+' field ('+f.field_title+', the masked prompt); or set '+f.env+' in the environment when the prompt is empty';
 }
 
 // A small HTTP client: JSON in, JSON out, with the status and the headers. Follows no redirect.
@@ -192,6 +207,6 @@ function makeWindow(){
 }
 
 module.exports={readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
-  loadProviders:loadProviders,keyFor:keyFor,keyHint:keyHint,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
+  loadProviders:loadProviders,keyFor:keyFor,keyHint:keyHint,keyField:keyField,CONFIGURE_COMMAND:CONFIGURE_COMMAND,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
   eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,
   NO_RATING_LINE:NO_RATING_LINE,packetRules:packetRules,wordCount:wordCount,truncateAnswer:truncateAnswer};
