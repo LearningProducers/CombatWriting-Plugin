@@ -104,4 +104,10 @@ Rulings:
 
 Delivers: `new-run.js` (one seat, `--seats` refused, no credit field in `seats.json` or the log), `lib.js` (`isFreshReader`, `isPaddedSeat`, the `CREDIT` constant removed), `packet.js` (the padded-seat refusal, no credit line), `render-record.js` and `render-board.js` (no credit line; the board opens with the motto), the add-on's `crew-lib.js`, `server.js` and `providers.json` (no credit anywhere), help (the motto at the top, the credit line as the last line), the skill, sparring, battle, both READMEs, the add-on README, the method terms and departure 3 (mirror kept identical), the three eval graders, CLAUDE.md; both manifests and the marketplace at 0.3.1; tests: `packet_check.js` pins the `--seats` refusal and the padded-seat refusal beside an outside seat that still builds, and every check that padded a crew now seats its fixtures as outside seats and sweeps the run folder for the credit line; `readme_check.js` pins that the output blocks carry no credit line.
 
-Status: delivered — 2026-10-12 — pull request open; all eleven checks pass.
+Status: merged — 2026-10-12 — pull request 9 merged to main.
+
+## Part 9 — CI on pull requests to main
+
+Delivers: `.github/workflows/checks.yml` rewritten to the founder's spec of 2026-10-12: one job named `checks` on every pull request targeting main (and on each push to main, per the test-style rule in CLAUDE.md); check out, set up Node, install `@anthropic-ai/claude-code` globally from npm at an exact version, run all eleven `tests/*_check.js`, then `claude plugin validate --strict` on `plugins/combat-writing`, `plugins/combat-writing-crew` and the repository root. Any failing step fails the job. No other file changes.
+
+Status: delivered — 2026-10-12 — pull request open; all eleven checks and the three validations pass locally.
