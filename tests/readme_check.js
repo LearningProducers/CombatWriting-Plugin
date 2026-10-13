@@ -5,11 +5,11 @@
 // What it pins, on plugins/combat-writing/README.md and README.md:
 //   - ™ follows the first use of the name "Combat Writing" in the file.
 //   - "source-available" appears; "open source" and "open-source" do not.
-//   - The plugin README's three example prompts are fenced blocks that begin with
-//     /combat-writing:<command>, each naming a command file that exists under
-//     plugins/combat-writing/commands/, and each is followed by a fenced block of
-//     real output that carries no credit line (ruled 2026-10-12): the sparring and battle
-//     blocks open with the crew line, the help block with the motto.
+//   - The plugin README's example prompts (one each for help, strategy, sparring and battle)
+//     are fenced blocks that begin with /combat-writing:<command>, each naming a command
+//     file that exists under plugins/combat-writing/commands/, and each is followed by a
+//     fenced block of real output that carries no credit line (ruled 2026-10-12): the
+//     strategy, sparring and battle blocks open with the crew line, the help block with the motto.
 //   - The disclosures: what the plugin runs, sends and fetches; that every record opens
 //     the credit line stands at the foot of the help guide, quoted in full; that the add-on exists, is a local MCP server
 //     and calls other providers on the person's own keys; that keys are never stored in
@@ -64,7 +64,7 @@ prompts.forEach(function(pr){
   check(!!out&&out.indexOf(CREDIT)<0,'plugin README: the output block after "'+pr.text.slice(0,40)+'" carries the credit line');
   check(!!out&&(cmd==='help'?out.split('\n')[0]==='Reading is Peace. Writing is War.':/^Crew:/.test(out.split('\n')[0])),'plugin README: the output block after "'+pr.text.slice(0,40)+'" does not open with '+(cmd==='help'?'the motto':'the crew line'));
 });
-['help','sparring','battle'].forEach(function(c){ check(named[c],'plugin README: no example prompt for /combat-writing:'+c); });
+['help','strategy','sparring','battle'].forEach(function(c){ check(named[c],'plugin README: no example prompt for /combat-writing:'+c); });
 var prose=p.replace(/```[\s\S]*?```/g,' ').replace(/<!--[\s\S]*?-->/g,' ');
 check(prose.split(/\s+/).filter(Boolean).length>40,'plugin README: 40 words or fewer outside code blocks');
 

@@ -11,7 +11,7 @@ If `$ARGUMENTS` carries pasted text (an FQ, an N, an SN, an SFQ, a seat line, a 
 
 - `final` as the first word: the two final reads of step 14 (S/N ratio and red flags), on the draft alone. See step 6.
 - `rerate`, anywhere in the arguments, any case: this round asks every seat it goes to for a new rating, the rating line first. Without it, no seat rates: each seat gives its critique and the record shows the round as a critique. Battle never rerates on its own.
-- `run: <folder>` names the run. Default: the newest folder under `combat-writing/runs/`. If there is none, say so and point at `/combat-writing:sparring`; battle never starts a run.
+- `run: <folder>` names the run. Default: the newest folder under `combat-writing/runs/`. If there is none, say so and point at `/combat-writing:sparring`; battle never starts a run. A run with no round yet (strategy made it, nothing has read it) has nothing to discuss: say so and point at `/combat-writing:sparring`, which reads the stored draft bare.
 - `draft: <path>` adds a revised draft to the run before the round. Default: the newest draft already in the run.
 - The round terms (ruled 2026-10-09), one or none, never two together:
   - `fq: <text>` is **FQ, focus question**: the same question put to every seat, nothing shared, the same as sparring's `question:`. No other seat's answer is carried; each seat has its own earlier turn.

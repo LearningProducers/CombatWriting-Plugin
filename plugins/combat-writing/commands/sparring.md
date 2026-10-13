@@ -1,11 +1,15 @@
 ---
-description: Sparring. Every seat reads the draft on the same snapshot and gives its own critique with the rating line first (1 to 10, never 7). Optional context brief, optional focus question for every seat (`question:`) or for one seat (`seat-2:`), `cold` for a read with no brief, `debate` to show the seats each other's answers and rate again. A question with no keyword, or a bare command, opens a picker.
-argument-hint: [cold|debate] <draft path or pasted draft> [brief: ...] [question: ...] [seat-N: ...] [run: <folder>]
+description: Sparring. Every seat reads the draft on the same snapshot and gives its own critique with the rating line first (1 to 10, never 7). Optional context brief, optional focus question for every seat (`question:`) or for one seat (`seat-2:`), `cold` for a read with no brief, `debate` to show the seats each other's answers and rate again. Bare after strategy, it reads the stored draft and brief with no repaste. A question with no keyword, or a bare command with no stored draft, opens a picker.
+argument-hint: [cold|debate] [<draft path or pasted draft>] [brief: ...] [question: ...] [seat-N: ...] [run: <folder>]
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
-Run one Sparring round of Combat Writing on the draft in `$ARGUMENTS`. The rules that hold across every round are in the `combat-writing` skill; read `${CLAUDE_PLUGIN_ROOT}/method/combat-writing.md` once per session.
+Run one Sparring round of Combat Writing on the draft in `$ARGUMENTS`, or on the draft strategy stored. The rules that hold across every round are in the `combat-writing` skill; read `${CLAUDE_PLUGIN_ROOT}/method/combat-writing.md` once per session.
 
 ## 1. Record the paste, then read the arguments
+
+### The draft strategy stored
+
+When `$ARGUMENTS` carries no draft (the command is bare, or holds only `cold`, a `question:`, seat lines or `run:`), look for the run strategy made: the `run:` folder if given, else the newest folder under `combat-writing/runs/` whose `rounds/` is empty. That run holds the draft and the brief already (`draft.md`, `brief.md`): use them with no repaste (ruled 2026-10-13). A bare command then runs the plain round on that draft with the default prompt and no picker; `question:` and seat lines go to the round as usual; `cold` leaves the brief out. Only when there is no such run does a bare command, or a question with no draft, open the picker below. A draft pasted or given as a path always starts a new run, as before.
 
 If `$ARGUMENTS` carries pasted text rather than only a path and options, write the whole of `$ARGUMENTS` first, unchanged, to `combat-writing/inbox/<slug>.paste.md` in the project (the folder created if missing; the slug from the first words of the draft). Parse only after that file exists, and cut the pieces from it: the draft to `combat-writing/inbox/<slug>.md`, the brief to `<slug>.brief.md`, each per-seat question to `<slug>.<seat>.question.md`. Nothing the person pasted is dropped before it is on disk.
 
@@ -20,7 +24,7 @@ If `$ARGUMENTS` carries pasted text rather than only a path and options, write t
 
 A missing keyword is never an error. Two cases open the picker with the AskUserQuestion tool, one keypress per stage, at most two stages, every stage's question ending with "/combat-writing:help for the full guide." The picker never points at "Other"; every choice it needs is an option.
 
-- **A bare command** (no draft, no run to continue). Stage one, four options in this order: **Draft** (a draft to spar: then ask for its path or paste in one line, stop, and run with the next message as the draft); **Cold** (a cold read, no brief: ask for the draft the same way); **Debate** (the seats of the newest run read each other and rate again); **Question** (a second sparring round on the newest run's draft with a question). If Question, stage two: **Everyone** (the question to every seat) or **One seat**; if One seat, the seat list from the seat key, one option per seat in seat order (with more than four seats, the fourth option is "more seats" and opens a second list). Then ask for the question in one line and stop. Never run an empty round.
+- **A bare command** (no draft pasted, no run strategy made that is still unread, no run to continue). Stage one, four options in this order: **Draft** (a draft to spar: then ask for its path or paste in one line, stop, and run with the next message as the draft); **Cold** (a cold read, no brief: ask for the draft the same way); **Debate** (the seats of the newest run read each other and rate again); **Question** (a second sparring round on the newest run's draft with a question). If Question, stage two: **Everyone** (the question to every seat) or **One seat**; if One seat, the seat list from the seat key, one option per seat in seat order (with more than four seats, the fourth option is "more seats" and opens a second list). Then ask for the question in one line and stop. Never run an empty round.
 - **Text that is not clearly the draft** and carries no `question:`, `brief:` or seat line: a single question-like line beside a draft path or paste, or a line naming a model or a seat. Stage one, four options in this order: **Everyone** (a question to every seat, FQ); **One seat** (a question to one seat); **Draft** (the line is part of the draft); **Brief** (the line is the context brief). Mark the best guess with "(best guess)" on its label without moving it: a plain question is Everyone; a line naming a model or a seat is One seat. If One seat, stage two: the seat list as above, the named seat marked. Once chosen, treat the text as if it had carried the keyword.
 
 A draft alone, as a path or a multi-paragraph paste, needs no picker: it is a plain sparring round with the default prompt.
@@ -37,9 +41,9 @@ New run, with the draft and brief files from step 1 (or the paths the person gav
 node ${CLAUDE_PLUGIN_ROOT}/scripts/new-run.js --draft <draft file> [--brief <brief file>] --model "<the model you know you are running, or omit>"
 ```
 
-It prints the run folder and seats one fresh reader, `seat-1`. Continuing: use the folder given.
+It prints the run folder and seats one fresh reader, `seat-1`. Continuing (a `run:` folder, or the run strategy made): use that folder; its `draft.md` and `brief.md` are the snapshot and the brief, and nothing is copied again.
 
-If the add-on is present (a `crew_list` tool from the `combat-writing-crew` server), call `crew_register` with the new run folder now, before any packet: every available outside seat joins `seats.json` after the fresh reader, one seat per model the person holds a key for (with one Groq key, `seat-2` and `seat-3`: a crew of three). Without the add-on, skip this; the crew is the one fresh reader, one company's models, and the result says so. The round name is the next two-digit number plus the kind: `01-sparring`, `02-debate`, `02-sparring` for a second plain round, `01-cold` for a cold read. List `rounds/` to find the next number.
+If the add-on is present (a `crew_list` tool from the `combat-writing-crew` server), call `crew_register` with the run folder now, before any packet (on a run strategy already registered it adds nothing twice): every available outside seat joins `seats.json` after the fresh reader, one seat per model the person holds a key for (with one Groq key, `seat-2` and `seat-3`: a crew of three). Without the add-on, skip this; the crew is the one fresh reader, one company's models, and the result says so. The round name is the next two-digit number plus the kind: `01-sparring`, `02-debate`, `02-sparring` for a second plain round, `01-cold` for a cold read. List `rounds/` to find the next number.
 
 ## 4. Build every packet, then start every seat at once
 

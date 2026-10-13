@@ -4,7 +4,7 @@
 # `checks`, on every pull request targeting main and on each push to main: check out the
 # repository, set up Node, run the version-bump gate (pull requests only), install the
 # Claude Code CLI from npm at an exact version, run every check in tests/ (files named
-# *_check.js; twelve today), then run `claude plugin validate --strict` on the listed
+# *_check.js; thirteen today), then run `claude plugin validate --strict` on the listed
 # plugin, on the add-on and on the repository root (the marketplace manifest). Any failing
 # step fails the job. `claude plugin validate` needs no login and makes no call with a key.
 #

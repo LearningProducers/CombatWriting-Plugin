@@ -184,7 +184,7 @@ if(rounds.length){
     html.push('</tr>');
   });
   html.push('</tbody></table>');
-}else html.push('<p class="note">No rounds yet.</p>');
+}else html.push('<p class="note">No rounds yet. The draft'+(fs.existsSync(path.join(runDir,'brief.md'))?' and the brief are':' is')+' stored; no seat has read it. Next: /combat-writing:sparring.</p>');
 
 if(ratingRounds.length){
   html.push('<h2>Ratings across rounds</h2>');

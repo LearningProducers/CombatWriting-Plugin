@@ -15,14 +15,17 @@ From the Claude plugin directory once it is listed, or from Learning Producers' 
 
 ## Commands
 
+One command per stage: strategy, sparring, battle; champion has no command yet, and help says so.
+
 - `/combat-writing:help` explains the plugin in plain words.
-- `/combat-writing:sparring` sends your draft to every seat for its own read, the rating line first. `question:` puts a focus question to every seat, `seat-1:` to one seat; `cold` reads with no brief; `debate` shows the seats each other's answers and asks for a rating again.
+- `/combat-writing:strategy` takes your draft and your context brief, pasted together (`brief:` marks the brief) or in two messages, writes them into a new run folder and ends with the next move. It reads nothing. A bare command asks for the draft; it never errors.
+- `/combat-writing:sparring` sends your draft to every seat for its own read, the rating line first. Bare after strategy, it sends the stored draft and brief with no repaste. `question:` puts a focus question to every seat, `seat-1:` to one seat; `cold` reads with no brief; `debate` shows the seats each other's answers and asks for a rating again.
 - `/combat-writing:battle` runs one round of the discussion. `fq:` puts the same question to every seat, nothing shared (FQ, focus question); `n:` puts the same guidance to every seat individually (N, navigation); `sn:` shares each seat's synthesis with the others plus your new prompt, everyone answers and everyone reads each other (SN, synthesis navigation); `sfq:` shares the crew's answers plus a new question (SFQ, synthesis focus question); `seat-2:` puts a note or question to one seat only, alone or with any of them. `rerate` asks for a new rating; without it no seat rates. `draft:` adds a revised draft. `final` runs the two final reads of step 14, the S/N ratio and the red-flag check, on the draft alone.
 - Keywords match in any case, `question:` and `focus:` mean `fq:`, `nav:` means `n:`, and a seat answers to `seat 2:`, `seat2:` or its short name. Leave the keyword off, or type a command bare, and a one-keypress picker asks which kind of round you mean. Every result ends with a seat key, one line naming each seat by id and short name from the live crew. When the plugin loads, one line says so: "Combat Writing ready. /combat-writing:help for the guide."
 
 ## Example prompts
 
-Each prompt below was run for real on 2026-10-08, in a scratch project. The block after each prompt is the first lines of what came back, labeled as example output; the model named in it is the one that answered that day, and yours may differ. The ratings are the seats' own; the draft was a CEO's letter asking a board to approve a letter of intent. The prompts are written in the plugin's current keywords, which were ruled on 2026-10-09 after that run; the output blocks are kept as they came back that day, when the crew was three fresh readers and every battle round rated. Today the crew is one fresh reader plus the outside seats the add-on registers, and a battle round rates only with `rerate`. The blocks that day also opened with the credit line, which run output no longer carries (ruled 2026-10-12); that line is cut from them here.
+The strategy prompt below was run on 2026-10-13 and the other three on 2026-10-08, each in a scratch project. The block after each prompt is the first lines of what came back, labeled as example output; the model named in it is the one that answered that day, and yours may differ. The ratings are the seats' own; the draft was a CEO's letter asking a board to approve a letter of intent. The prompts are written in the plugin's current keywords, which were ruled on 2026-10-09 after that run; the output blocks are kept as they came back that day, when the crew was three fresh readers and every battle round rated. Today the crew is one fresh reader plus the outside seats the add-on registers, and a battle round rates only with `rerate`. The blocks that day also opened with the credit line, which run output no longer carries (ruled 2026-10-12); that line is cut from them here.
 
 ```
 /combat-writing:help
@@ -38,6 +41,26 @@ A crew of seats attacks your draft. Each seat is one model judging it. In sparri
 The four stages
 - Strategy. You write the draft yourself, then a context brief: who you are, your purpose, the stakes.
 - Sparring. Every seat reads the draft alone and gives its rating and critique, the rating line first. Seats may then read each other and debate the scores (debate).
+```
+
+```
+/combat-writing:strategy Here is the draft of my letter to the board. brief: I am the CEO. I need the board to approve a letter of intent this week; the deal depends on it.
+```
+
+Example output, October 2026:
+
+```
+Crew: Claude Fable 5.1 (Anthropic), seat-1. One company's models (Anthropic). Seat names come from the agent configuration, not from an API field.
+
+No rounds yet. The draft and the brief are stored; no seat has read it. Next: /combat-writing:sparring.
+
+Seat key: seat-1 Claude Fable
+
+Run folder: combat-writing/runs/2026-10-13-1836-letter-to-the-board
+Draft: draft.md, 56 words, the snapshot.
+Brief: brief.md, stored.
+
+Next: /combat-writing:sparring, bare, sends the stored draft and brief to every seat with no repaste; add question: <your focus question> to put one question to every seat.
 ```
 
 ```
