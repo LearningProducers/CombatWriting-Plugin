@@ -1,5 +1,5 @@
 ---
-description: Explain the Combat Writing plugin in plain words: the four stages, the commands with one example each, the round terms (N, SN, SFQ, rerate, final), where files land, what runs where, the rating rule, the credit line.
+description: Explain the Combat Writing plugin in plain words: the four stages and the command for each, the commands with one example each, the round terms (N, SN, SFQ, rerate, final), where files land, what runs where, the rating rule, the credit line.
 argument-hint: [topic]
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
@@ -9,18 +9,21 @@ Show the guide below to the person, as it is, with its headings and lists. If `$
 
 **Reading is Peace. Writing is War.**
 
-A crew of seats attacks your draft. Each seat is one model judging it. In sparring every seat rates first, then explains with evidence. In battle the seats discuss the structure and content of the draft, read each other when you share them, and rate again when you ask. The record shows what was caught.
+A crew of seats attacks your draft. Each seat is one model judging it. In strategy you write the draft and the brief, and the plugin stores them. In sparring every seat rates first, then explains with evidence. In battle the seats discuss the structure and content of the draft, read each other when you share them, and rate again when you ask. The record shows what was caught.
 
-## The four stages
+## The four stages, and the command for each
 
-- **Strategy.** You write the draft yourself, then a context brief: who you are, your purpose, the stakes.
-- **Sparring.** Every seat reads the draft alone and gives its rating and critique, the rating line first. Seats may then read each other and debate the scores (`debate`).
-- **Battle.** The discussion of the structure and content of the draft. You steer it with four kinds of round: **FQ** (focus question), the same question put to every seat, nothing shared; **N** (navigation), the same new guidance put to every seat individually; **SN** (synthesis navigation), each seat's synthesis shared with the others plus a new prompt, where everyone answers and everyone reads each other; **SFQ** (synthesis focus question), the crew's answers shared plus a new question. A **seat line** (`seat-2:`) puts a note or question to one seat only. Battle does not rerate on its own: a seat rates again only when you ask with `rerate`, and then the rating line comes first. `final` runs the S/N ratio and red-flag reads on the draft alone.
-- **Champion.** You publish, watch the response, and record what you learned.
+- **Strategy: `/combat-writing:strategy`.** You write the draft yourself, then a context brief: who you are, your purpose, what you are attempting, the stakes. The command writes both into a new run folder, reads nothing, and names the next move; sparring then reads them with no repaste.
+- **Sparring: `/combat-writing:sparring`.** Every seat reads the draft alone and gives its rating and critique, the rating line first. Seats may then read each other and debate the scores (`debate`).
+- **Battle: `/combat-writing:battle`.** The discussion of the structure and content of the draft. You steer it with four kinds of round: **FQ** (focus question), the same question put to every seat, nothing shared; **N** (navigation), the same new guidance put to every seat individually; **SN** (synthesis navigation), each seat's synthesis shared with the others plus a new prompt, where everyone answers and everyone reads each other; **SFQ** (synthesis focus question), the crew's answers shared plus a new question. A **seat line** (`seat-2:`) puts a note or question to one seat only. Battle does not rerate on its own: a seat rates again only when you ask with `rerate`, and then the rating line comes first. `final` runs the S/N ratio and red-flag reads on the draft alone.
+- **Champion: no command yet.** You publish, watch the response, and record what you learned. This stage has no command in this version; nothing after battle is recorded by the plugin.
 
 ## The commands
 
-- `/combat-writing:sparring` — every seat reads the draft on the same snapshot; the rating lines come first. Give every seat a focus question (`question:`), or each seat its own (`seat-1:`, `seat-2:`), or none. `cold` reads with no brief; `debate` shows the seats each other's answers and asks for a rating again.
+- `/combat-writing:strategy` — the draft and the brief, pasted together (`brief:` marks the brief) or in two messages: the command asks for whichever is missing. It writes the snapshot and the brief into a new run folder and ends with the next move. A bare command asks for the draft; it never errors.
+  Example: `/combat-writing:strategy Here is the draft of my letter to the board. brief: I am the CEO; I need the board to approve a letter of intent this week; the deal depends on it.`
+- `/combat-writing:sparring` — every seat reads the draft on the same snapshot; the rating lines come first. Bare, after strategy, it sends the stored draft and brief with no repaste. Give every seat a focus question (`question:`), or each seat its own (`seat-1:`, `seat-2:`), or none. `cold` reads with no brief; `debate` shows the seats each other's answers and asks for a rating again.
+  Example: `/combat-writing:sparring question: does the ask land in the first paragraph?`
   Example: `/combat-writing:sparring Here is the draft of my letter to the board. question: does the ask land in the first paragraph?`
 - `/combat-writing:battle` — one battle round. `fq:` puts the same question to every seat, nothing shared (FQ); `n:` puts the same guidance to every seat individually (N); `sn:` shares each seat's synthesis with the others plus your new prompt (SN); `sfq:` shares the crew's answers plus a new question (SFQ); `seat-2:` puts a note or question to one seat only, alone or with any of the four. With none of them, every seat reads the others' latest answers and gives a new critique. `rerate` asks for a new rating this round; without it no seat rates. `draft:` adds a revised draft first. `final` runs the S/N ratio and red-flag reads on the draft alone.
   Example: `/combat-writing:battle rerate sn: the second seat called the close weak; everyone answer that.`
@@ -28,7 +31,7 @@ A crew of seats attacks your draft. Each seat is one model judging it. In sparri
 - `/combat-writing:help` — this guide. `help rounds` shows one section.
   Example: `/combat-writing:help`
 
-Shortcuts: keywords match in any case; `question:` and `focus:` mean `fq:`, `nav:` means `n:`; a seat answers to `seat-2:`, `seat 2:`, `seat2:` or the short name shown beside it in the seat key; `rerate` counts anywhere in the line. Leave the keyword off, or type the command bare, and a one-keypress picker asks which kind of round you mean, best guess first. Every result ends with the seat key, one line from the live crew: `Seat key: seat-1 <short name> · seat-2 <short name> · seat-3 <short name>`, each short name taken from the model id the seat answers under.
+Shortcuts: keywords match in any case; `question:` and `focus:` mean `fq:`, `nav:` means `n:`, `context:` means `brief:`; a seat answers to `seat-2:`, `seat 2:`, `seat2:` or the short name shown beside it in the seat key; `rerate` counts anywhere in the line. Leave the keyword off, or type the command bare, and a one-keypress picker asks which kind of round you mean, best guess first; a bare strategy asks for the draft, and a bare sparring after strategy runs on the stored draft. Every result ends with the seat key, one line from the live crew: `Seat key: seat-1 <short name> · seat-2 <short name> · seat-3 <short name>`, each short name taken from the model id the seat answers under.
 
 ## The rounds
 
@@ -42,7 +45,7 @@ Shortcuts: keywords match in any case; `question:` and `focus:` mean `fq:`, `nav
 
 ## Where files land
 
-- `combat-writing/runs/<date-time-slug>/` in your project: the draft snapshot and any revisions, the brief, every packet, every answer, `log.jsonl`, `record.md` (the full record) and `board.html` (the visual board).
+- `combat-writing/runs/<date-time-slug>/` in your project: the draft snapshot and any revisions, the brief (both written by strategy, or by sparring when a draft is pasted there), every packet, every answer, `log.jsonl`, `record.md` (the full record) and `board.html` (the visual board).
 - `combat-writing/inbox/` in your project: whatever you paste, written whole before anything is parsed, then cut into the draft, the brief and the questions.
 - Nothing is written anywhere else. Nothing is fetched. The plugin holds no keys and calls no service.
 

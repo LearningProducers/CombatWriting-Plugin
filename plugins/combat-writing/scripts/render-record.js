@@ -25,6 +25,9 @@ var runDir=path.resolve(args.run);
 var seatsFile=lib.readSeats(runDir), seats=seatsFile.seats;
 var log=lib.readLog(runDir);
 var rounds=lib.listRounds(runDir);
+// A run strategy made and nothing has read yet (ruled 2026-10-13): the record and the short form say
+// what is stored and name the next move, so the person is never left without one.
+var noRoundsLine='No rounds yet. The draft'+(fs.existsSync(path.join(runDir,'brief.md'))?' and the brief are':' is')+' stored; no seat has read it. Next: /combat-writing:sparring.';
 var drafts=lib.listDrafts(runDir);
 var created=log.filter(function(e){return e.event==='run.created';})[0]||{};
 
@@ -106,7 +109,7 @@ if(rounds.length){
     var latest=null; rounds.forEach(function(r){var c=grid[s.id][r];if(c.rating!==null&&c.rating!==undefined)latest=c.rating;});
     out.push('| '+lib.seatLabel(s)+' | '+rounds.map(function(r){return grid[s.id][r].text;}).join(' | ')+' | '+(latest===null?'—':bar(latest)+' '+latest+'/10')+' |');
   });
-}else out.push('No rounds yet.');
+}else out.push(noRoundsLine);
 out.push('');
 out.push('## Answers');
 rounds.forEach(function(r){

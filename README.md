@@ -9,7 +9,7 @@ This repository is the home of the Combat Writing plugin for Claude Code and of 
 
 ## Status
 
-Version 0.3.0. The skeleton, the method text, the `help`, `sparring` and `battle` commands, the seat agent, the scripts, the rendered record, the visual board, the eval cases, the directory checklist pass ([docs/directory-checklist.md](docs/directory-checklist.md)) and the add-on are in, and the founder's rulings of 2026-10-09 are applied: the crew is never padded; the round terms FQ, N, SN and SFQ and the seat line; a rating in battle only on `rerate`; the outside-seat cap; a picker instead of an error when a keyword is missing; the seat key under every result; the one-line session-start hook. See [PLAN.md](PLAN.md). Nothing has been submitted to the Claude plugin directory; the portal's Validate button is the owner's step.
+Version 0.4.0. The skeleton, the method text, the `help`, `strategy`, `sparring` and `battle` commands (one per stage; champion has none yet), the seat agent, the scripts, the rendered record, the visual board, the eval cases, the directory checklist pass ([docs/directory-checklist.md](docs/directory-checklist.md)) and the add-on are in, and the founder's rulings of 2026-10-09 are applied: the crew is never padded; the round terms FQ, N, SN and SFQ and the seat line; a rating in battle only on `rerate`; the outside-seat cap; a picker instead of an error when a keyword is missing; the seat key under every result; the one-line session-start hook; and, ruled 2026-10-13, a strategy command that stores the draft and the brief, after which a bare sparring reads them with no repaste. See [PLAN.md](PLAN.md). Nothing has been submitted to the Claude plugin directory; the portal's Validate button is the owner's step.
 
 ## What is here
 
