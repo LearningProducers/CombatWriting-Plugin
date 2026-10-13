@@ -4,7 +4,7 @@
 # `checks`, on every pull request targeting main and on each push to main: check out the
 # repository, set up Node, run the version-bump gate (pull requests only), install the
 # Claude Code CLI from npm at an exact version, run every check in tests/ (files named
-# *_check.js; eleven today), then run `claude plugin validate --strict` on the listed
+# *_check.js; twelve today), then run `claude plugin validate --strict` on the listed
 # plugin, on the add-on and on the repository root (the marketplace manifest). Any failing
 # step fails the job. `claude plugin validate` needs no login and makes no call with a key.
 #
@@ -20,7 +20,15 @@
 # origin, create an annotated tag with that exact name and the message
 # "<plugin-name> <version>", then push it. That is the name and the default message
 # `claude plugin tag` produces, so a tag made by hand and a tag made here never diverge.
-# An already-tagged version is a no-op, not a failure.
+# An already-tagged version is a no-op, not a failure. Then, for each tag with no GitHub
+# Release (ruled 2026-10-13), create one titled "<plugin-name> <version>". The notes: a
+# hand-written file .github/release-notes/<tag>.md when one is in the tree (its SPDX
+# comment line dropped); else the cut from the pull request merged at the tagged commit,
+# its title plus its "What changed" section, by .github/scripts/release-notes.js; else,
+# when no merged pull request is found at that commit or its body has no "What changed"
+# section, GitHub's generated notes counted from the plugin's previous tag. A tag that
+# already has a Release is a no-op, so a rerun after a failed Release step finishes the
+# job without retagging.
 #
 # Actions are pinned to commits; the comment names the tag the commit carried when pinned.
 name: checks
@@ -99,19 +107,45 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
-      - name: Tag each plugin version that is not yet tagged on origin
+      - name: Tag each plugin version not yet tagged on origin; a Release for each tag without one
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --tags --quiet origin
           for p in combat-writing combat-writing-crew; do
             manifest="plugins/$p/.claude-plugin/plugin.json"
             v=$(node -p "JSON.parse(require('fs').readFileSync('$manifest','utf8')).version")
             t="$p--v$v"
             if git ls-remote --exit-code --tags origin "refs/tags/$t" >/dev/null; then
-              echo "$t is already on origin; nothing to do"
+              echo "$t is already on origin; not retagged"
+            else
+              git tag -a "$t" -m "$p $v"
+              git push origin "refs/tags/$t"
+              echo "tagged $t at $(git rev-parse HEAD)"
+            fi
+            if gh release view "$t" >/dev/null 2>&1; then
+              echo "$t already has a Release; nothing to do"
               continue
             fi
-            git tag -a "$t" -m "$p $v"
-            git push origin "refs/tags/$t"
-            echo "tagged $t at $(git rev-parse HEAD)"
+            sha=$(git rev-list -n1 "$t")
+            pr_json="$RUNNER_TEMP/$t.pr.json"
+            notes="$RUNNER_TEMP/$t.notes.md"
+            if [ -f ".github/release-notes/$t.md" ]; then
+              grep -v '^<!-- SPDX-License-Identifier:' ".github/release-notes/$t.md" > "$notes"
+              gh release create "$t" --verify-tag --title "$p $v" --notes-file "$notes"
+              echo "released $t with notes from .github/release-notes/$t.md"
+              continue
+            fi
+            if gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" --jq '[.[] | select(.merged_at != null)] | first // empty' > "$pr_json" \
+               && [ -s "$pr_json" ] \
+               && node .github/scripts/release-notes.js < "$pr_json" > "$notes"; then
+              gh release create "$t" --verify-tag --title "$p $v" --notes-file "$notes"
+              echo "released $t with notes from pull request #$(node -p "JSON.parse(require('fs').readFileSync('$pr_json','utf8')).number")"
+            else
+              prev=$(git tag -l "$p--v*" --sort=-v:refname | grep -vx "$t" | head -n1 || true)
+              gh release create "$t" --verify-tag --title "$p $v" --generate-notes ${prev:+--notes-start-tag "$prev"}
+              echo "released $t with generated notes (no merged pull request with a What changed section at $sha)"
+            fi
           done

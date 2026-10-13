@@ -120,4 +120,15 @@ Delivers, to the founder's spec of 2026-10-12, in `.github/workflows/checks.yml`
 - The two action pins moved to their v5 releases (checkout v5.1.0, setup-node v5.0.0), by commit.
 - The bump rule in CLAUDE.md, so build sessions bump before opening a pull request. No plugin file changes, so this pull request needs no bump.
 
-Status: delivered — 2026-10-12 — pull request open; the gate and the tag loop were exercised in a scratch clone against a scratch remote; all eleven checks and the three validations pass locally.
+Status: merged — 2026-10-13 — pull request 11 merged to main.
+
+## Part 11 — A GitHub Release for every release tag
+
+Delivers, to the founder's ruling of 2026-10-13, in one pull request:
+- The `tag` job in `.github/workflows/checks.yml` extended: after the tag loop, each plugin tag with no GitHub Release gets one, titled `<plugin-name> <version>`, with notes cut from the pull request merged at the tagged commit (found through the commits-to-pulls API): its title plus its "What changed" section. When no merged pull request is at that commit or its body has no such section, the Release gets GitHub's generated notes counted from the plugin's previous tag. A tag that already has a Release is a no-op, so a rerun after a failed Release step finishes without retagging.
+- `.github/scripts/release-notes.js`, the cut, and `tests/release_notes_check.js`, which pins it (twelve checks now).
+- CLAUDE.md: the Release rule beside the tag rule, the `## What changed` section every pull request body carries, the layout line.
+- Hand-written notes take precedence: when `.github/release-notes/<tag>.md` is in the tree, the Release gets that file (its SPDX comment line dropped).
+- The backfill: `.github/release-notes/combat-writing--v0.3.1.md` and `combat-writing-crew--v0.3.1.md`, one paragraph each describing 0.3.1 (one fresh reader crew, the credit line removed from run output, the CI gate). The founder asked for the Releases to be created now from the session, but the machine's GitHub token has no Contents write on the repository (HTTP 403 on the releases endpoint), so the tag job creates both Releases from these files on the merge of this pull request. No plugin file changes, so no bump.
+
+Status: delivered — 2026-10-13 — pull request open; the Release step exercised in a scratch clone with a fake `gh` over four cases (notes from the pull request; a full rerun is a no-op; a tag without a Release and a pull request with no section falls back to generated notes from the previous tag; no merged pull request falls back the same way); a hand-written notes file wins over the cut; all twelve checks and the three validations pass locally; the two 0.3.1 Releases are created by the tag job on merge, the token here being unable to.
