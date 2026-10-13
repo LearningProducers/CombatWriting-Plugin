@@ -40,7 +40,11 @@ function node(script,args){ return cp.spawnSync(process.execPath,[path.join(scri
 function logOf(run){ return fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').filter(Boolean).map(function(l){return JSON.parse(l);}); }
 
 fs.writeFileSync(path.join(proj,'draft.md'),'Dear board, buy the company.\n');
-var run=node('new-run.js',['--draft','draft.md','--name','flip','--model','Test Model','--seats','3']).stdout.trim();
+// The crew is one fresh reader, never padded (ruled 2026-10-09, enforced 2026-10-12): the extra
+// seats a test needs are written into seats.json the way the add-on's crew_register writes an
+// outside seat (a provider field), so packet.js seats them; a second fresh reader it refuses.
+function seatMore(run,n,model,company){ var f=path.join(run,'seats.json'); var sj=JSON.parse(fs.readFileSync(f,'utf8')); for(var i=sj.seats.length+1;i<=n;i++)sj.seats.push({id:'seat-'+i,model:model,company:company||'Anthropic',provider:'test-fixture',source:'test fixture: an outside seat as the add-on would register it'}); fs.writeFileSync(f,JSON.stringify(sj,null,2)+'\n'); return run; }
+var run=seatMore(node('new-run.js',['--draft','draft.md','--name','flip','--model','Test Model']).stdout.trim(),3,'Test Model');
 var seats=JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats;
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','01-sparring','--seat',s]); });
 var r1=path.join(run,'rounds','01-sparring');
@@ -97,7 +101,7 @@ flipCase('seat-3 flips on seat-2','seat-3','RATING: 4/10\nseat-2 is right: "'+S2
 
 // Attribution by model name, on its own: a run whose seats carry different model names (seats.json
 // edited after creation, as the add-on will write it), where the attributing line holds no seat id.
-var run3=node('new-run.js',['--draft','draft.md','--name','models','--seats','3']).stdout.trim();
+var run3=seatMore(node('new-run.js',['--draft','draft.md','--name','models']).stdout.trim(),3,'model unreported');
 var sj=JSON.parse(fs.readFileSync(path.join(run3,'seats.json'),'utf8'));
 sj.seats[0].model='Alpha One'; sj.seats[0].company='Company A';
 sj.seats[1].model='Beta Two'; sj.seats[1].company='Company B';
@@ -127,7 +131,7 @@ modelCase('company name alone','seat-1','RATING: 6/10\nCompany B wrote "'+S2LINE
 modelCase('partial model name','seat-2','RATING: 6/10\nAlpha said "Fine as it is." and I agree.\n','flip-invalid',1);
 
 // A seat with no earlier answer is first.
-var run2=node('new-run.js',['--draft','draft.md','--name','first','--seats','2']).stdout.trim();
+var run2=seatMore(node('new-run.js',['--draft','draft.md','--name','first']).stdout.trim(),2,'model unreported');
 node('packet.js',['--run',run2,'--round','01-sparring','--seat','seat-1']);
 fs.writeFileSync(path.join(run2,'rounds','01-sparring','seat-1.answer.md'),'RATING: 8/10\nFine.\n');
 var rf=node('check-flip.js',['--run',run2,'--round','01-sparring','--seat','seat-1']);
@@ -138,7 +142,7 @@ check(rf.status===0&&/"status":"first"/.test(rf.stdout),'first: expected status 
 // seat-2's 02-battle critique. The flip is from 8, the latest earlier rating, and the quote is
 // matched against the round the packet carried (02-battle). The critique round itself has no
 // rating to check.
-var run4=node('new-run.js',['--draft','draft.md','--name','across','--model','Test Model','--seats','2']).stdout.trim();
+var run4=seatMore(node('new-run.js',['--draft','draft.md','--name','across','--model','Test Model']).stdout.trim(),2,'Test Model');
 ['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',run4,'--round','01-sparring','--seat',s]); });
 fs.writeFileSync(path.join(run4,'rounds','01-sparring','seat-1.answer.md'),'RATING: 8/10\nFine as it is.\n');
 fs.writeFileSync(path.join(run4,'rounds','01-sparring','seat-2.answer.md'),'RATING: 4/10\nThin.\n');

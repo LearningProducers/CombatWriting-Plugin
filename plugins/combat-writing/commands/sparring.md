@@ -14,7 +14,7 @@ If `$ARGUMENTS` carries pasted text rather than only a path and options, write t
 - `brief:` followed by text, or `brief: <path>`, is the context brief (step 3: who you are, your purpose, what you are attempting, the stakes).
 - `question:` followed by text is a focus question (FQ) put to every seat; `fq:` and `focus:` mean the same. `seat-1:`, `seat-2:` ... followed by text is a focus question for that seat alone (a seat line); `seat 2:`, `seat2:` and the short name shown beside it in the seat key address the same seat, and the file and the record carry the seat id. Keywords match case-insensitively. A seat with no question gets the default prompt from step 4. Navigation (`n:`, `nav:`), synthesis navigation (`sn:`) and the synthesis focus question (`sfq:`) are battle rounds; point at `/combat-writing:battle` if one is given here.
 - `run: <folder>` continues an existing run (required for `debate`, used when the person wants a second read of the same draft).
-- The crew is one fresh reader plus one seat per outside model the add-on has a key for; nothing is padded. `seats: N` seats N fresh readers instead of one, only when the person asks for that by name.
+- The crew is one fresh reader plus one seat per outside model the add-on has a key for; nothing is padded, and there is no option to seat a second fresh reader. If the person asks for more Claude seats, say the crew is one fresh reader plus the outside seats and point at the add-on.
 
 ### No keyword: the picker
 
@@ -34,7 +34,7 @@ Fresh readers if you can start a separate agent and run `node`; otherwise one se
 New run, with the draft and brief files from step 1 (or the paths the person gave):
 
 ```
-node ${CLAUDE_PLUGIN_ROOT}/scripts/new-run.js --draft <draft file> [--brief <brief file>] [--seats N] --model "<the model you know you are running, or omit>"
+node ${CLAUDE_PLUGIN_ROOT}/scripts/new-run.js --draft <draft file> [--brief <brief file>] --model "<the model you know you are running, or omit>"
 ```
 
 It prints the run folder and seats one fresh reader, `seat-1`. Continuing: use the folder given.
@@ -78,6 +78,6 @@ node ${CLAUDE_PLUGIN_ROOT}/scripts/render-record.js --run <folder> --short
 node ${CLAUDE_PLUGIN_ROOT}/scripts/render-board.js --run <folder>
 ```
 
-Show what the first prints as it is (the credit line, the crew line, the scoreboard), then the board (`board.html` in the run folder) as an artifact or preview where you have a tool for that, else its path in one line; then every critique in full with its rating line first, then your one paragraph on where the seats agree and split, quoting them by model name. Point at `record.md` in the run folder. In the one-seat case there is no run folder: write the credit line, the crew line "one seat, the host", a one-row board, and your critique under the same contract: rating line first, under 500 words, no 7.
+Show what the first prints as it is (the crew line, the scoreboard), then the board (`board.html` in the run folder) as an artifact or preview where you have a tool for that, else its path in one line; then every critique in full with its rating line first, then your one paragraph on where the seats agree and split, quoting them by model name. Point at `record.md` in the run folder. In the one-seat case there is no run folder: write the crew line "one seat, the host", a one-row board, and your critique under the same contract: rating line first, under 500 words, no 7.
 
 Show the short form up to its "Record:" line; its last line, the seat key, closes your result. Close with the Next line, in these terms: `/combat-writing:sparring debate` (the seats read each other and rate again); `/combat-writing:battle fq: <question>` (FQ, focus question: the same question put to every seat, nothing shared); `/combat-writing:battle n: <guidance>` (N, navigation: the same new guidance put to every seat individually); `/combat-writing:battle sn: <prompt>` (SN, synthesis navigation: each seat's synthesis shared with the others plus your new prompt, everyone answers and everyone reads each other); `/combat-writing:battle sfq: <question>` (SFQ, synthesis focus question: the crew's answers shared plus a new question); `/combat-writing:battle seat-2: <note>` (one seat only); add `rerate` to any battle round for a new rating; `/combat-writing:battle final` (the S/N ratio and red-flag reads on the draft alone). With one seat in the run, say that SN and SFQ have no other seat to share, and offer FQ, N or the add-on. Then, as the last line of the result, the seat key exactly as the short form printed it (`Seat key: seat-1 <short name> · seat-2 <short name> · ...`), from the live crew; in the one-seat case, `Seat key: seat-1 <short name>` for the host.

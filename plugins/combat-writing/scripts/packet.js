@@ -58,6 +58,9 @@ var seatsFile=lib.readSeats(runDir);
 var seats=seatsFile.seats;
 var seat=seats.filter(function(s){return s.id===args.seat;})[0];
 if(!seat)lib.die('seat '+args.seat+' is not in seats.json');
+// The crew is one fresh reader plus the outside seats, never padded (ruled 2026-10-09,
+// enforced 2026-10-12): a second fresh reader in seats.json, left by an older run, gets no packet.
+if(lib.isPaddedSeat(seats,seat))lib.die(seat.id+' is a second fresh reader; the crew is one fresh reader ('+seats.filter(lib.isFreshReader)[0].id+') plus the outside seats the add-on registers, never padded. This seat is not seated in any round; start a new run with new-run.js for a one-reader crew');
 
 var cold=args.cold===true;
 var finalMode=null;
@@ -124,8 +127,6 @@ if(question){
 }
 
 var out=[];
-out.push(lib.CREDIT);
-out.push('');
 out.push('# Packet for '+lib.seatLabel(seat)+' — round '+args.round+(finalMode?' ('+(finalMode==='sn'?'S/N ratio':'red flags')+')':''));
 out.push('');
 out.push('You are '+lib.seatLabel(seat)+'. The crew in this run: '+seats.map(lib.seatLabel).join('; ')+'.');

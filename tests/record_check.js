@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// record_check.js: record.md is rendered from the run's files and log, opens with the
-// credit line, shows every seat's number on its own, and averages nothing.
+// record_check.js: record.md is rendered from the run's files and log, opens with its
+// title and the crew line, shows every seat's number on its own, and averages nothing.
 //
 // Runs the REAL new-run.js, packet.js, check-answer.js, check-flip.js, add-draft.js and
 // render-record.js from plugins/combat-writing/scripts as child processes in a temporary
 // project (never a re-implementation).
 //
 // What it pins:
-//   - record.md's first line is the credit line; the crew line names every seat by model
+//   - record.md's first line is its title; no file in the run carries the credit line (ruled
+//     2026-10-12); the crew line names every seat by model
 //     and company and says "One company's models".
 //   - The scoreboard has one row per seat and one column per round in round order
 //     (01-sparring, 02-battle, 03-battle, 04-final), plus a Latest bar column.
@@ -24,7 +25,7 @@
 //     sent" table lists every packet.
 //   - A revised draft is listed and the round that read it says so.
 //   - The crew line is followed by the seat key, one line naming every seat by id and short
-//     name (ruled 2026-10-09), and --short prints the credit line, the crew line, the
+//     name (ruled 2026-10-09), and --short prints the crew line, the
 //     scoreboard and, last, the seat key, never the answers.
 //   - A round put to one seat only (a seat line alone): the other seats' cells read
 //     "not asked", never "missing"; the answers section says so; the round line names who
@@ -43,10 +44,16 @@ var failures=[], passes=0;
 function check(cond,msg){ if(cond)passes++; else failures.push(msg); }
 function node(script,args){ return cp.spawnSync(process.execPath,[path.join(scripts,script)].concat(args),{cwd:proj,encoding:'utf8'}); }
 function write(p,t){ fs.writeFileSync(p,t); }
+// The crew is one fresh reader, never padded (ruled 2026-10-09, enforced 2026-10-12): the extra
+// seats a test needs are written into seats.json the way the add-on's crew_register writes an
+// outside seat (a provider field), so packet.js seats them; a second fresh reader it refuses.
+function seatMore(run,n,model,company){ var f=path.join(run,'seats.json'); var sj=JSON.parse(fs.readFileSync(f,'utf8')); for(var i=sj.seats.length+1;i<=n;i++)sj.seats.push({id:'seat-'+i,model:model,company:company||'Anthropic',provider:'test-fixture',source:'test fixture: an outside seat as the add-on would register it'}); fs.writeFileSync(f,JSON.stringify(sj,null,2)+'\n'); return run; }
+// No file the run holds carries the credit line (ruled 2026-10-12): it stands once, at the foot of the help guide.
+function creditFree(dir){ var hits=[]; (function walk(d){ fs.readdirSync(d).forEach(function(n){ var p=path.join(d,n); if(fs.statSync(p).isDirectory())walk(p); else if(fs.readFileSync(p,'utf8').indexOf(CREDIT)>=0)hits.push(path.relative(dir,p)); }); })(dir); return hits; }
 
 fs.writeFileSync(path.join(proj,'draft.md'),'Dear board, buy the company.\n');
 fs.writeFileSync(path.join(proj,'brief.md'),'CEO. Get a yes.\n');
-var run=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','record','--model','Test Model','--seats','3']).stdout.trim();
+var run=seatMore(node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','record','--model','Test Model']).stdout.trim(),3,'Test Model');
 var S2LINE='The board will ask for numbers and find none.';
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','01-sparring','--seat',s]); });
 var r1=path.join(run,'rounds','01-sparring');
@@ -83,7 +90,8 @@ var rr=node('render-record.js',['--run',run]);
 check(rr.status===0,'render: exit '+rr.status+' '+rr.stderr);
 var rec=fs.readFileSync(path.join(run,'record.md'),'utf8');
 var lines=rec.split('\n');
-check(lines[0]===CREDIT,'record: first line is not the credit line');
+check(/^# Combat Writing record — /.test(lines[0]),'record: first line should be the title, got '+lines[0]);
+check(rec.indexOf(CREDIT)<0,'record: carries the credit line');
 var crew=lines.filter(function(l){return l.indexOf('**Crew:**')===0;})[0]||'';
 check(/Test Model \(Anthropic\), seat-1/.test(crew)&&/seat-3/.test(crew)&&/One company's models/.test(crew)&&/agent configuration/.test(crew),'record: crew line wrong: '+crew);
 check(/\*\*Drafts:\*\* draft\.md \(sha256 [0-9a-f]{12}…\), draft-2\.md \(sha256 [0-9a-f]{12}…\)\./.test(rec),'record: drafts line wrong');
@@ -141,13 +149,13 @@ check(sentRows.some(function(l){return /\| 04-final \| seat-1 \| rounds\/04-fina
 
 // --short.
 var sh=node('render-record.js',['--run',run,'--short']);
-check(sh.status===0&&sh.stdout.split('\n')[0]===CREDIT,'--short: does not open with the credit line');
+check(sh.status===0&&sh.stdout.indexOf('**Crew:**')===0&&sh.stdout.indexOf(CREDIT)<0,'--short: should open with the crew line and carry no credit line');
 check(sh.stdout.indexOf('| Seat |')>=0&&sh.stdout.indexOf('## Answers')<0&&sh.stdout.indexOf(S2LINE)<0,'--short: should hold the scoreboard and not the answers');
 check(/Record: .*record\.md/.test(sh.stdout),'--short: no record path');
 check(sh.stdout.trim().split('\n').pop()==='Seat key: seat-1 Test Model · seat-2 Test Model · seat-3 Test Model','--short: the last line should be the seat key, got '+JSON.stringify(sh.stdout.trim().split('\n').pop()));
 
 // A round of seat lines alone (ruled 2026-10-09): round 2 goes to seat-2 only.
-var so=node('new-run.js',['--draft','draft.md','--name','seatonly','--model','Test Model','--seats','3']).stdout.trim();
+var so=seatMore(node('new-run.js',['--draft','draft.md','--name','seatonly','--model','Test Model']).stdout.trim(),3,'Test Model');
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',so,'--round','01-sparring','--seat',s]); write(path.join(so,'rounds','01-sparring',s+'.answer.md'),'RATING: 8/10\nRound one.\n'); node('check-answer.js',[path.join(so,'rounds','01-sparring',s+'.answer.md'),'--run',so]); });
 write(path.join(proj,'q2.md'),'Does the close ask for the vote?\n');
 node('packet.js',['--run',so,'--round','02-battle','--seat','seat-2','--question','q2.md']);
@@ -173,6 +181,8 @@ check(log.some(function(e){return e.event==='draft.added'&&e.file==='draft-2.md'
 var bad=path.join(proj,'nothing'); fs.mkdirSync(bad);
 check(node('render-record.js',['--run',bad]).status===2,'render: a folder with no seats.json should exit 2');
 
+var creditHits=creditFree(path.join(proj,'combat-writing'));
+check(creditHits.length===0,'credit line found in run files: '+creditHits.join(', '));
 fs.rmSync(proj,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'record_check: '+failures.length+' failure(s), ':'record_check: all passed, ')+passes+' checks');

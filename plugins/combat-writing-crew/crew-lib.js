@@ -10,8 +10,6 @@
 
 var fs=require('fs'), path=require('path'), http=require('http'), https=require('https'), url=require('url');
 
-var CREDIT='Combat Writing — Learning Producers Inc., Israel Hernandez, founder';
-
 function readText(p){ return fs.readFileSync(p,'utf8'); }
 function appendLog(runDir,obj){
   fs.appendFileSync(path.join(runDir,'log.jsonl'),JSON.stringify(Object.assign({ts:new Date().toISOString()},obj))+'\n');
@@ -193,7 +191,7 @@ function makeWindow(){
   };
 }
 
-module.exports={CREDIT:CREDIT,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
+module.exports={readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
   loadProviders:loadProviders,keyFor:keyFor,keyHint:keyHint,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
   eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,
   NO_RATING_LINE:NO_RATING_LINE,packetRules:packetRules,wordCount:wordCount,truncateAnswer:truncateAnswer};

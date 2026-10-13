@@ -27,7 +27,7 @@
 // only to its own provider. Nothing is sent to Learning Producers.
 //
 // Transport: newline-delimited JSON-RPC 2.0 on stdin/stdout (the MCP stdio transport).
-// Diagnostics go to stderr only. Every record it writes opens with the credit line.
+// Diagnostics go to stderr only. Nothing it writes carries the credit line (ruled 2026-10-12).
 
 var fs=require('fs'), path=require('path');
 var lib=require('./crew-lib.js');
@@ -122,7 +122,7 @@ function registerSeats(runDir){
       added.push(seat);
     });
     lib.writeSeats(runDir,seatsFile);
-    lib.appendLog(runDir,{credit:lib.CREDIT,event:'crew.registered',added:added.map(function(s){return {id:s.id,model:s.model,company:s.company,served_by:s.served_by,provider:s.provider};}),
+    lib.appendLog(runDir,{event:'crew.registered',added:added.map(function(s){return {id:s.id,model:s.model,company:s.company,served_by:s.served_by,provider:s.provider};}),
       unavailable:seats.filter(function(s){return !s.available;}).map(function(s){return {slot:s.slot,provider:s.provider,reason:s.reason};})});
     return {added:added,unavailable:seats.filter(function(s){return !s.available;}),seats:seatsFile.seats};
   });
@@ -276,15 +276,15 @@ function handle(msg){
   var id=msg.id, method=msg.method, params=msg.params||{};
   if(method==='initialize'){
     var pv=SUPPORTED_PROTOCOLS.indexOf(params.protocolVersion)>=0?params.protocolVersion:SUPPORTED_PROTOCOLS[0];
-    return Promise.resolve({protocolVersion:pv,capabilities:{tools:{}},serverInfo:SERVER_INFO,instructions:lib.CREDIT+'. Outside seats for Combat Writing: call crew_list, then crew_register on the run, build packets with the listed plugin, then crew_answer per seat and round.'});
+    return Promise.resolve({protocolVersion:pv,capabilities:{tools:{}},serverInfo:SERVER_INFO,instructions:'Outside seats for Combat Writing: call crew_list, then crew_register on the run, build packets with the listed plugin, then crew_answer per seat and round.'});
   }
   if(method==='ping')return Promise.resolve({});
   if(method==='tools/list')return Promise.resolve({tools:TOOLS});
   if(method==='tools/call'){
     var name=params.name, args=params.arguments||{};
     var p;
-    if(name==='crew_list')p=listSeats().then(function(seats){return textResult({credit:lib.CREDIT,seats:seats,available:seats.filter(function(s){return s.available;}).length});});
-    else if(name==='crew_register')p=Promise.resolve().then(function(){return registerSeats(path.resolve(String(args.run||'')));}).then(function(r){return textResult(Object.assign({credit:lib.CREDIT},r));});
+    if(name==='crew_list')p=listSeats().then(function(seats){return textResult({seats:seats,available:seats.filter(function(s){return s.available;}).length});});
+    else if(name==='crew_register')p=Promise.resolve().then(function(){return registerSeats(path.resolve(String(args.run||'')));}).then(function(r){return textResult(r);});
     else if(name==='crew_answer')p=Promise.resolve().then(function(){return answer(args);}).then(function(r){return textResult(r,!r.ok);});
     else p=Promise.reject(new Error('unknown tool '+name));
     return p.catch(function(err){return textResult({error:err.message},true);});

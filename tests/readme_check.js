@@ -8,9 +8,10 @@
 //   - The plugin README's three example prompts are fenced blocks that begin with
 //     /combat-writing:<command>, each naming a command file that exists under
 //     plugins/combat-writing/commands/, and each is followed by a fenced block of
-//     real output whose first line is the credit line (help, sparring, battle).
+//     real output that carries no credit line (ruled 2026-10-12): the sparring and battle
+//     blocks open with the crew line, the help block with the motto.
 //   - The disclosures: what the plugin runs, sends and fetches; that every record opens
-//     with the credit line, quoted in full; that the add-on exists, is a local MCP server
+//     the credit line stands at the foot of the help guide, quoted in full; that the add-on exists, is a local MCP server
 //     and calls other providers on the person's own keys; that keys are never stored in
 //     a file; that the draft is untrusted content; the run folder and the inbox as the
 //     write locations; board.html and record.md.
@@ -60,7 +61,8 @@ prompts.forEach(function(pr){
   named[cmd]=true;
   check(commands.indexOf(cmd)>=0,'plugin README: example prompt names /combat-writing:'+cmd+', which has no command file');
   var out=blocks[pr.index+1];
-  check(!!out&&out.split('\n')[0]===CREDIT,'plugin README: the output block after "'+pr.text.slice(0,40)+'" does not open with the credit line');
+  check(!!out&&out.indexOf(CREDIT)<0,'plugin README: the output block after "'+pr.text.slice(0,40)+'" carries the credit line');
+  check(!!out&&(cmd==='help'?out.split('\n')[0]==='Reading is Peace. Writing is War.':/^Crew:/.test(out.split('\n')[0])),'plugin README: the output block after "'+pr.text.slice(0,40)+'" does not open with '+(cmd==='help'?'the motto':'the crew line'));
 });
 ['help','sparring','battle'].forEach(function(c){ check(named[c],'plugin README: no example prompt for /combat-writing:'+c); });
 var prose=p.replace(/```[\s\S]*?```/g,' ').replace(/<!--[\s\S]*?-->/g,' ');

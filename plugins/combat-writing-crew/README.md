@@ -77,4 +77,4 @@ Groq's free tier, as the app documents it: 8,000 tokens and 30 requests per minu
 
 ## License
 
-Source-available under the PolyForm Shield License 1.0.0 (`LicenseRef-PolyForm-Shield-1.0.0`); full text in LICENSE.md, notices in NOTICE. Every record it writes opens with the credit line "Combat Writing — Learning Producers Inc., Israel Hernandez, founder". Combat Writing is a brand of Learning Producers Inc.; no trademark license is granted. The models belong to their makers and the providers to themselves, under their own terms. This add-on is not made, reviewed or endorsed by Anthropic.
+Source-available under the PolyForm Shield License 1.0.0 (`LicenseRef-PolyForm-Shield-1.0.0`); full text in LICENSE.md, notices in NOTICE. Nothing it writes carries the credit line "Combat Writing — Learning Producers Inc., Israel Hernandez, founder"; that line stands once, at the foot of the listed plugin's help guide. Combat Writing is a brand of Learning Producers Inc.; no trademark license is granted. The models belong to their makers and the providers to themselves, under their own terms. This add-on is not made, reviewed or endorsed by Anthropic.

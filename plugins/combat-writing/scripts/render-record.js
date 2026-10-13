@@ -3,7 +3,7 @@
 //
 //   node render-record.js --run <run folder> [--short]
 //
-// record.md opens with the credit line, then the crew line, the drafts and the brief, the
+// record.md opens with the crew line, then the drafts and the brief, the
 // scoreboard (one row per seat, one column per round, every rating shown on its own, flips
 // marked valid or invalid with the earlier number kept visible, Stand marked, missing seats
 // marked missing, a seat the round was not put to marked "not asked" (a round of seat lines
@@ -13,7 +13,7 @@
 // the log of what was sent. Nothing is averaged, summed or ranked. Rebuilt after every
 // round; the log and the answer files are the truth.
 //
-// --short prints the scoreboard and the crew line to stdout for the host to show, ending with
+// --short prints the crew line and the scoreboard to stdout for the host to show, ending with
 // the seat key (one line, every seat by id and short name, from the live crew), and still
 // writes record.md. Without it, prints the record's path.
 
@@ -80,8 +80,6 @@ function cell(seat,round){
 var grid={}; seats.forEach(function(s){grid[s.id]={};rounds.forEach(function(r){grid[s.id][r]=cell(s,r);});});
 
 var out=[];
-out.push(lib.CREDIT);
-out.push('');
 out.push('# Combat Writing record — '+path.basename(runDir));
 out.push('');
 var companies=seats.map(function(s){return s.company;}).filter(function(v,i,a){return a.indexOf(v)===i;});
@@ -151,7 +149,7 @@ out.push('');
 fs.writeFileSync(path.join(runDir,'record.md'),out.join('\n'));
 lib.appendLog(runDir,{event:'record.rendered',file:'record.md',rounds:rounds.length});
 if(args.short===true){
-  var s=[lib.CREDIT,'',out.filter(function(l){return l.indexOf('**Crew:**')===0;})[0],''];
+  var s=[out.filter(function(l){return l.indexOf('**Crew:**')===0;})[0],''];
   var tableStart=out.indexOf('## Scoreboard');
   var tableEnd=out.indexOf('## Answers');
   var board=out.slice(tableStart+1,tableEnd).filter(function(l){return l.trim();});
