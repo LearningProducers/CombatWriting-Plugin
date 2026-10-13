@@ -1,9 +1,9 @@
 ---
-description: Explain the Combat Writing plugin in plain words: the four stages and the command for each, the commands with one example each, the round terms (N, SN, SFQ, rerate, final), where files land, what runs where, the rating rule, the credit line.
+description: Explain the Combat Writing plugin in plain words: the four stages and the command for each, the commands with one example each, the round terms (N, SN, SFQ, rerate, final), where files land, what runs where, why a crew is short and the next command, the rating rule, the credit line.
 argument-hint: [topic]
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
-Show the guide below to the person, as it is, with its headings and lists. If `$ARGUMENTS` names one topic (stages, commands, rounds, files, where, rating, record, privacy, method), show only that section, under the motto line and above the credit line at the foot. When the plugin loads, a session-start hook prints one line, "Combat Writing ready. /combat-writing:help for the guide."; this guide is what that line points at. Fill in the one bracketed line under "Where you are running" with the case that applies right now; change nothing else. Add no verdict, no sales pitch, no offer to run anything.
+Show the guide below to the person, as it is, with its headings and lists. If `$ARGUMENTS` names one topic (stages, commands, rounds, files, where, crew, rating, record, privacy, method), show only that section, under the motto line and above the credit line at the foot. When the plugin loads, a session-start hook prints one line, "Combat Writing ready. /combat-writing:help for the guide."; this guide is what that line points at. Fill in the one bracketed line under "Where you are running" with the case that applies right now; change nothing else. Add no verdict, no sales pitch, no offer to run anything.
 
 ---
 
@@ -56,7 +56,17 @@ Shortcuts: keywords match in any case; `question:` and `focus:` mean `fq:`, `nav
 - **One seat, the host.** The host cannot start separate agents: it reads as the one seat, says so in every result, and still follows every rule.
 - **With the add-on.** `combat-writing-crew`, installed from the same repository (`/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin`), sends the packets to other companies' models on your own keys, each key only to its own provider; then the crew is more than one company. An outside seat is told the word cap; an answer over it is sent back once, and a second overrun is cut at the cap with the rating kept and marked "truncated" in the record.
 - Without the add-on, every seat is one company's models, and every result says so. The plugin never fakes a seat.
-- [Right now: which of the three applies.]
+- [Right now: which of the three applies; and when the crew is one seat, which of the three states in the next section, with its next command.]
+
+## Fewer seats than you expected
+
+The crew is one fresh reader plus one seat per outside model the add-on has a key for. When a result shows fewer seats than that, its Seats line (under the crew line, in the record and on the board too) names which of three states applies and the exact next command. `help crew` shows this section.
+
+- **The add-on is not installed.** The crew is one seat. Next: `/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin`, then `/reload-plugins` or a new session, then `/plugin configure combat-writing-crew` to enter a key.
+- **Installed, but its server is not running** in this session (the host has no `crew_list` tool). Next: `/mcp`, find `combat-writing-crew`: if it shows failed or disconnected, reconnect it there and run the command again; if it is not listed, `/plugin` to check the add-on is enabled, then `/reload-plugins`.
+- **Running, but no key for a provider.** The add-on says so itself and names the key field. Next: `/plugin configure combat-writing-crew` and fill the field: `groq_api_key` (Groq API key; the free tier seats two), `xai_api_key`, `perplexity_api_key`, `openai_api_key`, `mistral_api_key` or `gemini_api_key`; or set the provider's environment variable (`GROQ_API_KEY` and the like) when the prompt is empty. A keyed provider that did not answer is named with its error; run the command again.
+
+The host tells the first two apart with `claude plugin list`, which reads only; when it cannot run that, the result gives both next commands. The host never says only that no crew tools were found.
 
 ## The rating rule
 

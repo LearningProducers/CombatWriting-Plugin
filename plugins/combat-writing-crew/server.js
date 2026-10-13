@@ -73,7 +73,8 @@ function listSeats(){
       var k=lib.keyFor(provider);
       if(!k){
         provider.seats.forEach(function(s){
-          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'no key; '+lib.keyHint(provider)});
+          var f=lib.keyField(provider);
+          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'no key for '+provider.name+'; '+lib.keyHint(provider),next:f.next,field:f.field,field_title:f.field_title,env:f.env});
         });
         return;
       }
@@ -123,7 +124,7 @@ function registerSeats(runDir){
     });
     lib.writeSeats(runDir,seatsFile);
     lib.appendLog(runDir,{event:'crew.registered',added:added.map(function(s){return {id:s.id,model:s.model,company:s.company,served_by:s.served_by,provider:s.provider};}),
-      unavailable:seats.filter(function(s){return !s.available;}).map(function(s){return {slot:s.slot,provider:s.provider,reason:s.reason};})});
+      unavailable:seats.filter(function(s){return !s.available;}).map(function(s){return {slot:s.slot,provider:s.provider,provider_name:s.provider_name,family:s.family,reason:s.reason,next:s.next,field:s.field,field_title:s.field_title};})});
     return {added:added,unavailable:seats.filter(function(s){return !s.available;}),seats:seatsFile.seats};
   });
 }
@@ -198,7 +199,7 @@ function answer(args){
   if(!fs.existsSync(packetPath))throw new Error('no packet at '+path.relative(runDir,packetPath)+'; build it with the listed plugin\'s packet.js first');
   var k=lib.keyFor(provider);
   if(!k){
-    lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,reason:'no key; '+lib.keyHint(provider)});
+    lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,reason:'no key for '+provider.name+'; '+lib.keyHint(provider),next:lib.keyField(provider).next,field:lib.keyField(provider).field});
     return Promise.resolve({ok:false,seat:seatId,missing:true,reason:'no key for '+provider.name+'; '+lib.keyHint(provider)+'. The seat is missing this round.'});
   }
   var packet=lib.readText(packetPath);
@@ -262,7 +263,7 @@ function answer(args){
 // ---- MCP over stdio ------------------------------------------------------------------------
 
 var TOOLS=[
-  {name:'crew_list',description:'List the outside seats the Combat Writing crew add-on can seat with the keys present: provider, family, the model id resolved from the live catalog, and for a seat with no key, what to set (names only). Call this first to learn whether any outside seat is available.',
+  {name:'crew_list',description:'List the outside seats the Combat Writing crew add-on can seat with the keys present: provider, family, the model id resolved from the live catalog, and for a seat with no key, the exact next command (/plugin configure combat-writing-crew) and the key field to fill, names only, never a value. Call this first to learn whether any outside seat is available, and show the person the next command of every seat they expected and did not get.',
     inputSchema:{type:'object',properties:{},additionalProperties:false}},
   {name:'crew_register',description:'Add every available outside seat to a Combat Writing run: appends them to the run\'s seats.json (named by the model id and its maker, served by the provider) and logs it. Run it once per run after new-run.js and before building packets. Returns the seats added and the ones unavailable with the reason.',
     inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder, combat-writing/runs/<run-id>'}},required:['run'],additionalProperties:false}},

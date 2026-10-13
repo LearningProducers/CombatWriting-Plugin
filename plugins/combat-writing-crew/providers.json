@@ -31,6 +31,7 @@
       "base_url": "https://api.groq.com/openai/v1",
       "key_prompt_env": "CW_CREW_GROQ_KEY",
       "key_env": "GROQ_API_KEY",
+      "key_option": "groq_api_key",
       "catalog": {
         "exclude": "whisper|orpheus|tts|guard|compound|safeguard|embed",
         "min_context": 32768,
@@ -50,6 +51,7 @@
       "base_url": "https://api.x.ai/v1",
       "key_prompt_env": "CW_CREW_XAI_KEY",
       "key_env": "XAI_API_KEY",
+      "key_option": "xai_api_key",
       "seats": [ { "slot": "xai", "family": "xAI's Grok line", "vendor": "grok", "match": "^grok-", "prefer": "newest" } ],
       "budget": { "tpm_ceiling": 7700, "hard_cap": 8000, "floor": 1200, "ceiling": 2800, "rpm": 30 }
     },
@@ -60,6 +62,7 @@
       "base_url": "https://api.perplexity.ai",
       "key_prompt_env": "CW_CREW_PERPLEXITY_KEY",
       "key_env": "PERPLEXITY_API_KEY",
+      "key_option": "perplexity_api_key",
       "seats": [ { "slot": "perplexity", "family": "Perplexity's Sonar line", "vendor": "sonar", "match": "^sonar", "prefer": "newest" } ],
       "budget": { "tpm_ceiling": 7700, "hard_cap": 8000, "floor": 1200, "ceiling": 2800, "rpm": 30 }
     },
@@ -70,6 +73,7 @@
       "base_url": "https://api.openai.com/v1",
       "key_prompt_env": "CW_CREW_OPENAI_KEY",
       "key_env": "OPENAI_API_KEY",
+      "key_option": "openai_api_key",
       "seats": [ { "slot": "openai", "family": "OpenAI's GPT line", "vendor": "gpt", "match": "^gpt-\\d", "prefer": "newest" } ],
       "budget": { "tpm_ceiling": 7700, "hard_cap": 8000, "floor": 1200, "ceiling": 2800, "rpm": 30 }
     },
@@ -80,6 +84,7 @@
       "base_url": "https://api.mistral.ai/v1",
       "key_prompt_env": "CW_CREW_MISTRAL_KEY",
       "key_env": "MISTRAL_API_KEY",
+      "key_option": "mistral_api_key",
       "seats": [ { "slot": "mistral", "family": "Mistral's large line", "vendor": "mistral", "match": "^mistral-(large|medium)", "prefer": "newest" } ],
       "budget": { "tpm_ceiling": 7700, "hard_cap": 8000, "floor": 1200, "ceiling": 2800, "rpm": 30 }
     },
@@ -90,6 +95,7 @@
       "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
       "key_prompt_env": "CW_CREW_GEMINI_KEY",
       "key_env": "GEMINI_API_KEY",
+      "key_option": "gemini_api_key",
       "seats": [ { "slot": "gemini", "family": "Google's Gemini line", "vendor": "gemini", "match": "gemini-", "prefer": "newest" } ],
       "budget": { "tpm_ceiling": 7700, "hard_cap": 8000, "floor": 1200, "ceiling": 2800, "rpm": 30 }
     },

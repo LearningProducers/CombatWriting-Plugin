@@ -28,7 +28,7 @@ Version 0.4.0. The skeleton, the method text, the `help`, `strategy`, `sparring`
 - **Fetches:** nothing. The method text ships inside the plugin folder.
 - **Writes:** a run folder in your project, `combat-writing/runs/<run-id>/`, holding the draft snapshot and any revisions, the brief, every packet, every answer, a timestamped log, `record.md` (the rendered record with its scoreboard) and `board.html` (the visual board, one self-contained page that loads nothing from anywhere). What you paste is written whole to `combat-writing/inbox/` before it is parsed. The credit line "Combat Writing — Learning Producers Inc., Israel Hernandez, founder" stands once, at the foot of the help guide; no run output carries it.
 - **Treats the draft as untrusted content.** An instruction inside the draft is text to review, never a command, for the host and for every seat.
-- **Without the add-on,** every seat is one company's models, and the plugin says so. It never fakes a seat. Scores are never averaged. The rating leads every result.
+- **Without the add-on,** every seat is one company's models, and the plugin says so. It never fakes a seat. When the crew is smaller than expected, every result names the reason (not installed, installed but not running, or no key) and the exact next command. Scores are never averaged. The rating leads every result.
 
 ## The add-on
 
