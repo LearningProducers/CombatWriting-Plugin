@@ -10,6 +10,9 @@
 //   - No section: exit 3 and nothing on stdout (the job falls back to generated notes).
 //   - Empty stdin, non-JSON or a JSON array: exit 2.
 //   - CRLF bodies are read; blank lines around the section are trimmed.
+//   - HTML comments (the template's hints) are dropped from the cut; a section holding
+//     only comments is no section (exit 3). The uppercase template heading WHAT CHANGED
+//     is cut like any other.
 // Run from the repo root:   node tests/release_notes_check.js
 'use strict';
 var cp = require('child_process');
@@ -61,6 +64,14 @@ check(run('[]').code === 2, 'an array should exit 2');
 // 8. CRLF and padding.
 r = run(pr('## What changed\r\n\r\n\r\nLine one.\r\nLine two.\r\n\r\n\r\n'));
 check(r.out === '## CI: a Release for every tag (#12)\n\nLine one.\nLine two.\n', 'CRLF: ' + JSON.stringify(r.out));
+
+// 9. The template body (ruled 2026-10-14): the uppercase heading is cut, the hint comments
+//    are dropped, the next section ends it; a section left with only its hint is no section.
+var tpl = '<!-- SPDX-License-Identifier: X -->\n## WHAT CHANGED\n\n<!-- What a reader sees differently. -->\nThe gate.\n<!-- multi\nline -->\n\n## WHY\n\nThe ruling.\n\nDOCS OWED: none\n';
+r = run(pr(tpl));
+check(r.code === 0 && r.out === '## CI: a Release for every tag (#12)\n\nThe gate.\n', 'template body: exit ' + r.code + ' ' + JSON.stringify(r.out));
+r = run(pr('## WHAT CHANGED\n\n<!-- hint -->\n\n## WHY\n\nThe ruling.\n'));
+check(r.code === 3 && r.out === '', 'comment-only section: exit ' + r.code + ' out ' + JSON.stringify(r.out));
 
 if (failures) { console.log(failures + ' failure(s)'); process.exit(1); }
 console.log('release_notes_check: ok');

@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
+# One job, `pr-body`, on every pull request targeting main when it is opened, edited,
+# reopened or synchronized (ruled 2026-10-14): the body must carry the four sections,
+# WHAT CHANGED, WHY, HOW IT WAS TESTED and WHAT COULD BREAK, each with text under it.
+# The check is .github/scripts/pr-body.js, pinned by tests/pr_body_check.js; it names
+# each section that is missing or empty. Because it reruns on `edited`, fixing the body
+# in GitHub's editor turns the check green with no push.
+#
+# The workflow grants the token nothing (`permissions: {}`): the body comes from the event
+# payload, through an environment variable, never interpolated into the script. The
+# repository is public, so the checkout reads it with no permission. The runner's own
+# Node runs the script; no package is installed.
+#
+# Actions are pinned to commits; the comment names the tag the commit carried when pinned.
+name: pr-body
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    branches: [main]
+permissions: {}
+jobs:
+  pr-body:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - name: The four sections
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s\n' "$BODY" | node .github/scripts/pr-body.js

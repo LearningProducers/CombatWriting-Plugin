@@ -7,7 +7,7 @@ The motto is "Reading is Peace. Writing is War." It is brand. It is never soften
 
 ## Standing rules
 
-- Open a pull request; never merge. One pull request per part. The pull request body carries a `## What changed` section (ruled 2026-10-13): CI cuts the Release notes from it.
+- Open a pull request; never merge. One pull request per part, one change per pull request. The pull request body carries the four sections (ruled 2026-10-14, below): CI cuts the Release notes from WHAT CHANGED.
 - Bump before opening the pull request (ruled 2026-10-12): a change to any file under `plugins/combat-writing/` bumps the version in that plugin's `plugin.json` and in its `marketplace.json` entry; the same for `plugins/combat-writing-crew/`. Changes outside the two plugin folders (docs, CI, tests) need no bump. CI fails a pull request that forgot, naming the plugin. On each push to main, CI tags every plugin version not yet tagged on origin as `<plugin-name>--v<version>` with the message `<plugin-name> <version>`, the name and message `claude plugin tag` produces; an already-tagged version is a no-op. Every release tag gets a GitHub Release (ruled 2026-10-13), titled `<plugin-name> <version>`, with notes cut from the merged pull request's body, its title plus its "What changed" section, by `.github/scripts/release-notes.js`; a hand-written `.github/release-notes/<tag>.md` in the tree takes precedence, and GitHub's generated notes are the fallback when no merged pull request is found at the tagged commit or its body has no such section. A tag that already has a Release is a no-op. A build session never tags.
 - Commit title at most 50 characters, a blank line, then the detail.
 - No model name pinned in code. If a file needs one, write the choice in the session report instead. A transcript quoted in a README may name the model that answered, because it is a record, not code.
@@ -20,6 +20,12 @@ The motto is "Reading is Peace. Writing is War." It is brand. It is never soften
 - If a session runs in Plan mode, PLAN.md is the plan; stop for approval before any other file.
 - The plugin holds no keys and makes no outside calls. Keys are never stored in a file.
 - Nothing financial and nothing from private documents goes into this repository.
+
+## The pull request
+
+**The four sections** (founder ruling 2026-10-14). Every pull request body carries four headings in this order, each with text under it, each in words a non-coder rules on, because the founder merges on the four sections alone: WHAT CHANGED, what a reader sees differently after the merge (CI cuts the Release notes from it); WHY, the ruling, the issue or the problem it answers; HOW IT WAS TESTED, what ran, where, what it proved, and what did not run; WHAT COULD BREAK, what to watch after the merge and how one would notice, "Nothing known" when that is true. The template `.github/PULL_REQUEST_TEMPLATE.md` lays them out with hints as HTML comments, so an unfilled section reads empty; the footer `DOCS OWED: none`, or what is owed, closes the body and is no section's text. The `pr-body` check (`.github/workflows/pr-body.yml`, the script `.github/scripts/pr-body.js`) fails a pull request whose body misses a heading or leaves a section empty, naming the section; it reruns on every edit of the body, so a fix in GitHub's editor turns it green with no push. A session never opens a pull request red on pr-body: it runs the body through the script before `gh pr create` and reads the check after.
+
+**One change per pull request** (Google's engineering practices, Small CLs). One issue, one change, one pull request a reviewer can describe in a sentence. A second change found on the way, a fix beside the task, a cleanup, a rule that turned out wrong, opens its own issue and its own pull request; it never rides on this one.
 
 ## Terms
 
@@ -71,7 +77,10 @@ The second and only other write location is `combat-writing/inbox/` in the perso
 ```
 .claude-plugin/marketplace.json        LPI's own marketplace: names both plugins
 .github/workflows/checks.yml           CI: the version-bump gate on pull requests, tests/*_check.js, then claude plugin validate; the tag job (tags and Releases) on push to main
-.github/scripts/release-notes.js       the Release notes cut from a merged pull request: its title plus its "What changed" section
+.github/workflows/pr-body.yml          CI: the four-section gate on every pull request body, rerun on edit
+.github/scripts/pr-body.js             the four-section check; a session runs it on the body before opening the pull request
+.github/scripts/release-notes.js       the Release notes cut from a merged pull request: its title plus its WHAT CHANGED section, comments dropped
+.github/PULL_REQUEST_TEMPLATE.md       the four headings with hints as comments and the DOCS OWED footer
 .github/release-notes/<tag>.md         hand-written Release notes for one tag; the tag job prefers them to the cut
 CLAUDE.md                              this file
 PLAN.md                                the parts and their status lines

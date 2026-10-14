@@ -7,6 +7,9 @@
 // heading of any level whose text is "What changed" (any case, a colon allowed), or at a
 // bold label line `**What changed**`, and runs to the next heading of the same or a higher
 // level (for the bold form: to the next heading or the next line opening with a bold label) or the end.
+// HTML comments are dropped before the cut (the pull request template's hints are comments,
+// ruled 2026-10-14), and \r is dropped; a section left with nothing but comments and blank
+// lines counts as no section.
 //
 // Exit 0 with the notes on stdout; exit 3 when the body has no "What changed" section, so
 // the caller falls back to generated notes; exit 2 on empty or unreadable input.
@@ -15,7 +18,7 @@
 var fs = require('fs');
 
 function section(body) {
-  var lines = String(body || '').replace(/\r\n?/g, '\n').split('\n');
+  var lines = String(body || '').replace(/\r\n?/g, '\n').replace(/<!--[\s\S]*?-->/g, '').split('\n');
   var out = null, level = 0, bold = false;
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
@@ -34,6 +37,7 @@ function section(body) {
   if (out === null) return null;
   while (out.length && !out[0].trim()) out.shift();
   while (out.length && !out[out.length - 1].trim()) out.pop();
+  if (!out.length) return null;
   return out.join('\n');
 }
 
