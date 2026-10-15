@@ -26,9 +26,9 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 
 | Item | Result | Satisfied by |
 |---|---|---|
-| `name` of lowercase letters, digits and hyphens, up to 64 characters, starting and ending with a letter or digit | pass | `"name": "combat-writing"` |
-| Not a reserved word or an Anthropic-reserved marketplace name; nothing that presents the plugin as official | pass | `combat-writing` is the product's own name; the READMEs say the plugin is not made, reviewed or endorsed by Anthropic |
-| A name no other organization's plugin uses, including look-alikes | portal | **Name is taken** or **Name may be confused with an existing listing** can only come from the portal. The name is Learning Producers' brand, dated in the app's provenance record |
+| `name` of lowercase letters, digits and hyphens, up to 64 characters, starting and ending with a letter or digit | pass | `"name": "cw"` (renamed from `combat-writing` on 2026-10-14; the marketplace's `renames` map migrates installs under the old name; the folder stays `plugins/combat-writing/`) |
+| Not a reserved word or an Anthropic-reserved marketplace name; nothing that presents the plugin as official | pass | `cw` is Combat Writing's own initials and no reserved word; the `displayName` is "Combat Writing"; the READMEs say the plugin is not made, reviewed or endorsed by Anthropic |
+| A name no other organization's plugin uses, including look-alikes | portal | **Name is taken** or **Name may be confused with an existing listing** can only come from the portal. `cw` is short; if the portal refuses it, the fallback is the brand's own name, dated in the app's provenance record |
 | `name`, `displayName`, `author.name` not mistakable for an existing plugin, publisher, connector or brand | portal | `displayName` "Combat Writing", `author.name` "Learning Producers Inc." |
 | Not a fork using the upstream project's name | pass | the repository is not a fork |
 | `displayName` and `author.name` in one writing system, no look-alike or invisible characters | pass | plain ASCII in `plugin.json` |
@@ -80,8 +80,8 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 |---|---|---|
 | `hooks/hooks.json` valid, with only documented events and types | pass | one event, `SessionStart` (matcher `startup|resume`), one `command` hook; `claude plugin validate --strict plugins/combat-writing` reports "Validating hooks" and passes; `tests/hook_check.js` pins the shape |
 | `hooks/hooks.json` left out of the `hooks` field | pass | `plugin.json` has no `hooks` field; the file loads from its default path; `tests/marketplace_check.js` fails if the field appears |
-| Valid YAML front matter in each skill, command and agent file, with `description` as one text value | pass | `skills/combat-writing/SKILL.md`, `commands/help.md`, `commands/strategy.md`, `commands/sparring.md`, `commands/battle.md`, `agents/seat.md`. `claude plugin validate --strict` passes on `plugins/combat-writing` (the manifest), on the repository root (the marketplace), and on the component folders `plugins/combat-writing/commands`, `plugins/combat-writing/agents` and `plugins/combat-writing/skills`; `skills/combat-writing` on its own is not a validator target, the validator reads the `skills/` folder. `tests/license_check.js` requires front matter on line 1 of every component file |
-| Component folders and files named exactly as Claude Code expects | pass | `skills/<name>/SKILL.md`, `commands/*.md`, `agents/*.md` |
+| Valid YAML front matter in each skill, command and agent file, with `description` as one text value | pass | `skills/combat-writing/SKILL.md`, `skills/help/SKILL.md`, `skills/strategy/SKILL.md`, `skills/sparring/SKILL.md`, `skills/battle/SKILL.md`, `agents/seat.md`. `claude plugin validate --strict` passes on `plugins/combat-writing` (the manifest), on the repository root (the marketplace), and on the component folders `plugins/combat-writing/commands`, `plugins/combat-writing/agents` and `plugins/combat-writing/skills`; `skills/combat-writing` on its own is not a validator target, the validator reads the `skills/` folder. `tests/license_check.js` requires front matter on line 1 of every component file |
+| Component folders and files named exactly as Claude Code expects | pass | `skills/<name>/SKILL.md` (the four commands moved from `commands/*.md` to skills on 2026-10-14, the format the docs name for new plugins; they are still typed as `/cw:<name>`), `agents/*.md` |
 
 ## The security scan (after submission)
 

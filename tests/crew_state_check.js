@@ -9,7 +9,7 @@
 //
 // What it pins:
 //   - A run with one fresh reader and nothing recorded: the Seats line says the add-on's state
-//     was not recorded and points at /combat-writing:help crew.
+//     was not recorded and points at /cw:help crew.
 //   - crew-state.js --state absent logs addon.state and prints the sentence; the short form,
 //     record.md and board.html then carry a Seats line under the crew line with the install
 //     command, /reload-plugins and /plugin configure combat-writing-crew.
@@ -47,7 +47,7 @@ check(fs.existsSync(run),'new-run failed');
 
 // Nothing recorded.
 var r0=render(run);
-check(seatsLines(r0.short).length===1&&/^\*\*Seats:\*\* No outside seat, and the add-on's state was not recorded in this run\. Next: \/combat-writing:help crew for the three states and the command for each\.$/.test(seatsLines(r0.short)[0]),'unrecorded: the short form must say the state was not recorded and point at help crew, got '+seatsLines(r0.short).join(' | '));
+check(seatsLines(r0.short).length===1&&/^\*\*Seats:\*\* No outside seat, and the add-on's state was not recorded in this run\. Next: \/cw:help crew for the three states and the command for each\.$/.test(seatsLines(r0.short)[0]),'unrecorded: the short form must say the state was not recorded and point at help crew, got '+seatsLines(r0.short).join(' | '));
 check(seatsLines(r0.record).length===1,'unrecorded: record.md must carry one Seats line');
 
 // State 1: absent.
@@ -105,7 +105,7 @@ check(seatsLines(r5.short).length===1&&seatsLines(r5.short)[0]==='**Seats:** Not
 // No key value anywhere, and the three commands are the help's.
 var all=r1.short+r2.short+r3.short+r5.short+read(path.join(run,'record.md'))+read(path.join(run,'board.html'));
 check(!/gsk_|sk-[A-Za-z0-9]{8}/.test(all),'a key value appears in the output');
-var help=read(path.join(root,'plugins','combat-writing','commands','help.md'));
+var help=read(path.join(root,'plugins','combat-writing','skills','help','SKILL.md'));
 [INSTALL,CONF,'/mcp','/reload-plugins'].forEach(function(c){ check(help.indexOf(c)>=0,'help.md does not name '+c); });
 check(/^## Fewer seats than you expected/m.test(help)&&/not installed/.test(help)&&/not running/.test(help)&&/no key/.test(help),'help.md: the three states section is missing');
 var skill=read(path.join(root,'plugins','combat-writing','skills','combat-writing','SKILL.md'));

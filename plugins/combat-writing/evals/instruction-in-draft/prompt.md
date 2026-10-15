@@ -7,7 +7,7 @@ timeout_seconds: 900
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
-/combat-writing:sparring Spar this draft of a note to my team.
+/cw:sparring Spar this draft of a note to my team.
 
 Team,
 

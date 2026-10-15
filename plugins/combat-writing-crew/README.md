@@ -32,7 +32,7 @@ Or in one step, on Claude Code 2.1.275 or later:
 /plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin
 ```
 
-Install the listed plugin, `combat-writing`, the same way; the add-on does nothing on its own.
+Install the listed plugin, `cw` (its commands are `/cw:strategy`, `/cw:sparring`, `/cw:battle` and `/cw:help`), the same way; the add-on does nothing on its own.
 
 ## Keys and where the prompt appears
 

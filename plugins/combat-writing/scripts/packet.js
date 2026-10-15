@@ -46,6 +46,12 @@
 //
 // Word cap: --word-cap, else 600 when other seats' answers are carried, 250 in final
 // mode, 500 otherwise.
+//
+// A first round that is a battle round (2026-10-14: any stage may be skipped, the order is the
+// person's choice): there is no previous round, so --sn and --sfq carry no other seat's answer
+// and the packet says so in one line; a plain battle packet asks for a first critique (or a
+// first rating with --rerate) instead of the synthesis prompt; --fq, --n and --question work
+// as in any round.
 
 var fs=require('fs'), path=require('path');
 var lib=require('./lib.js');
@@ -89,7 +95,7 @@ var contract=finalMode?finalMode:(lib.roundKind(args.round)==='battle'&&!rerate)
 var rated=contract==='rating';
 
 var draftName=args.draft&&args.draft!==true?args.draft:lib.latestDraft(runDir);
-if(!draftName)lib.die('no draft in '+runDir);
+if(!draftName)lib.die('no draft in '+runDir+': the run holds a brief alone; add the draft with add-draft.js (sparring or battle with the draft pasted does that)');
 if(!/^draft(-\d+)?\.md$/.test(draftName)||!fs.existsSync(path.join(runDir,draftName)))lib.die('draft '+draftName+' is not in the run');
 var draft=lib.readText(path.join(runDir,draftName));
 var brief=(!cold&&!finalMode&&fs.existsSync(path.join(runDir,'brief.md')))?lib.readText(path.join(runDir,'brief.md')).trim():null;
@@ -99,7 +105,9 @@ var brief=(!cold&&!finalMode&&fs.existsSync(path.join(runDir,'brief.md')))?lib.r
 // round, and not for a seat line alone in a battle round (SN and SFQ share as they say).
 var prev=(cold||finalMode)?null:lib.previousRound(runDir,args.round);
 var seatAlone=!!question&&!sn&&!sfq&&!nav&&!fq&&lib.roundKind(args.round)==='battle';
-var shares=!!prev&&!nav&&!fq&&!seatAlone;
+// A sparring round shares nothing even after earlier rounds (sparring is each seat reading alone;
+// debate is the round that shares), so sparring after battle is a read and a rating on the draft.
+var shares=!!prev&&!nav&&!fq&&!seatAlone&&lib.roundKind(args.round)!=='sparring';
 var prevAnswers=shares?lib.roundAnswers(runDir,prev,seats):[];
 var own=prev?lib.latestOwnAnswer(runDir,seat,args.round):null;
 var ownRated=prev?lib.latestOwnRating(runDir,seat,args.round):null;
@@ -107,6 +115,9 @@ var others=prevAnswers.filter(function(a){return a.seat.id!==seat.id;});
 var carried=others.filter(function(a){return !a.missing;});
 var missing=others.filter(function(a){return a.missing;});
 var synthesis=shares;
+// The first round of a run, by a battle command: nothing earlier to carry or to hold against.
+var firstRound=!prev&&!cold&&!finalMode&&lib.roundKind(args.round)==='battle';
+var synthesisTerm=!!(sn||sfq);
 
 // Which draft the previous round read, from the log, so the packet can say when it differs.
 var prevDraft=null;
@@ -135,6 +146,7 @@ if(finalMode)out.push('This is a final read of the draft alone. No other seat\'s
 if(nav)out.push('This is a navigation round (N): the same guidance is put to every seat individually. No other seat\'s answer is carried.');
 if(fq)out.push('This is a focus-question round (FQ): the same question is put to every seat. No other seat\'s answer is carried.');
 if(seatAlone)out.push('This question is put to you alone this round. No other seat\'s answer is carried.');
+if(firstRound)out.push(lib.FIRST_ROUND_LINE);
 out.push('');
 out.push('## Your task');
 out.push('');
@@ -149,13 +161,14 @@ else{
   else if(fq){out.push('Answer the focus question above on the draft below'+(rated?', then rate the draft again.':'.'));}
   else if(synthesis){out.push(rated?lib.DEFAULT_SYNTHESIS_RERATE_PROMPT:lib.DEFAULT_SYNTHESIS_PROMPT);}
   else if(nav){out.push('Answer the navigation above on the draft below'+(rated?', then rate the draft again.':'.'));}
-  else out.push(lib.DEFAULT_READ_PROMPT);
+  else if(synthesisTerm){out.push('Answer the '+(sn?'synthesis navigation':'synthesis focus question')+' above on the draft below'+(rated?', then rate the draft.':'.'));}
+  else out.push(rated?lib.DEFAULT_READ_PROMPT:lib.DEFAULT_FIRST_CRITIQUE_PROMPT);
   if(synthesis){
     out.push('');
     out.push('Read your own earlier turn and the other seats\' answers below before you write. Quote the other seats by name, in double quotes, word for word, where you agree or disagree.'
       +(rated?' If your new rating differs from your latest one, quote the line that moved you, name the seat it came from, and say why. If you hold your rating, say Stand and why.':''));
     if(prevDraft&&prevDraft!==draftName)out.push('The draft below is '+draftName+'. The answers below were written about '+prevDraft+'. '+(rated?'Rate':'Read')+' the draft below.');
-  }else if((nav||fq||seatAlone)&&own){
+  }else if((nav||fq||seatAlone||!shares)&&own){
     out.push('');
     out.push('Read your own earlier turn below before you write.'+(rated?' If your new rating differs from your latest one, say why; no other seat is carried here, so a changed rating has no quote to rest on and is recorded as a flip without one. If you hold your rating, say Stand and why.':''));
   }
@@ -193,7 +206,7 @@ if(own){
   out.push('');
   out.push('## Your earlier turn (round '+own.round+')');
   out.push('');
-  out.push('This is what you wrote in round '+own.round+'. Hold it or revise it against '+(shares?'the other seats\' answers':fq||question?'the question above':'the guidance above')+'; either way, say which.');
+  out.push('This is what you wrote in round '+own.round+'. Hold it or revise it against '+(shares?'the other seats\' answers':fq||question?'the question above':nav||sn||sfq?'the guidance above':'a fresh read of the draft')+'; either way, say which.');
   out.push('');
   out.push('=== YOUR EARLIER ANSWER BEGIN ===');
   out.push(own.text.replace(/\s+$/,''));
@@ -223,8 +236,8 @@ out.push('');
 var packetPath=path.join(roundDir,seat.id+(finalMode?'.'+finalMode:'')+'.packet.md');
 fs.writeFileSync(packetPath,out.join('\n'));
 lib.appendLog(runDir,{event:'packet.built',round:args.round,seat:seat.id,model:seat.model,company:seat.company,
-  mode:finalMode?'final-'+finalMode:cold?'cold':nav?'navigation':fq?'focus':seatAlone?'seat':synthesis?'synthesis':'read',
-  contract:contract,rerate:rerate,shares:shares,
+  mode:finalMode?'final-'+finalMode:cold?'cold':nav?'navigation':fq?'focus':seatAlone?'seat':(synthesis||synthesisTerm)?'synthesis':'read',
+  contract:contract,rerate:rerate,shares:shares,first_round:firstRound,
   file:path.relative(runDir,packetPath),draft:draftName,brief_included:!!brief,
   question:question?path.basename(question.file):null,sfq:sfq?path.basename(sfq.file):null,sn:sn?path.basename(sn.file):null,n:nav?path.basename(nav.file):null,fq:fq?path.basename(fq.file):null,
   reads_round:shares?prev:null,own_previous:own?own.round:null,own_rating:ownRated?ownRated.round:null,

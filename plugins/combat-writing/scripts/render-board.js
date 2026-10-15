@@ -158,7 +158,9 @@ html.push('<div class="bar"><h1>Combat Writing board — '+esc(path.basename(run
 html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies: '+esc(companies.join(', '))+'.')+' '+esc(lib.nameSources(seats))+'</p>');
 lib.crewStateLines(runDir,seats,log).forEach(function(l){ html.push('<p class="meta"><strong>Seats:</strong> '+esc(l)+'</p>'); });
 html.push('<p class="meta"><strong>Seat key:</strong> '+esc(lib.seatKey(seats))+'</p>');
-html.push('<p class="meta"><strong>Drafts:</strong> '+esc(drafts.join(', '))+'.'+(fs.existsSync(path.join(runDir,'brief.md'))?' <strong>Brief:</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
+html.push('<p class="meta"><strong>Drafts:</strong> '+(drafts.length?esc(drafts.join(', '))+'.':'none yet; the draft joins the run when sparring or battle brings it.')+(fs.existsSync(path.join(runDir,'brief.md'))?' <strong>Brief:</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
+// Where the run started (2026-10-14: the order of the stages is the person's choice).
+html.push('<p class="meta"><strong>Started at:</strong> '+esc(lib.startedAtLine(runDir,log,rounds))+'</p>');
 
 html.push('<h2>Scoreboard</h2>');
 html.push('<p class="note">Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Not asked means the round was put to other seats only. Critique means the round asked for no rating (a battle round rates only on <code>rerate</code>). Truncated means the add-on cut an outside seat\'s second overrun at the cap, with its first line kept.</p>');
@@ -185,7 +187,9 @@ if(rounds.length){
     html.push('</tr>');
   });
   html.push('</tbody></table>');
-}else html.push('<p class="note">No rounds yet. The draft'+(fs.existsSync(path.join(runDir,'brief.md'))?' and the brief are':' is')+' stored; no seat has read it. Next: /combat-writing:sparring.</p>');
+}else html.push('<p class="note">'+esc(drafts.length
+  ?'No rounds yet. The draft'+(fs.existsSync(path.join(runDir,'brief.md'))?' and the brief are':' is')+' stored; no seat has read it. Next: '+lib.CMD.sparring+' for the first reads and ratings, or '+lib.CMD.battle+' to start with the discussion.'
+  :'No rounds yet. The brief is stored; there is no draft yet. Next: '+lib.CMD.sparring+' or '+lib.CMD.battle+' with the draft pasted; it joins this run.')+'</p>');
 
 if(ratingRounds.length){
   html.push('<h2>Ratings across rounds</h2>');

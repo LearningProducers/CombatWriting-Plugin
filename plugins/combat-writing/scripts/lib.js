@@ -37,6 +37,10 @@ var DEFAULT_READ_PROMPT='Read this rough draft and rate it on a scale from 1–1
 // `rerate`. The synthesis prompt has one form for each case.
 var DEFAULT_SYNTHESIS_PROMPT='Read the other seats\' latest answers. Where do your interpretations overlap and where do they diverge? Give a new critique of the structure and content of the draft.';
 var DEFAULT_SYNTHESIS_RERATE_PROMPT='Read the other seats\' latest answers. Where do your interpretations overlap and where do they diverge? Give a new critique and a new rating of the draft.';
+// A battle round on a run nothing has read (2026-10-14: the order of the stages is the person's
+// choice): there is no other seat's answer to share and, without `rerate`, no rating to ask for.
+var DEFAULT_FIRST_CRITIQUE_PROMPT='Read this rough draft. Give your critique of its structure and content, with specific evidence from it.';
+var FIRST_ROUND_LINE='This is the first round of the run: no seat has read the draft yet, so no other seat\'s answer is carried. Answer on the draft alone.';
 // Fewer seats than the person expects (ruled 2026-10-13): every result names the reason and the
 // exact next command. Three states. The host records `absent` and `down` with crew-state.js (no
 // add-on tool is there to do it); the add-on records the third, running with no key, in the
@@ -48,6 +52,35 @@ var ADDON_STATE={
   absent:'The crew add-on is not installed, so the crew is one seat. Next: '+ADDON_INSTALL+', then /reload-plugins or a new session, then '+ADDON_CONFIGURE+' to enter a key.',
   down:'The crew add-on is installed but its server is not running in this session (no crew_list tool), so the crew is one seat. Next: /mcp, find combat-writing-crew: if it shows failed or disconnected, reconnect it there and run the command again; if it is not listed, /plugin to check the add-on is enabled, then /reload-plugins.'
 };
+
+// The commands, for the lines the record prints (the plugin is `cw`; the commands are /cw:<name>).
+var CMD={strategy:'/cw:strategy',sparring:'/cw:sparring',battle:'/cw:battle',help:'/cw:help'};
+
+// Where the run started (2026-10-14: any stage may be skipped, the order is the person's choice).
+// new-run.js logs the stage whose command made the run in run.created; the line names it, what
+// was stored first, and the first round, so the record and the board say where the run began.
+// The caller adds the label ("Started at:").
+function startedAtLine(runDir,log,rounds){
+  log=log||readLog(runDir); rounds=rounds||listRounds(runDir);
+  var created=null, firstDraft=null; log.forEach(function(e){ if(e.event==='run.created'&&!created)created=e; if(e.event==='draft.added'&&e.first&&!firstDraft)firstDraft=e; });
+  var stage=created&&created.stage?created.stage:null;
+  var s;
+  if(stage==='strategy')s='strategy: '+(created.draft?'the draft and '+(created.brief?'the brief':'no brief')+' stored first':'the brief stored first, the draft brought later by '+(firstDraft&&firstDraft.stage?firstDraft.stage:'sparring or battle'));
+  else if(stage)s=stage+': the run was made from a pasted draft, with no strategy stage'+(created.brief?' (a brief came with it)':'');
+  else s='a stage not recorded (the run was made before the stage was logged)';
+  var first=rounds.length?rounds[0]:null;
+  s+='. '+(first?'First round: '+first+(roundKind(first)==='battle'?' (battle before sparring)':'')+'.':'No round yet.');
+  return s;
+}
+
+// The text Next line (2026-10-14): what the person can type after a round. The record keeps it;
+// the short form prints it so the host has it for the picker's "Done for now". One line.
+function nextLine(seats){
+  var one=seats.length<2;
+  var s='Next: '+CMD.battle+' fq: <question> (FQ, the same question to every seat, nothing shared) · n: <guidance> (N, the same new guidance to every seat individually) · sn: <prompt> (SN, each seat\'s synthesis shared with the others plus your new prompt) · sfq: <question> (SFQ, the crew\'s answers shared plus a new question) · seat-2: <note> (one seat only) · add rerate to any of them for a new rating · draft: <path> for a revised draft · final for the S/N ratio and red-flag reads on the draft alone · '+CMD.sparring+' debate (the seats read each other and rate again).';
+  if(one)s+=' With one seat, SN, SFQ and debate have no other seat to share: use fq: or n:, or seat the add-on.';
+  return s;
+}
 
 // The line a packet carries when the round asks for no rating; the checker and the add-on read it.
 var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your critique.';
@@ -162,7 +195,7 @@ function crewStateLines(runDir,seats,log){
   }else if(last&&last.event==='addon.state'&&!outside){
     lines.push(ADDON_STATE[last.state]||('The add-on state recorded, '+last.state+', is not one the record knows.'));
   }else if(!outside){
-    lines.push('No outside seat, and the add-on\'s state was not recorded in this run. Next: /combat-writing:help crew for the three states and the command for each.');
+    lines.push('No outside seat, and the add-on\'s state was not recorded in this run. Next: '+CMD.help+' crew for the three states and the command for each.');
   }
   return lines;
 }
@@ -446,7 +479,7 @@ module.exports={
   RUNS_DIR:RUNS_DIR,DEFAULT_WORD_CAP:DEFAULT_WORD_CAP,DEFAULT_SYNTHESIS_WORD_CAP:DEFAULT_SYNTHESIS_WORD_CAP,
   DEFAULT_FINAL_WORD_CAP:DEFAULT_FINAL_WORD_CAP,DEFAULT_COMPANY:DEFAULT_COMPANY,MODEL_UNREPORTED:MODEL_UNREPORTED,
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
-  DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,NO_RATING_LINE:NO_RATING_LINE,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
+  DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,NO_RATING_LINE:NO_RATING_LINE,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
