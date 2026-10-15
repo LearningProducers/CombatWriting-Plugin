@@ -190,7 +190,7 @@ else if(finalMode==='redflag'){
 }
 else if(contract==='critique')out.push(lib.NO_RATING_LINE+' '+lib.VERDICT_SENTENCE_LINE_CRITIQUE+' Then your critique of the structure and content of the draft, with specific evidence from it. Under '+cap+' words.');
 else{
-  out.push('Your first line must be exactly `RATING: X/10`, uppercase, X a whole number from 1 to 10, never 7, nothing else on that line. '+lib.VERDICT_SENTENCE_LINE+' Then your reasoning with specific evidence from the draft. Under '+cap+' words. The number and the verdict must agree: 8 to 10 is a working document, 1 to 6 a problem document; an 8 or more that says the draft is not send-ready, or a 5 or less that says it ships as it is, is a failed read.');
+  out.push('Your first line must be exactly `RATING: X/10`, uppercase, X a whole number from 1 to 10, never 7, nothing else on that line. '+lib.VERDICT_SENTENCE_LINE+' Then your reasoning with specific evidence from the draft. Under '+cap+' words. The number and the verdict must agree: 8 to 10 is a working document, 1 to 6 a problem document; an 8 or more that says the draft is not send-ready, or a 6 or less that says it ships as it is, is a failed read.');
   if(ownRated){var lastRating=lib.parseRating(ownRated.text);if(lastRating!==null)out.push('Your latest rating was '+lastRating+'/10, in round '+ownRated.round+'. A new number is held against it.');}
 }
 out.push('');

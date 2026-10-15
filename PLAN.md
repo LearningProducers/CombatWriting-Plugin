@@ -207,4 +207,6 @@ Delivers (cw 0.6.0; the add-on untouched, the packet carries the new line and th
 - The skills (sparring §6, battle §8, the rules skill's "Showing a result" and scripts table), the seat agent, the help, departure 15 in the method (mirror identical, the pinned step span unchanged), both READMEs (the example blocks end at their scoreboards), the checklist row, CLAUDE.md.
 - Tests: `open_board_check.js` new; `board_check.js` rewritten; `rating_contract_check.js`, `packet_check.js`, `record_check.js`, `order_check.js`, `marketplace_check.js` extended; the workflow comment counts seventeen checks.
 
-Status: delivered — 2026-10-14 — pull request open; all seventeen checks pass locally; no provider was called and no seat was started; the opener was exercised with a dry run and a fake, never a browser, in the tests.
+Ruling on the bands (2026-10-14, on the open pull request): 8 and above is SEND, 1 to 6 is BACK TO THE DRAWING BOARD, 7 stays forbidden; the contradiction check fails a 6 over "ships as is" too, the board's verdict band reads the same bands (it already did), and the numbers stay under the word.
+
+Status: delivered — 2026-10-14 — pull request 19 open; all seventeen checks pass locally; no provider was called and no seat was started; the opener was exercised with a dry run and a fake, never a browser, in the tests.

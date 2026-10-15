@@ -368,7 +368,7 @@ function wordCount(text){ return text.split(/\s+/).filter(Boolean).length; }
 
 // The verdict in an answer (2026-10-14): a seat's number and its words must agree. 8 to 10 is a
 // working document, 1 to 6 a problem document (the seat's own rule); an 8 to 10 that says the
-// draft is not send-ready, or a 1 to 5 that says it ships as it is, is a failed read, and the
+// draft is not send-ready, or a 1 to 6 that says it ships as it is, is a failed read, and the
 // seat is sent back once with the reason, like an overrun. The phrases are these and no others;
 // the first one found, in reading order, is the verdict. A "ready" phrase with a negation in
 // the same clause before it ("is not ready to send") reads as not ready; one in a conditional
@@ -471,7 +471,7 @@ function checkAnswer(text,wordCap,contract){
       else{
         var v=verdictOf(lines.slice(1).join('\n'));
         if(v&&rating>=8&&v.verdict==='not-ready')reasons.push('rating '+rating+'/10 calls the draft a working document (8 to 10), but the answer says "'+v.phrase+'"; make the number and the verdict agree');
-        if(v&&rating<=5&&v.verdict==='ready')reasons.push('rating '+rating+'/10 calls the draft a problem document (1 to 6), but the answer says "'+v.phrase+'"; make the number and the verdict agree');
+        if(v&&rating<=6&&v.verdict==='ready')reasons.push('rating '+rating+'/10 calls the draft a problem document (1 to 6), but the answer says "'+v.phrase+'"; make the number and the verdict agree');
       }
     }
   }else if(contract==='sn'){
