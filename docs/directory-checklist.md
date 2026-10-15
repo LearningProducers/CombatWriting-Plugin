@@ -26,7 +26,7 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 
 | Item | Result | Satisfied by |
 |---|---|---|
-| `name` of lowercase letters, digits and hyphens, up to 64 characters, starting and ending with a letter or digit | pass | `"name": "cw"` (renamed from `combat-writing` on 2026-10-14; the marketplace's `renames` map migrates installs under the old name; the folder stays `plugins/combat-writing/`) |
+| `name` of lowercase letters, digits and hyphens, up to 64 characters, starting and ending with a letter or digit | pass | `"name": "cw"` (renamed from `combat-writing` on 2026-10-14; the marketplace's `renames` map moves an install's enabled entry from the old name, and the files under the new name take one install, as the plugin README says; the folder stays `plugins/combat-writing/`) |
 | Not a reserved word or an Anthropic-reserved marketplace name; nothing that presents the plugin as official | pass | `cw` is Combat Writing's own initials and no reserved word; the `displayName` is "Combat Writing"; the READMEs say the plugin is not made, reviewed or endorsed by Anthropic |
 | A name no other organization's plugin uses, including look-alikes | portal | **Name is taken** or **Name may be confused with an existing listing** can only come from the portal. `cw` is short; if the portal refuses it, the fallback is the brand's own name, dated in the app's provenance record |
 | `name`, `displayName`, `author.name` not mistakable for an existing plugin, publisher, connector or brand | portal | `displayName` "Combat Writing", `author.name` "Learning Producers Inc." |
