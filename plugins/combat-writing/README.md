@@ -13,7 +13,7 @@ From the Claude plugin directory once it is listed, or from Learning Producers' 
 /plugin install cw --marketplace LearningProducers/CombatWriting-Plugin
 ```
 
-The plugin was named `combat-writing` until 2026-10-14; the marketplace carries the rename, so an install under the old name moves to `cw` on its next update (from a marketplace added by its GitHub address, run the install line above once).
+The plugin was named `combat-writing` until 2026-10-14, and the marketplace carries the rename in its `renames` map. What that map does, measured on Claude Code 2.1.300: the next time Claude Code reads the marketplace it moves the enabled entry from the old name to `cw` by itself, but from a marketplace added by its GitHub address it fetches no files under the new name, so the `/cw:` commands stay unknown and `claude plugin update combat-writing@learning-producers` answers that the plugin is not found. Run the install line above once in a session, then `/reload-plugins` or a new session, and update under the new name from then on: `claude plugin update cw@learning-producers`.
 
 ## Commands
 
