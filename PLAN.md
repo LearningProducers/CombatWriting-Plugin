@@ -192,4 +192,19 @@ Request (2026-10-14, after pull request 17): the founder's Mac still answered "U
 - The plugin README (0.5.1) and the checklist row say what the map does and does not do, and name the one install and the new update line; the add-on is untouched.
 - Outside the repository, on the founder's Mac: `cwu` in `~/.zshrc` now updates `cw@learning-producers` (a backup sits beside it); `cwb` and `cwt` needed no change because they name the folder, not the plugin; the add-on moved from 0.4.0 to 0.4.1 by the new `cwu` steps.
 
-Status: delivered — 2026-10-14 — pull request open; no plugin behaviour changed; no provider was called and no seat was started.
+Status: merged — 2026-10-15 — pull request 18 merged to main.
+
+## Part 17 — The founder's request of 2026-10-14: the board is the result
+
+Request: four changes in one pull request, at the founder's word (they rewrite the same result path). Measured first on the first real three-seat run (2026-10-15, in the founder's project): one outside seat rated 9/10 and wrote "The draft is not send-ready" two lines later, its retry ran to 1,181 words of rule-parsing and was cut at 500, and the checker passed it; the fresh reader wrote "Not send-ready" under an 8/10 and passed too; the scoreboard legend printed with every round; every read printed in full in the terminal; `board.html` was written and never opened.
+
+Delivers (cw 0.6.0; the add-on untouched, the packet carries the new line and the add-on sends the packet whole):
+- `lib.SIGNAL_LINE`, the founder's words hardwired into every packet's Contract section by `packet.js`; a rating or critique packet also asks for the verdict in the first sentence after the first line (`VERDICT_SENTENCE_LINE`), and a rating packet states the agreement rule.
+- `lib.checkAnswer` fails a rating read whose number contradicts its words (`verdictOf`: the phrase list, negation and conditional handling, the first phrase in reading order), with the reason the seat is sent back with; `check-answer.js`, the record, the board and every live check inherit it. Sparring and battle say the retry covers it.
+- `render-record.js --short` prints the legend once per run (`legend.printed`), the scoreboard, `Board: <path>` and the seat key; no Started-at, Next or Record line after a round; `--next` prints the text Next line for "Done for now". `lib.SCOREBOARD_LEGEND` is shared with `record.md`.
+- `render-board.js` rewritten: the draft, the verdict band (SEND / BACK TO THE DRAWING BOARD / NO RATING YET, from the latest ratings, naming the seat that sends it back, listing every rated seat's number), one frame per seat (`lib.verdictLine`, the badge with the rating or state and the flip mark, the citation with the round, the final numbers, the full read in a `<details>`), the scoreboard and final reads folded, the run details folded; no chart; every seat's words escaped.
+- `open-board.js` new: the system's opener on the local file, `--opener` and `--dry-run` for the tests, exit 0 with the path when no opener is there, `board.opened` logged.
+- The skills (sparring §6, battle §8, the rules skill's "Showing a result" and scripts table), the seat agent, the help, departure 15 in the method (mirror identical, the pinned step span unchanged), both READMEs (the example blocks end at their scoreboards), the checklist row, CLAUDE.md.
+- Tests: `open_board_check.js` new; `board_check.js` rewritten; `rating_contract_check.js`, `packet_check.js`, `record_check.js`, `order_check.js`, `marketplace_check.js` extended; the workflow comment counts seventeen checks.
+
+Status: delivered — 2026-10-14 — pull request open; all seventeen checks pass locally; no provider was called and no seat was started; the opener was exercised with a dry run and a fake, never a browser, in the tests.

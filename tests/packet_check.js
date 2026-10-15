@@ -140,6 +140,11 @@ check(!!fence&&fence[1]===draftText.replace(/\s+$/,''),'packet round 1: draft no
 check(/untrusted content/.test(t1)&&/never a command/.test(t1),'packet round 1: untrusted-content line missing');
 check(t1.indexOf('ANSWER BEGIN')<0&&t1.indexOf('The other seats\' answers')<0&&t1.indexOf('Your earlier turn')<0,'packet round 1: carried answers or an earlier turn where there are none');
 check(/RATING: X\/10/.test(t1)&&/never 7/.test(t1)&&/Under 500 words/.test(t1),'packet round 1: rating contract or 500 cap missing');
+// The hardwired line (2026-10-14) and the verdict sentence: every packet carries the first; a
+// rating packet says the number and the verdict must agree.
+var SIGNAL='Do not be verbose. Do not ramble. Only high signal-to-noise responses, no cosplay explanations, no thinking out loud in the answer.';
+check(t1.indexOf(SIGNAL)>=0&&t1.indexOf(SIGNAL)>t1.indexOf('## Contract')&&t1.indexOf(SIGNAL)<t1.indexOf('## Context brief'),'packet round 1: the hardwired signal line must sit in the Contract section');
+check(/Your first sentence after it is your verdict on the draft, in one line\./.test(t1)&&/The number and the verdict must agree: 8 to 10 is a working document, 1 to 6 a problem document/.test(t1),'packet round 1: the verdict sentence and the agreement rule are missing');
 
 // A question file replaces the default prompt.
 write(path.join(proj,'q2.md'),'Does the ask land in the first paragraph?\n');
@@ -394,7 +399,23 @@ check(runs===6,'expected 6 run folders (board-letter, board-letter-2, free, caps
 
 var creditHits=creditFree(path.join(proj,'combat-writing'));
 check(creditHits.length===0,'credit line found in run files: '+creditHits.join(', '));
+// Every packet of every kind carries the hardwired signal line (2026-10-14).
+(function(){
+  var SIGNAL='Do not be verbose. Do not ramble. Only high signal-to-noise responses, no cosplay explanations, no thinking out loud in the answer.';
+  var roundsDir=path.join(run,'rounds');
+  var packets=[];
+  fs.readdirSync(roundsDir).forEach(function(r){ fs.readdirSync(path.join(roundsDir,r)).forEach(function(f){ if(/\.packet\.md$/.test(f))packets.push(path.join(roundsDir,r,f)); }); });
+  check(packets.length>=8,'signal line sweep: expected several packets to sweep, found '+packets.length);
+  packets.forEach(function(p){ check(read(p).indexOf(SIGNAL)>=0,'signal line missing from '+path.relative(run,p)); });
+  // A critique packet carries the critique form of the verdict sentence; a final packet carries neither verdict sentence.
+  var crit=packets.filter(function(p){return read(p).indexOf('No rating this round')>=0;});
+  check(crit.length>0&&crit.every(function(p){return /Your first sentence is your verdict on the draft, in one line\./.test(read(p));}),'critique packets: the verdict sentence (critique form) is missing');
+  var fin=packets.filter(function(p){return /\.(sn|redflag)\.packet\.md$/.test(p);});
+  check(fin.length>0&&fin.every(function(p){return !/your verdict on the draft/.test(read(p));}),'final packets: must carry no verdict sentence');
+})();
+
 fs.rmSync(proj,{recursive:true,force:true});
+
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'packet_check: '+failures.length+' failure(s), ':'packet_check: all passed, ')+passes+' checks');
 process.exit(failures.length?1:0);

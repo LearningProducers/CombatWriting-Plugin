@@ -173,11 +173,13 @@ var nextRe=/^\*\*Next:\*\* \/cw:battle fq: <question> \(FQ, [^\n]*n: <guidance> 
 check(nextRe.test(rec),'record: the text Next line is missing or out of order');
 check(/\*\*Started at:\*\*/.test(read(path.join(run,'record.md')))&&rec.indexOf('**Started at:**')<rec.indexOf('## Scoreboard'),'record: the Started-at line must sit above the scoreboard');
 var shortLines=s.stdout.trim().split('\n');
-check(/^Started at: strategy: the brief stored first, the draft brought later by battle\. First round: 01-battle \(battle before sparring\)\.$/m.test(s.stdout),'short form: the Started-at line');
-var nextIdx=shortLines.findIndex(function(l){return l.indexOf('Next: /cw:battle fq:')===0;});
-var recIdx=shortLines.findIndex(function(l){return l.indexOf('Record: ')===0;});
-check(nextIdx>0&&recIdx>nextIdx,'short form: the Next line must come before the Record line');
-check(/With one seat, SN, SFQ and debate have no other seat to share/.test(s.stdout)===false,'short form: a two-seat crew must not carry the one-seat note');
+// The short form after a round (2026-10-14: the terminal is short): no Started-at, Next or Record
+// line; the Board line instead. --next prints the text Next line alone, for "Done for now".
+check(!/^Started at:/m.test(s.stdout)&&!/^Next: /m.test(s.stdout)&&!/^Record: /m.test(s.stdout),'short form after a round: must carry no Started-at, Next or Record line');
+check(shortLines.some(function(l){return l==='Board: '+path.join(run,'board.html');}),'short form after a round: must carry the Board line');
+var nx=node('render-record.js',['--run',run,'--next']);
+check(nx.status===0&&nx.stdout.trim().split('\n').length===1&&nx.stdout.indexOf('Next: /cw:battle fq:')===0,'--next: must print the text Next line alone; got '+JSON.stringify(nx.stdout));
+check(/With one seat, SN, SFQ and debate have no other seat to share/.test(nx.stdout)===false,'--next: a two-seat crew must not carry the one-seat note');
 check(shortLines[shortLines.length-1]==='Seat key: seat-1 Test Model · seat-2 other-model','short form: must still end with the seat key; got '+shortLines[shortLines.length-1]);
 var b=node('render-board.js',['--run',run]);
 var board=read(path.join(run,'board.html'));
@@ -185,8 +187,8 @@ check(b.status===0&&/<strong>Started at:<\/strong> strategy: the brief stored fi
 check(!/https?:\/\//.test(board),'board: makes an outside request');
 // A one-seat crew's Next line says what has no other seat.
 seatsFile.seats.pop(); fs.writeFileSync(path.join(run,'seats.json'),JSON.stringify(seatsFile,null,2)+'\n');
-var s1=node('render-record.js',['--run',run,'--short']);
-check(/^Next: \/cw:battle fq:[^\n]*With one seat, SN, SFQ and debate have no other seat to share: use fq: or n:, or seat the add-on\.$/m.test(s1.stdout),'short form (one seat): the Next line must say SN, SFQ and debate have no other seat');
+var s1=node('render-record.js',['--run',run,'--next']);
+check(/^Next: \/cw:battle fq:[^\n]*With one seat, SN, SFQ and debate have no other seat to share: use fq: or n:, or seat the add-on\.$/m.test(s1.stdout),'--next (one seat): the Next line must say SN, SFQ and debate have no other seat');
 // A revision still lands as draft-2.md.
 var a2=node('add-draft.js',['--run',run,'--file','draft2.md','--stage','battle']);
 check(a2.status===0&&a2.stdout.trim()==='draft-2.md'&&read(path.join(run,'draft-2.md'))===draft2Text,'add-draft (second): must write draft-2.md; got '+a2.stdout+a2.stderr);
@@ -225,7 +227,7 @@ check(screenOne.test(rules)&&screenOne.test(battle)&&screenOne.test(sparring),'t
 check(/\*\*FQ\*\*, "same question to every seat, nothing shared"; \*\*N\*\*, "same guidance to every seat, nothing shared"; \*\*SN\*\*, "everyone reads each other plus responds to your prompt"; \*\*SFQ\*\*, "everyone reads each other's response to this question plus responds to your question"/.test(rules),'the Next picker: the four round labels and descriptions, in order, in the rules skill');
 check(/\*\*Final reads\*\*[^\n]*\*\*Help\*\*[^\n]*\*\*Done for now\*\*/.test(rules),'the Next picker: the More screen must be Final reads / Help / Done for now');
 check(/ask for the text in one line/.test(rules)&&/\*\*Rerate\*\*[^\n]*\*\*No rating\*\*/.test(rules),'the Next picker: the text line and the rerate yes/no');
-check(/Done for now prints the text Next line exactly as the short form printed it, and nothing else\./.test(rules),'the Next picker: Done for now must print the text Next line and nothing else');
+check(/Done for now prints the text Next line, as `render-record\.js --run <folder> --next` prints it, and nothing else\./.test(rules),'the Next picker: Done for now must print the text Next line (--next) and nothing else');
 check(/the seat list as the existing picker builds it/.test(rules),'the Next picker: the seat list is the existing picker\'s');
 check(/Strategy's result keeps its single Next line/.test(rules)&&/End with one line, the Next line, and nothing after it/.test(strategy)&&!/Next picker/.test(strategy.replace(/not the picker/,'')),'strategy: must keep its single Next line and open no picker');
 check(/Where you have no AskUserQuestion tool, print the text Next line instead of the picker\./.test(battle)&&/Where you have no AskUserQuestion tool, print the text Next line instead of the picker\./.test(sparring),'battle and sparring: the no-tool fallback is the text Next line');
