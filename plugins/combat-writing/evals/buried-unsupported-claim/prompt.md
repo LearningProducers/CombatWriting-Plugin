@@ -7,7 +7,7 @@ timeout_seconds: 900
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
-/combat-writing:sparring Here is my draft of a letter to the board. Focus question for every seat: does the ask land in the first paragraph?
+/cw:sparring Here is my draft of a letter to the board. Focus question for every seat: does the ask land in the first paragraph?
 
 Dear board,
 

@@ -6,8 +6,8 @@
 //   - ™ follows the first use of the name "Combat Writing" in the file.
 //   - "source-available" appears; "open source" and "open-source" do not.
 //   - The plugin README's example prompts (one each for help, strategy, sparring and battle)
-//     are fenced blocks that begin with /combat-writing:<command>, each naming a command
-//     file that exists under plugins/combat-writing/commands/, and each is followed by a
+//     are fenced blocks that begin with /cw:<command>, each naming a skill folder
+//     that exists under plugins/combat-writing/skills/<command>/SKILL.md, and each is followed by a
 //     fenced block of real output that carries no credit line (ruled 2026-10-12): the
 //     strategy, sparring and battle blocks open with the crew line, the help block with the motto.
 //   - The disclosures: what the plugin runs, sends and fetches; that every record opens
@@ -52,19 +52,19 @@ Object.keys(files).forEach(function(rel){
 var p=files['plugins/combat-writing/README.md'];
 var blocks=[]; var re=/```\n([\s\S]*?)```/g, m;
 while((m=re.exec(p)))blocks.push(m[1].replace(/\n$/,''));
-var prompts=[]; blocks.forEach(function(b,i){ if(/^\/combat-writing:[a-z]+/.test(b))prompts.push({text:b,index:i}); });
+var prompts=[]; blocks.forEach(function(b,i){ if(/^\/cw:[a-z]+/.test(b))prompts.push({text:b,index:i}); });
 check(prompts.length>=3,'plugin README: expected at least three example prompts, found '+prompts.length);
-var commands=fs.readdirSync(path.join(root,'plugins','combat-writing','commands')).filter(function(f){return /\.md$/.test(f);}).map(function(f){return f.replace(/\.md$/,'');});
+var commands=fs.readdirSync(path.join(root,'plugins','combat-writing','skills')).filter(function(d){return fs.existsSync(path.join(root,'plugins','combat-writing','skills',d,'SKILL.md'));});
 var named={};
 prompts.forEach(function(pr){
-  var cmd=/^\/combat-writing:([a-z]+)/.exec(pr.text)[1];
+  var cmd=/^\/cw:([a-z]+)/.exec(pr.text)[1];
   named[cmd]=true;
-  check(commands.indexOf(cmd)>=0,'plugin README: example prompt names /combat-writing:'+cmd+', which has no command file');
+  check(commands.indexOf(cmd)>=0,'plugin README: example prompt names /cw:'+cmd+', which has no command file');
   var out=blocks[pr.index+1];
   check(!!out&&out.indexOf(CREDIT)<0,'plugin README: the output block after "'+pr.text.slice(0,40)+'" carries the credit line');
   check(!!out&&(cmd==='help'?out.split('\n')[0]==='Reading is Peace. Writing is War.':/^Crew:/.test(out.split('\n')[0])),'plugin README: the output block after "'+pr.text.slice(0,40)+'" does not open with '+(cmd==='help'?'the motto':'the crew line'));
 });
-['help','strategy','sparring','battle'].forEach(function(c){ check(named[c],'plugin README: no example prompt for /combat-writing:'+c); });
+['help','strategy','sparring','battle'].forEach(function(c){ check(named[c],'plugin README: no example prompt for /cw:'+c); });
 var prose=p.replace(/```[\s\S]*?```/g,' ').replace(/<!--[\s\S]*?-->/g,' ');
 check(prose.split(/\s+/).filter(Boolean).length>40,'plugin README: 40 words or fewer outside code blocks');
 

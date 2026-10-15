@@ -8,7 +8,7 @@
 //     whose one command hook runs node on a file inside the plugin, named through
 //     ${CLAUDE_PLUGIN_ROOT}, with no other variable, substitution, shell operator or launcher.
 //   - Run with node, session-start.js exits 0 and prints one JSON object whose systemMessage
-//     is exactly "Combat Writing ready. /combat-writing:help for the guide." and whose
+//     is exactly "Combat Writing ready. /cw:help for the guide." and whose
 //     hookSpecificOutput carries the same line as additionalContext for SessionStart.
 //   - The script requires no module at all and holds no URL: it prints and stops.
 //
@@ -17,7 +17,7 @@
 
 var fs=require('fs'), path=require('path'), cp=require('child_process');
 var root=path.join(__dirname,'..');
-var LINE='Combat Writing ready. /combat-writing:help for the guide.';
+var LINE='Combat Writing ready. /cw:help for the guide.';
 var failures=[], passes=0;
 function check(cond,msg){ if(cond)passes++; else failures.push(msg); }
 function read(rel){ return fs.readFileSync(path.join(root,rel),'utf8'); }

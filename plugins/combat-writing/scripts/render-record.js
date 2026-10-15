@@ -13,9 +13,11 @@
 // the log of what was sent. Nothing is averaged, summed or ranked. Rebuilt after every
 // round; the log and the answer files are the truth.
 //
-// --short prints the crew line and the scoreboard to stdout for the host to show, ending with
-// the seat key (one line, every seat by id and short name, from the live crew), and still
-// writes record.md. Without it, prints the record's path.
+// --short prints the crew line and the scoreboard to stdout for the host to show, then the
+// Started-at line, the text Next line (2026-10-14: the host's picker offers the same moves and
+// prints this line on "Done for now"), the record's path, and last the seat key (one line, every
+// seat by id and short name, from the live crew); it still writes record.md. Without it, prints
+// the record's path.
 
 var fs=require('fs'), path=require('path');
 var lib=require('./lib.js');
@@ -26,8 +28,13 @@ var seatsFile=lib.readSeats(runDir), seats=seatsFile.seats;
 var log=lib.readLog(runDir);
 var rounds=lib.listRounds(runDir);
 // A run strategy made and nothing has read yet (ruled 2026-10-13): the record and the short form say
-// what is stored and name the next move, so the person is never left without one.
-var noRoundsLine='No rounds yet. The draft'+(fs.existsSync(path.join(runDir,'brief.md'))?' and the brief are':' is')+' stored; no seat has read it. Next: /combat-writing:sparring.';
+// what is stored and name the next move, so the person is never left without one. Since 2026-10-14
+// the order of the stages is the person's choice, so the next move is sparring or battle, and a run
+// that holds a brief alone says the draft joins it when either command brings one.
+var hasBrief=fs.existsSync(path.join(runDir,'brief.md')), hasDraft=!!lib.latestDraft(runDir);
+var noRoundsLine=hasDraft
+  ?'No rounds yet. The draft'+(hasBrief?' and the brief are':' is')+' stored; no seat has read it. Next: '+lib.CMD.sparring+' for the first reads and ratings, or '+lib.CMD.battle+' to start with the discussion.'
+  :'No rounds yet. The brief is stored; there is no draft yet. Next: '+lib.CMD.sparring+' or '+lib.CMD.battle+' with the draft pasted; it joins this run.';
 var drafts=lib.listDrafts(runDir);
 var created=log.filter(function(e){return e.event==='run.created';})[0]||{};
 
@@ -92,7 +99,10 @@ out.push('');
 lib.crewStateLines(runDir,seats,log).forEach(function(l){ out.push('**Seats:** '+l); out.push(''); });
 out.push('**Seat key:** '+lib.seatKey(seats));
 out.push('');
-out.push('**Drafts:** '+drafts.map(function(d){var e=lastLog(function(x){return (x.event==='draft.added'&&x.file===d)||(x.event==='run.created'&&d==='draft.md');});var sha=e?(e.sha256||(e.draft&&e.draft.sha256)):null;return d+(sha?' (sha256 '+sha.slice(0,12)+'…)':'');}).join(', ')+'.');
+out.push('**Drafts:** '+(drafts.length?drafts.map(function(d){var e=lastLog(function(x){return (x.event==='draft.added'&&x.file===d)||(x.event==='run.created'&&d==='draft.md');});var sha=e?(e.sha256||(e.draft&&e.draft.sha256)):null;return d+(sha?' (sha256 '+sha.slice(0,12)+'…)':'');}).join(', ')+'.':'none yet; the brief is stored and the draft joins the run when sparring or battle brings it.'));
+out.push('');
+// Where the run started (2026-10-14: the order of the stages is the person's choice).
+out.push('**Started at:** '+lib.startedAtLine(runDir,log,rounds));
 if(fs.existsSync(path.join(runDir,'brief.md'))){
   out.push('');
   out.push('**Brief:**');
@@ -111,6 +121,9 @@ if(rounds.length){
     var latest=null; rounds.forEach(function(r){var c=grid[s.id][r];if(c.rating!==null&&c.rating!==undefined)latest=c.rating;});
     out.push('| '+lib.seatLabel(s)+' | '+rounds.map(function(r){return grid[s.id][r].text;}).join(' | ')+' | '+(latest===null?'—':bar(latest)+' '+latest+'/10')+' |');
   });
+  out.push('');
+  // The text Next line (2026-10-14): kept here, and printed by --short for the host's picker.
+  out.push('**'+lib.nextLine(seats).replace(/^Next: /,'Next:** '));
 }else out.push(noRoundsLine);
 out.push('');
 out.push('## Answers');
@@ -158,10 +171,12 @@ if(args.short===true){
   out.filter(function(l){return l.indexOf('**Seats:**')===0;}).forEach(function(l){ s.push(l,''); });
   var tableStart=out.indexOf('## Scoreboard');
   var tableEnd=out.indexOf('## Answers');
-  var board=out.slice(tableStart+1,tableEnd).filter(function(l){return l.trim();});
+  var board=out.slice(tableStart+1,tableEnd).filter(function(l){return l.trim()&&l.indexOf('**Next:**')!==0;});
   var firstRow=board.findIndex(function(l){return l.indexOf('|')===0;});
   if(firstRow>0)board.splice(firstRow,0,'');
   s=s.concat(board);
+  s.push('','Started at: '+lib.startedAtLine(runDir,log,rounds));
+  if(rounds.length)s.push('',lib.nextLine(seats));
   s.push('','Record: '+path.join(runDir,'record.md'));
   s.push('','Seat key: '+lib.seatKey(seats));
   process.stdout.write(s.join('\n')+'\n');

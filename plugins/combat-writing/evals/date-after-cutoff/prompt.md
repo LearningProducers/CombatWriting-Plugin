@@ -7,7 +7,7 @@ timeout_seconds: 900
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
-Run Combat Writing on this memo: first `/combat-writing:sparring` with no question, then `/combat-writing:battle final` on the same run, and show me the final reads.
+Run Combat Writing on this memo: first `/cw:sparring` with no question, then `/cw:battle final` on the same run, and show me the final reads.
 
 Memo to the leadership team
 Date: 22 September 2026

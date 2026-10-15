@@ -187,14 +187,14 @@ if(exists('plugins/combat-writing/README.md')){
 // Manifests.
 if(exists('plugins/combat-writing/.claude-plugin/plugin.json')){
   var manifest=JSON.parse(read('plugins/combat-writing/.claude-plugin/plugin.json'));
-  check(manifest.name==='combat-writing','plugin.json: name is '+manifest.name);
+  check(manifest.name==='cw','plugin.json: name is '+manifest.name+' (the listed plugin is cw since 2026-10-14; the folder stays plugins/combat-writing)');
   check(manifest.license===SHIELD,'plugin.json: license field is '+manifest.license+', expected '+SHIELD);
   check(manifest.author&&manifest.author.name==='Learning Producers Inc.','plugin.json: author is not Learning Producers Inc.');
 }else fail('plugins/combat-writing/.claude-plugin/plugin.json: missing');
 if(exists('.claude-plugin/marketplace.json')){
   var market=JSON.parse(read('.claude-plugin/marketplace.json'));
   var names=(market.plugins||[]).map(function(p){return p.name;});
-  check(names.indexOf('combat-writing')>=0,'marketplace.json: does not name combat-writing');
+  check(names.indexOf('cw')>=0,'marketplace.json: does not name cw');
   check(names.indexOf('combat-writing-crew')>=0,'marketplace.json: does not name combat-writing-crew');
 }else fail('.claude-plugin/marketplace.json: missing');
 

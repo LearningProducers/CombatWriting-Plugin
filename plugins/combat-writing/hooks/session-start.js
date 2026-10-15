@@ -7,7 +7,7 @@
 // it knows the plugin is loaded. Plain stdout from a SessionStart hook reaches only the
 // host, which is why the line goes through systemMessage.
 
-var LINE='Combat Writing ready. /combat-writing:help for the guide.';
+var LINE='Combat Writing ready. /cw:help for the guide.';
 process.stdout.write(JSON.stringify({
   systemMessage:LINE,
   hookSpecificOutput:{hookEventName:'SessionStart',additionalContext:LINE}

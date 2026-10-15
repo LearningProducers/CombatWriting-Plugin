@@ -7,7 +7,8 @@
 //   - .claude-plugin/marketplace.json parses, is named learning-producers, names an owner,
 //     and lists exactly combat-writing and combat-writing-crew, each with a relative source
 //     under ./plugins/ that exists and holds .claude-plugin/plugin.json whose name and
-//     version match the entry.
+//     version match the entry; the renames map carries combat-writing -> cw (the rename of
+//     2026-10-14), so an install recorded under the old name migrates.
 //   - The add-on's manifest declares one stdio MCP server started with node on a file inside
 //     the plugin (${CLAUDE_PLUGIN_ROOT}/server.js, plain arguments, no shell), every key
 //     option is a string with sensitive: true and no default, every env value in the server
@@ -31,13 +32,17 @@ function check(cond,msg){ if(cond)passes++; else failures.push(msg); }
 function read(rel){ return fs.readFileSync(path.join(root,rel),'utf8'); }
 function exists(rel){ return fs.existsSync(path.join(root,rel)); }
 
+function m_renames(m){ return !!m.renames&&m.renames['combat-writing']==='cw'; }
 var market=null;
 try{market=JSON.parse(read('.claude-plugin/marketplace.json'));}catch(e){failures.push('marketplace.json: '+e.message);}
 if(market){
   check(market.name==='learning-producers','marketplace: name is '+market.name);
   check(market.owner&&market.owner.name==='Learning Producers Inc.','marketplace: owner missing');
   var names=(market.plugins||[]).map(function(p){return p.name;}).sort();
-  check(names.join(',')==='combat-writing,combat-writing-crew','marketplace: plugins are '+names.join(','));
+  check(names.join(',')==='combat-writing-crew,cw','marketplace: plugins are '+names.join(','));
+  // The rename (2026-10-14): the listed plugin's name went from combat-writing to cw; the renames map
+  // migrates an install recorded under the old name, and the docs say to keep it as append-only history.
+  check(m_renames(market),'marketplace: renames must map combat-writing to cw');
   (market.plugins||[]).forEach(function(p){
     check(typeof p.source==='string'&&/^\.\/plugins\/[a-z0-9-]+$/.test(p.source),p.name+': source is '+JSON.stringify(p.source));
     var folder=String(p.source||'').replace(/^\.\//,'');
@@ -93,7 +98,7 @@ check(!/https?:\/\//.test(listedScripts.replace(/\/\/[^\n]*/g,'')),'listed plugi
 // claude plugin validate --strict, when the CLI is here.
 var which=cp.spawnSync(process.platform==='win32'?'where':'which',['claude'],{encoding:'utf8'});
 if(which.status===0){
-  ['.','plugins/combat-writing','plugins/combat-writing-crew','plugins/combat-writing/commands','plugins/combat-writing/agents','plugins/combat-writing/skills'].forEach(function(dir){
+  ['.','plugins/combat-writing','plugins/combat-writing-crew','plugins/combat-writing/agents','plugins/combat-writing/skills'].forEach(function(dir){
     var r=cp.spawnSync('claude',['plugin','validate','--strict',dir],{cwd:root,encoding:'utf8'});
     check(r.status===0,'claude plugin validate --strict '+dir+': exit '+r.status+'\n'+(r.stdout||'').split('\n').filter(function(l){return /✘|›|❯|error|warning/i.test(l);}).join('\n'));
   });
