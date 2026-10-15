@@ -1,17 +1,25 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// render-board.js: writes board.html for a run, a single self-contained page.
+// render-board.js: writes board.html for a run, a single self-contained page. The board is
+// the result (2026-10-14): after every sparring and battle round the host opens it in the
+// person's browser (open-board.js), a local file, never published.
 //
 //   node render-board.js --run <run folder>
 //
-// The page holds, in order: the motto, the crew line, the drafts and
-// the brief, the scoreboard (one row per seat, one column per round, every rating on
-// its own, flips marked valid or invalid with the earlier number kept, Stand, missing,
-// not asked, failed reads), the seat key, a line chart of each seat's rating across rounds as inline SVG with
-// a legend, direct labels at the line ends and a hover readout, the final reads' S/N
-// and red-flag counts when a final round exists, and a link to record.md. Light and
-// dark follow the system setting, with a toggle. No external request of any kind: no
-// script, style, font or image is fetched. Nothing is averaged. The page is rebuilt
-// after every round from the files and log.jsonl, like record.md.
+// The page, top to bottom: the motto; the newest draft, in full; the verdict across the
+// page, SEND or BACK TO THE DRAWING BOARD, from every seat's own latest rating and nothing
+// averaged (every seat 8 or more sends; any seat 6 or less sends it back, and the band names
+// that seat; with no rating yet it says so); then one framed quote per seat, the seat's
+// one-line verdict in bold, cited to the model by name and company (and the provider that
+// served an outside seat) with the round it came from, the seat's rating or its state
+// (critique, failed read, missing) on the frame, and the full read folded under a click;
+// then, folded, the scoreboard of every round (one row per seat, one column per round, every
+// rating on its own, flips marked valid or invalid with the earlier number kept, Stand,
+// missing, not asked, failed reads, truncated reads), the final reads when a final round
+// exists, and the run details (the crew line, the Seats line when the crew is short, the seat
+// key, the drafts, the brief, where the run started, a link to record.md). Light and dark
+// follow the system setting, with a toggle. No external request of any kind: no script,
+// style, font or image is fetched. Nothing is averaged. Every seat's words are escaped: an
+// answer is text, never markup. Rebuilt after every round from the files and log.jsonl.
 //
 // Prints the page's path on stdout and appends board.rendered to the log.
 
@@ -23,14 +31,16 @@ var runDir=path.resolve(args.run);
 var seats=lib.readSeats(runDir).seats;
 var log=lib.readLog(runDir);
 var rounds=lib.listRounds(runDir);
-// The chart's x axis: the rounds that asked for a rating. A battle round with no `rerate`
-// is a critique round (ruled 2026-10-09): a scoreboard column, never a chart point.
 var tableRounds=rounds.filter(function(r){return !lib.isFinalRound(r);});
-var ratingRounds=tableRounds.filter(function(r){return lib.roundContract(runDir,r,log)==='rating';});
 var finalRounds=rounds.filter(lib.isFinalRound);
 var drafts=lib.listDrafts(runDir);
+var newestDraft=lib.latestDraft(runDir);
+var hasBrief=fs.existsSync(path.join(runDir,'brief.md'));
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function paras(text){
+  return String(text).replace(/\r\n/g,'\n').replace(/^﻿/,'').trim().split(/\n\s*\n/).map(function(p){return '<p>'+esc(p).replace(/\n/g,'<br>')+'</p>';}).join('');
+}
 function lastLog(pred){ for(var i=log.length-1;i>=0;i--){ if(pred(log[i]))return log[i]; } return null; }
 // The add-on's cut of an outside seat's read: the last crew.answered line for the seat, round and read.
 function truncationOf(seat,round,read){
@@ -48,93 +58,64 @@ function cell(seat,round){
   var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract===contract);});
   var check=lib.checkAnswer(text,logged?logged.word_cap:null,contract);
   var trunc=truncationOf(seat,round,'rating');
-  if(!check.ok)return {kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,mark:withTrunc('',trunc)};
-  if(contract==='critique')return {kind:'critique',text:'critique',title:'this round asked for no rating',rating:null,mark:withTrunc('',trunc)};
+  var words=lib.wordCount(text);
+  if(!check.ok)return {kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,mark:withTrunc('',trunc),answer:text,words:words,contract:contract,reasons:check.reasons};
+  if(contract==='critique')return {kind:'critique',text:'critique',title:'this round asked for no rating',rating:null,mark:withTrunc('',trunc),answer:text,words:words,contract:contract};
   var flip=lastLog(function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
   if(!flip){var inputs=lib.flipInputs(runDir,seat,round,seats);flip=lib.checkFlip(text,seat,inputs.ownRated?inputs.ownRated.text:null,inputs.prevAnswers);}
   var kind={first:'first',stand:'stand',held:'held','flip-valid':'flip-valid','flip-invalid':'flip-invalid',unrated:'first'}[flip.status]||'first';
   var mark={first:'',stand:'Stand',held:'held, no Stand','flip-valid':'flip from '+flip.from+', valid','flip-invalid':'flip from '+flip.from+', INVALID'}[kind]||'';
   var title={'flip-valid':'quoted '+flip.cited,'flip-invalid':flip.reason||'quote not found'}[kind]||'';
-  return {kind:kind,rating:check.rating,text:check.rating+'/10',mark:withTrunc(mark,trunc),title:title,from:flip.from};
+  return {kind:kind,rating:check.rating,text:check.rating+'/10',mark:withTrunc(mark,trunc),title:title,from:flip.from,answer:text,words:words,contract:contract};
 }
 function finalCell(seat,round){
   return ['sn','redflag'].map(function(c){
     var p=path.join(runDir,'rounds',round,seat.id+'.'+c+'.answer.md');
     if(!fs.existsSync(p))return {c:c,missing:true};
     var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&e.contract===c;});
-    var r=lib.checkAnswer(lib.readText(p),logged?logged.word_cap:null,c);
-    return {c:c,ok:r.ok,value:r.value,truncated:truncationOf(seat,round,c)};
+    var text=lib.readText(p);
+    var r=lib.checkAnswer(text,logged?logged.word_cap:null,c);
+    return {c:c,ok:r.ok,value:r.value,truncated:truncationOf(seat,round,c),answer:text,words:lib.wordCount(text)};
   });
+}
+function finalText(f){
+  var snT=f[0].missing?'S/N missing':f[0].ok?'S/N '+f[0].value+'%':'S/N failed read';
+  var rfT=f[1].missing?'red flags missing':f[1].ok?(f[1].value===0?'no red flags':f[1].value+' red flag'+(f[1].value===1?'':'s')):'red-flag read failed';
+  return snT+' · '+rfT;
 }
 
 var grid={}; seats.forEach(function(s){grid[s.id]={};tableRounds.forEach(function(r){grid[s.id][r]=cell(s,r);});});
 
-// The chart: x = rating rounds in order, y = 1 to 10, one series per seat (categorical, fixed order).
-var LIGHT=['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#4a3aa7','#e34948'];
-var DARK=['#3987e5','#d95926','#199e70','#c98500','#d55181','#008300','#9085e9','#e66767'];
-var W=720, H=312, PL=64, PR=150, PT=20, PB=64;
-var plotW=W-PL-PR, plotH=H-PT-PB;
-var MISSING_Y=PT+plotH+18;   // the missing row: its own line below the axis, never on the 1 line
-function x(i){ return ratingRounds.length<=1?PL+plotW/2:PL+plotW*i/(ratingRounds.length-1); }
-function y(v){ return PT+plotH*(10-v)/9; }
-
-var svg=[];
-// Inline SVG in HTML needs no namespace attribute, and the page carries no URL of any kind.
-svg.push('<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-labelledby="chart-title chart-desc">');
-svg.push('<title id="chart-title">Each seat\'s rating across rounds</title>');
-svg.push('<desc id="chart-desc">One line per seat, rating 1 to 10 on the vertical axis, rounds in order on the horizontal axis. The table above holds the same numbers.</desc>');
-for(var v=1;v<=10;v++){
-  svg.push('<line class="grid" x1="'+PL+'" x2="'+(PL+plotW)+'" y1="'+y(v).toFixed(1)+'" y2="'+y(v).toFixed(1)+'"/>');
-  svg.push('<text class="tick" x="'+(PL-8)+'" y="'+(y(v)+4).toFixed(1)+'" text-anchor="end">'+v+'</text>');
+// Each seat's latest turn: the newest non-final round it was asked in, whatever came of it.
+function latestTurn(seat){
+  for(var i=tableRounds.length-1;i>=0;i--){ var c=grid[seat.id][tableRounds[i]]; if(c.kind!=='not-asked')return {round:tableRounds[i],cell:c}; }
+  return null;
 }
-svg.push('<line class="seven" x1="'+PL+'" x2="'+(PL+plotW)+'" y1="'+y(7).toFixed(1)+'" y2="'+y(7).toFixed(1)+'"/>');
-svg.push('<text class="tick seven-label" x="'+(PL+4)+'" y="'+(y(7)-4).toFixed(1)+'">7 is forbidden</text>');
-// The row label ends 14px left of the first column, clear of a marker there (radius 7).
-svg.push('<text class="tick" x="'+(PL-14)+'" y="'+(MISSING_Y+4).toFixed(1)+'" text-anchor="end">missing</text>');
-ratingRounds.forEach(function(r,i){ svg.push('<text class="tick" x="'+x(i).toFixed(1)+'" y="'+(H-PB+54)+'" text-anchor="middle">'+esc(r)+'</text>'); });
-// End labels: one per seat at its last point, nudged apart when seats end on the same rating.
-var endLabels=[];
-seats.forEach(function(s){
-  var last=null;
-  ratingRounds.forEach(function(r,i){ var c=grid[s.id][r]; if(c.rating!==null)last={i:i,v:c.rating}; });
-  if(last)endLabels.push({seat:s,i:last.i,v:last.v,y:y(last.v)});
-});
-endLabels.sort(function(a,b){return a.y-b.y;});
-for(var k=1;k<endLabels.length;k++){ if(endLabels[k].y-endLabels[k-1].y<14)endLabels[k].y=endLabels[k-1].y+14; }
-var labelY={}; endLabels.forEach(function(l){labelY[l.seat.id]=l.y;});
+// Each seat's latest rating: its newest sound rated answer, the scoreboard's Latest column.
+function latestRating(seat){
+  var latest=null; tableRounds.forEach(function(r){var c=grid[seat.id][r];if(c.rating!==null&&c.rating!==undefined)latest={round:r,rating:c.rating};});
+  return latest;
+}
 
-seats.forEach(function(s,si){
-  var color=si%8, pts=[];
-  ratingRounds.forEach(function(r,i){ var c=grid[s.id][r]; if(c.rating!==null)pts.push({i:i,v:c.rating,c:c}); });
-  var d=''; var prevI=null;
-  pts.forEach(function(p){ d+=(prevI===null||p.i!==prevI+1?'M':'L')+x(p.i).toFixed(1)+' '+y(p.v).toFixed(1)+' '; prevI=p.i; });
-  svg.push('<g class="series" data-seat="'+esc(s.id)+'" style="--c: var(--series-'+(color+1)+')">');
-  if(d)svg.push('<path class="line" d="'+d.trim()+'"/>');
-  ratingRounds.forEach(function(r,i){
-    var c=grid[s.id][r];
-    var cx=x(i).toFixed(1);
-    if(c.kind==='not-asked')return;  // the round was not put to this seat: no point, not even on the missing row
-    if(c.rating===null){
-      var my=MISSING_Y;  // every missing seat sits on the missing row; the readout names the seat
-      svg.push('<g class="pt missing" tabindex="0" data-seat="'+esc(lib.seatLabel(s))+'" data-round="'+esc(r)+'" data-value="'+esc(c.text)+'"><circle cx="'+cx+'" cy="'+my.toFixed(1)+'" r="7"/><line x1="'+(x(i)-4).toFixed(1)+'" x2="'+(x(i)+4).toFixed(1)+'" y1="'+(my-4).toFixed(1)+'" y2="'+(my+4).toFixed(1)+'"/><line x1="'+(x(i)-4).toFixed(1)+'" x2="'+(x(i)+4).toFixed(1)+'" y1="'+(my+4).toFixed(1)+'" y2="'+(my-4).toFixed(1)+'"/></g>');
-      return;
-    }
-    var cls='pt '+c.kind;
-    var label=c.text+(c.mark?' · '+c.mark:'');
-    svg.push('<g class="'+cls+'" tabindex="0" data-seat="'+esc(lib.seatLabel(s))+'" data-round="'+esc(r)+'" data-value="'+esc(label)+(c.title?' ('+esc(c.title)+')':'')+'">');
-    svg.push('<circle class="ring" cx="'+cx+'" cy="'+y(c.rating).toFixed(1)+'" r="7"/>');
-    svg.push('<circle class="dot" cx="'+cx+'" cy="'+y(c.rating).toFixed(1)+'" r="5"/>');
-    if(c.kind==='flip-valid')svg.push('<text class="flag" x="'+cx+'" y="'+(y(c.rating)-11).toFixed(1)+'" text-anchor="middle">✓</text>');
-    if(c.kind==='flip-invalid')svg.push('<text class="flag" x="'+cx+'" y="'+(y(c.rating)-11).toFixed(1)+'" text-anchor="middle">✗</text>');
-    svg.push('</g>');
-  });
-  if(pts.length){
-    var last=pts[pts.length-1];
-    svg.push('<text class="end-label" x="'+(x(last.i)+12).toFixed(1)+'" y="'+(labelY[s.id]+4).toFixed(1)+'">'+last.v+'/10 '+esc(s.id)+'</text>');
-  }
-  svg.push('</g>');
-});
-svg.push('</svg>');
+// The verdict across the top (2026-10-14): from every seat's own latest rating, nothing
+// averaged. 8 to 10 is a working document and 1 to 6 a problem document, the seat's own rule;
+// every rated seat at 8 or more is SEND; any seat at 6 or less is BACK TO THE DRAWING BOARD,
+// and the band names that seat; no rating yet says so.
+var rated=seats.map(function(s){return {seat:s,latest:latestRating(s)};}).filter(function(x){return x.latest;});
+var low=rated.filter(function(x){return x.latest.rating<=6;});
+var verdict, verdictClass, verdictWhy;
+if(!rated.length){
+  verdict='NO RATING YET'; verdictClass='none';
+  verdictWhy=rounds.length?'No seat has rated this draft yet. Ask for a rating with rerate, or run sparring.'
+    :(newestDraft?'No rounds yet. The draft'+(hasBrief?' and the brief are':' is')+' stored; no seat has read it. Next: '+lib.CMD.sparring+' for the first reads and ratings, or '+lib.CMD.battle+' to start with the discussion.'
+      :'No rounds yet. The brief is stored; there is no draft yet. Next: '+lib.CMD.sparring+' or '+lib.CMD.battle+' with the draft pasted; it joins this run.');
+}else if(!low.length){
+  verdict='SEND'; verdictClass='send';
+  verdictWhy=(rated.length===1?'The one rated seat':'Every rated seat')+' put it at 8 or more: a working document by '+(rated.length===1?'its':'each seat\'s')+' own number. Nothing is averaged.';
+}else{
+  verdict='BACK TO THE DRAWING BOARD'; verdictClass='back';
+  verdictWhy=low.map(function(x){return lib.seatLabel(x.seat)+' rated it '+x.latest.rating+'/10';}).join('; ')+': a problem document by '+(low.length===1?'that seat\'s':'those seats\'')+' own number. Nothing is averaged; one seat at 6 or less sends it back.';
+}
 
 // The page.
 var companies=seats.map(function(s){return s.company;}).filter(function(v,i,a){return a.indexOf(v)===i;});
@@ -143,31 +124,73 @@ html.push('<!doctype html>');
 html.push('<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">');
 html.push('<title>Combat Writing board — '+esc(path.basename(runDir))+'</title>');
 html.push('<style>');
-html.push(':root{color-scheme:light;--surface:#fcfcfb;--surface-2:#f1f0ec;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#8a8984;--rule:#e2e1dc;--seven:#b4b3ad;--series-1:#2a78d6;--series-2:#eb6834;--series-3:#1baf7a;--series-4:#eda100;--series-5:#e87ba4;--series-6:#008300;--series-7:#4a3aa7;--series-8:#e34948;--good:#1a7f37;--bad:#c62828;}');
-html.push('@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;--surface:#1a1a19;--surface-2:#242422;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#8f8e87;--rule:#34332f;--seven:#5a5955;--series-1:#3987e5;--series-2:#d95926;--series-3:#199e70;--series-4:#c98500;--series-5:#d55181;--series-6:#008300;--series-7:#9085e9;--series-8:#e66767;--good:#4caf6e;--bad:#ef6b6b;}}');
-html.push(':root[data-theme="dark"]{color-scheme:dark;--surface:#1a1a19;--surface-2:#242422;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#8f8e87;--rule:#34332f;--seven:#5a5955;--series-1:#3987e5;--series-2:#d95926;--series-3:#199e70;--series-4:#c98500;--series-5:#d55181;--series-6:#008300;--series-7:#9085e9;--series-8:#e66767;--good:#4caf6e;--bad:#ef6b6b;}');
-html.push('*{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:0 16px 48px}main{max-width:960px;margin:0 auto}');
-html.push('.motto{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:20px 0 20px}h1{font-size:22px;margin:0 0 6px}h2{font-size:16px;margin:28px 0 8px}p{margin:6px 0}.meta{color:var(--ink-2)}');
-html.push('.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}button{font:inherit;font-size:13px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--rule);border-radius:6px;padding:4px 10px;cursor:pointer}');
-html.push('table{border-collapse:collapse;width:100%;font-size:14px;margin-top:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top}th{color:var(--ink-2);font-weight:600}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mark{color:var(--ink-2);font-size:12px}.flip-valid .mark{color:var(--good)}.flip-invalid .mark{color:var(--bad)}.missing,.failed{color:var(--ink-3);font-style:italic}.critique{color:var(--ink-2)}code{font-size:13px}.key{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}');
-html.push('.chart{width:100%;height:auto;display:block;margin-top:8px}.grid{stroke:var(--rule);stroke-width:1}.seven{stroke:var(--seven);stroke-width:1;stroke-dasharray:4 4}.tick{fill:var(--ink-3);font-size:11px}.seven-label{fill:var(--ink-3)}.line{fill:none;stroke:var(--c);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}.ring{fill:var(--surface)}.dot{fill:var(--c)}.pt.missing circle{fill:var(--surface);stroke:var(--ink-3);stroke-width:1.5}.pt.missing line{stroke:var(--ink-3);stroke-width:1.5}.pt{cursor:default;outline:none}.pt:focus .dot,.pt:hover .dot{r:6}.flag{fill:var(--ink-2);font-size:12px}.end-label{fill:var(--ink-2);font-size:12px}');
-html.push('.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin:6px 0}.readout{min-height:22px;font-size:13px;color:var(--ink-2);margin:4px 0 0}.note{font-size:13px;color:var(--ink-2)}a{color:inherit}');
+html.push(':root{color-scheme:light;--surface:#f7f5f0;--paper:#fffdf8;--surface-2:#efece5;--ink:#141311;--ink-2:#55524c;--ink-3:#8a877f;--rule:#dcd8cf;--frame:#2b2823;--send:#1a6b3a;--send-ink:#ffffff;--back:#9b1c1c;--back-ink:#ffffff;--none:#6b675f;--none-ink:#ffffff;--good:#1a7f37;--bad:#c62828;}');
+html.push('@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;--surface:#171614;--paper:#1f1e1b;--surface-2:#262522;--ink:#f3f1ea;--ink-2:#bdb9ae;--ink-3:#8b887f;--rule:#363430;--frame:#d9d4c7;--send:#2e8b57;--send-ink:#0b1a10;--back:#c83a3a;--back-ink:#1a0b0b;--none:#5f5c55;--none-ink:#f3f1ea;--good:#4caf6e;--bad:#ef6b6b;}}');
+html.push(':root[data-theme="dark"]{color-scheme:dark;--surface:#171614;--paper:#1f1e1b;--surface-2:#262522;--ink:#f3f1ea;--ink-2:#bdb9ae;--ink-3:#8b887f;--rule:#363430;--frame:#d9d4c7;--send:#2e8b57;--send-ink:#0b1a10;--back:#c83a3a;--back-ink:#1a0b0b;--none:#5f5c55;--none-ink:#f3f1ea;--good:#4caf6e;--bad:#ef6b6b;}');
+html.push('*{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--ink);font:16px/1.55 Georgia,"Iowan Old Style","Palatino Linotype",Palatino,"Times New Roman",serif;padding:0 16px 64px}main{max-width:1040px;margin:0 auto}');
+html.push('.motto{font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:22px 0 14px}h1{font:600 20px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0}h2{font:600 13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:36px 0 10px}p{margin:8px 0}.meta{color:var(--ink-2);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}');
+html.push('.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}button{font:13px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--rule);border-radius:6px;padding:4px 10px;cursor:pointer}');
+html.push('.paper{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:28px 32px;font-size:17px;line-height:1.65;box-shadow:0 1px 2px rgba(0,0,0,.06)}.paper p{margin:0 0 1em}.paper p:last-child{margin-bottom:0}');
+html.push('.verdict{margin:28px 0 0;padding:34px 24px;border-radius:6px;text-align:center;color:var(--send-ink);background:var(--send)}.verdict.back{background:var(--back);color:var(--back-ink)}.verdict.none{background:var(--none);color:var(--none-ink)}.verdict .word{font:800 clamp(28px,6vw,64px)/1.05 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.06em;text-transform:uppercase;margin:0}.verdict .why{margin:14px auto 0;max-width:720px;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;opacity:.92}.verdict .numbers{list-style:none;padding:0;margin:18px 0 0;display:flex;gap:10px 22px;justify-content:center;flex-wrap:wrap;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}.verdict .numbers b{font-size:20px;margin-right:6px;font-variant-numeric:tabular-nums}');
+html.push('.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:28px;margin-top:4px}.frame{margin:0;background:var(--paper);border:10px solid var(--frame);outline:1px solid var(--rule);box-shadow:inset 0 0 0 1px var(--rule),inset 0 0 0 6px var(--paper),inset 0 0 0 7px var(--frame),0 10px 24px rgba(0,0,0,.12);padding:34px 28px 26px;display:flex;flex-direction:column;align-items:center;text-align:center}');
+html.push('.badge{font:700 12px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:7px 12px;border:1px solid var(--frame);border-radius:999px;color:var(--ink)}.badge.failed,.badge.missing{color:var(--bad);border-color:var(--bad)}.badge.critique{color:var(--ink-2);border-color:var(--ink-3)}.badge .mark{font-weight:400;letter-spacing:0;text-transform:none;margin-left:6px;color:var(--ink-2)}.flip-valid .badge .mark{color:var(--good)}.flip-invalid .badge .mark{color:var(--bad)}');
+html.push('.frame blockquote{margin:22px 0 14px;padding:0;font-weight:700;font-style:italic;font-size:22px;line-height:1.35;quotes:"\\201C" "\\201D"}.frame blockquote:before{content:open-quote;display:block;font-size:52px;line-height:.4;color:var(--ink-3);margin-bottom:14px;font-style:normal}.frame figcaption{font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.frame figcaption .seat{color:var(--ink-3)}.frame .final{font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);margin-top:10px}');
+html.push('details{margin-top:14px;width:100%}summary{cursor:pointer;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);text-align:center;list-style:none}summary::-webkit-details-marker{display:none}summary:before{content:"+ ";color:var(--ink-3)}details[open]>summary:before{content:"– "}.read{text-align:left;font-size:15px;line-height:1.6;margin-top:12px;padding-top:12px;border-top:1px solid var(--rule)}.read p{margin:0 0 .9em}.read.failed{color:var(--ink-2)}');
+html.push('.fold{margin-top:28px;border-top:1px solid var(--rule);padding-top:10px}.fold>summary{text-align:left;font-weight:600;color:var(--ink)}.fold>summary:before{content:"+ "}.fold[open]>summary:before{content:"– "}');
+html.push('table{border-collapse:collapse;width:100%;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin-top:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top}th{color:var(--ink-2);font-weight:600}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mark{color:var(--ink-2);font-size:12px}td.flip-valid .mark{color:var(--good)}td.flip-invalid .mark{color:var(--bad)}.missing,.failed{color:var(--ink-3);font-style:italic}.critique{color:var(--ink-2)}code{font-size:13px}.note{font:13px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}a{color:inherit}');
 html.push('</style></head><body><main>');
 html.push('<p class="motto">Reading is Peace. Writing is War.</p>');
 html.push('<div class="bar"><h1>Combat Writing board — '+esc(path.basename(runDir))+'</h1><button type="button" id="theme" aria-label="Switch light and dark">Light / dark</button></div>');
-html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies: '+esc(companies.join(', '))+'.')+' '+esc(lib.nameSources(seats))+'</p>');
-lib.crewStateLines(runDir,seats,log).forEach(function(l){ html.push('<p class="meta"><strong>Seats:</strong> '+esc(l)+'</p>'); });
-html.push('<p class="meta"><strong>Seat key:</strong> '+esc(lib.seatKey(seats))+'</p>');
-html.push('<p class="meta"><strong>Drafts:</strong> '+(drafts.length?esc(drafts.join(', '))+'.':'none yet; the draft joins the run when sparring or battle brings it.')+(fs.existsSync(path.join(runDir,'brief.md'))?' <strong>Brief:</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
-// Where the run started (2026-10-14: the order of the stages is the person's choice).
-html.push('<p class="meta"><strong>Started at:</strong> '+esc(lib.startedAtLine(runDir,log,rounds))+'</p>');
 
-html.push('<h2>Scoreboard</h2>');
-html.push('<p class="note">Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Not asked means the round was put to other seats only. Critique means the round asked for no rating (a battle round rates only on <code>rerate</code>). Truncated means the add-on cut an outside seat\'s second overrun at the cap, with its first line kept.</p>');
+// 1. The draft, in full.
+if(newestDraft){
+  html.push('<h2>The draft'+(newestDraft!=='draft.md'?' · '+esc(newestDraft)+', a revision':'')+'</h2>');
+  html.push('<div class="paper">'+paras(lib.readText(path.join(runDir,newestDraft)))+'</div>');
+}else{
+  html.push('<h2>The draft</h2><p class="meta">None yet. The brief is stored; the draft joins the run when sparring or battle brings it.</p>');
+}
+
+// 2. The verdict across the page.
+html.push('<section class="verdict '+verdictClass+'" aria-label="Verdict"><p class="word">'+esc(verdict)+'</p><p class="why">'+esc(verdictWhy)+'</p>');
+if(rated.length)html.push('<ul class="numbers">'+rated.map(function(x){return '<li><b>'+x.latest.rating+'/10</b>'+esc(lib.seatLabel(x.seat))+'</li>';}).join('')+'</ul>');
+html.push('</section>');
+
+// 3. One framed quote per seat.
+if(tableRounds.length){
+  html.push('<h2>The seats</h2>');
+  html.push('<div class="gallery">');
+  seats.forEach(function(s){
+    var t=latestTurn(s);
+    var c=t?t.cell:null;
+    var kind=c?c.kind:'unread';
+    var badge, quote, fold='';
+    if(!c){ badge='<span class="badge missing">Not yet read</span>'; quote='This seat has not been put to the draft yet.'; }
+    else if(c.kind==='missing'){ badge='<span class="badge missing">Missing</span>'; quote='No answer this round. Nothing stands in for it.'; }
+    else if(c.kind==='failed'){
+      badge='<span class="badge failed">Failed read'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
+      quote='Failed read: '+c.reasons[0]+'.';
+      fold='<details><summary>The failed read ('+c.words+' words)</summary><div class="read failed">'+paras(c.answer)+'</div></details>';
+    }else{
+      badge=c.kind==='critique'
+        ?'<span class="badge critique">Critique · no rating asked'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>'
+        :'<span class="badge">Rating '+c.rating+'/10'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
+      quote=lib.verdictLine(c.answer,c.contract)||'(no words after the first line)';
+      fold='<details><summary>Read the full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words)</summary><div class="read">'+paras(c.answer)+'</div></details>';
+    }
+    var finalLine='';
+    if(finalRounds.length){ var f=finalCell(s,finalRounds[finalRounds.length-1]); finalLine='<p class="final">'+esc(finalRounds[finalRounds.length-1])+': '+esc(finalText(f))+'</p>'; }
+    html.push('<figure class="frame '+esc(kind)+'" data-seat="'+esc(s.id)+'">'+badge+'<blockquote>'+esc(quote)+'</blockquote><figcaption>— '+esc(lib.seatLabel(s))+(t?' <span class="seat">· round '+esc(t.round)+'</span>':'')+'</figcaption>'+finalLine+fold+'</figure>');
+  });
+  html.push('</div>');
+}
+
+// 4. Folded: every round, the scoreboard.
 if(rounds.length){
-  html.push('<table><thead><tr><th>Seat</th>'+rounds.map(function(r){return '<th>'+esc(r)+'</th>';}).join('')+'</tr></thead><tbody>');
-  seats.forEach(function(s,si){
-    html.push('<tr><td><span class="key" style="background:var(--series-'+(si%8+1)+')"></span>'+esc(lib.seatLabel(s))+'</td>');
+  html.push('<details class="fold"><summary>Every round: the scoreboard</summary>');
+  html.push('<p class="note">'+esc(lib.SCOREBOARD_LEGEND).replace(/`rerate`/,'<code>rerate</code>')+'</p>');
+  html.push('<table><thead><tr><th>Seat</th>'+rounds.map(function(r){return '<th>'+esc(r)+'</th>';}).join('')+'<th>Latest</th></tr></thead><tbody>');
+  seats.forEach(function(s){
+    html.push('<tr><td>'+esc(lib.seatLabel(s))+'</td>');
     rounds.forEach(function(r){
       if(lib.isFinalRound(r)){
         var f=finalCell(s,r);
@@ -184,37 +207,48 @@ if(rounds.length){
       else if(c.kind==='critique')html.push('<td class="num critique"><span class="critique" title="'+esc(c.title)+'">critique</span>'+(c.mark?'<br><span class="mark">'+esc(c.mark)+'</span>':'')+'</td>');
       else html.push('<td class="num '+c.kind+'">'+c.text+(c.mark?'<br><span class="mark"'+(c.title?' title="'+esc(c.title)+'"':'')+'>'+esc(c.mark)+'</span>':'')+'</td>');
     });
-    html.push('</tr>');
+    var lr=latestRating(s);
+    html.push('<td class="num">'+(lr?lr.rating+'/10':'—')+'</td></tr>');
   });
   html.push('</tbody></table>');
-}else html.push('<p class="note">'+esc(drafts.length
-  ?'No rounds yet. The draft'+(fs.existsSync(path.join(runDir,'brief.md'))?' and the brief are':' is')+' stored; no seat has read it. Next: '+lib.CMD.sparring+' for the first reads and ratings, or '+lib.CMD.battle+' to start with the discussion.'
-  :'No rounds yet. The brief is stored; there is no draft yet. Next: '+lib.CMD.sparring+' or '+lib.CMD.battle+' with the draft pasted; it joins this run.')+'</p>');
+  if(finalRounds.length){
+    html.push('<h2>Final reads</h2>');
+    html.push('<p class="note">The S/N ratio and red-flag reads of the newest draft, one pair per seat, never averaged.</p>');
+    html.push('<table><thead><tr><th>Seat</th>'+finalRounds.map(function(r){return '<th>'+esc(r)+' S/N</th><th>'+esc(r)+' red flags</th>';}).join('')+'</tr></thead><tbody>');
+    seats.forEach(function(s){
+      html.push('<tr><td>'+esc(lib.seatLabel(s))+'</td>'+finalRounds.map(function(r){
+        var f=finalCell(s,r);
+        return '<td class="num">'+(f[0].missing?'<span class="missing">missing</span>':f[0].ok?f[0].value+'%':'<span class="failed">failed read</span>')+'</td><td class="num">'+(f[1].missing?'<span class="missing">missing</span>':f[1].ok?(f[1].value===0?'none':String(f[1].value)):'<span class="failed">failed read</span>')+'</td>';
+      }).join('')+'</tr>');
+    });
+    html.push('</tbody></table>');
+    finalRounds.forEach(function(r){
+      seats.forEach(function(s){
+        var f=finalCell(s,r);
+        f.forEach(function(x){
+          if(x.missing)return;
+          html.push('<details><summary>'+esc(lib.seatLabel(s))+' · '+esc(r)+' · '+(x.c==='sn'?'S/N read':'red-flag read')+' ('+x.words+' words)</summary><div class="read">'+paras(x.answer)+'</div></details>');
+        });
+      });
+    });
+  }
+  html.push('</details>');
+}
 
-if(ratingRounds.length){
-  html.push('<h2>Ratings across rounds</h2>');
-  html.push('<div class="legend">'+seats.map(function(s,si){return '<span><span class="key" style="background:var(--series-'+(si%8+1)+')"></span>'+esc(lib.seatLabel(s))+'</span>';}).join('')+'</div>');
-  html.push(svg.join('\n'));
-  html.push('<p class="readout" id="readout" aria-live="polite">Hover or focus a point for its seat, round and mark. ✓ a valid flip, ✗ an invalid flip; a × on the missing row below the axis is a seat with no sound answer that round. A round that asked for no rating, or a seat the round was not put to, has no point here; the table above holds it.</p>');
-}
-if(finalRounds.length){
-  html.push('<h2>Final reads</h2>');
-  html.push('<p class="note">The S/N ratio and red-flag reads of the newest draft, one pair per seat, never averaged.</p>');
-  html.push('<table><thead><tr><th>Seat</th>'+finalRounds.map(function(r){return '<th>'+esc(r)+' S/N</th><th>'+esc(r)+' red flags</th>';}).join('')+'</tr></thead><tbody>');
-  seats.forEach(function(s){
-    html.push('<tr><td>'+esc(lib.seatLabel(s))+'</td>'+finalRounds.map(function(r){
-      var f=finalCell(s,r);
-      return '<td class="num">'+(f[0].missing?'<span class="missing">missing</span>':f[0].ok?f[0].value+'%':'<span class="failed">failed read</span>')+'</td><td class="num">'+(f[1].missing?'<span class="missing">missing</span>':f[1].ok?(f[1].value===0?'none':String(f[1].value)):'<span class="failed">failed read</span>')+'</td>';
-    }).join('')+'</tr>');
-  });
-  html.push('</tbody></table>');
-}
+// 5. Folded: the run details.
+html.push('<details class="fold"><summary>Run details</summary>');
+html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies: '+esc(companies.join(', '))+'.')+' '+esc(lib.nameSources(seats))+'</p>');
+lib.crewStateLines(runDir,seats,log).forEach(function(l){ html.push('<p class="meta"><strong>Seats:</strong> '+esc(l)+'</p>'); });
+html.push('<p class="meta"><strong>Seat key:</strong> '+esc(lib.seatKey(seats))+'</p>');
+html.push('<p class="meta"><strong>Drafts:</strong> '+(drafts.length?esc(drafts.join(', '))+'.':'none yet; the draft joins the run when sparring or battle brings it.')+(hasBrief?' <strong>Brief:</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
+html.push('<p class="meta"><strong>Started at:</strong> '+esc(lib.startedAtLine(runDir,log,rounds))+'</p>');
+if(!rounds.length)html.push('<p class="note">'+esc(verdictWhy)+'</p>');
 html.push('<p class="note">The full record, every answer in full and the log of what was sent, is <a href="record.md">record.md</a> in this folder.</p>');
+html.push('</details>');
 html.push('<script>');
-html.push('(function(){var b=document.getElementById("theme");var r=document.documentElement;b.addEventListener("click",function(){var dark=r.getAttribute("data-theme")==="dark"||(r.getAttribute("data-theme")!=="light"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches);r.setAttribute("data-theme",dark?"light":"dark");});');
-html.push('var out=document.getElementById("readout");if(out){var pts=document.querySelectorAll(".pt");function show(e){var g=e.currentTarget;out.textContent=g.getAttribute("data-seat")+" · "+g.getAttribute("data-round")+" · "+g.getAttribute("data-value");}for(var i=0;i<pts.length;i++){pts[i].addEventListener("mouseenter",show);pts[i].addEventListener("focus",show);}}})();');
+html.push('(function(){var b=document.getElementById("theme");var r=document.documentElement;b.addEventListener("click",function(){var dark=r.getAttribute("data-theme")==="dark"||(r.getAttribute("data-theme")!=="light"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches);r.setAttribute("data-theme",dark?"light":"dark");});})();');
 html.push('</script>');
 html.push('</main></body></html>');
-fs.writeFileSync(path.join(runDir,'board.html'),html.join('\n')+'\n');
-lib.appendLog(runDir,{event:'board.rendered',file:'board.html',rounds:rounds.length});
-process.stdout.write(path.join(runDir,'board.html')+'\n');
+fs.writeFileSync(path.join(runDir,lib.BOARD_FILE),html.join('\n')+'\n');
+lib.appendLog(runDir,{event:'board.rendered',file:lib.BOARD_FILE,rounds:rounds.length});
+process.stdout.write(path.join(runDir,lib.BOARD_FILE)+'\n');

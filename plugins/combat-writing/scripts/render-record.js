@@ -13,11 +13,14 @@
 // the log of what was sent. Nothing is averaged, summed or ranked. Rebuilt after every
 // round; the log and the answer files are the truth.
 //
-// --short prints the crew line and the scoreboard to stdout for the host to show, then the
-// Started-at line, the text Next line (2026-10-14: the host's picker offers the same moves and
-// prints this line on "Done for now"), the record's path, and last the seat key (one line, every
-// seat by id and short name, from the live crew); it still writes record.md. Without it, prints
-// the record's path.
+// --short prints what the person sees in the terminal after a round (2026-10-14: the board is
+// the result, the terminal is short): the crew line, the Seats line when the crew is short, the
+// scoreboard legend the first time this run prints it and never again (the log line
+// legend.printed), the scoreboard, the board's path, and last the seat key (one line, every
+// seat by id and short name, from the live crew). On a run with no round it prints the no-rounds
+// line and the Started-at line instead of the scoreboard. It still writes record.md. --next
+// prints the text Next line alone (the picker's "Done for now", or a host with no picker).
+// Without either, prints the record's path.
 
 var fs=require('fs'), path=require('path');
 var lib=require('./lib.js');
@@ -112,7 +115,7 @@ if(fs.existsSync(path.join(runDir,'brief.md'))){
 out.push('');
 out.push('## Scoreboard');
 out.push('');
-out.push('Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Not asked means the round was put to other seats only. Critique means the round asked for no rating (a battle round rates only on `rerate`). Truncated means the add-on cut an outside seat\'s second overrun at the cap, with its first line kept. The bar is the seat\'s latest rating.');
+out.push(lib.SCOREBOARD_LEGEND);
 out.push('');
 if(rounds.length){
   out.push('| Seat | '+rounds.join(' | ')+' | Latest |');
@@ -166,18 +169,22 @@ out.push('Full log: log.jsonl in this folder.');
 out.push('');
 fs.writeFileSync(path.join(runDir,'record.md'),out.join('\n'));
 lib.appendLog(runDir,{event:'record.rendered',file:'record.md',rounds:rounds.length});
-if(args.short===true){
+if(args.next===true){
+  process.stdout.write((rounds.length?lib.nextLine(seats):noRoundsLine)+'\n');
+}else if(args.short===true){
   var s=[out.filter(function(l){return l.indexOf('**Crew:**')===0;})[0],''];
   out.filter(function(l){return l.indexOf('**Seats:**')===0;}).forEach(function(l){ s.push(l,''); });
-  var tableStart=out.indexOf('## Scoreboard');
-  var tableEnd=out.indexOf('## Answers');
-  var board=out.slice(tableStart+1,tableEnd).filter(function(l){return l.trim()&&l.indexOf('**Next:**')!==0;});
-  var firstRow=board.findIndex(function(l){return l.indexOf('|')===0;});
-  if(firstRow>0)board.splice(firstRow,0,'');
-  s=s.concat(board);
-  s.push('','Started at: '+lib.startedAtLine(runDir,log,rounds));
-  if(rounds.length)s.push('',lib.nextLine(seats));
-  s.push('','Record: '+path.join(runDir,'record.md'));
+  if(rounds.length){
+    // The legend once per run: the first short form of the run prints it and logs that it did.
+    var legendShown=log.some(function(e){return e.event==='legend.printed';});
+    if(!legendShown){ s.push(lib.SCOREBOARD_LEGEND,''); lib.appendLog(runDir,{event:'legend.printed'}); }
+    var tableStart=out.indexOf('## Scoreboard');
+    var tableEnd=out.indexOf('## Answers');
+    s=s.concat(out.slice(tableStart+1,tableEnd).filter(function(l){return l.indexOf('|')===0;}));
+    s.push('','Board: '+path.join(runDir,lib.BOARD_FILE));
+  }else{
+    s.push(noRoundsLine,'','Started at: '+lib.startedAtLine(runDir,log,rounds));
+  }
   s.push('','Seat key: '+lib.seatKey(seats));
   process.stdout.write(s.join('\n')+'\n');
 }else process.stdout.write(path.join(runDir,'record.md')+'\n');

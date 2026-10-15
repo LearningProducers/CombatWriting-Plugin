@@ -72,6 +72,36 @@ expectFail('empty first line','\nRATING: 8/10\nReasoning.\n',/empty/);
 expectFail('no reasoning','RATING: 8/10\n',/no reasoning/);
 expectFail('no reasoning, blank lines','RATING: 8/10\n\n   \n',/no reasoning/);
 
+// The number and the verdict must agree (2026-10-14): an 8 to 10 that says not send-ready, or a
+// 1 to 6 that says it ships as is, fails with the reason; the measured answers of the first real
+// run (a 9 over "The draft is not send-ready", an 8 over "Not send-ready.") fail; the agreeing
+// forms pass; a "ready" phrase under a negation reads as not ready, and one in a conditional
+// clause ("to make this ready to send") is no verdict; a 6 is sent back for "ships as is" (the bands
+// ruled 2026-10-14: 8 and above SEND, 1 to 6 BACK, 7 forbidden).
+expectFail('9 over not send-ready','RATING: 9/10\n\nThe draft is not send-ready. It violates the structural rule.\n\nTo make this send-ready, merge the sentences.\n',/rating 9\/10 calls the draft a working document \(8 to 10\), but the answer says "not send-ready"; make the number and the verdict agree/);
+expectFail('8 over Not send-ready','RATING: 8/10\n\nNot send-ready. One change: put his name in the greeting.\n',/working document.*"Not send-ready"/);
+expectFail('10 over do not send','RATING: 10/10\nDo not send this yet.\n',/working document.*"Do not send"/);
+expectFail('9 over back to the drawing board','RATING: 9/10\nBack to the drawing board: the ask is missing.\n',/working document.*"Back to the drawing board"/);
+expectFail('9 over is not ready to send','RATING: 9/10\nThis is not ready to send.\n',/working document.*"not ready to send"/);
+expectFail('4 over ships as is','RATING: 4/10\nIt ships as is.\n',/rating 4\/10 calls the draft a problem document \(1 to 6\), but the answer says "ships as is"; make the number and the verdict agree/);
+expectFail('3 over is send-ready','RATING: 3/10\nThe draft is send-ready.\n',/problem document.*"is send-ready"/);
+expectFail('5 over ready to send','RATING: 5/10\nReady to send; one nit.\n',/problem document.*"Ready to send"/);
+expectFail('6 over ships as is','RATING: 6/10\nShips as is, if you accept the risk.\n',/rating 6\/10 calls the draft a problem document \(1 to 6\), but the answer says "Ships as is"/);
+expectPass('6 over not ready to send','RATING: 6/10\nNot ready to send: name him first.\n');
+expectPass('9 over ready to send','RATING: 9/10\nReady to send. One nit.\n');
+expectPass('8 over ship it as is','RATING: 8/10\nShip it as is.\n');
+expectPass('4 over not ready to send','RATING: 4/10\nThis is not ready to send.\n');
+expectPass('2 over do not send','RATING: 2/10\nDo not send this.\n');
+expectPass('4 over a conditional ready','RATING: 4/10\nTo make this ready to send, cut the second paragraph.\n');
+expectPass('3 over until send-ready','RATING: 3/10\nUntil it is send-ready, hold it.\n');
+expectPass('9 with no verdict phrase','RATING: 9/10\nThe ask lands and the evidence holds.\n');
+check(lib.verdictOf('Not send-ready. Ready to send after one fix.').verdict==='not-ready','verdictOf: the first phrase in reading order is the verdict');
+check(lib.verdictOf('Nothing here.')===null,'verdictOf: no phrase, no verdict');
+// A critique answer is never held to the agreement rule: it has no number.
+var critTmp=path.join(tmp,'crit.answer.md'); fs.writeFileSync(critTmp,'Not send-ready. Put his name in the greeting.\n');
+var critR=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),critTmp,'--contract','critique'],{encoding:'utf8'});
+check(critR.status===0,'critique contract: a verdict phrase alone must pass, got '+critR.status);
+
 var long='RATING: 6/10\n'+new Array(520).join('word ')+'\n';
 expectFail('over cap',long,/over the cap of 500/);
 expectPass('raised cap',long,['--word-cap','600']);

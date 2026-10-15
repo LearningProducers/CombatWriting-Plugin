@@ -151,7 +151,15 @@ check(sentRows.some(function(l){return /\| 04-final \| seat-1 \| rounds\/04-fina
 var sh=node('render-record.js',['--run',run,'--short']);
 check(sh.status===0&&sh.stdout.indexOf('**Crew:**')===0&&sh.stdout.indexOf(CREDIT)<0,'--short: should open with the crew line and carry no credit line');
 check(sh.stdout.indexOf('| Seat |')>=0&&sh.stdout.indexOf('## Answers')<0&&sh.stdout.indexOf(S2LINE)<0,'--short: should hold the scoreboard and not the answers');
-check(/Record: .*record\.md/.test(sh.stdout),'--short: no record path');
+check(!/Record: /.test(sh.stdout)&&sh.stdout.indexOf('Board: '+path.join(run,'board.html'))>=0,'--short: should carry the Board line and no Record line');
+// The legend once per run (2026-10-14): this is the run's first short form, so it carries the
+// legend; the second does not, and the log says it printed once.
+var LEGEND_START='Every number is one seat\'s own. Nothing here is averaged.';
+check(sh.stdout.indexOf(LEGEND_START)>=0,'--short (first of the run): should carry the scoreboard legend');
+var sh2=node('render-record.js',['--run',run,'--short']);
+check(sh2.status===0&&sh2.stdout.indexOf(LEGEND_START)<0&&sh2.stdout.indexOf('| Seat |')>=0,'--short (second of the run): should carry the scoreboard and not the legend');
+check(fs.readFileSync(path.join(run,'log.jsonl'),'utf8').split('\n').filter(function(l){return /"event":"legend.printed"/.test(l);}).length===1,'log: legend.printed should appear exactly once');
+check(fs.readFileSync(path.join(run,'record.md'),'utf8').indexOf(LEGEND_START)>=0,'record.md: should keep the legend');
 check(sh.stdout.trim().split('\n').pop()==='Seat key: seat-1 Test Model · seat-2 Test Model · seat-3 Test Model','--short: the last line should be the seat key, got '+JSON.stringify(sh.stdout.trim().split('\n').pop()));
 
 // A round of seat lines alone (ruled 2026-10-09): round 2 goes to seat-2 only.
@@ -174,7 +182,7 @@ check(soShort.indexOf('not asked')>=0&&soShort.indexOf('missing')<0,'seat-only r
 
 // The log.
 var log=fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);});
-check(log.filter(function(e){return e.event==='record.rendered';}).length===2,'log: expected two record.rendered lines');
+check(log.filter(function(e){return e.event==='record.rendered';}).length===3,'log: expected three record.rendered lines (the full render and the two short forms)');
 check(log.some(function(e){return e.event==='draft.added'&&e.file==='draft-2.md'&&e.sha256;}),'log: draft.added missing');
 
 // Refusal.

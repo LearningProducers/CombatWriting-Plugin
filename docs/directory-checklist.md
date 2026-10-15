@@ -46,7 +46,7 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 
 | Item | Result | Satisfied by |
 |---|---|---|
-| Every non-image, non-font file under 256 KiB | pass | `tests/license_check.js` fails any file at or over 262,144 bytes; the largest plugin file is `scripts/render-board.js` at 17,214 bytes (2026-10-09) |
+| Every non-image, non-font file under 256 KiB | pass | `tests/license_check.js` fails any file at or over 262,144 bytes; the largest plugin file is `scripts/lib.js` at 36,727 bytes (2026-10-14) |
 | 512 files or fewer | pass | the plugin folder holds 32 tracked files (2026-10-08) |
 | Only text files, SVG, complete PNG, JPEG, GIF, WebP and fonts; no other binary | pass | every file in the plugin folder is text (Markdown, JavaScript, JSON, YAML) |
 | Bundled images referenced only by Markdown image syntax, never from commands, hooks or scripts | n/a | the plugin bundles no image or font |

@@ -85,6 +85,19 @@ function nextLine(seats){
 // The line a packet carries when the round asks for no rating; the checker and the add-on read it.
 var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your critique.';
 
+// Every packet carries this line, hardwired, in its Contract section (the founder's words,
+// 2026-10-14): a seat that thinks out loud in its answer is the wall of text the person reads.
+var SIGNAL_LINE='Do not be verbose. Do not ramble. Only high signal-to-noise responses, no cosplay explanations, no thinking out loud in the answer.';
+// The verdict sentence (2026-10-14): the first sentence after the first line is the seat's
+// verdict on the draft, the line the board frames. The packet says so in these words.
+var VERDICT_SENTENCE_LINE='Your first sentence after it is your verdict on the draft, in one line.';
+var VERDICT_SENTENCE_LINE_CRITIQUE='Your first sentence is your verdict on the draft, in one line.';
+
+// The scoreboard legend, one paragraph: record.md carries it, and the short form prints it
+// once per run (2026-10-14), the first time it prints, never again in that run.
+var SCOREBOARD_LEGEND='Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Not asked means the round was put to other seats only. Critique means the round asked for no rating (a battle round rates only on `rerate`). Failed read means the answer broke the contract it was sent, the rating line, the cap, or a number that contradicts the verdict. Truncated means the add-on cut an outside seat\'s second overrun at the cap, with its first line kept. The bar is the seat\'s latest rating.';
+var BOARD_FILE='board.html';
+
 function parseArgs(argv){
   var out={_:[]};
   for(var i=0;i<argv.length;i++){
@@ -353,6 +366,63 @@ function flipInputs(runDir,seat,round,seats){
 
 function wordCount(text){ return text.split(/\s+/).filter(Boolean).length; }
 
+// The verdict in an answer (2026-10-14): a seat's number and its words must agree. 8 to 10 is a
+// working document, 1 to 6 a problem document (the seat's own rule); an 8 to 10 that says the
+// draft is not send-ready, or a 1 to 6 that says it ships as it is, is a failed read, and the
+// seat is sent back once with the reason, like an overrun. The phrases are these and no others;
+// the first one found, in reading order, is the verdict. A "ready" phrase with a negation in
+// the same clause before it ("is not ready to send") reads as not ready; one in a conditional
+// clause ("to make this ready to send", "until it is send-ready") is no verdict at all.
+var NOT_READY_RE=/\b(?:not|isn[’']t|never|nowhere near)\s+(?:yet\s+)?send[- ]ready\b|\bnot\s+(?:yet\s+)?ready\s+(?:to\s+(?:send|ship|publish|go)|as\s+(?:it\s+)?is)\b|\b(?:do\s+not|don[’']t)\s+(?:send|ship|publish)\b|\bback\s+to\s+the\s+drawing\s+board\b/i;
+var READY_RE=/\bships?\s+as[- ](?:it\s+)?is\b|\b(?:send|ship|publish)\s+(?:it\s+)?as[- ](?:it\s+)?is\b|\bready\s+to\s+(?:send|ship|publish)\b|\b(?:is|it[’']s|is\s+now|now)\s+send[- ]ready\b|\bsend[- ]ready\s+as[- ](?:it\s+)?is\b|\bships\s+(?:today|now)\b/i;
+var NEGATION_RE=/\b(?:not|n[’']t|never|nor|far\s+from|hardly|without|isn[’']t|aren[’']t|wasn[’']t)\b|n[’']t\b/i;
+var CONDITIONAL_RE=/\b(?:make|makes|making|made|until|before|once|if|unless|would\s+be|to\s+be|to\s+get|get|gets|become|becomes|becoming|so\s+(?:that\s+)?it|needs?\s+to\s+be|should\s+be|could\s+be|must\s+be|what\s+would)\b/i;
+function verdictPhrases(text){
+  var found=[];
+  var flat=String(text||'').replace(/\s+/g,' ');
+  function clauseBefore(idx){
+    var start=idx;
+    while(start>0&&!/[.!?;:\n]/.test(flat[start-1]))start--;
+    return flat.slice(Math.max(start,idx-60),idx);
+  }
+  var re=new RegExp(NOT_READY_RE.source+'|'+READY_RE.source,'gi'), m;
+  while((m=re.exec(flat))){
+    var phrase=m[0];
+    var notReady=NOT_READY_RE.test(phrase);
+    NOT_READY_RE.lastIndex=0;
+    var before=clauseBefore(m.index);
+    if(!notReady){
+      if(NEGATION_RE.test(before))notReady=true;
+      else if(CONDITIONAL_RE.test(before))continue;
+    }
+    found.push({verdict:notReady?'not-ready':'ready',phrase:phrase,index:m.index});
+  }
+  return found;
+}
+function verdictOf(text){ var f=verdictPhrases(text); return f.length?f[0]:null; }
+
+// The one-line verdict the board frames: the first sentence or two of the answer after its
+// first line (the whole answer under the critique contract), cut at a sentence end before
+// 200 characters, else at a word with an ellipsis. Markdown list and heading marks are dropped.
+var VERDICT_MAX=200;
+function verdictLine(text,contract){
+  var lines=String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/);
+  var body=lines.slice(contract==='critique'?0:1);
+  var para='';
+  for(var i=0;i<body.length;i++){
+    var l=body[i].replace(/^[\s#>*\-]+/,'').trim();
+    if(!l){ if(para)break; else continue; }
+    para+=(para?' ':'')+l;
+  }
+  para=para.replace(/\*\*|__|`/g,'').replace(/\s+/g,' ').trim();
+  if(para.length<=VERDICT_MAX)return para;
+  var head=para.slice(0,VERDICT_MAX+1);
+  var cut=Math.max(head.lastIndexOf('. '),head.lastIndexOf('! '),head.lastIndexOf('? '),head.lastIndexOf('." '),head.lastIndexOf('.” '));
+  if(cut>=40)return para.slice(0,cut+1).replace(/[”"]$/,'').replace(/\.$/,'.');
+  var sp=head.lastIndexOf(' ');
+  return para.slice(0,sp>40?sp:VERDICT_MAX).replace(/[\s,;:]+$/,'')+'…';
+}
+
 // Which first-line contract an answer file is under, from its name alone. A battle answer
 // in a round that asked for no rating is under the 'critique' contract instead; contractSent
 // reads that from the packet, since the file name is the same.
@@ -398,6 +468,11 @@ function checkAnswer(text,wordCap,contract){
       rating=parseInt(m[1],10);
       if(rating<1||rating>10)reasons.push('rating '+rating+' is outside 1 to 10');
       else if(rating===7)reasons.push('rating is 7; 7 is forbidden, commit to 6 or 8');
+      else{
+        var v=verdictOf(lines.slice(1).join('\n'));
+        if(v&&rating>=8&&v.verdict==='not-ready')reasons.push('rating '+rating+'/10 calls the draft a working document (8 to 10), but the answer says "'+v.phrase+'"; make the number and the verdict agree');
+        if(v&&rating<=6&&v.verdict==='ready')reasons.push('rating '+rating+'/10 calls the draft a problem document (1 to 6), but the answer says "'+v.phrase+'"; make the number and the verdict agree');
+      }
     }
   }else if(contract==='sn'){
     m=/^S\/N RATIO: (\d{1,3})%$/.exec(first);
@@ -479,7 +554,8 @@ module.exports={
   RUNS_DIR:RUNS_DIR,DEFAULT_WORD_CAP:DEFAULT_WORD_CAP,DEFAULT_SYNTHESIS_WORD_CAP:DEFAULT_SYNTHESIS_WORD_CAP,
   DEFAULT_FINAL_WORD_CAP:DEFAULT_FINAL_WORD_CAP,DEFAULT_COMPANY:DEFAULT_COMPANY,MODEL_UNREPORTED:MODEL_UNREPORTED,
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
-  DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,NO_RATING_LINE:NO_RATING_LINE,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
+  DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,NO_RATING_LINE:NO_RATING_LINE,
+  SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,

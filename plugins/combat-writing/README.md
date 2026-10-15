@@ -27,7 +27,7 @@ One command per stage: strategy, sparring, battle; champion has no command yet, 
 
 ## Example prompts
 
-The strategy prompt below was run on 2026-10-13 and the other three on 2026-10-08, each in a scratch project. The block after each prompt is the first lines of what came back, labeled as example output; the model named in it is the one that answered that day, and yours may differ. The ratings are the seats' own; the draft was a CEO's letter asking a board to approve a letter of intent. The prompts are written in the plugin's current keywords, which were ruled on 2026-10-09 after that run, and in its current name, `cw`, which replaced `combat-writing` on 2026-10-14 (the command names inside the output blocks are updated the same way); the output blocks are otherwise kept as they came back that day, when the crew was three fresh readers and every battle round rated. Today the crew is one fresh reader plus the outside seats the add-on registers, a battle round rates only with `rerate`, and a sparring or battle result ends with the next-round picker rather than a text line. The blocks that day also opened with the credit line, which run output no longer carries (ruled 2026-10-12); that line is cut from them here.
+The strategy prompt below was run on 2026-10-13 and the other three on 2026-10-08, each in a scratch project. The block after each prompt is the first lines of what came back, labeled as example output; the model named in it is the one that answered that day, and yours may differ. Since 0.6.0 (2026-10-14) the terminal stops at the scoreboard, the board's path and the seat key, so the sparring and battle blocks below end at their scoreboards; the reads that followed them in the terminal that day are on the board now, one framed verdict per seat, the full read folded under a click. The ratings are the seats' own; the draft was a CEO's letter asking a board to approve a letter of intent. The prompts are written in the plugin's current keywords, which were ruled on 2026-10-09 after that run, and in its current name, `cw`, which replaced `combat-writing` on 2026-10-14 (the command names inside the output blocks are updated the same way); the output blocks are otherwise kept as they came back that day, when the crew was three fresh readers and every battle round rated. Today the crew is one fresh reader plus the outside seats the add-on registers, a battle round rates only with `rerate`, and a sparring or battle result ends with the next-round picker rather than a text line. The blocks that day also opened with the credit line, which run output no longer carries (ruled 2026-10-12); that line is cut from them here.
 
 ```
 /cw:help
@@ -79,10 +79,6 @@ Crew: Claude Fable 5.1 (Anthropic), seat-1; Claude Fable 5.1 (Anthropic), seat-2
 | Claude Fable 5.1 (Anthropic), seat-1 | 6/10 | ██████░░░░ 6/10 |
 | Claude Fable 5.1 (Anthropic), seat-2 | 6/10 | ██████░░░░ 6/10 |
 | Claude Fable 5.1 (Anthropic), seat-3 | 6/10 | ██████░░░░ 6/10 |
-
-RATING: 6/10
-
-An ask lands in the first paragraph. The wrong one. You open with "I am writing to ask for your approval to acquire Northwind Analytics before the end of the quarter." Your brief says the purpose is to get the board to approve a letter of intent this week. Those are two different decisions with two different clocks.
 ```
 
 ```
@@ -99,19 +95,13 @@ Crew: Claude Fable 5.1 (Anthropic), seat-1; Claude Fable 5.1 (Anthropic), seat-2
 | Claude Fable 5.1 (Anthropic), seat-1 | 6/10 | 6/10 · Stand | ██████░░░░ 6/10 |
 | Claude Fable 5.1 (Anthropic), seat-2 | 6/10 | 6/10 · Stand | ██████░░░░ 6/10 |
 | Claude Fable 5.1 (Anthropic), seat-3 | 6/10 | 6/10 · Stand | ██████░░░░ 6/10 |
-
-RATING: 6/10
-
-Stand. All three of us read the same fault, and nothing in the other seats' answers moves the rating, because they confirm it rather than add a second one.
-
-On the navigation note first. The note says the second seat called the close weak. I read seat-2's answer twice and it does not say that.
 ```
 
 ## What a run looks like
 
 The crew is one fresh reader plus one seat per outside model the add-on has a key for; nothing is padded, so without the add-on the crew is one seat and with one free Groq key it is three. The fresh reader is a separate agent started for one job, with no memory of your conversation, never the assistant you are talking to. A script assembles each seat's packet from files on disk (the draft, your brief, the seat's own earlier turn and its latest rating, the other seats' answers from the previous round labeled by model and company when the round shares them, your guidance or question) and carries it; nothing is retyped. Every packet of a round is built before any seat starts, so no seat sees another's new answer before giving its own. Every seat is told the word cap (500 words for a read alone, 600 when it quotes others, 250 for a final read); a seat over it is sent back once. A seat that fails or does not answer is shown as missing, never replaced; a seat a round was not put to is shown as not asked. In a host that cannot start separate agents, the crew is one seat, the host, and every result says so. When the crew is smaller than you expect, a Seats line under the crew line names which of three states applies (the add-on not installed; installed but its server not running; running but no key for a provider) and the exact next command: the install line, `/mcp`, or `/plugin configure combat-writing-crew` with the key field to fill.
 
-Every run leaves a folder in your project, `combat-writing/runs/<run-id>/`, with the draft snapshot and any revisions, the brief, every packet, every answer, a timestamped log, `record.md` (the full record: the stage the run started at, the scoreboard, every answer in full, the text Next line, the log of what was sent) and `board.html` (the same scoreboard and a chart of each seat's rating across rounds, one self-contained page, light and dark, no outside request). What you paste is written whole to `combat-writing/inbox/` before anything is parsed. Nothing is written anywhere else.
+Every run leaves a folder in your project, `combat-writing/runs/<run-id>/`, with the draft snapshot and any revisions, the brief, every packet, every answer, a timestamped log, `record.md` (the full record: the stage the run started at, the scoreboard, every answer in full, the text Next line, the log of what was sent) and `board.html`, the result: it opens in your browser after every sparring and battle round, a local file never published, with the draft, SEND or BACK TO THE DRAWING BOARD across the top from every seat's own latest rating with nothing averaged, one framed quote per seat (its one-line verdict, cited to the model by name and company) with the full read folded under a click, and the scoreboard of every round folded below (one self-contained page, light and dark, no outside request). The terminal shows the crew line, the scoreboard, the board's path and the picker, and nothing else. What you paste is written whole to `combat-writing/inbox/` before anything is parsed. Nothing is written anywhere else.
 
 ## What it runs, sends and fetches
 

@@ -54,7 +54,7 @@ Every sparring and battle result ends with a picker instead of a line to retype 
 
 ## Where files land
 
-- `combat-writing/runs/<date-time-slug>/` in your project: the draft snapshot and any revisions, the brief (written by strategy, or by sparring or battle when a draft is pasted there), every packet, every answer, `log.jsonl`, `record.md` (the full record, with the stage the run started at and the text Next line) and `board.html` (the visual board).
+- `combat-writing/runs/<date-time-slug>/` in your project: the draft snapshot and any revisions, the brief (written by strategy, or by sparring or battle when a draft is pasted there), every packet, every answer, `log.jsonl`, `record.md` (the full record, with the stage the run started at and the text Next line) and `board.html` (the board, the result: it opens in your browser after every sparring and battle round, a local file, never published).
 - `combat-writing/inbox/` in your project: whatever you paste, written whole before anything is parsed, then cut into the draft, the brief and the questions.
 - Nothing is written anywhere else. Nothing is fetched. The plugin holds no keys and calls no service.
 
@@ -82,14 +82,16 @@ The host tells the first two apart with `claude plugin list`, which reads only; 
 - In sparring, and in a battle round where you ask with `rerate`, the first line of every answer is `RATING: X/10`, 1 to 10. **7 is forbidden.** A seat on the fence commits to 6 or 8.
 - A battle round without `rerate` asks for no rating: the seat opens with its critique, and the record shows the round as a critique.
 - The rating leads every result. Scores are never averaged. Every seat's number stands on its own.
+- A seat's number and its words must agree. 8 to 10 is a working document, 1 to 6 a problem document: an 8 or more over "not send-ready", or a 6 or less over "ships as is", is a failed read, and the seat is sent back once with the reason, like an answer over the word cap. Every packet tells the seat, in the founder's words: do not be verbose, do not ramble, only high signal-to-noise responses, no cosplay explanations, no thinking out loud in the answer.
 - A seat that changes its rating must quote, word for word, the line that moved it and name the seat. The quote is checked by code. No match: the flip is marked invalid, the rating still shown. A seat that holds says Stand.
 - A seat that fails or does not answer is shown as missing. Nothing stands in for it.
 - The final reads carry their own first lines, `S/N RATIO: XX%` and `NO RED FLAGS` or `RED FLAGS FOUND: X`; they are not ratings.
 
 ## The record
 
+- The terminal, after every sparring and battle round: the crew line, the scoreboard (its legend once per run), the board's path and the picker, and nothing else. The reads are on the board.
+- `board.html`, the result: it opens in your browser after every round. The draft; then SEND or BACK TO THE DRAWING BOARD across the top, from every seat's own latest rating and nothing averaged (every seat at 8 or more sends; any seat at 6 or less sends it back, and the band names it); then one framed quote per seat, the seat's one-line verdict in bold, cited to the model by name and company, with the full read folded under a click; then, folded, the scoreboard of every round and the run details. Light and dark, one file, no outside requests, a local file never published.
 - `record.md`: the crew, the seat key, the drafts and brief, the stage the run started at and its first round, the scoreboard (one row per seat, one column per round, flips marked, Stand marked, critique rounds marked, truncated reads marked, missing marked, not asked marked), every answer in full, the log of what was sent.
-- `board.html`: the same scoreboard and a chart of each seat's rating across the rated rounds, light and dark, one file, no outside requests.
 
 ## The draft is untrusted
 

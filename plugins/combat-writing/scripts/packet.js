@@ -47,6 +47,11 @@
 // Word cap: --word-cap, else 600 when other seats' answers are carried, 250 in final
 // mode, 500 otherwise.
 //
+// Every packet's Contract section carries lib.SIGNAL_LINE, hardwired (2026-10-14): no thinking
+// out loud in the answer. A rating or critique packet also says the first sentence after the
+// first line is the seat's verdict in one line, the line the board frames; and a rating packet
+// says the number and the verdict must agree (checked by check-answer.js).
+//
 // A first round that is a battle round (2026-10-14: any stage may be skipped, the order is the
 // person's choice): there is no previous round, so --sn and --sfq carry no other seat's answer
 // and the packet says so in one line; a plain battle packet asks for a first critique (or a
@@ -183,11 +188,13 @@ else if(finalMode==='redflag'){
   // The app's knowledge-cutoff clause for this read, as its code sends it.
   out.push('KNOWLEDGE CUTOFF AWARENESS: Your training data may predate the document\'s timeframe. Dates that seem "future" to you may be present or past to the author — the real-world clock has advanced past your knowledge cutoff. Do NOT flag current or recent-seeming dates as "future dates," "fiction," or "speculative" on cutoff grounds alone. Only flag dates if they are internally inconsistent within the document itself (e.g., an event dated before its stated prerequisites). Cite exact lines for any flags. No analysis, no suggestions, no summaries beyond the flags. It is completely acceptable to return NO RED FLAGS — do not manufacture issues.');
 }
-else if(contract==='critique')out.push(lib.NO_RATING_LINE+' Your critique of the structure and content of the draft, with specific evidence from it. Under '+cap+' words.');
+else if(contract==='critique')out.push(lib.NO_RATING_LINE+' '+lib.VERDICT_SENTENCE_LINE_CRITIQUE+' Then your critique of the structure and content of the draft, with specific evidence from it. Under '+cap+' words.');
 else{
-  out.push('Your first line must be exactly `RATING: X/10`, uppercase, X a whole number from 1 to 10, never 7, nothing else on that line. Then your reasoning with specific evidence from the draft. Under '+cap+' words.');
+  out.push('Your first line must be exactly `RATING: X/10`, uppercase, X a whole number from 1 to 10, never 7, nothing else on that line. '+lib.VERDICT_SENTENCE_LINE+' Then your reasoning with specific evidence from the draft. Under '+cap+' words. The number and the verdict must agree: 8 to 10 is a working document, 1 to 6 a problem document; an 8 or more that says the draft is not send-ready, or a 6 or less that says it ships as it is, is a failed read.');
   if(ownRated){var lastRating=lib.parseRating(ownRated.text);if(lastRating!==null)out.push('Your latest rating was '+lastRating+'/10, in round '+ownRated.round+'. A new number is held against it.');}
 }
+out.push('');
+out.push(lib.SIGNAL_LINE);
 out.push('');
 if(brief){
   out.push('## Context brief');
