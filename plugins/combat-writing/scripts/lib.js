@@ -416,6 +416,27 @@ function flipInputs(runDir,seat,round,seats){
 
 function wordCount(text){ return text.split(/\s+/).filter(Boolean).length; }
 
+// The draft's counts (2026-10-15, Part 22): words, lines and paragraphs, measured by code from the
+// text as stored. A paragraph is a block separated by a blank line; a single newline inside one
+// is a line, not a paragraph, so a paste whose breaks were lost shows as one paragraph of one line.
+// draftFactsLine prints them; oneLineWarning says so when a long draft arrived as one line, before
+// any seat reads it (the inbox paste, the earliest record, already held it that way on the run of
+// 2026-10-15, so the warning is the guard).
+function draftFacts(text){
+  var src=String(text||'').replace(/\r\n/g,'\n').replace(/^\uFEFF/,'').replace(/\s+$/,'');
+  var lines=src?src.split('\n').filter(function(l){return l.trim()!=='';}).length:0;
+  var paragraphs=src?src.split(/\n\s*\n/).filter(function(b){return b.trim()!=='';}).length:0;
+  return {words:wordCount(src),lines:lines,paragraphs:paragraphs};
+}
+function draftFactsLine(f){
+  return f.words+' word'+(f.words===1?'':'s')+' · '+f.paragraphs+' paragraph'+(f.paragraphs===1?'':'s')+' · '+f.lines+' line'+(f.lines===1?'':'s');
+}
+var ONE_LINE_WORDS=60;
+function oneLineWarning(f){
+  if(f.lines===1&&f.words>ONE_LINE_WORDS)return 'The draft arrived as one line of '+f.words+' words; if it had paragraph breaks, paste it again.';
+  return null;
+}
+
 // The retry target (ruled 2026-10-15): a seat sent back over the cap is asked for a target well
 // under it, 80% (400 of 500, 480 of 600, 200 of 250), so the second answer has room; the cap
 // itself still holds. The add-on mirrors retryTarget word for word; crew_check.js pins the two equal.
@@ -692,6 +713,6 @@ module.exports={
   SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
-  capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip
 };

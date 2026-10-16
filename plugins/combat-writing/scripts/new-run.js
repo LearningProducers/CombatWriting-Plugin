@@ -70,7 +70,7 @@ var seats=[{id:'seat-1',model:model,company:company,
 fs.writeFileSync(path.join(runDir,'seats.json'),JSON.stringify({seats:seats},null,2)+'\n');
 
 lib.appendLog(runDir,{event:'run.created',run:path.basename(runDir),stage:stage,
-  draft:draft?{file:'draft.md',sha256:lib.sha256(draft),words:lib.wordCount(draft.toString('utf8'))}:null,
+  draft:draft?Object.assign({file:'draft.md',sha256:lib.sha256(draft)},lib.draftFacts(draft.toString('utf8'))):null,
   brief:briefHash?{file:'brief.md',sha256:briefHash}:null,
   seats:seats.map(function(s){return {id:s.id,model:s.model,company:s.company};}),
   crew_note:'one fresh reader, every seat is '+company+'\'s models until the crew add-on registers outside seats; the plugin never fakes a seat and never pads the crew'});

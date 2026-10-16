@@ -34,6 +34,10 @@
 //     given builds a packet that carries the stored draft and the stored brief and the default
 //     step-4 prompt, from the run folder alone; --cold leaves the brief out.
 //
+//   - The draft's counts (2026-10-15): words, lines and paragraphs logged by new-run.js and
+//     add-draft.js, on the Drafts line of the record and the board, and as a Draft line with the
+//     one-line warning in the short form after strategy.
+//
 // Run from the repo root:   node tests/strategy_check.js
 // Exit 0 on pass; exit 1 on any failure.
 
@@ -167,4 +171,28 @@ check(hits.length===0,'run folder: the credit line appears in '+hits.join(', '))
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'strategy_check: '+failures.length+' failure(s), ':'strategy_check: all passed, ')+passes+' checks');
-process.exit(failures.length?1:0);
+process.exit(failures.length?1:0);// The draft's counts (2026-10-15, Part 22): logged by new-run.js and add-draft.js, printed on the
+// Drafts line of the record and the board, and as a Draft line in the short form after strategy;
+// a draft of more than 60 words on one line gets the warning before any seat reads it.
+var cProj=fs.mkdtempSync(path.join(os.tmpdir(),'cw-counts-'));
+fs.writeFileSync(path.join(cProj,'one.md'),new Array(81).join('word ').trim()+'\n');
+fs.writeFileSync(path.join(cProj,'three.md'),'Dear board,\n\nBuy the company. It is cheap.\n\nYours.\n');
+fs.writeFileSync(path.join(cProj,'brief.md'),'CEO. Get a yes.\n');
+function cNode(script,args){ return cp.spawnSync(process.execPath,[path.join(scripts,script)].concat(args),{cwd:cProj,encoding:'utf8'}); }
+var cRun=cNode('new-run.js',['--draft','one.md','--brief','brief.md','--name','counts','--stage','strategy','--model','Test Model']).stdout.trim();
+var cLog=fs.readFileSync(path.join(cRun,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);});
+var cCreated=cLog.filter(function(e){return e.event==='run.created';})[0];
+check(cCreated&&cCreated.draft&&cCreated.draft.words===80&&cCreated.draft.lines===1&&cCreated.draft.paragraphs===1,'counts: run.created should carry words, lines and paragraphs: '+JSON.stringify(cCreated&&cCreated.draft));
+var cShort=cNode('render-record.js',['--run',cRun,'--short']).stdout;
+check(/^Draft: 80 words · 1 paragraph · 1 line\nThe draft arrived as one line of 80 words; if it had paragraph breaks, paste it again\.$/m.test(cShort),'counts: the short form after strategy should print the Draft line and the one-line warning; got:\n'+cShort);
+var cRec=fs.readFileSync(path.join(cRun,'record.md'),'utf8');
+check(/\*\*Drafts:\*\* draft\.md \(sha256 [0-9a-f]{12}…; 80 words · 1 paragraph · 1 line\)\./.test(cRec)&&/\*\*Draft as stored:\*\* The draft arrived as one line of 80 words/.test(cRec),'counts: the record should carry the counts and the warning');
+cNode('render-board.js',['--run',cRun]);
+check(/<strong>Drafts:<\/strong> draft\.md \(80 words · 1 paragraph · 1 line\)\./.test(fs.readFileSync(path.join(cRun,'board.html'),'utf8')),'counts: the board\'s run details should carry the counts');
+var added=cNode('add-draft.js',['--run',cRun,'--file','three.md','--stage','strategy']).stdout.trim();
+var cAdded=fs.readFileSync(path.join(cRun,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);}).filter(function(e){return e.event==='draft.added';}).pop();
+check(added==='draft-2.md'&&cAdded.words===9&&cAdded.lines===3&&cAdded.paragraphs===3,'counts: draft.added should carry the counts: '+JSON.stringify(cAdded));
+var cShort2=cNode('render-record.js',['--run',cRun,'--short']).stdout;
+check(/^Draft: 9 words · 3 paragraphs · 3 lines$/m.test(cShort2)&&cShort2.indexOf('arrived as one line')<0,'counts: a three-paragraph revision prints its counts and no warning; got:\n'+cShort2);
+fs.rmSync(cProj,{recursive:true,force:true});
+

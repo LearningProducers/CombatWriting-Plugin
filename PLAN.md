@@ -249,7 +249,7 @@ Measured: the brief did not say the greeting names the reader or where the link 
 
 Delivers: the strategy, help, sparring and battle lines saying the seats judge by the brief as written and a format choice it does not state is judged as a fault; `lib.draftFacts` (words, lines, paragraphs) logged by `new-run.js` and `add-draft.js` and shown on the Drafts line and after strategy, with a one-line warning when the draft is one line of more than 60 words; the inbox step says byte for byte, line breaks included; cw 0.6.4; `tests/draft_facts_check.js` new, `strategy_check.js` extended.
 
-Status: not started — 2026-10-16.
+Status: delivered — 2026-10-16 — pull request open, stacked on Part 19's branch; all eighteen checks and the three strict validations pass locally; no provider called, no seat started.
 
 ## Part 21 — Every packet carries the draft's measured counts as facts (issue 24)
 

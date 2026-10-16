@@ -105,7 +105,12 @@ out.push('');
 lib.crewStateLines(runDir,seats,log).forEach(function(l){ out.push('**Seats:** '+l); out.push(''); });
 out.push('**Seat key:** '+lib.seatKey(seats));
 out.push('');
-out.push('**Drafts:** '+(drafts.length?drafts.map(function(d){var e=lastLog(function(x){return (x.event==='draft.added'&&x.file===d)||(x.event==='run.created'&&d==='draft.md');});var sha=e?(e.sha256||(e.draft&&e.draft.sha256)):null;return d+(sha?' (sha256 '+sha.slice(0,12)+'…)':'');}).join(', ')+'.':'none yet; the brief is stored and the draft joins the run when sparring or battle brings it.'));
+// Each draft with its hash and its counts (2026-10-15): words, paragraphs, lines, measured from the file.
+function draftLabel(d){var e=lastLog(function(x){return (x.event==='draft.added'&&x.file===d)||(x.event==='run.created'&&d==='draft.md');});var sha=e?(e.sha256||(e.draft&&e.draft.sha256)):null;var f=lib.draftFacts(lib.readText(path.join(runDir,d)));return d+' ('+(sha?'sha256 '+sha.slice(0,12)+'…; ':'')+lib.draftFactsLine(f)+')';}
+out.push('**Drafts:** '+(drafts.length?drafts.map(draftLabel).join(', ')+'.':'none yet; the brief is stored and the draft joins the run when sparring or battle brings it.'));
+var newestFacts=drafts.length?lib.draftFacts(lib.readText(path.join(runDir,drafts[drafts.length-1]))):null;
+var oneLine=newestFacts?lib.oneLineWarning(newestFacts):null;
+if(oneLine){out.push('');out.push('**Draft as stored:** '+oneLine);}
 out.push('');
 // Where the run started (2026-10-14: the order of the stages is the person's choice).
 out.push('**Started at:** '+lib.startedAtLine(runDir,log,rounds));
@@ -189,6 +194,8 @@ if(args.next===true){
     s.push('','Board: '+path.join(runDir,lib.BOARD_FILE));
   }else{
     s.push(noRoundsLine,'','Started at: '+lib.startedAtLine(runDir,log,rounds));
+    // After strategy (2026-10-15): the draft's counts, and the one-line warning, before any seat reads it.
+    if(newestFacts)s.push('','Draft: '+lib.draftFactsLine(newestFacts)+(oneLine?'\n'+oneLine:''));
   }
   s.push('','Seat key: '+lib.seatKey(seats));
   process.stdout.write(s.join('\n')+'\n');
