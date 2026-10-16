@@ -135,7 +135,9 @@ rounds.forEach(function(r){
   out.push('### Round '+r);
   var pb=log.filter(function(e){return e.event==='packet.built'&&e.round===r;})[0];
   if(pb)out.push('');
-  if(pb)out.push('Draft read: '+pb.draft+'.'+(pb.reads_round?' Answers carried from round '+pb.reads_round+'.':'')+(pb.mode==='navigation'?' Navigation round: no other seat\'s answer carried.':'')+(pb.mode==='focus'?' Focus-question round: no other seat\'s answer carried.':'')+(pb.sfq?' SFQ: '+pb.sfq+'.':'')+(pb.sn?' SN: '+pb.sn+'.':'')+(pb.n?' N: '+pb.n+'.':'')+(pb.fq?' FQ: '+pb.fq+'.':'')+(pb.contract==='critique'?' No rating this round.':pb.rerate?' Rerate: a new rating asked.':''));
+  // The round's task in words (ruled 2026-10-15), from the packet through lib.roundTask, never the inbox file name.
+  var task=lib.roundTask(runDir,r,log);
+  if(pb)out.push('Draft read: '+pb.draft+'.'+(pb.reads_round?' Answers carried from round '+pb.reads_round+'.':'')+(pb.mode==='navigation'?' Navigation round: no other seat\'s answer carried.':'')+(pb.mode==='focus'?' Focus-question round: no other seat\'s answer carried.':'')+(pb.contract==='critique'?' No rating this round.':pb.rerate?' Rerate: a new rating asked.':'')+' Task: '+lib.taskLine(task)+'.');
   var askedHere=lib.askedIn(runDir,r,log);
   var notAskedHere=askedHere?seats.filter(function(s){return !askedHere[s.id];}).map(function(s){return s.id;}):[];
   if(notAskedHere.length)out.push('');

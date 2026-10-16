@@ -209,4 +209,55 @@ Delivers (cw 0.6.0; the add-on untouched, the packet carries the new line and th
 
 Ruling on the bands (2026-10-14, on the open pull request): 8 and above is SEND, 1 to 6 is BACK TO THE DRAWING BOARD, 7 stays forbidden; the contradiction check fails a 6 over "ships as is" too, the board's verdict band reads the same bands (it already did), and the numbers stay under the word.
 
-Status: delivered — 2026-10-14 — pull request 19 open; all seventeen checks pass locally; no provider was called and no seat was started; the opener was exercised with a dry run and a fake, never a browser, in the tests.
+Status: merged — 2026-10-15 — pull request 19 merged to main.
+
+## The founder's rulings of 2026-10-15: six problems from the first run started at battle
+
+The run: an 80-word draft judged against a brief by three seats, started at battle, one SN round, no rating asked. Six problems, each measured against the files and the run before anything was planned, and each the founder ruled on; one part and one pull request per problem (the board's measure takes two of them), built in the order 18, 20, 19, 22, 21. No name, brief text or draft text from the run goes into any file, commit, issue or pull request.
+
+## Part 18 — The board and the record show the round; the box shows only over a number (issue 20)
+
+Measured: the board never showed a round's prompt (`packet.built` logs the inbox file name; the text lived only in each packet under `## Your task`), and the grey NO RATING YET box, the largest thing on the page, stood over three seats who had answered the prompt in words; the record printed the file name too.
+
+Ruled: the round's prompt is visible at the top of the board without opening anything, and in the round history; a seat's card repeats it only when that seat was asked something different; the verdict box shows only when the run holds a rating, an S/N ratio or a red-flag count, and with none there is no box at all.
+
+Delivers: `lib.roundTask` (the task from the round's packet, one source, old runs included); the board's round strip, the box over a rating (SEND or BACK) or over final reads alone (FINAL READS, each seat's two numbers) and no box otherwise, the no-rounds next move under the draft heading, the note on a card only for a seat line, the round history in the scoreboard fold; the record's round line with the prompt in quotes; the host's one line after the short form carries the prompt; help, departure 15 and mirror, CLAUDE.md; cw 0.6.1; tests in `board_check.js`, `record_check.js`, `packet_check.js`.
+
+Status: delivered — 2026-10-16 — pull request open; all seventeen checks and the three strict validations pass locally; a copy of the run re-rendered in the scratchpad and opened once for the founder; no provider called, no seat started.
+
+## Part 20 — One overrun rule for every seat: a lower retry target, the cut as the net (issue 21)
+
+Measured: the fresh reader wrote 529 words against 500, came back at 510 and was a failed read; an outside seat's second overrun is cut at the cap (Part 6, ruling 4, outside seats only); the cut lands at a word, mid-sentence; the seat agent holds Read and Write only, so it cannot count its words with a shell, and outside seats hold no tools.
+
+Ruled: the cut stays as the safety net; the retry asks for a target well under the cap (400 of 500) and the seat counts its own words where its tools allow; the cut lands at the last sentence end before the cap (a better way, accepted).
+
+Delivers: `lib.retryTarget` and the cap reason naming the target (one line reaching the fresh reader's retry task and the outside seat's `note`); `check-answer.js` cutting the retry's file at the last sentence end at or before the cap with the first line kept, logged in `answer.checked.truncated`; `truncateAnswer` mirrored in `lib.js` and `crew-lib.js`, pinned equal; the add-on's retry line and system line naming the target and the sentence cut (0.4.2); the record and board reading the mark from either log line; the seat agent, battle, sparring, the rules skill, help, departure 12 and mirror, CLAUDE.md, the legend; cw 0.6.2.
+
+Status: not started — 2026-10-16.
+
+## Part 19 — The board reads at a book measure (issue 22)
+
+Measured: `main` fixed at 1040 px (60% of a laptop-width window); three cards of 252 px of 15-px Georgia, 35 characters a line; the draft panel 130 characters a line; no `overflow-wrap`, so URLs push the cards; markdown printed raw; escaping sound (`esc` before any text lands, pinned).
+
+Delivers, in `render-board.js` and one helper in `lib.js`: `main` at 1360 px, cards at `minmax(360px,1fr)`, the open read spanning the row at 70ch, the draft panel at 76ch centered, `overflow-wrap:anywhere`, `lib.renderLite` rendering paragraphs, bullets, numbered items, bold, italic, code and a heading as bold after escaping, no link rendered; cw 0.6.3; `board_check.js` extended.
+
+Status: not started — 2026-10-16.
+
+## Part 22 — The brief is the rulebook; the draft's counts are logged and shown (issue 23)
+
+Measured: the brief did not say the greeting names the reader or where the link sits, and every seat judged it as written, which is right; the stored draft was one line, and the inbox paste, the earliest record, already was: the scripts copy bytes.
+
+Delivers: the strategy, help, sparring and battle lines saying the seats judge by the brief as written and a format choice it does not state is judged as a fault; `lib.draftFacts` (words, lines, paragraphs) logged by `new-run.js` and `add-draft.js` and shown on the Drafts line and after strategy, with a one-line warning when the draft is one line of more than 60 words; the inbox step says byte for byte, line breaks included; cw 0.6.4; `tests/draft_facts_check.js` new, `strategy_check.js` extended.
+
+Status: not started — 2026-10-16.
+
+## Part 21 — Every packet carries the draft's measured counts as facts (issue 24)
+
+Measured: two outside seats passed the checker with claims a count refutes (a sentence count; a comma called an em dash); the checker checks the contract an answer was sent, never the truth of a claim; counted by code the draft had four sentence end marks, no dash of any kind, one link alone on its last line.
+
+Ruled: no claims checker (a checker of claims would be a hidden fourth seat); every seat's packet carries the draft's counts measured by code as facts; the add-on's system line says the counts are code's (0.4.3); the Groq-seat question waits for a rerun with the counts in the packet.
+
+Delivers: `lib.draftFacts` extended (sentences by a stated rule, exact or "about" when abbreviations or decimals could miscount; em dashes, en dashes, double hyphens; each link's paragraph, line, alone-on-its-line, last-in-draft, in-sentence, never its address); the block in every packet under the draft heading and `draft_facts` in `packet.built`; the same line in the record and on the board; the seat agent and the add-on's system line; departure 16 and mirror; help's worked seat line; cw 0.6.5; tests extended.
+
+Status: not started — 2026-10-16.
+

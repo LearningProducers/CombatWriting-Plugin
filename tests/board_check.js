@@ -16,14 +16,22 @@
 //     <iframe>; the only href is the relative link to record.md.
 //   - The newest draft is on the page in full, escaped, named as a revision when it is one,
 //     above the verdict.
-//   - The verdict band: SEND when every rated seat's latest rating is 8 or more; BACK TO THE
-//     DRAWING BOARD when any seat's is 6 or less, naming that seat and its number; NO RATING
-//     YET when no seat has rated; the band lists every rated seat's latest number, never an
-//     average; a failed read counts for nothing.
+//   - The round strip (ruled 2026-10-15): the latest round's task in words at the top of the
+//     page, from the packet (the prompt itself for SN, SFQ, N and FQ; the seat lines with each
+//     note; the final reads), whether a rating was asked, and how many seats answered; the same
+//     line for every round in the history under the scoreboard; the record's round line carries
+//     the same task, never the inbox file name.
+//   - The verdict box, only over a number (ruled 2026-10-15): SEND when every rated seat's
+//     latest rating is 8 or more; BACK TO THE DRAWING BOARD when any seat's is 6 or less,
+//     naming that seat and its number; the band lists every rated seat's latest number, never
+//     an average; a failed read counts for nothing; FINAL READS over each seat's S/N and
+//     red-flag numbers when the run holds final reads and no rating; no box at all with no
+//     number, on a run with no round and on a run whose rounds asked for no rating.
 //   - One frame per seat, in seat order, from the seat's latest turn: the rating or its state
 //     (Critique, Failed read, Missing, Not yet read) on the frame with the flip or Stand mark,
 //     the one-line verdict (the first sentence after the first line, cut at a sentence end
 //     before 200 characters), the citation to the model by name and company with the round,
+//     and the seat's own note only when that seat was asked something different (a seat line),
 //     the final reads' numbers when a final round exists, and the full read folded under a
 //     <details>; a missing seat has no fold; a seat's words are escaped, never markup.
 //   - Folded: the scoreboard of every round (one column per round, the legend, a valid flip
@@ -166,11 +174,45 @@ check(!/\d\.\d+\/10/.test(html),'board: a fractional rating appears');
 check(/@media \(prefers-color-scheme: dark\)/.test(html)&&/:root\[data-theme="dark"\]/.test(html)&&/:root:not\(\[data-theme="light"\]\)/.test(html),'board: light and dark not both defined with a toggle scope');
 check(/<button type="button" id="theme"/.test(html),'board: no theme toggle');
 
-// A run with no round: NO RATING YET and the no-rounds line.
+// The round strip and the history (2026-10-15).
+check(/<p class="round"><b>Round 05-final<\/b> · final reads: S\/N ratio and red flags · 2 of 3 seats answered<\/p>/.test(html),'board: the round strip should name the latest round and its task; got '+(/<p class="round">[^]*?<\/p>/.exec(html)||[''])[0]);
+check(html.indexOf('<p class="round">')<html.indexOf('<h2>The draft'),'board: the round strip must sit above the draft');
+var hist=/<ul class="rounds">([^]*?)<\/ul>/.exec(html);
+check(!!hist&&(hist[1].match(/<li>/g)||[]).length===5,'board: the history should list five rounds');
+check(!!hist&&/<li><b>Round 02-battle<\/b> · the default prompt: “Read the other seats' latest answers\. Where do your interpretations overlap and where do they diverge\? Give a new critique and a new rating of the draft\.” · a new rating asked · 3 of 3 seats answered<\/li>/.test(hist[1]),'board: the history line for 02-battle is wrong');
+check(!!hist&&/<li><b>Round 04-battle<\/b> · the default prompt: “[^”]*” · no rating asked · 2 of 3 seats answered<\/li>/.test(hist[1]),'board: the history line for 04-battle should say no rating asked and 2 of 3');
+check(html.indexOf('<ul class="rounds">')>html.indexOf('Every round: the scoreboard'),'board: the history belongs in the scoreboard fold');
+check(!/<span class="note-line">/.test(html),'board: no seat was asked something different, so no frame carries a note');
+
+// A run with no round: no box; the no-rounds line under the draft heading.
 var fresh=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','fresh','--stage','strategy','--model','Test Model']).stdout.trim();
 node('render-board.js',['--run',fresh]);
 var freshHtml=fs.readFileSync(path.join(fresh,'board.html'),'utf8');
-check(/<section class="verdict none"[^>]*><p class="word">NO RATING YET<\/p><p class="why">No rounds yet\. The draft and the brief are stored; no seat has read it\. Next: \/cw:sparring for the first reads and ratings, or \/cw:battle to start with the discussion\.<\/p>\s*<\/section>/.test(freshHtml),'board (no rounds): the verdict band should say NO RATING YET with the no-rounds line');
+check(!/class="verdict/.test(freshHtml)&&!/NO RATING/.test(freshHtml),'board (no rounds): there must be no verdict box at all');
+check(/<h2>The draft<\/h2>\s*<p class="meta">No rounds yet\. The draft and the brief are stored; no seat has read it\. Next: \/cw:sparring for the first reads and ratings, or \/cw:battle to start with the discussion\.<\/p>/.test(freshHtml),'board (no rounds): the no-rounds line should sit under the draft heading');
+check(!/<p class="round">/.test(freshHtml),'board (no rounds): no round strip');
+
+// A run whose one round asked for no rating (a first battle round with an SN): no box, the
+// strip carries the SN and the count; then final reads with still no rating: a FINAL READS box.
+var nr=seatMore(node('new-run.js',['--draft','draft.md','--name','norating','--stage','battle','--model','Test Model']).stdout.trim(),3,'Test Model');
+write(path.join(proj,'sn.md'),'Is this ready to go to the board?\n');
+['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',nr,'--round','01-battle','--seat',s,'--sn','sn.md']); });
+write(path.join(nr,'rounds','01-battle','seat-1.answer.md'),'Not ready: the ask is buried.\n');
+write(path.join(nr,'rounds','01-battle','seat-2.answer.md'),'Not ready. The close pleads.\n');
+['seat-1','seat-2'].forEach(function(s){ node('check-answer.js',[path.join(nr,'rounds','01-battle',s+'.answer.md'),'--run',nr]); });
+node('render-board.js',['--run',nr]);
+var nrHtml=fs.readFileSync(path.join(nr,'board.html'),'utf8');
+check(!/class="verdict/.test(nrHtml)&&!/NO RATING/.test(nrHtml),'board (no rating): there must be no verdict box; got '+(/<section class="verdict[^>]*>[^]*?<\/p>/.exec(nrHtml)||[''])[0]);
+check(/<p class="round"><b>Round 01-battle<\/b> · SN: “Is this ready to go to the board\?” · no rating asked · 2 of 3 seats answered<\/p>/.test(nrHtml),'board (no rating): the strip should carry the SN, no rating asked and 2 of 3; got '+(/<p class="round">[^]*?<\/p>/.exec(nrHtml)||[''])[0]);
+check(/<blockquote>Not ready: the ask is buried\.<\/blockquote>/.test(nrHtml)&&/<span class="badge critique">Critique · no rating asked<\/span>/.test(nrHtml),'board (no rating): the frames still carry the critiques');
+['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',nr,'--round','02-final','--seat',s,'--final','sn']); node('packet.js',['--run',nr,'--round','02-final','--seat',s,'--final','redflag']); });
+write(path.join(nr,'rounds','02-final','seat-1.sn.answer.md'),'S/N RATIO: 60%\nSome.\n');
+write(path.join(nr,'rounds','02-final','seat-1.redflag.answer.md'),'NO RED FLAGS\nNone.\n');
+['seat-1.sn','seat-1.redflag'].forEach(function(f){ node('check-answer.js',[path.join(nr,'rounds','02-final',f+'.answer.md'),'--run',nr]); });
+node('render-board.js',['--run',nr]);
+var nrfHtml=fs.readFileSync(path.join(nr,'board.html'),'utf8');
+check(/<section class="verdict final"[^>]*><p class="word">FINAL READS<\/p><p class="why">No seat has rated this draft\. These are the final reads of round 02-final, each seat's own S\/N ratio and red-flag count\. Nothing is averaged\.<\/p>\s*<ul class="numbers"><li><b>S\/N 60% · no red flags<\/b>Test Model \(Anthropic\), seat-1<\/li><li><b>S\/N missing · red flags missing<\/b>Test Model \(Anthropic\), seat-2<\/li>/.test(nrfHtml),'board (final reads, no rating): the box should be FINAL READS over each seat\'s two numbers; got '+(/<section class="verdict[^>]*>[^]*?<\/ul>/.exec(nrfHtml)||[''])[0].slice(0,400));
+check(/<p class="round"><b>Round 02-final<\/b> · final reads: S\/N ratio and red flags · 1 of 3 seats answered<\/p>/.test(nrfHtml),'board (final reads): the strip should name the final round');
 check(!/<figure class="frame/.test(freshHtml)&&!/Every round: the scoreboard/.test(freshHtml),'board (no rounds): no frames and no scoreboard fold');
 check(/<h2>The draft<\/h2>/.test(freshHtml)&&/<div class="paper"><p>Dear board, buy the company\.<\/p><\/div>/.test(freshHtml),'board (no rounds): the draft is still on the page');
 
@@ -195,6 +237,8 @@ check(/<p class="word">BACK TO THE DRAWING BOARD<\/p><p class="why">Test Model \
 check(/data-seat="seat-1">[\s\S]*?· round 01-sparring<\/span>/.test(soHtml)&&/data-seat="seat-2">[\s\S]*?· round 02-battle<\/span>/.test(soHtml),'board (seat-only round): the unasked seats cite round 1, seat-2 cites round 2');
 check(/<span class="badge">Rating 6\/10<span class="mark">flip from 8, INVALID<\/span><\/span>/.test(soHtml),'board: the frame badge should carry the rating and the flip mark');
 check(/<blockquote>Not in so many words\. &lt;script&gt;alert\(1\)&lt;\/script&gt; is text, not markup\.<\/blockquote>/.test(soHtml)&&soHtml.indexOf('<script>alert')<0,'board: a seat\'s words must be escaped, never markup');
+check(/<p class="round"><b>Round 02-battle<\/b> · seat lines to seat-2 \(“Does the close ask for the vote\?”\) · a new rating asked · 1 of 1 seat answered<\/p>/.test(soHtml),'board (seat-only round): the strip should name the seat and its note; got '+(/<p class="round">[^]*?<\/p>/.exec(soHtml)||[''])[0]);
+check(/data-seat="seat-2">[^]*?<span class="note-line">· your note: “Does the close ask for the vote\?”<\/span>/.test(soHtml)&&(soHtml.match(/<span class="note-line">/g)||[]).length===1,'board (seat-only round): only seat-2\'s frame carries the note');
 
 // The log and a refusal.
 var log=fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);});
