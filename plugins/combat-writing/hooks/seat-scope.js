@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// seat-scope.js: the seat's reach (ruled 2026-10-16). A PreToolUse hook on Read and Write.
-// A fresh reader (the `seat` agent, agent_type `cw:seat`) reads only inside its run folder and
-// writes only its own answer file, both judged on the resolved path; a path the hook cannot
-// place is denied. Every other caller, the host and any other agent, is left alone: the hook
-// prints nothing and exits 0.
+// seat-scope.js: the seat's reach (ruled 2026-10-16). A PreToolUse hook on every tool. A fresh
+// reader (the `seat` agent, agent_type `cw:seat`) uses Read and Write only, reads only inside
+// its run folder and writes only its own answer file, both judged on the resolved path; any
+// other tool, and any path the hook cannot place, is denied. Every other caller, the host and
+// any other agent, is left alone: the hook prints nothing and exits 0, in about 20 ms.
 //
 // How the hook places the seat: the host starts a seat with a task of two lines, `Packet:
 // <path>` and `Answer file: <path>` (the sparring and battle skills). That task is the first
 // record of the seat's own transcript, which Claude Code keeps beside the session's transcript
-// as <session dir>/<session_id>/subagents/agent-<agent_id>.jsonl (measured on 2.1.301). The
+// as <session dir>/<session_id>/subagents/agent-<agent_id>.jsonl (measured on the Claude Code
+// version in PROVED_ON below, the one constant the reason and the tests read; the live proof
+// is tests/seat_scope_live.js). The
 // hook reads that record, takes the two paths, resolves the packet to its run folder
 // (rounds/<round>/<seat>.packet.md, two levels under the run), and judges every Read against
 // the run folder and every Write against the answer path. No transcript, no task, no packet,
@@ -19,11 +21,15 @@
 // exit 0 (the documented form). On allow: nothing, exit 0, so the session's own permission
 // rules still apply. The hook reads the transcript record and the file system; it writes
 // nothing, calls nothing, reads no environment, and never prints a path from inside the draft.
+// Input that does not parse is denied when it names a seat agent type and ignored otherwise.
 
 var fs=require('fs'), path=require('path');
 
+// The Claude Code version the live proof last ran on (tests/seat_scope_live.js). One copy.
+var PROVED_ON='2.1.301';
 var SEAT_TYPES=['cw:seat','seat'];
-var MAX_INPUT=1<<20;
+var SEAT_TOOLS=['Read','Write'];
+var ISSUES='github.com/LearningProducers/CombatWriting-Plugin/issues';
 
 function deny(reason){
   process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:'PreToolUse',permissionDecision:'deny',permissionDecisionReason:'Combat Writing seat scope: '+reason}})+'\n');
@@ -45,12 +51,17 @@ function placeTarget(p,cwd){
   try{ return path.join(fs.realpathSync(path.dirname(abs)),path.basename(abs)); }catch(e){ return null; }
 }
 
+// Where the seat's own transcript should be, for the task and for the reason when it is not there.
+function transcriptPathOf(input){
+  var tp=input.transcript_path, sid=input.session_id, aid=input.agent_id;
+  if(typeof tp!=='string'||typeof sid!=='string'||typeof aid!=='string')return 'no transcript_path, session_id or agent_id in the hook input';
+  if(!/^[A-Za-z0-9_-]+$/.test(sid)||!/^[A-Za-z0-9_-]+$/.test(aid))return 'a session or agent id the hook will not use in a path';
+  return path.join(path.dirname(tp),sid,'subagents','agent-'+aid+'.jsonl');
+}
 // The seat's task: the first user record of the seat's own transcript.
 function taskOf(input){
-  var tp=input.transcript_path, sid=input.session_id, aid=input.agent_id;
-  if(typeof tp!=='string'||typeof sid!=='string'||typeof aid!=='string')return null;
-  if(!/^[A-Za-z0-9_-]+$/.test(sid)||!/^[A-Za-z0-9_-]+$/.test(aid))return null;
-  var file=path.join(path.dirname(tp),sid,'subagents','agent-'+aid+'.jsonl');
+  var file=transcriptPathOf(input);
+  if(!path.isAbsolute(file))return null;
   var text;
   try{ text=fs.readFileSync(file,'utf8'); }catch(e){ return null; }
   var lines=text.split('\n');
@@ -72,18 +83,22 @@ function pathsOf(task){
 
 var raw='';
 process.stdin.setEncoding('utf8');
-process.stdin.on('data',function(c){ raw+=c; if(raw.length>MAX_INPUT){raw=raw.slice(0,MAX_INPUT);} });
+process.stdin.on('data',function(c){ raw+=c; });
 process.stdin.on('end',function(){
   var input;
-  try{ input=JSON.parse(raw); }catch(e){ return allow(); }   // not a hook call we can read: not ours to judge
+  try{ input=JSON.parse(raw); }catch(e){
+    // Not readable: a seat's call is denied all the same; anything else is not ours to judge.
+    if(/"agent_type"\s*:\s*"(?:cw:)?seat"/.test(raw))return deny('the hook input could not be read; a seat does nothing the hook cannot judge');
+    return allow();
+  }
   if(!input||input.hook_event_name!=='PreToolUse')return allow();
   if(SEAT_TYPES.indexOf(input.agent_type)<0)return allow();  // the host or another agent: untouched
   // From here on the caller is a seat: anything the hook cannot place is denied.
   var tool=input.tool_name;
-  if(tool!=='Read'&&tool!=='Write')return deny('a seat uses Read and Write only; '+tool+' is not open to it');
+  if(SEAT_TOOLS.indexOf(tool)<0)return deny('a seat uses '+SEAT_TOOLS.join(' and ')+' only; '+tool+' is not open to it');
   var cwd=typeof input.cwd==='string'&&input.cwd?input.cwd:process.cwd();
   var task=taskOf(input);
-  if(!task)return deny('the seat\'s task could not be read, so no run folder can be placed; nothing is read or written');
+  if(!task)return deny('the seat\'s transcript is not where Claude Code '+PROVED_ON+' keeps it ('+transcriptPathOf(input)+'), so no run folder can be placed and nothing is read or written. A newer Claude Code has probably moved it: run `claude --version` and open an issue at '+ISSUES+' naming the version. Outside seats through the add-on are not affected');
   var paths=pathsOf(task);
   if(!paths)return deny('the seat\'s task names no packet or answer file; nothing is read or written');
   var packet=placeExisting(paths.packet,cwd);

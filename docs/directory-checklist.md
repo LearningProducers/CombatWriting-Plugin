@@ -78,7 +78,7 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 
 | Item | Result | Satisfied by |
 |---|---|---|
-| `hooks/hooks.json` valid, with only documented events and types | pass | two events, `SessionStart` (matcher `startup|resume`) and `PreToolUse` (matcher `Read|Write`), one `command` hook each; `claude plugin validate --strict plugins/combat-writing` reports "Validating hooks" and passes; `tests/hook_check.js` and `tests/seat_scope_check.js` pin the shape |
+| `hooks/hooks.json` valid, with only documented events and types | pass | two events, `SessionStart` (matcher `startup|resume`) and `PreToolUse` (no matcher: every tool), one `command` hook each; `claude plugin validate --strict plugins/combat-writing` reports "Validating hooks" and passes; `tests/hook_check.js` and `tests/seat_scope_check.js` pin the shape |
 | `hooks/hooks.json` left out of the `hooks` field | pass | `plugin.json` has no `hooks` field; the file loads from its default path; `tests/marketplace_check.js` fails if the field appears |
 | Valid YAML front matter in each skill, command and agent file, with `description` as one text value | pass | `skills/combat-writing/SKILL.md`, `skills/help/SKILL.md`, `skills/strategy/SKILL.md`, `skills/sparring/SKILL.md`, `skills/battle/SKILL.md`, `agents/seat.md`. `claude plugin validate --strict` passes on `plugins/combat-writing` (the manifest), on the repository root (the marketplace), and on the component folders `plugins/combat-writing/commands`, `plugins/combat-writing/agents` and `plugins/combat-writing/skills`; `skills/combat-writing` on its own is not a validator target, the validator reads the `skills/` folder. `tests/license_check.js` requires front matter on line 1 of every component file |
 | Component folders and files named exactly as Claude Code expects | pass | `skills/<name>/SKILL.md` (the four commands moved from `commands/*.md` to skills on 2026-10-14, the format the docs name for new plugins; they are still typed as `/cw:<name>`), `agents/*.md` |
@@ -125,6 +125,12 @@ The add-on, `plugins/combat-writing-crew/`, is a separate plugin that is never s
 ## Evals
 
 The three cases under `plugins/combat-writing/evals/` load and are graded by `claude plugin eval` (checked on 2026-10-08), but the runs need a shell sandbox that the cloud build session does not have; `evals/README.md` says what to install and how to run them. Running them is Israel's step on a machine with the sandbox.
+
+## The seat's reach, live (the founder's step, like the portal's Validate button)
+
+| Item | Status | Where |
+|---|---|---|
+| One real seat on a scratch run, with the repository's `hooks/seat-scope.js` loaded through a throwaway plugin: a harmless file outside the run folder refused, Grep and Bash refused or absent, the packet read, the answer written with nothing from the outside file, no provider called | pass on Claude Code 2.1.301, 2026-10-16 | `node tests/seat_scope_live.js` from the repository root (`CLAUDE_BIN=<path>` picks the binary); not part of CI, it needs a running Claude Code and one short model call; rerun after every Claude Code update, then put the version it passed on here and in the `PROVED_ON` constant at the top of the hook |
 
 ## Fixed in this pass
 

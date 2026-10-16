@@ -14,7 +14,6 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Read|Write",
         "hooks": [
           {
             "type": "command",
