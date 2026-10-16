@@ -133,6 +133,8 @@ var rcsec=rec.slice(rcidx,r3idx);
 check(/Draft read: draft\.md\. Answers carried from round 02-battle\. No rating this round\./.test(rcsec)&&rcsec.indexOf('The close still reads like an apology.')>=0,'record: the critique round should say no rating was asked and hold the critique in full');
 check(r2sec.indexOf('#### Test Model (Anthropic), seat-1')>=0&&r2sec.indexOf('seat-2 wrote "'+S2LINE+'" and that moved me.')>=0,'record: seat-1 round 2 answer not in full');
 check(/Draft read: draft\.md\. Answers carried from round 01-sparring\. Rerate: a new rating asked\./.test(r2sec),'record: round 2 does not say what it read');
+// The draft's counts (2026-10-15, Part 21): the record carries the line every packet carries.
+check(/\*\*Measured by code \(facts, not a judgment\):\*\* 8 words · 1 paragraph · 1 line · \d+ sentences? · 0 em dashes, 0 en dashes, 0 double hyphens · no link\. Every packet carries this line\./.test(rec),'record: the measured-by-code line is missing or wrong; got '+((rec.match(/\*\*Measured by code[^\n]*/)||[''])[0]));
 // The round's task in words (2026-10-15): the prompt the packet sent, never the inbox file name.
 check(/Rerate: a new rating asked\. Task: the default prompt: \u201cRead the other seats' latest answers\. Where do your interpretations overlap and where do they diverge\? Give a new critique and a new rating of the draft\.\u201d\./.test(r2sec),'record: round 2 should carry its task in words');
 var r1sec=rec.slice(rec.indexOf('### Round 01-sparring'),r2idx);

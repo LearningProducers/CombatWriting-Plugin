@@ -259,5 +259,5 @@ Ruled: no claims checker (a checker of claims would be a hidden fourth seat); ev
 
 Delivers: `lib.draftFacts` extended (sentences by a stated rule, exact or "about" when abbreviations or decimals could miscount; em dashes, en dashes, double hyphens; each link's paragraph, line, alone-on-its-line, last-in-draft, in-sentence, never its address); the block in every packet under the draft heading and `draft_facts` in `packet.built`; the same line in the record and on the board; the seat agent and the add-on's system line; departure 16 and mirror; help's worked seat line; cw 0.6.5; tests extended.
 
-Status: not started — 2026-10-16.
+Status: delivered — 2026-10-16 — pull request open, stacked on Part 22's branch; all eighteen checks and the three strict validations pass locally; the counter measured on invented texts of the run's shape; no provider called, no seat started; the Groq-seat question waits for the founder's rerun with the counts in the packet.
 

@@ -422,12 +422,63 @@ function wordCount(text){ return text.split(/\s+/).filter(Boolean).length; }
 // draftFactsLine prints them; oneLineWarning says so when a long draft arrived as one line, before
 // any seat reads it (the inbox paste, the earliest record, already held it that way on the run of
 // 2026-10-15, so the warning is the guard).
+// Part 21 (ruled 2026-10-15, no claims checker): the same counter also measures what the seats
+// misread on the run of 2026-10-15, and every packet carries the result as facts, not a verdict:
+//   sentences: an end mark (. ! ?) followed by a space or a line end ends a sentence; a line with
+//     no end mark is not a sentence; addresses are taken out before counting. The count is exact
+//     (sentences_exact true) when the text holds no abbreviation or decimal the rule miscounts
+//     ("Dr.", "e.g.", "U.S.", "3.5"); else it is given as "about N" with that reason.
+//   em_dashes (U+2014), en_dashes (U+2013), double_hyphens (" -- " or "--" inside a line).
+//   links: each address with its paragraph and line number, whether it stands alone on its line,
+//     whether it is the last thing in the draft, and whether it sits inside a sentence (text
+//     follows it on its line or an end mark closes it); the address itself is never in the facts,
+//     so no draft text leaves the fence.
+var URL_RE=/\bhttps?:\/\/[^\s<>()"']+|\bwww\.[^\s<>()"']+/gi;
+var ABBREV_RE=/\b(?:[A-Z][a-z]{0,3}|[A-Za-z]|e\.g|i\.e|etc|vs|cf|No|St|Mr|Mrs|Ms|Dr|Prof|Jr|Sr|Inc|Ltd|Co|Corp|Fig|approx|dept)\.(?=\s+[a-z0-9]|\s*[A-Z]\.|$)|\b[A-Z](?:\.[A-Z])+\.|\d\.\d/m;
 function draftFacts(text){
   var src=String(text||'').replace(/\r\n/g,'\n').replace(/^\uFEFF/,'').replace(/\s+$/,'');
-  var lines=src?src.split('\n').filter(function(l){return l.trim()!=='';}).length:0;
-  var paragraphs=src?src.split(/\n\s*\n/).filter(function(b){return b.trim()!=='';}).length:0;
-  return {words:wordCount(src),lines:lines,paragraphs:paragraphs};
+  var rawLines=src?src.split('\n'):[];
+  var lines=rawLines.filter(function(l){return l.trim()!=='';}).length;
+  var blocks=src?src.split(/\n\s*\n/).filter(function(b){return b.trim()!=='';}):[];
+  var paragraphs=blocks.length;
+  // Links, by position; the address is dropped from the text before sentences are counted.
+  var links=[], lineNo=0, paraNo=0, lastNonBlank=-1;
+  rawLines.forEach(function(l,i){ if(l.trim()!=='')lastNonBlank=i; });
+  var prevBlank=true;
+  rawLines.forEach(function(l,i){
+    var blank=l.trim()==='';
+    if(!blank){ lineNo++; if(prevBlank)paraNo++; }
+    prevBlank=blank;
+    var m, re=new RegExp(URL_RE.source,'gi');
+    while((m=re.exec(l))){
+      var before=l.slice(0,m.index).trim(), after=l.slice(m.index+m[0].length).trim();
+      var alone=before===''&&(after===''||/^[.,;:!?)]+$/.test(after));
+      links.push({paragraph:paraNo,line:lineNo,alone_on_line:alone,last_in_draft:i===lastNonBlank&&(after===''||/^[.,;:!?)]+$/.test(after)),in_sentence:!alone||/^[.!?]/.test(after)});
+    }
+  });
+  var stripped=src.replace(new RegExp(URL_RE.source,'gi'),'LINK');
+  var sentences=0;
+  stripped.split('\n').forEach(function(l){
+    var ms=l.match(/[.!?]+["\u201d\u2019')\]]*(?=\s|$)/g);
+    sentences+=ms?ms.length:0;
+  });
+  var exact=!ABBREV_RE.test(stripped);
+  var em=(src.match(/\u2014/g)||[]).length, en=(src.match(/\u2013/g)||[]).length, dh=(src.match(/--/g)||[]).length;
+  return {words:wordCount(src),lines:lines,paragraphs:paragraphs,sentences:sentences,sentences_exact:exact,em_dashes:em,en_dashes:en,double_hyphens:dh,links:links};
 }
+// The facts in one line, for the packet, the record and the board: counts, dashes, and each
+// link by position. No draft text.
+function draftFactsFull(f){
+  var parts=[draftFactsLine(f)];
+  parts.push((f.sentences_exact?'':'about ')+f.sentences+' sentence'+(f.sentences===1?'':'s')+(f.sentences_exact?'':' (the rule may miscount abbreviations or decimals)'));
+  parts.push(f.em_dashes+' em dash'+(f.em_dashes===1?'':'es')+', '+f.en_dashes+' en dash'+(f.en_dashes===1?'':'es')+', '+f.double_hyphens+' double hyphen'+(f.double_hyphens===1?'':'s'));
+  if(!f.links.length)parts.push('no link');
+  else parts.push(f.links.length+' link'+(f.links.length===1?'':'s')+': '+f.links.map(function(k,i){
+    return 'link '+(i+1)+' in paragraph '+k.paragraph+', line '+k.line+(k.alone_on_line?', alone on its line':', inside a sentence')+(k.last_in_draft?', the last thing in the draft':'');
+  }).join('; '));
+  return parts.join(' · ');
+}
+var FACTS_HEADING='Measured by code (facts, not a judgment)';
 function draftFactsLine(f){
   return f.words+' word'+(f.words===1?'':'s')+' · '+f.paragraphs+' paragraph'+(f.paragraphs===1?'':'s')+' · '+f.lines+' line'+(f.lines===1?'':'s');
 }
@@ -713,6 +764,6 @@ module.exports={
   SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
-  capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip
 };

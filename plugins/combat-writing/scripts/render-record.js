@@ -111,6 +111,7 @@ out.push('**Drafts:** '+(drafts.length?drafts.map(draftLabel).join(', ')+'.':'no
 var newestFacts=drafts.length?lib.draftFacts(lib.readText(path.join(runDir,drafts[drafts.length-1]))):null;
 var oneLine=newestFacts?lib.oneLineWarning(newestFacts):null;
 if(oneLine){out.push('');out.push('**Draft as stored:** '+oneLine);}
+if(newestFacts){out.push('');out.push('**'+lib.FACTS_HEADING+':** '+lib.draftFactsFull(newestFacts)+'. Every packet carries this line.');}
 out.push('');
 // Where the run started (2026-10-14: the order of the stages is the person's choice).
 out.push('**Started at:** '+lib.startedAtLine(runDir,log,rounds));

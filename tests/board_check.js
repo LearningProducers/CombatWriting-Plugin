@@ -178,6 +178,8 @@ check(!/\d\.\d+\/10/.test(html),'board: a fractional rating appears');
 check(/@media \(prefers-color-scheme: dark\)/.test(html)&&/:root\[data-theme="dark"\]/.test(html)&&/:root:not\(\[data-theme="light"\]\)/.test(html),'board: light and dark not both defined with a toggle scope');
 check(/<button type="button" id="theme"/.test(html),'board: no theme toggle');
 
+// The draft's counts under the draft (2026-10-15, Part 21).
+check(/<div class="paper"><p>Dear board, buy the company\.<\/p><\/div>\s*<p class="meta facts"><strong>Measured by code \(facts, not a judgment\):<\/strong> 5 words · 1 paragraph · 1 line · 1 sentence · 0 em dashes, 0 en dashes, 0 double hyphens · no link\.<\/p>/.test(html),'board: the measured-by-code line should sit under the draft');
 // The round strip and the history (2026-10-15).
 check(/<p class="round"><b>Round 05-final<\/b> · final reads: S\/N ratio and red flags · 2 of 3 seats answered<\/p>/.test(html),'board: the round strip should name the latest round and its task; got '+(/<p class="round">[^]*?<\/p>/.exec(html)||[''])[0]);
 check(html.indexOf('<p class="round">')<html.indexOf('<h2>The draft'),'board: the round strip must sit above the draft');
