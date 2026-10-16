@@ -156,6 +156,10 @@ fake.listen(0,'127.0.0.1',function(){
   check(!!run&&fs.existsSync(run),'new-run failed');
   check(JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats.length===1,'new-run: the default crew should be one fresh reader');
   check(lib.NO_RATING_LINE===require(path.join(scripts,'lib.js')).NO_RATING_LINE,'the add-on\'s no-rating line must equal the listed plugin\'s');
+  // One overrun rule for every seat (ruled 2026-10-15): the cut and the retry target are mirrored word for word.
+  var listed=require(path.join(scripts,'lib.js'));
+  check(lib.truncateAnswer.toString()===listed.truncateAnswer.toString()&&lib.retryTarget.toString()===listed.retryTarget.toString()&&lib.RETRY_TARGET_RATIO===listed.RETRY_TARGET_RATIO&&lib.SENTENCE_CUT_WINDOW===listed.SENTENCE_CUT_WINDOW,'the add-on\'s truncateAnswer and retryTarget must equal the listed plugin\'s');
+  check(lib.retryTarget(500)===400&&lib.retryTarget(600)===480&&lib.retryTarget(250)===200,'retryTarget: 80% of the cap, floored');
 
   var s1=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'gsk_FROM_THE_PROMPT',GROQ_API_KEY:'gsk_FROM_THE_ENVIRONMENT'}));
   s1.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'crew_check',version:'1'}}).then(function(m){
@@ -214,7 +218,7 @@ fake.listen(0,'127.0.0.1',function(){
     check(seats[1].model==='openai/gpt-oss-120b-0725','crew_answer: seats.json should carry the returned id, got '+seats[1].model);
     var req=requests.filter(function(q){return q.url==='/v1/chat/completions';})[0];
     check(!!req&&req.auth==='Bearer gsk_FROM_THE_PROMPT'&&req.body.model==='openai/gpt-oss-120b'&&req.body.messages.length===2&&req.body.messages[0].role==='system'&&/RATING: X\/10/.test(req.body.messages[0].content)&&req.body.messages[1].content.indexOf('=== DRAFT BEGIN ===')>=0&&req.body.max_tokens>=1200&&req.body.max_tokens<=2800&&req.body.reasoning_effort==='low','crew_answer: request wrong '+JSON.stringify(req&&{auth:req.auth,model:req.body.model,max:req.body.max_tokens,extras:req.body.reasoning_effort}));
-    check(!!req&&/Under 500 words in all, the first line included/.test(req.body.messages[0].content)&&/a second overrun is cut at 500 words/.test(req.body.messages[0].content),'system line: the cap must be stated as a number, got '+(req&&req.body.messages[0].content.slice(0,400)));
+    check(!!req&&/Under 500 words in all, the first line included/.test(req.body.messages[0].content)&&/An answer over the cap is sent back once with a lower target; a second overrun is cut at the last sentence before 500 words\./.test(req.body.messages[0].content),'system line: the cap must be stated as a number, got '+(req&&req.body.messages[0].content.slice(0,400)));
     console.log('system line (sparring, rating): '+(req?req.body.messages[0].content:''));
     check(req.body.messages[1].content===fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.packet.md'),'utf8'),'crew_answer: the user message must be the packet file, verbatim');
     var e=logOf(run).filter(function(x){return x.event==='crew.answered';})[0]||{};
@@ -229,7 +233,7 @@ fake.listen(0,'127.0.0.1',function(){
     check(!r.isError&&r.data.ok&&/^RATING: 6\/10\nSecond try/.test(fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.answer.md'),'utf8')),'retry note: the second answer should replace the first, got '+JSON.stringify(r.data));
     var req=requests.filter(function(q){return q.url==='/v1/chat/completions';}).pop();
     var packetText=fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.packet.md'),'utf8');
-    check(req.body.messages[1].content.indexOf(packetText.replace(/\s+$/,''))===0&&/## Note from the host on this retry\n\nYour previous answer failed the check: rating is 7; 7 is forbidden, commit to 6 or 8; 530 words, over the cap of 500\nWrite it again, meeting the contract above, within 500 words\./.test(req.body.messages[1].content),'retry note: the note must ride after the packet in the user message, naming the cap');
+    check(req.body.messages[1].content.indexOf(packetText.replace(/\s+$/,''))===0&&/## Note from the host on this retry\n\nYour previous answer failed the check: rating is 7; 7 is forbidden, commit to 6 or 8; 530 words, over the cap of 500\nWrite it again, meeting the contract above, under 400 words this time \(the cap is 500; a second overrun is cut at the last sentence before it\)\./.test(req.body.messages[1].content),'retry note: the note must ride after the packet in the user message, naming the cap');
     check(req.body.model==='openai/gpt-oss-120b-0725','retry note: the retry should request the id the API returned last time, got '+req.body.model);
     var e2=logOf(run).filter(function(x){return x.event==='crew.answered';}).pop()||{};
     check(e2.retry_note&&/7 is forbidden/.test(e2.retry_note)&&e2.model_requested==='openai/gpt-oss-120b-0725'&&e2.model_returned==='openai/gpt-oss-120b-0725'&&e2.model_changed===false,'retry note: log line wrong '+JSON.stringify(e2));
@@ -287,7 +291,7 @@ fake.listen(0,'127.0.0.1',function(){
     var req=requests.filter(function(q){return q.url==='/v1/chat/completions';}).pop();
     check(/Under 600 words in all/.test(req.body.messages[0].content),'truncation: the system line should state the cap sent, 600');
     var e=logOf(run).filter(function(x){return x.event==='crew.answered'&&x.round==='04-battle';}).pop()||{};
-    check(e.truncated&&e.truncated.at===e.word_cap&&e.truncated.words_returned>e.word_cap&&e.truncated.words_kept===e.word_cap&&e.truncated.first_line_moved===true&&e.contract==='rating','truncation: log line wrong '+JSON.stringify(e.truncated)+' cap '+e.word_cap);
+    check(e.truncated&&e.truncated.at===e.word_cap&&e.truncated.words_returned>e.word_cap&&e.truncated.words_kept===e.word_cap&&e.truncated.first_line_moved===true&&e.truncated.cut_at==='word'&&e.contract==='rating','truncation: log line wrong '+JSON.stringify(e.truncated)+' cap '+e.word_cap);
     var ca=node('check-answer.js',[f,'--run',run]);
     check(ca.status===0&&/OK rating 8\/10/.test(ca.stdout),'truncation: the listed plugin\'s checker should pass the cut file, got '+ca.stdout.split('\n')[0]);
     node('check-flip.js',['--run',run,'--round','04-battle','--seat','seat-2']);

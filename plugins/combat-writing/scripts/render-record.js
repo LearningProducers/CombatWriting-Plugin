@@ -8,7 +8,7 @@
 // marked valid or invalid with the earlier number kept visible, Stand marked, missing seats
 // marked missing, a seat the round was not put to marked "not asked" (a round of seat lines
 // alone goes to the named seats only), a battle round that asked for no rating marked "critique", an outside
-// seat's read the add-on cut marked "truncated at N words", the final round's S/N and
+// seat's second overrun the add-on or the checker cut marked "truncated at N words", the final round's S/N and
 // red-flag counts per seat), then every answer in full by round under its seat's name, then
 // the log of what was sent. Nothing is averaged, summed or ranked. Rebuilt after every
 // round; the log and the answer files are the truth.
@@ -44,11 +44,14 @@ var created=log.filter(function(e){return e.event==='run.created';})[0]||{};
 function bar(n){ return n===null?'          ':new Array(n+1).join('█')+new Array(11-n).join('░'); }
 function lastLog(pred){ for(var i=log.length-1;i>=0;i--){ if(pred(log[i]))return log[i]; } return null; }
 
-// The add-on's cut of an outside seat's read (ruled 2026-10-09): the last crew.answered line
-// for that seat, round and read says whether the reply was truncated at the cap.
+// A cut read: the add-on's cut of an outside seat's read (ruled 2026-10-09, the crew.answered
+// line) or the checker's cut of a fresh reader's (ruled 2026-10-15, the answer.checked line),
+// whichever is last for that seat, round and read.
 function truncationOf(seat,round,read){
-  var e=lastLog(function(x){return x.event==='crew.answered'&&x.round===round&&x.seat===seat.id&&(x.read||'rating')===read;});
-  return e&&e.truncated?e.truncated:null;
+  var e=lastLog(function(x){return (x.event==='crew.answered'&&x.round===round&&x.seat===seat.id&&(x.read||'rating')===read)
+    ||(x.event==='answer.checked'&&x.round===round&&x.seat===seat.id&&x.truncated&&(x.contract==='sn'||x.contract==='redflag'?x.contract:'rating')===read);});
+  if(!e||!e.truncated)return null;
+  return Object.assign({by:e.event==='answer.checked'?'checker':'add-on'},e.truncated);
 }
 function truncMark(t){ return t?' · truncated at '+t.at+' words':''; }
 
@@ -153,7 +156,7 @@ rounds.forEach(function(r){
       var q=path.join(runDir,'rounds',r,s.id+'.question.md');
       if(fs.existsSync(q)&&f===s.id+'.answer.md'){out.push('*Question to this seat:* '+lib.readText(q).trim());out.push('');}
       var t=truncationOf(s,r,f.indexOf('.sn.')>=0?'sn':f.indexOf('.redflag.')>=0?'redflag':'rating');
-      if(t){out.push('*Truncated at '+t.at+' words by the crew add-on on the seat\'s second overrun; the seat returned '+t.words_returned+' words'+(t.first_line_moved?'; its first line was found lower in the reply and moved to the top':'')+'.*');out.push('');}
+      if(t){out.push('*'+lib.truncationLine(t)+'*');out.push('');}
       out.push(lib.readText(p).replace(/\s+$/,''));
     });
   });

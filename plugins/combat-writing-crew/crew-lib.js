@@ -158,12 +158,22 @@ function packetRules(packetText){
 }
 function wordCount(text){ return String(text||'').split(/\s+/).filter(Boolean).length; }
 
-// The cut (ruled 2026-10-09): on an outside seat's second overrun, the read is truncated at
-// the cap, marked, and its rating kept. The contract's first line (RATING: X/10 for a rating
-// read, the S/N or red-flag line for a final read) is pulled out of the reply wherever it
-// sits before the cut, so it survives even when the seat put it last; the rest is cut at a
-// word boundary so that the whole file counts no more than the cap. A critique read has no
-// such line; it is cut at the cap as it stands. Returns null when the reply is within the cap.
+// The retry target (ruled 2026-10-15): a seat sent back over the cap is asked for a target well
+// under it, 80% (400 of 500, 480 of 600, 200 of 250), so the second answer has room; the cap
+// itself still holds. Mirrored word for word from the listed plugin's lib.js; crew_check.js pins the two equal.
+var RETRY_TARGET_RATIO=0.8;
+function retryTarget(cap){ return Math.floor(cap*RETRY_TARGET_RATIO); }
+
+// The cut (ruled 2026-10-09 for an outside seat, 2026-10-15 for every seat): on a seat's second
+// overrun, the read is truncated at the cap, marked, and its rating kept. The contract's first
+// line (RATING: X/10 for a rating read, the S/N or red-flag line for a final read) is pulled out
+// of the reply wherever it sits before the cut, so it survives even when the seat put it last;
+// the rest is cut at the last sentence end at or before the cap when one falls within the last
+// SENTENCE_CUT_WINDOW words, else at the word, so that the whole file counts no more than the
+// cap. A critique read has no such line; it is cut at the cap as it stands. Returns null when
+// the reply is within the cap. Mirrored word for word from the listed plugin's lib.js (the add-on never
+// reaches into that folder); crew_check.js pins the two equal.
+var SENTENCE_CUT_WINDOW=60;
 function truncateAnswer(text,cap,read,contract){
   if(!cap||wordCount(text)<=cap)return null;
   var returned=wordCount(text);
@@ -176,11 +186,17 @@ function truncateAnswer(text,cap,read,contract){
   }
   var body=lines.join('\n').replace(/^\s+/,'');
   var budget=cap-(head?wordCount(head):0);
-  var w=/\S+/g, n=0, end=0, m;
-  while(budget>0&&(m=w.exec(body))){n++;if(n===budget){end=w.lastIndex;break;}}
+  var w=/\S+/g, n=0, end=0, m, sentenceEnd=0, sentenceWords=0;
+  while(budget>0&&(m=w.exec(body))){
+    n++;
+    if(/[.!?]["\u201d\u2019')\]]*$/.test(m[0])&&!/^(https?:|www\.)/i.test(m[0])){sentenceEnd=w.lastIndex;sentenceWords=n;}
+    if(n===budget){end=w.lastIndex;break;}
+  }
+  var cutAt='word';
+  if(sentenceEnd&&budget-sentenceWords<=SENTENCE_CUT_WINDOW){end=sentenceEnd;cutAt='sentence';}
   var cut=body.slice(0,end).replace(/\s+$/,'');
   var out=(head?head+'\n\n':'')+cut;
-  return {text:out,truncated:{at:cap,words_returned:returned,words_kept:wordCount(out),first_line_moved:moved}};
+  return {text:out,truncated:{at:cap,words_returned:returned,words_kept:wordCount(out),first_line_moved:moved,cut_at:cutAt}};
 }
 
 // The per-minute window, per provider: tokens spent in the window (input plus the reservation,
@@ -209,4 +225,4 @@ function makeWindow(){
 module.exports={readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
   loadProviders:loadProviders,keyFor:keyFor,keyHint:keyHint,keyField:keyField,CONFIGURE_COMMAND:CONFIGURE_COMMAND,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
   eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,
-  NO_RATING_LINE:NO_RATING_LINE,packetRules:packetRules,wordCount:wordCount,truncateAnswer:truncateAnswer};
+  NO_RATING_LINE:NO_RATING_LINE,packetRules:packetRules,wordCount:wordCount,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer};

@@ -47,10 +47,12 @@ function paras(text){
   return String(text).replace(/\r\n/g,'\n').replace(/^﻿/,'').trim().split(/\n\s*\n/).map(function(p){return '<p>'+esc(p).replace(/\n/g,'<br>')+'</p>';}).join('');
 }
 function lastLog(pred){ for(var i=log.length-1;i>=0;i--){ if(pred(log[i]))return log[i]; } return null; }
-// The add-on's cut of an outside seat's read: the last crew.answered line for the seat, round and read.
+// A cut read: the add-on's (crew.answered) or the checker's (answer.checked), whichever is last for the seat, round and read.
 function truncationOf(seat,round,read){
-  var e=lastLog(function(x){return x.event==='crew.answered'&&x.round===round&&x.seat===seat.id&&(x.read||'rating')===read;});
-  return e&&e.truncated?e.truncated:null;
+  var e=lastLog(function(x){return (x.event==='crew.answered'&&x.round===round&&x.seat===seat.id&&(x.read||'rating')===read)
+    ||(x.event==='answer.checked'&&x.round===round&&x.seat===seat.id&&x.truncated&&(x.contract==='sn'||x.contract==='redflag'?x.contract:'rating')===read);});
+  if(!e||!e.truncated)return null;
+  return Object.assign({by:e.event==='answer.checked'?'checker':'add-on'},e.truncated);
 }
 function withTrunc(mark,t){ return t?(mark?mark+' · ':'')+'truncated at '+t.at+' words':mark; }
 

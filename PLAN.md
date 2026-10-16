@@ -233,7 +233,7 @@ Ruled: the cut stays as the safety net; the retry asks for a target well under t
 
 Delivers: `lib.retryTarget` and the cap reason naming the target (one line reaching the fresh reader's retry task and the outside seat's `note`); `check-answer.js` cutting the retry's file at the last sentence end at or before the cap with the first line kept, logged in `answer.checked.truncated`; `truncateAnswer` mirrored in `lib.js` and `crew-lib.js`, pinned equal; the add-on's retry line and system line naming the target and the sentence cut (0.4.2); the record and board reading the mark from either log line; the seat agent, battle, sparring, the rules skill, help, departure 12 and mirror, CLAUDE.md, the legend; cw 0.6.2.
 
-Status: not started — 2026-10-16.
+Status: delivered — 2026-10-16 — pull request open, stacked on Part 18's branch; all seventeen checks and the three strict validations pass locally; the cut was exercised through the real checker on a scratch run and through the add-on against the fake server in the tests, never a provider; the seat agent keeps Read and Write, no shell.
 
 ## Part 19 — The board reads at a book measure (issue 22)
 
