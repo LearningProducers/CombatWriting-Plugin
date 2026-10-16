@@ -25,6 +25,10 @@
 // the packet the seat was sent, so the same RATING answer passes in a --rerate battle
 // packet and fails in one built without it, and a plain critique does the reverse.
 //
+//   - The second overrun (2026-10-15): a check after a failed check of the same file cuts an answer
+//     over the cap at the last sentence end before the cap with the first line kept, writes it
+//     back, passes it and logs truncated; the first check's reason names the retry target (80%).
+//
 // Run from the repo root:   node tests/rating_contract_check.js
 // Exit 0 on pass; exit 1 on any failure.
 
@@ -225,6 +229,82 @@ check(mis.status===2,'no argument: expected exit 2, got '+mis.status);
 var missing=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),path.join(tmp,'nope.md')],{encoding:'utf8'});
 check(missing.status===2,'missing file: expected exit 2, got '+missing.status);
 
+
+// The second overrun (ruled 2026-10-15, one rule for every seat). A real run, a packet at the
+// default cap of 500. First check of a 520-word answer: FAIL, the reason names the retry target
+// (400) and the cut, the file is untouched. The retry comes back at 510 with sentences: the second
+// check cuts it at the last sentence end before 500, keeps the first line, writes it back, passes,
+// and logs truncated (by the checker, cut at a sentence). A retry with the rating line last and no
+// sentence end near the cap is cut at the word with the rating pulled first. A retry still at 7 is
+// cut and still fails. A critique read is cut with no first line; a final S/N read keeps its line.
+// A check after a PASSED check never cuts (the override case above relies on that).
+var soProj=path.join(tmp,'so'); fs.mkdirSync(soProj);
+fs.writeFileSync(path.join(soProj,'draft.md'),'A draft.\n');
+var soRun=cp.spawnSync(process.execPath,[path.join(scripts,'new-run.js'),'--draft','draft.md','--name','second'],{cwd:soProj,encoding:'utf8'}).stdout.trim();
+function soPacket(round,extra){ return cp.spawnSync(process.execPath,[path.join(scripts,'packet.js'),'--run',soRun,'--round',round,'--seat','seat-1'].concat(extra||[]),{encoding:'utf8'}); }
+function soCheck(f){ var r=cp.spawnSync(process.execPath,[path.join(scripts,'check-answer.js'),f,'--run',soRun],{encoding:'utf8'}); var lines=r.stdout.trim().split('\n'); return {code:r.status,first:lines[0],summary:JSON.parse(lines[lines.length-1])}; }
+function soLog(){ return fs.readFileSync(path.join(soRun,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);}); }
+soPacket('01-sparring');
+var soAns=path.join(soRun,'rounds','01-sparring','seat-1.answer.md');
+var first520='RATING: 6/10\nNot ready. '+new Array(517).join('word ')+'\n';
+check(lib.wordCount(first520)===520,'second overrun: fixture is '+lib.wordCount(first520)+' words');
+fs.writeFileSync(soAns,first520);
+var s1=soCheck(soAns);
+check(s1.code===1&&/520 words, over the cap of 500; write it again under 400 words, counting them; a second answer over 500 is cut at the last sentence before 500/.test(s1.first),'second overrun: the first check should fail and name the target, got '+s1.first);
+check(fs.readFileSync(soAns,'utf8')===first520&&s1.summary.truncated===null,'second overrun: a first check must never write the file or claim a cut');
+var sentences=[]; for(var si=0;si<100;si++)sentences.push('This sentence has five words.'); // 500 words
+var retry510='RATING: 6/10\nNot ready. '+sentences.join(' ')+' Then a tail of words that runs on past the cap and ends.\n';
+check(lib.wordCount(retry510)>500&&lib.wordCount(retry510)<520,'second overrun: retry fixture is '+lib.wordCount(retry510)+' words');
+fs.writeFileSync(soAns,retry510);
+var s2=soCheck(soAns);
+var cutText=fs.readFileSync(soAns,'utf8');
+check(s2.code===0&&/^OK rating 6\/10, \d+ words, truncated at 500 words on the second overrun \(cut at the last sentence end; the seat returned \d+\)/.test(s2.first),'second overrun: the second check should pass as cut, got '+s2.first);
+check(/^RATING: 6\/10\n\nNot ready\./.test(cutText)&&lib.wordCount(cutText)<=500&&/words\.\n$/.test(cutText)&&cutText.indexOf('tail of words')<0,'second overrun: the file should be cut at a sentence end under the cap with the rating first; got '+lib.wordCount(cutText)+' words ending "'+cutText.slice(-30).replace(/\n/g,'\\n')+'"');
+var s2log=soLog().filter(function(e){return e.event==='answer.checked'&&e.round==='01-sparring';}).pop();
+check(s2log.ok===true&&s2log.truncated&&s2log.truncated.by==='checker'&&s2log.truncated.at===500&&s2log.truncated.cut_at==='sentence'&&s2log.truncated.words_returned>500&&s2log.truncated.words_kept===lib.wordCount(cutText)&&s2log.truncated.first_line_moved===false,'second overrun: log line wrong '+JSON.stringify(s2log.truncated));
+var s3=soCheck(soAns);
+check(s3.code===0&&s3.summary.truncated===null&&fs.readFileSync(soAns,'utf8')===cutText,'second overrun: a third check of the cut file passes and cuts nothing');
+// The rating line last, no sentence end near the cap: cut at the word, the rating pulled first.
+// A sparring round after the first reads alone: cap 500.
+soPacket('02-sparring');
+var soAns2=path.join(soRun,'rounds','02-sparring','seat-1.answer.md');
+fs.writeFileSync(soAns2,'RATING: 8/10\n'+new Array(520).join('word ')+'\n');
+soCheck(soAns2);
+fs.writeFileSync(soAns2,'Opening. '+new Array(520).join('word ')+'\n\nRATING: 8/10\n');
+var s4=soCheck(soAns2); var cut2=fs.readFileSync(soAns2,'utf8');
+check(s4.code===0&&/^RATING: 8\/10\n\nOpening\. word/.test(cut2)&&lib.wordCount(cut2)===500&&(cut2.match(/RATING:/g)||[]).length===1,'second overrun, rating last: the cut should pull the rating first and hold 500 words, got '+lib.wordCount(cut2)+' exit '+s4.code);
+var s4log=soLog().filter(function(e){return e.event==='answer.checked'&&e.round==='02-sparring';}).pop();
+check(s4log.truncated&&s4log.truncated.cut_at==='word'&&s4log.truncated.first_line_moved===true,'second overrun, rating last: the log should say cut at the word with the first line moved');
+// A retry still at 7: cut, and still a failed read.
+soPacket('03-sparring');
+var soAns3=path.join(soRun,'rounds','03-sparring','seat-1.answer.md');
+fs.writeFileSync(soAns3,'RATING: 7/10\n'+new Array(520).join('word ')+'\n'); soCheck(soAns3);
+fs.writeFileSync(soAns3,'RATING: 7/10\n'+new Array(520).join('word ')+'\n');
+var s5=soCheck(soAns3);
+check(s5.code===1&&/^FAIL rating is 7; 7 is forbidden[^\n]*\(cut at 500 words on the second overrun first\)/.test(s5.first)&&lib.wordCount(fs.readFileSync(soAns3,'utf8'))===500,'second overrun with a 7: cut, and still a failed read; got '+s5.first);
+// A critique read (a battle round after answered rounds carries them: cap 600): cut with no first line to keep.
+soPacket('04-battle');
+var soAns4=path.join(soRun,'rounds','04-battle','seat-1.answer.md');
+fs.writeFileSync(soAns4,'Not ready. '+new Array(620).join('word ')+'\n'); soCheck(soAns4);
+fs.writeFileSync(soAns4,'Not ready. '+new Array(620).join('word ')+'\n');
+var s6=soCheck(soAns4);
+check(s6.code===0&&/^OK critique, no rating this round, 600 words, truncated at 600 words/.test(s6.first)&&/^Not ready\. word/.test(fs.readFileSync(soAns4,'utf8')),'second overrun, critique: cut as it stands; got '+s6.first);
+// A final S/N read: the line kept, cut at 250.
+soPacket('05-final',['--final','sn']);
+var soAns5=path.join(soRun,'rounds','05-final','seat-1.sn.answer.md');
+fs.writeFileSync(soAns5,'S/N RATIO: 60%\n'+new Array(300).join('word ')+'\n'); soCheck(soAns5);
+fs.writeFileSync(soAns5,'S/N RATIO: 60%\n'+new Array(300).join('word ')+'\n');
+var s7=soCheck(soAns5);
+check(s7.code===0&&/^OK S\/N 60%, 250 words, truncated at 250 words/.test(s7.first)&&/^S\/N RATIO: 60%\n/.test(fs.readFileSync(soAns5,'utf8')),'second overrun, final read: the S/N line kept, cut at 250; got '+s7.first);
+// The record and the board read the checker's cut from the answer.checked line (the add-on's from crew.answered).
+cp.spawnSync(process.execPath,[path.join(scripts,'render-record.js'),'--run',soRun],{encoding:'utf8'});
+cp.spawnSync(process.execPath,[path.join(scripts,'render-board.js'),'--run',soRun],{encoding:'utf8'});
+var soRec=fs.readFileSync(path.join(soRun,'record.md'),'utf8'), soHtml=fs.readFileSync(path.join(soRun,'board.html'),'utf8');
+check(/\| 01-sparring \|/.test(soRec)&&/seat-1 \| 6\/10 · truncated at 500 words \|/.test(soRec),'record: the checker\'s cut should be marked in the scoreboard; row: '+((soRec.match(/\| [^|]*seat-1 \|[^\n]*/)||[''])[0]));
+check(/\*Truncated at 500 words by the checker on the seat's second overrun; the seat returned 51\d words; cut at the last sentence end before the cap\.\*/.test(soRec),'record: the answer should carry the checker\'s cut line');
+check(/\*Truncated at 500 words by the checker on the seat's second overrun; the seat returned 52\d words; its first line was found lower in the reply and moved to the top\.\*/.test(soRec),'record: the rating-last cut should say the first line was moved');
+check(/6\/10<br><span class="mark"[^>]*>truncated at 500 words<\/span>/.test(soHtml),'board: the checker\'s cut should be marked with the rating shown');
+check(/Truncated means the seat's second overrun was cut at the cap, at the last sentence end before it, with its first line kept\./.test(soRec),'record: the legend should state the one rule');
 fs.rmSync(tmp,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'rating_contract_check: '+failures.length+' failure(s), ':'rating_contract_check: all passed, ')+passes+' checks');

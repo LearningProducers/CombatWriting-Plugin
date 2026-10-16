@@ -95,7 +95,7 @@ var VERDICT_SENTENCE_LINE_CRITIQUE='Your first sentence is your verdict on the d
 
 // The scoreboard legend, one paragraph: record.md carries it, and the short form prints it
 // once per run (2026-10-14), the first time it prints, never again in that run.
-var SCOREBOARD_LEGEND='Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Not asked means the round was put to other seats only. Critique means the round asked for no rating (a battle round rates only on `rerate`). Failed read means the answer broke the contract it was sent, the rating line, the cap, or a number that contradicts the verdict. Truncated means the add-on cut an outside seat\'s second overrun at the cap, with its first line kept. The bar is the seat\'s latest rating.';
+var SCOREBOARD_LEGEND='Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Not asked means the round was put to other seats only. Critique means the round asked for no rating (a battle round rates only on `rerate`). Failed read means the answer broke the contract it was sent, the rating line, the cap, or a number that contradicts the verdict. Truncated means the seat\'s second overrun was cut at the cap, at the last sentence end before it, with its first line kept. The bar is the seat\'s latest rating.';
 var BOARD_FILE='board.html';
 
 function parseArgs(argv){
@@ -416,6 +416,47 @@ function flipInputs(runDir,seat,round,seats){
 
 function wordCount(text){ return text.split(/\s+/).filter(Boolean).length; }
 
+// The retry target (ruled 2026-10-15): a seat sent back over the cap is asked for a target well
+// under it, 80% (400 of 500, 480 of 600, 200 of 250), so the second answer has room; the cap
+// itself still holds. The add-on mirrors retryTarget word for word; crew_check.js pins the two equal.
+var RETRY_TARGET_RATIO=0.8;
+function retryTarget(cap){ return Math.floor(cap*RETRY_TARGET_RATIO); }
+
+// The cut (ruled 2026-10-09 for an outside seat, 2026-10-15 for every seat): on a seat's second
+// overrun, the read is truncated at the cap, marked, and its rating kept. The contract's first
+// line (RATING: X/10 for a rating read, the S/N or red-flag line for a final read) is pulled out
+// of the reply wherever it sits before the cut, so it survives even when the seat put it last;
+// the rest is cut at the last sentence end at or before the cap when one falls within the last
+// SENTENCE_CUT_WINDOW words, else at the word, so that the whole file counts no more than the
+// cap. A critique read has no such line; it is cut at the cap as it stands. Returns null when
+// the reply is within the cap. The add-on mirrors this function word for word (it never reaches
+// into the listed plugin's folder); crew_check.js pins the two equal.
+var SENTENCE_CUT_WINDOW=60;
+function truncateAnswer(text,cap,read,contract){
+  if(!cap||wordCount(text)<=cap)return null;
+  var returned=wordCount(text);
+  var re=read==='sn'?/^S\/N RATIO: \d{1,3}%$/:read==='redflag'?/^(NO RED FLAGS|RED FLAGS FOUND: \d+)$/:contract==='critique'?null:/^RATING: \d{1,2}\/10$/;
+  var lines=text.split('\n'), head=null, moved=false;
+  if(re){
+    for(var i=0;i<lines.length;i++){
+      if(re.test(lines[i].trim())){head=lines[i].trim();moved=i>0;lines.splice(i,1);break;}
+    }
+  }
+  var body=lines.join('\n').replace(/^\s+/,'');
+  var budget=cap-(head?wordCount(head):0);
+  var w=/\S+/g, n=0, end=0, m, sentenceEnd=0, sentenceWords=0;
+  while(budget>0&&(m=w.exec(body))){
+    n++;
+    if(/[.!?]["\u201d\u2019')\]]*$/.test(m[0])&&!/^(https?:|www\.)/i.test(m[0])){sentenceEnd=w.lastIndex;sentenceWords=n;}
+    if(n===budget){end=w.lastIndex;break;}
+  }
+  var cutAt='word';
+  if(sentenceEnd&&budget-sentenceWords<=SENTENCE_CUT_WINDOW){end=sentenceEnd;cutAt='sentence';}
+  var cut=body.slice(0,end).replace(/\s+$/,'');
+  var out=(head?head+'\n\n':'')+cut;
+  return {text:out,truncated:{at:cap,words_returned:returned,words_kept:wordCount(out),first_line_moved:moved,cut_at:cutAt}};
+}
+
 // The verdict in an answer (2026-10-14): a seat's number and its words must agree. 8 to 10 is a
 // working document, 1 to 6 a problem document (the seat's own rule); an 8 to 10 that says the
 // draft is not send-ready, or a 1 to 6 that says it ships as it is, is a failed read, and the
@@ -536,8 +577,16 @@ function checkAnswer(text,wordCap,contract){
   var body=lines.slice(contract==='critique'?0:1).join('\n');
   if(body.trim()==='')reasons.push(contract==='critique'?'no critique':'no reasoning after the first line');
   var words=wordCount(text);
-  if(words>cap)reasons.push(words+' words, over the cap of '+cap);
+  // The cap reason names the retry target (ruled 2026-10-15); it reaches a fresh reader in its retry
+  // task and an outside seat in its retry note, so both get the same number from this one line.
+  if(words>cap)reasons.push(words+' words, over the cap of '+cap+'; write it again under '+retryTarget(cap)+' words, counting them; a second answer over '+cap+' is cut at the last sentence before '+cap);
   return {ok:reasons.length===0,contract:contract,rating:rating,value:value,words:words,reasons:reasons};
+}
+
+// The record's line for a cut read, for either cutter: the checker (a fresh reader, 2026-10-15)
+// or the crew add-on (an outside seat, 2026-10-09). `t` is the truncated object a log line carries.
+function truncationLine(t){
+  return 'Truncated at '+t.at+' words by '+(t.by==='checker'?'the checker':'the crew add-on')+' on the seat\'s second overrun; the seat returned '+t.words_returned+' words'+(t.cut_at==='sentence'?'; cut at the last sentence end before the cap':'')+(t.first_line_moved?'; its first line was found lower in the reply and moved to the top':'')+'.';
 }
 
 // Quotes in an answer, each with the other seat it is attributed to. A quote is a span in
@@ -608,6 +657,6 @@ module.exports={
   SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
-  capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip
 };
