@@ -297,6 +297,56 @@ function roundContract(runDir,round,log){
   return 'rating';
 }
 
+// The round's task (2026-10-15: the board and the record show the round's prompt): what the
+// round asked every seat, read from the round's first packet, which is what the seats were
+// sent, so one source serves runs built before anything about the task was logged. Returns
+// {kind, text, contract, rerate, first_round}: kind is SN, SFQ, N or FQ with the person's text;
+// 'seat' for a round of seat lines alone (each seat's line is its own <seat>.question.md);
+// 'cold' for the cold read; 'final' for the final reads; 'plain' with the default prompt the
+// packet sent. A round with no packet at all is 'plain' with no text.
+var TASK_LABELS=[['SFQ','Synthesis focus question (SFQ): '],['SN','Synthesis navigation (SN): '],['N','Navigation (N): '],['FQ','Focus question (FQ): ']];
+function roundTask(runDir,round,log){
+  log=log||readLog(runDir);
+  var contract=roundContract(runDir,round,log);
+  if(isFinalRound(round))return {kind:'final',text:null,contract:'final',rerate:false,first_round:false};
+  var line=null; for(var i=0;i<log.length;i++){ var e=log[i]; if(e.event==='packet.built'&&e.round===round){line=e;break;} }
+  var dir=path.join(runDir,'rounds',round);
+  var file=line&&line.file?path.join(runDir,line.file):null;
+  if(!file||!fs.existsSync(file)){
+    var names=fs.existsSync(dir)?fs.readdirSync(dir).filter(function(n){return /^[^.]+\.packet\.md$/.test(n);}).sort():[];
+    file=names.length?path.join(dir,names[0]):null;
+  }
+  var packet=file?readText(file):'';
+  var m=/## Your task\n\n([\s\S]*?)\n## Contract/.exec(packet);
+  var task=m?m[1].trim():'';
+  var out={kind:'plain',text:null,contract:contract,rerate:line?!!line.rerate:contract==='rating',first_round:line?!!line.first_round:false};
+  for(var j=0;j<TASK_LABELS.length;j++){
+    var lab=TASK_LABELS[j][1];
+    if(task.indexOf(lab)===0){ out.kind=TASK_LABELS[j][0]; out.text=task.slice(lab.length).split(/\n\s*\n/)[0].trim(); return out; }
+  }
+  var mode=line?line.mode:null;
+  if(mode==='cold'||/^This is the cold read:/m.test(packet))out.kind='cold';
+  else if(mode==='seat')out.kind='seat';
+  else if(task)out.text=task.split(/\n\s*\n/)[0].trim();
+  return out;
+}
+// One phrase for the task, for the round strip, the record and the round history:
+// `SN: “text”`, `seat lines`, `cold read, the draft alone`, `final reads: S/N ratio and red
+// flags`, or `the default prompt: “text”`.
+function taskLine(task){
+  if(task.kind==='final')return 'final reads: S/N ratio and red flags';
+  if(task.kind==='seat')return 'seat lines';
+  if(task.kind==='cold')return 'cold read, the draft alone';
+  if(task.kind==='plain')return task.text?'the default prompt: “'+task.text+'”':'no task recorded';
+  return task.kind+': “'+task.text+'”';
+}
+// What the round asked for, in three words: no rating, a new rating, or a rating.
+function ratingLine(task,round){
+  if(task.contract==='final')return '';
+  if(task.contract==='critique')return 'no rating asked';
+  return task.rerate&&roundKind(round)==='battle'?'a new rating asked':'a rating asked';
+}
+
 // Every seat's answer in one round: {seat, file, text, contract} when present and sound,
 // {seat, missing:true} when there is no file, {seat, missing:true, notAsked:true} when the
 // round was put to other seats only (ruled 2026-10-09: a round of seat lines alone goes to the
@@ -558,6 +608,6 @@ module.exports={
   SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
-  capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip
 };

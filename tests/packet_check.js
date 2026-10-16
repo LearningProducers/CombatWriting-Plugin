@@ -64,6 +64,9 @@
 //     was carried and what was missing; packet.js refuses a seat not in seats.json and
 //     a malformed round.
 //
+//   - lib.roundTask reads a round's task from its first packet (SFQ, SN, N, FQ with the text;
+//     seat, cold, final, plain), and taskLine and ratingLine put it in words (2026-10-15).
+//
 // Run from the repo root:   node tests/packet_check.js
 // Exit 0 on pass; exit 1 on any failure.
 
@@ -414,6 +417,34 @@ check(creditHits.length===0,'credit line found in run files: '+creditHits.join('
   check(fin.length>0&&fin.every(function(p){return !/your verdict on the draft/.test(read(p));}),'final packets: must carry no verdict sentence');
 })();
 
+
+// lib.roundTask (2026-10-15: the board and the record show the round's prompt): the round's task
+// read from its first packet. 03-battle's first packet was the SFQ one; 01-sparring was plain; an
+// N round, a seat-line round, a cold round and a final round each report their kind; a round folder
+// with no packet is plain with no text; taskLine and ratingLine put each in words.
+var lib=require(path.join(scripts,'lib.js'));
+var tk=lib.roundTask(run,'03-battle');
+check(tk.kind==='SFQ'&&tk.text==='Where do you overlap and where do you split?'&&tk.contract==='rating'&&tk.rerate===true&&tk.first_round===false,'roundTask: 03-battle should be the SFQ with its text: '+JSON.stringify(tk));
+check(lib.taskLine(tk)==='SFQ: “Where do you overlap and where do you split?”'&&lib.ratingLine(tk,'03-battle')==='a new rating asked','taskLine/ratingLine: SFQ round wrong: '+lib.taskLine(tk)+' / '+lib.ratingLine(tk,'03-battle'));
+var tk1=lib.roundTask(run,'01-sparring');
+check(tk1.kind==='plain'&&tk1.text===lib.DEFAULT_READ_PROMPT&&lib.taskLine(tk1).indexOf('the default prompt: “')===0&&lib.ratingLine(tk1,'01-sparring')==='a rating asked','roundTask: 01-sparring should be plain with the default read prompt: '+JSON.stringify(tk1));
+node('packet.js',['--run',run,'--round','11-battle','--seat','seat-2','--n','n.md']);
+var tkn=lib.roundTask(run,'11-battle');
+check(tkn.kind==='N'&&tkn.text==='Answer the close first, then the ask.'&&tkn.contract==='critique'&&lib.ratingLine(tkn,'11-battle')==='no rating asked','roundTask: an N round: '+JSON.stringify(tkn));
+node('packet.js',['--run',run,'--round','12-battle','--seat','seat-2','--question','q2.md']);
+var tks=lib.roundTask(run,'12-battle');
+check(tks.kind==='seat'&&tks.text===null&&lib.taskLine(tks)==='seat lines','roundTask: a seat-line round: '+JSON.stringify(tks));
+node('packet.js',['--run',run,'--round','13-sparring','--seat','seat-2','--cold']);
+var tkc=lib.roundTask(run,'13-sparring');
+check(tkc.kind==='cold'&&lib.taskLine(tkc)==='cold read, the draft alone','roundTask: a cold round: '+JSON.stringify(tkc));
+var tkf=lib.roundTask(run,'14-final');
+check(tkf.kind==='final'&&lib.taskLine(tkf)==='final reads: S/N ratio and red flags'&&lib.ratingLine(tkf,'14-final')==='','roundTask: a final round: '+JSON.stringify(tkf));
+fs.mkdirSync(path.join(run,'rounds','15-battle'));
+var tk0=lib.roundTask(run,'15-battle');
+check(tk0.kind==='plain'&&tk0.text===null&&lib.taskLine(tk0)==='no task recorded','roundTask: a round with no packet: '+JSON.stringify(tk0));
+node('packet.js',['--run',run,'--round','16-battle','--seat','seat-2','--sn','sn.md','--question','q2.md','--rerate']);
+var tkq=lib.roundTask(run,'16-battle');
+check(tkq.kind==='SN'&&tkq.text==='Everyone answer the close.'&&tkq.rerate===true,'roundTask: SN with a seat line riding is still the SN: '+JSON.stringify(tkq));
 fs.rmSync(proj,{recursive:true,force:true});
 
 failures.forEach(function(f){console.log('FAIL '+f);});

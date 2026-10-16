@@ -5,18 +5,23 @@
 //
 //   node render-board.js --run <run folder>
 //
-// The page, top to bottom: the motto; the newest draft, in full; the verdict across the
-// page, SEND or BACK TO THE DRAWING BOARD, from every seat's own latest rating and nothing
-// averaged (every seat 8 or more sends; any seat 6 or less sends it back, and the band names
-// that seat; with no rating yet it says so); then one framed quote per seat, the seat's
-// one-line verdict in bold, cited to the model by name and company (and the provider that
-// served an outside seat) with the round it came from, the seat's rating or its state
-// (critique, failed read, missing) on the frame, and the full read folded under a click;
-// then, folded, the scoreboard of every round (one row per seat, one column per round, every
-// rating on its own, flips marked valid or invalid with the earlier number kept, Stand,
-// missing, not asked, failed reads, truncated reads), the final reads when a final round
-// exists, and the run details (the crew line, the Seats line when the crew is short, the seat
-// key, the drafts, the brief, where the run started, a link to record.md). Light and dark
+// The page, top to bottom: the motto; the round strip (ruled 2026-10-15: the latest round's
+// prompt is visible at the top with nothing opened, from lib.roundTask, with whether a rating
+// was asked and how many seats answered); the newest draft, in full; the verdict box, only when
+// the run holds a number (ruled 2026-10-15): SEND or BACK TO THE DRAWING BOARD from every
+// seat's own latest rating and nothing averaged (every seat 8 or more sends; any seat 6 or
+// less sends it back, and the band names that seat), or FINAL READS over each seat's S/N and
+// red-flag numbers when the run holds final reads and no rating, and no box at all otherwise;
+// then one framed quote per seat, the seat's one-line verdict in bold, cited to the model by
+// name and company (and the provider that served an outside seat) with the round it came
+// from, and the seat's own note when that seat was asked something different (a seat line),
+// the seat's rating or its state (critique, failed read, missing) on the frame, and the full
+// read folded under a click; then, folded, the scoreboard of every round (one row per seat,
+// one column per round, every rating on its own, flips marked valid or invalid with the
+// earlier number kept, Stand, missing, not asked, failed reads, truncated reads) with the
+// round history under it (every round's task in one line), the final reads when a final
+// round exists, and the run details (the crew line, the Seats line when the crew is short,
+// the seat key, the drafts, the brief, where the run started, a link to record.md). Light and dark
 // follow the system setting, with a toggle. No external request of any kind: no script,
 // style, font or image is fetched. Nothing is averaged. Every seat's words are escaped: an
 // answer is text, never markup. Rebuilt after every round from the files and log.jsonl.
@@ -100,15 +105,19 @@ function latestRating(seat){
 // The verdict across the top (2026-10-14): from every seat's own latest rating, nothing
 // averaged. 8 to 10 is a working document and 1 to 6 a problem document, the seat's own rule;
 // every rated seat at 8 or more is SEND; any seat at 6 or less is BACK TO THE DRAWING BOARD,
-// and the band names that seat; no rating yet says so.
+// and the band names that seat. The box shows only over a number (ruled 2026-10-15): with
+// final reads and no rating it is FINAL READS over each seat's own two numbers; with neither
+// there is no box, and the round strip says what ran.
 var rated=seats.map(function(s){return {seat:s,latest:latestRating(s)};}).filter(function(x){return x.latest;});
 var low=rated.filter(function(x){return x.latest.rating<=6;});
-var verdict, verdictClass, verdictWhy;
+var noRoundsLine=newestDraft?'No rounds yet. The draft'+(hasBrief?' and the brief are':' is')+' stored; no seat has read it. Next: '+lib.CMD.sparring+' for the first reads and ratings, or '+lib.CMD.battle+' to start with the discussion.'
+  :'No rounds yet. The brief is stored; there is no draft yet. Next: '+lib.CMD.sparring+' or '+lib.CMD.battle+' with the draft pasted; it joins this run.';
+var verdict=null, verdictClass=null, verdictWhy=null;
 if(!rated.length){
-  verdict='NO RATING YET'; verdictClass='none';
-  verdictWhy=rounds.length?'No seat has rated this draft yet. Ask for a rating with rerate, or run sparring.'
-    :(newestDraft?'No rounds yet. The draft'+(hasBrief?' and the brief are':' is')+' stored; no seat has read it. Next: '+lib.CMD.sparring+' for the first reads and ratings, or '+lib.CMD.battle+' to start with the discussion.'
-      :'No rounds yet. The brief is stored; there is no draft yet. Next: '+lib.CMD.sparring+' or '+lib.CMD.battle+' with the draft pasted; it joins this run.');
+  if(finalRounds.length){
+    verdict='FINAL READS'; verdictClass='final';
+    verdictWhy='No seat has rated this draft. These are the final reads of round '+finalRounds[finalRounds.length-1]+', each seat\'s own S/N ratio and red-flag count. Nothing is averaged.';
+  }
 }else if(!low.length){
   verdict='SEND'; verdictClass='send';
   verdictWhy=(rated.length===1?'The one rated seat':'Every rated seat')+' put it at 8 or more: a working document by '+(rated.length===1?'its':'each seat\'s')+' own number. Nothing is averaged.';
@@ -131,7 +140,8 @@ html.push('*{box-sizing:border-box}body{margin:0;background:var(--surface);color
 html.push('.motto{font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:22px 0 14px}h1{font:600 20px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0}h2{font:600 13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:36px 0 10px}p{margin:8px 0}.meta{color:var(--ink-2);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}');
 html.push('.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}button{font:13px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--rule);border-radius:6px;padding:4px 10px;cursor:pointer}');
 html.push('.paper{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:28px 32px;font-size:17px;line-height:1.65;box-shadow:0 1px 2px rgba(0,0,0,.06)}.paper p{margin:0 0 1em}.paper p:last-child{margin-bottom:0}');
-html.push('.verdict{margin:28px 0 0;padding:34px 24px;border-radius:6px;text-align:center;color:var(--send-ink);background:var(--send)}.verdict.back{background:var(--back);color:var(--back-ink)}.verdict.none{background:var(--none);color:var(--none-ink)}.verdict .word{font:800 clamp(28px,6vw,64px)/1.05 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.06em;text-transform:uppercase;margin:0}.verdict .why{margin:14px auto 0;max-width:720px;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;opacity:.92}.verdict .numbers{list-style:none;padding:0;margin:18px 0 0;display:flex;gap:10px 22px;justify-content:center;flex-wrap:wrap;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}.verdict .numbers b{font-size:20px;margin-right:6px;font-variant-numeric:tabular-nums}');
+html.push('.round{margin:18px 0 0;padding:12px 16px;border-left:4px solid var(--frame);background:var(--surface-2);border-radius:0 4px 4px 0;font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.round b{color:var(--ink)}.rounds{list-style:none;padding:0;margin:14px 0 0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.rounds li{padding:4px 0;border-bottom:1px solid var(--rule)}.rounds b{color:var(--ink)}.frame figcaption .note-line{display:block;margin-top:4px;color:var(--ink-2)}');
+html.push('.verdict{margin:28px 0 0;padding:34px 24px;border-radius:6px;text-align:center;color:var(--send-ink);background:var(--send)}.verdict.back{background:var(--back);color:var(--back-ink)}.verdict.final{background:var(--none);color:var(--none-ink)}.verdict .word{font:800 clamp(28px,6vw,64px)/1.05 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.06em;text-transform:uppercase;margin:0}.verdict .why{margin:14px auto 0;max-width:720px;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;opacity:.92}.verdict .numbers{list-style:none;padding:0;margin:18px 0 0;display:flex;gap:10px 22px;justify-content:center;flex-wrap:wrap;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}.verdict .numbers b{font-size:20px;margin-right:6px;font-variant-numeric:tabular-nums}');
 html.push('.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:28px;margin-top:4px}.frame{margin:0;background:var(--paper);border:10px solid var(--frame);outline:1px solid var(--rule);box-shadow:inset 0 0 0 1px var(--rule),inset 0 0 0 6px var(--paper),inset 0 0 0 7px var(--frame),0 10px 24px rgba(0,0,0,.12);padding:34px 28px 26px;display:flex;flex-direction:column;align-items:center;text-align:center}');
 html.push('.badge{font:700 12px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:7px 12px;border:1px solid var(--frame);border-radius:999px;color:var(--ink)}.badge.failed,.badge.missing{color:var(--bad);border-color:var(--bad)}.badge.critique{color:var(--ink-2);border-color:var(--ink-3)}.badge .mark{font-weight:400;letter-spacing:0;text-transform:none;margin-left:6px;color:var(--ink-2)}.flip-valid .badge .mark{color:var(--good)}.flip-invalid .badge .mark{color:var(--bad)}');
 html.push('.frame blockquote{margin:22px 0 14px;padding:0;font-weight:700;font-style:italic;font-size:22px;line-height:1.35;quotes:"\\201C" "\\201D"}.frame blockquote:before{content:open-quote;display:block;font-size:52px;line-height:.4;color:var(--ink-3);margin-bottom:14px;font-style:normal}.frame figcaption{font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.frame figcaption .seat{color:var(--ink-3)}.frame .final{font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);margin-top:10px}');
@@ -142,18 +152,45 @@ html.push('</style></head><body><main>');
 html.push('<p class="motto">Reading is Peace. Writing is War.</p>');
 html.push('<div class="bar"><h1>Combat Writing board — '+esc(path.basename(runDir))+'</h1><button type="button" id="theme" aria-label="Switch light and dark">Light / dark</button></div>');
 
+// The round strip (ruled 2026-10-15): the latest round's task, visible with nothing opened.
+// roundLine renders one round for the strip and for the history in the scoreboard fold.
+function answeredIn(round){
+  var asked=lib.askedIn(runDir,round,log);
+  var put=seats.filter(function(s){return !asked||asked[s.id];});
+  var done=put.filter(function(s){return fs.existsSync(path.join(runDir,'rounds',round,s.id+(lib.isFinalRound(round)?'.sn':'')+'.answer.md'));});
+  return {put:put,done:done,all:!asked||put.length===seats.length};
+}
+function seatNote(round,seatId){ var q=path.join(runDir,'rounds',round,seatId+'.question.md'); return fs.existsSync(q)?lib.readText(q).trim():null; }
+function roundLine(round){
+  var task=lib.roundTask(runDir,round,log);
+  var a=answeredIn(round);
+  var parts=[esc(lib.taskLine(task))];
+  if(task.kind==='seat'||!a.all){
+    parts[0]=(task.kind==='seat'?'seat lines to ':esc(lib.taskLine(task))+' · put to ')+a.put.map(function(s){var n=seatNote(round,s.id);return esc(s.id)+(n?' (\u201c'+esc(n)+'\u201d)':'');}).join(', ');
+  }
+  var r=lib.ratingLine(task,round); if(r)parts.push(esc(r));
+  parts.push(a.done.length+' of '+a.put.length+' seat'+(a.put.length===1?'':'s')+' answered');
+  return '<b>Round '+esc(round)+'</b> · '+parts.join(' · ');
+}
+if(rounds.length)html.push('<p class="round">'+roundLine(rounds[rounds.length-1])+'</p>');
+
 // 1. The draft, in full.
 if(newestDraft){
   html.push('<h2>The draft'+(newestDraft!=='draft.md'?' · '+esc(newestDraft)+', a revision':'')+'</h2>');
+  if(!rounds.length)html.push('<p class="meta">'+esc(noRoundsLine)+'</p>');
   html.push('<div class="paper">'+paras(lib.readText(path.join(runDir,newestDraft)))+'</div>');
 }else{
   html.push('<h2>The draft</h2><p class="meta">None yet. The brief is stored; the draft joins the run when sparring or battle brings it.</p>');
+  if(!rounds.length)html.push('<p class="meta">'+esc(noRoundsLine)+'</p>');
 }
 
-// 2. The verdict across the page.
-html.push('<section class="verdict '+verdictClass+'" aria-label="Verdict"><p class="word">'+esc(verdict)+'</p><p class="why">'+esc(verdictWhy)+'</p>');
-if(rated.length)html.push('<ul class="numbers">'+rated.map(function(x){return '<li><b>'+x.latest.rating+'/10</b>'+esc(lib.seatLabel(x.seat))+'</li>';}).join('')+'</ul>');
-html.push('</section>');
+// 2. The verdict across the page, only over a number (ruled 2026-10-15).
+if(verdict){
+  html.push('<section class="verdict '+verdictClass+'" aria-label="Verdict"><p class="word">'+esc(verdict)+'</p><p class="why">'+esc(verdictWhy)+'</p>');
+  if(rated.length)html.push('<ul class="numbers">'+rated.map(function(x){return '<li><b>'+x.latest.rating+'/10</b>'+esc(lib.seatLabel(x.seat))+'</li>';}).join('')+'</ul>');
+  else html.push('<ul class="numbers">'+seats.map(function(s){return '<li><b>'+esc(finalText(finalCell(s,finalRounds[finalRounds.length-1])))+'</b>'+esc(lib.seatLabel(s))+'</li>';}).join('')+'</ul>');
+  html.push('</section>');
+}
 
 // 3. One framed quote per seat.
 if(tableRounds.length){
@@ -179,7 +216,8 @@ if(tableRounds.length){
     }
     var finalLine='';
     if(finalRounds.length){ var f=finalCell(s,finalRounds[finalRounds.length-1]); finalLine='<p class="final">'+esc(finalRounds[finalRounds.length-1])+': '+esc(finalText(f))+'</p>'; }
-    html.push('<figure class="frame '+esc(kind)+'" data-seat="'+esc(s.id)+'">'+badge+'<blockquote>'+esc(quote)+'</blockquote><figcaption>— '+esc(lib.seatLabel(s))+(t?' <span class="seat">· round '+esc(t.round)+'</span>':'')+'</figcaption>'+finalLine+fold+'</figure>');
+    var note=t?seatNote(t.round,s.id):null;
+    html.push('<figure class="frame '+esc(kind)+'" data-seat="'+esc(s.id)+'">'+badge+'<blockquote>'+esc(quote)+'</blockquote><figcaption>— '+esc(lib.seatLabel(s))+(t?' <span class="seat">· round '+esc(t.round)+'</span>':'')+(note?' <span class="note-line">· your note: \u201c'+esc(note)+'\u201d</span>':'')+'</figcaption>'+finalLine+fold+'</figure>');
   });
   html.push('</div>');
 }
@@ -211,6 +249,7 @@ if(rounds.length){
     html.push('<td class="num">'+(lr?lr.rating+'/10':'—')+'</td></tr>');
   });
   html.push('</tbody></table>');
+  html.push('<ul class="rounds">'+rounds.map(function(r){return '<li>'+roundLine(r)+'</li>';}).join('')+'</ul>');
   if(finalRounds.length){
     html.push('<h2>Final reads</h2>');
     html.push('<p class="note">The S/N ratio and red-flag reads of the newest draft, one pair per seat, never averaged.</p>');
@@ -242,7 +281,7 @@ lib.crewStateLines(runDir,seats,log).forEach(function(l){ html.push('<p class="m
 html.push('<p class="meta"><strong>Seat key:</strong> '+esc(lib.seatKey(seats))+'</p>');
 html.push('<p class="meta"><strong>Drafts:</strong> '+(drafts.length?esc(drafts.join(', '))+'.':'none yet; the draft joins the run when sparring or battle brings it.')+(hasBrief?' <strong>Brief:</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
 html.push('<p class="meta"><strong>Started at:</strong> '+esc(lib.startedAtLine(runDir,log,rounds))+'</p>');
-if(!rounds.length)html.push('<p class="note">'+esc(verdictWhy)+'</p>');
+if(!rounds.length)html.push('<p class="note">'+esc(noRoundsLine)+'</p>');
 html.push('<p class="note">The full record, every answer in full and the log of what was sent, is <a href="record.md">record.md</a> in this folder.</p>');
 html.push('</details>');
 html.push('<script>');
