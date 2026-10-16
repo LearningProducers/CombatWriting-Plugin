@@ -241,7 +241,7 @@ Measured: `main` fixed at 1040 px (60% of a laptop-width window); three cards of
 
 Delivers, in `render-board.js` and one helper in `lib.js`: `main` at 1360 px, cards at `minmax(360px,1fr)`, the open read spanning the row at 70ch, the draft panel at 76ch centered, `overflow-wrap:anywhere`, `lib.renderLite` rendering paragraphs, bullets, numbered items, bold, italic, code and a heading as bold after escaping, no link rendered; cw 0.6.3; `board_check.js` extended.
 
-Status: not started — 2026-10-16.
+Status: delivered — 2026-10-16 — pull request open, stacked on Part 20's branch; all seventeen checks and the three strict validations pass locally; a copy of the run re-rendered in the scratchpad and opened once for the founder; the column measure computed from the CSS, not a screen.
 
 ## Part 22 — The brief is the rulebook; the draft's counts are logged and shown (issue 23)
 

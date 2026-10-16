@@ -24,7 +24,11 @@
 // the seat key, the drafts, the brief, where the run started, a link to record.md). Light and dark
 // follow the system setting, with a toggle. No external request of any kind: no script,
 // style, font or image is fetched. Nothing is averaged. Every seat's words are escaped: an
-// answer is text, never markup. Rebuilt after every round from the files and log.jsonl.
+// answer is text, never markup; a small markdown subset (lists, bold, italic, code) is then
+// rendered, no link among it (lib.renderLite). The measure (2026-10-15): the page is 1360 px
+// wide, the cards sit three abreast at 45 to 50 characters a line on a laptop and two on a
+// tablet, an opened read spans the row at 70 characters, the draft panel is 76 characters,
+// and long words and addresses wrap. Rebuilt after every round from the files and log.jsonl.
 //
 // Prints the page's path on stdout and appends board.rendered to the log.
 
@@ -42,7 +46,9 @@ var drafts=lib.listDrafts(runDir);
 var newestDraft=lib.latestDraft(runDir);
 var hasBrief=fs.existsSync(path.join(runDir,'brief.md'));
 
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+var esc=lib.escapeHtml;
+// A seat's read: lib.renderLite, the markdown subset after escaping (2026-10-15). The draft keeps paras(): the author's text as pasted.
+var read=lib.renderLite;
 function paras(text){
   return String(text).replace(/\r\n/g,'\n').replace(/^﻿/,'').trim().split(/\n\s*\n/).map(function(p){return '<p>'+esc(p).replace(/\n/g,'<br>')+'</p>';}).join('');
 }
@@ -138,18 +144,18 @@ html.push('<style>');
 html.push(':root{color-scheme:light;--surface:#f7f5f0;--paper:#fffdf8;--surface-2:#efece5;--ink:#141311;--ink-2:#55524c;--ink-3:#8a877f;--rule:#dcd8cf;--frame:#2b2823;--send:#1a6b3a;--send-ink:#ffffff;--back:#9b1c1c;--back-ink:#ffffff;--none:#6b675f;--none-ink:#ffffff;--good:#1a7f37;--bad:#c62828;}');
 html.push('@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;--surface:#171614;--paper:#1f1e1b;--surface-2:#262522;--ink:#f3f1ea;--ink-2:#bdb9ae;--ink-3:#8b887f;--rule:#363430;--frame:#d9d4c7;--send:#2e8b57;--send-ink:#0b1a10;--back:#c83a3a;--back-ink:#1a0b0b;--none:#5f5c55;--none-ink:#f3f1ea;--good:#4caf6e;--bad:#ef6b6b;}}');
 html.push(':root[data-theme="dark"]{color-scheme:dark;--surface:#171614;--paper:#1f1e1b;--surface-2:#262522;--ink:#f3f1ea;--ink-2:#bdb9ae;--ink-3:#8b887f;--rule:#363430;--frame:#d9d4c7;--send:#2e8b57;--send-ink:#0b1a10;--back:#c83a3a;--back-ink:#1a0b0b;--none:#5f5c55;--none-ink:#f3f1ea;--good:#4caf6e;--bad:#ef6b6b;}');
-html.push('*{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--ink);font:16px/1.55 Georgia,"Iowan Old Style","Palatino Linotype",Palatino,"Times New Roman",serif;padding:0 16px 64px}main{max-width:1040px;margin:0 auto}');
+html.push('*{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--ink);font:16px/1.55 Georgia,"Iowan Old Style","Palatino Linotype",Palatino,"Times New Roman",serif;padding:0 16px 64px}main{max-width:1360px;margin:0 auto}');
 html.push('.motto{font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:22px 0 14px}h1{font:600 20px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0}h2{font:600 13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:36px 0 10px}p{margin:8px 0}.meta{color:var(--ink-2);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}');
 html.push('.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}button{font:13px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--rule);border-radius:6px;padding:4px 10px;cursor:pointer}');
-html.push('.paper{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:28px 32px;font-size:17px;line-height:1.65;box-shadow:0 1px 2px rgba(0,0,0,.06)}.paper p{margin:0 0 1em}.paper p:last-child{margin-bottom:0}');
-html.push('.round{margin:18px 0 0;padding:12px 16px;border-left:4px solid var(--frame);background:var(--surface-2);border-radius:0 4px 4px 0;font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.round b{color:var(--ink)}.rounds{list-style:none;padding:0;margin:14px 0 0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.rounds li{padding:4px 0;border-bottom:1px solid var(--rule)}.rounds b{color:var(--ink)}.frame figcaption .note-line{display:block;margin-top:4px;color:var(--ink-2)}');
+html.push('.paper{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:28px 32px;font-size:17px;line-height:1.65;box-shadow:0 1px 2px rgba(0,0,0,.06);max-width:76ch;margin:0 auto;overflow-wrap:anywhere}.paper p{margin:0 0 1em}.paper p:last-child{margin-bottom:0}');
+html.push('.round{margin:18px 0 0;padding:12px 16px;overflow-wrap:anywhere;border-left:4px solid var(--frame);background:var(--surface-2);border-radius:0 4px 4px 0;font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.round b{color:var(--ink)}.rounds{list-style:none;padding:0;margin:14px 0 0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.rounds li{padding:4px 0;border-bottom:1px solid var(--rule)}.rounds b{color:var(--ink)}.frame figcaption .note-line{display:block;margin-top:4px;color:var(--ink-2)}');
 html.push('.verdict{margin:28px 0 0;padding:34px 24px;border-radius:6px;text-align:center;color:var(--send-ink);background:var(--send)}.verdict.back{background:var(--back);color:var(--back-ink)}.verdict.final{background:var(--none);color:var(--none-ink)}.verdict .word{font:800 clamp(28px,6vw,64px)/1.05 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.06em;text-transform:uppercase;margin:0}.verdict .why{margin:14px auto 0;max-width:720px;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;opacity:.92}.verdict .numbers{list-style:none;padding:0;margin:18px 0 0;display:flex;gap:10px 22px;justify-content:center;flex-wrap:wrap;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}.verdict .numbers b{font-size:20px;margin-right:6px;font-variant-numeric:tabular-nums}');
-html.push('.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:28px;margin-top:4px}.frame{margin:0;background:var(--paper);border:10px solid var(--frame);outline:1px solid var(--rule);box-shadow:inset 0 0 0 1px var(--rule),inset 0 0 0 6px var(--paper),inset 0 0 0 7px var(--frame),0 10px 24px rgba(0,0,0,.12);padding:34px 28px 26px;display:flex;flex-direction:column;align-items:center;text-align:center}');
+html.push('.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:28px;margin-top:4px}.frame:has(details[open]){grid-column:1/-1}.frame{margin:0;background:var(--paper);border:10px solid var(--frame);outline:1px solid var(--rule);box-shadow:inset 0 0 0 1px var(--rule),inset 0 0 0 6px var(--paper),inset 0 0 0 7px var(--frame),0 10px 24px rgba(0,0,0,.12);padding:34px 28px 26px;display:flex;flex-direction:column;align-items:center;text-align:center}');
 html.push('.badge{font:700 12px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:7px 12px;border:1px solid var(--frame);border-radius:999px;color:var(--ink)}.badge.failed,.badge.missing{color:var(--bad);border-color:var(--bad)}.badge.critique{color:var(--ink-2);border-color:var(--ink-3)}.badge .mark{font-weight:400;letter-spacing:0;text-transform:none;margin-left:6px;color:var(--ink-2)}.flip-valid .badge .mark{color:var(--good)}.flip-invalid .badge .mark{color:var(--bad)}');
-html.push('.frame blockquote{margin:22px 0 14px;padding:0;font-weight:700;font-style:italic;font-size:22px;line-height:1.35;quotes:"\\201C" "\\201D"}.frame blockquote:before{content:open-quote;display:block;font-size:52px;line-height:.4;color:var(--ink-3);margin-bottom:14px;font-style:normal}.frame figcaption{font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.frame figcaption .seat{color:var(--ink-3)}.frame .final{font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);margin-top:10px}');
-html.push('details{margin-top:14px;width:100%}summary{cursor:pointer;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);text-align:center;list-style:none}summary::-webkit-details-marker{display:none}summary:before{content:"+ ";color:var(--ink-3)}details[open]>summary:before{content:"– "}.read{text-align:left;font-size:15px;line-height:1.6;margin-top:12px;padding-top:12px;border-top:1px solid var(--rule)}.read p{margin:0 0 .9em}.read.failed{color:var(--ink-2)}');
+html.push('.frame blockquote{margin:22px 0 14px;padding:0;font-weight:700;font-style:italic;font-size:22px;line-height:1.35;quotes:"\\201C" "\\201D";overflow-wrap:anywhere}.frame blockquote:before{content:open-quote;display:block;font-size:52px;line-height:.4;color:var(--ink-3);margin-bottom:14px;font-style:normal}.frame figcaption{font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.frame figcaption .seat{color:var(--ink-3)}.frame .final{font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);margin-top:10px}');
+html.push('details{margin-top:14px;width:100%}summary{cursor:pointer;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);text-align:center;list-style:none}summary::-webkit-details-marker{display:none}summary:before{content:"+ ";color:var(--ink-3)}details[open]>summary:before{content:"– "}.read{text-align:left;font-size:16px;line-height:1.6;margin:12px auto 0;padding-top:12px;border-top:1px solid var(--rule);max-width:70ch;overflow-wrap:anywhere}.read p{margin:0 0 .9em}.read ul,.read ol{margin:0 0 .9em 1.3em;padding:0}.read li{margin:0 0 .3em}.read code{font-size:14px;background:var(--surface-2);padding:0 4px;border-radius:3px}.read.failed{color:var(--ink-2)}');
 html.push('.fold{margin-top:28px;border-top:1px solid var(--rule);padding-top:10px}.fold>summary{text-align:left;font-weight:600;color:var(--ink)}.fold>summary:before{content:"+ "}.fold[open]>summary:before{content:"– "}');
-html.push('table{border-collapse:collapse;width:100%;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin-top:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top}th{color:var(--ink-2);font-weight:600}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mark{color:var(--ink-2);font-size:12px}td.flip-valid .mark{color:var(--good)}td.flip-invalid .mark{color:var(--bad)}.missing,.failed{color:var(--ink-3);font-style:italic}.critique{color:var(--ink-2)}code{font-size:13px}.note{font:13px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}a{color:inherit}');
+html.push('table{border-collapse:collapse;width:100%;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin-top:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top;overflow-wrap:anywhere}th{color:var(--ink-2);font-weight:600}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mark{color:var(--ink-2);font-size:12px}td.flip-valid .mark{color:var(--good)}td.flip-invalid .mark{color:var(--bad)}.missing,.failed{color:var(--ink-3);font-style:italic}.critique{color:var(--ink-2)}code{font-size:13px}.note{font:13px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}a{color:inherit}');
 html.push('</style></head><body><main>');
 html.push('<p class="motto">Reading is Peace. Writing is War.</p>');
 html.push('<div class="bar"><h1>Combat Writing board — '+esc(path.basename(runDir))+'</h1><button type="button" id="theme" aria-label="Switch light and dark">Light / dark</button></div>');
@@ -208,13 +214,13 @@ if(tableRounds.length){
     else if(c.kind==='failed'){
       badge='<span class="badge failed">Failed read'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
       quote='Failed read: '+c.reasons[0]+'.';
-      fold='<details><summary>The failed read ('+c.words+' words)</summary><div class="read failed">'+paras(c.answer)+'</div></details>';
+      fold='<details><summary>The failed read ('+c.words+' words)</summary><div class="read failed">'+read(c.answer)+'</div></details>';
     }else{
       badge=c.kind==='critique'
         ?'<span class="badge critique">Critique · no rating asked'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>'
         :'<span class="badge">Rating '+c.rating+'/10'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
       quote=lib.verdictLine(c.answer,c.contract)||'(no words after the first line)';
-      fold='<details><summary>Read the full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words)</summary><div class="read">'+paras(c.answer)+'</div></details>';
+      fold='<details><summary>Read the full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words)</summary><div class="read">'+read(c.answer)+'</div></details>';
     }
     var finalLine='';
     if(finalRounds.length){ var f=finalCell(s,finalRounds[finalRounds.length-1]); finalLine='<p class="final">'+esc(finalRounds[finalRounds.length-1])+': '+esc(finalText(f))+'</p>'; }
@@ -268,7 +274,7 @@ if(rounds.length){
         var f=finalCell(s,r);
         f.forEach(function(x){
           if(x.missing)return;
-          html.push('<details><summary>'+esc(lib.seatLabel(s))+' · '+esc(r)+' · '+(x.c==='sn'?'S/N read':'red-flag read')+' ('+x.words+' words)</summary><div class="read">'+paras(x.answer)+'</div></details>');
+          html.push('<details><summary>'+esc(lib.seatLabel(s))+' · '+esc(r)+' · '+(x.c==='sn'?'S/N read':'red-flag read')+' ('+x.words+' words)</summary><div class="read">'+read(x.answer)+'</div></details>');
         });
       });
     });

@@ -42,6 +42,10 @@
 //     Started-at line, the record.md link).
 //   - A round put to one seat only shows "not asked" for the others in the table, never
 //     "missing", and their frames cite their latest earlier round.
+//   - The measure (2026-10-15): the page at 1360 px, cards at 360 px minimum, an opened read
+//     spanning the row at 70ch, the draft panel at 76ch, long words wrapping; a seat's read
+//     renders a markdown subset after escaping (lists, bold, italic, code, a heading as bold),
+//     no link, no markup from the seat, the page's one href still record.md.
 //   - No chart, no chart point, no series: the board is simple (2026-10-14).
 //   - No averaged number: no "average", "mean", "overall", "consensus" or "total" rating,
 //     no fractional rating.
@@ -240,6 +244,28 @@ check(/<blockquote>Not in so many words\. &lt;script&gt;alert\(1\)&lt;\/script&g
 check(/<p class="round"><b>Round 02-battle<\/b> · seat lines to seat-2 \(“Does the close ask for the vote\?”\) · a new rating asked · 1 of 1 seat answered<\/p>/.test(soHtml),'board (seat-only round): the strip should name the seat and its note; got '+(/<p class="round">[^]*?<\/p>/.exec(soHtml)||[''])[0]);
 check(/data-seat="seat-2">[^]*?<span class="note-line">· your note: “Does the close ask for the vote\?”<\/span>/.test(soHtml)&&(soHtml.match(/<span class="note-line">/g)||[]).length===1,'board (seat-only round): only seat-2\'s frame carries the note');
 
+
+// The measure and the markdown subset (2026-10-15). The CSS tokens: the page at 1360 px, cards at
+// 360 px minimum, an opened read spanning the row at 70ch, the draft panel at 76ch, wrapping on.
+check(/main\{max-width:1360px/.test(html)&&/minmax\(360px,1fr\)/.test(html)&&/\.frame:has\(details\[open\]\)\{grid-column:1\/-1\}/.test(html)&&/\.read\{[^}]*max-width:70ch/.test(html)&&/\.paper\{[^}]*max-width:76ch/.test(html),'board: the measure CSS is missing a token');
+check((html.match(/overflow-wrap:anywhere/g)||[]).length>=5,'board: long words must wrap in the draft, the quote, the read, the cells and the strip');
+// A read with markdown and a long address: lists, bold, italic and code render; the address stays
+// text and wraps by CSS; a script tag inside bold is text; no new href; a heading is a bold paragraph.
+var md=node('new-run.js',['--draft','draft.md','--name','markdown','--model','Test Model']).stdout.trim();
+node('packet.js',['--run',md,'--round','01-sparring','--seat','seat-1']);
+var LONG='https://example.invalid/a-very-long-path-segment/that-goes-on-and-on/and-on-and-on/and-never-breaks-on-its-own';
+write(path.join(md,'rounds','01-sparring','seat-1.answer.md'),'RATING: 6/10\nNot ready: **the close** is *soft* and `the ask` is late.\n\n# What to fix\n\n* First point\n* Second **bold** point <script>alert(2)</script>\n\n1. Step one\n2) Step two with '+LONG+'\n\nA line\nwith a break and a [link](https://example.invalid/x) and 2 * 3 * 4 and a_snake_case_word.\n');
+node('check-answer.js',[path.join(md,'rounds','01-sparring','seat-1.answer.md'),'--run',md]);
+node('render-board.js',['--run',md]);
+var mdHtml=fs.readFileSync(path.join(md,'board.html'),'utf8');
+var mdRead=(/<div class="read">([^]*?)<\/div><\/details>/.exec(mdHtml)||['',''])[1];
+check(mdRead.indexOf('<p>RATING: 6/10<br>Not ready: <strong>the close</strong> is <em>soft</em> and <code>the ask</code> is late.</p>')>=0,'board (markdown): bold, italic and code should render; got '+mdRead.slice(0,200));
+check(mdRead.indexOf('<p><strong>What to fix</strong></p>')>=0,'board (markdown): a heading line should be a bold paragraph');
+check(mdRead.indexOf('<ul><li>First point</li><li>Second <strong>bold</strong> point &lt;script&gt;alert(2)&lt;/script&gt;</li></ul>')>=0,'board (markdown): bullets should be a list with the script tag as text; got '+mdRead);
+check(mdRead.indexOf('<ol><li>Step one</li><li>Step two with '+LONG+'</li></ol>')>=0,'board (markdown): numbered lines should be an ordered list with the address as text');
+check(mdRead.indexOf('<p>A line<br>with a break and a [link](https://example.invalid/x) and 2 * 3 * 4 and a_snake_case_word.</p>')>=0,'board (markdown): a link stays text, lone stars and underscores are left alone; got '+mdRead.slice(-200));
+check(mdHtml.indexOf('<script>alert')<0&&!/<a /.test(mdRead)&&(mdHtml.match(/href=/g)||[]).length===1,'board (markdown): no markup from the seat, no new href');
+check(/<blockquote>Not ready: the close is soft and the ask is late\.<\/blockquote>/.test(mdHtml),'board (markdown): the framed verdict line drops the marks');
 // The log and a refusal.
 var log=fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);});
 check(log.some(function(e){return e.event==='board.rendered'&&e.file==='board.html'&&e.rounds===5;}),'log: board.rendered missing');
