@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// hook_check.js: the listed plugin's only hook is the session-start line (ruled 2026-10-09),
+// hook_check.js: the listed plugin's session-start hook (ruled 2026-10-09; since 2026-10-16 the
+// seat-scope hook sits beside it in hooks.json, pinned by tests/seat_scope_check.js),
 // and it reads, writes and calls nothing.
 //
 // What it pins:
 //   - plugins/combat-writing/hooks/ holds exactly hooks.json and session-start.js.
-//   - hooks.json has the top-level `hooks` wrapper, one event, SessionStart, with one entry
+//   - hooks.json has the top-level `hooks` wrapper, two events, SessionStart and PreToolUse,
+//     SessionStart with one entry
 //     whose one command hook runs node on a file inside the plugin, named through
 //     ${CLAUDE_PLUGIN_ROOT}, with no other variable, substitution, shell operator or launcher.
 //   - Run with node, session-start.js exits 0 and prints one JSON object whose systemMessage
@@ -24,14 +26,14 @@ function read(rel){ return fs.readFileSync(path.join(root,rel),'utf8'); }
 
 var dir='plugins/combat-writing/hooks';
 var files=fs.existsSync(path.join(root,dir))?fs.readdirSync(path.join(root,dir)).sort():[];
-check(files.join(',')==='hooks.json,session-start.js','hooks/: expected exactly hooks.json and session-start.js, found '+files.join(','));
+check(files.join(',')==='hooks.json,seat-scope.js,session-start.js','hooks/: expected exactly hooks.json, seat-scope.js and session-start.js, found '+files.join(','));
 
 var hooks=null;
 try{hooks=JSON.parse(read(dir+'/hooks.json'));}catch(e){failures.push('hooks.json: '+e.message);}
 if(hooks){
   check(hooks.hooks&&typeof hooks.hooks==='object'&&Object.keys(hooks).join(',')==='hooks','hooks.json: must hold the top-level hooks wrapper and nothing else');
   var events=Object.keys(hooks.hooks||{});
-  check(events.join(',')==='SessionStart','hooks.json: the only event must be SessionStart, found '+events.join(','));
+  check(events.sort().join(',')==='PreToolUse,SessionStart','hooks.json: the events must be SessionStart and PreToolUse (the seat scope, ruled 2026-10-16, pinned by tests/seat_scope_check.js), found '+events.join(','));
   var entries=(hooks.hooks||{}).SessionStart||[];
   check(entries.length===1&&Array.isArray(entries[0].hooks)&&entries[0].hooks.length===1,'hooks.json: SessionStart must hold one entry with one hook');
   var h=(entries[0]&&entries[0].hooks&&entries[0].hooks[0])||{};

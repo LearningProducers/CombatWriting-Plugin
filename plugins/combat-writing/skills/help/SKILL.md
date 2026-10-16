@@ -62,7 +62,7 @@ Every sparring and battle result ends with a picker instead of a line to retype 
 ## Where you are running
 
 - **The crew** is one fresh reader plus one seat per outside model the add-on has a key for. Nothing is padded: with no add-on the crew is one seat; with one free Groq key it is three.
-- **Fresh readers.** The host can start separate agents and run Node: the fresh reader is a separate reader started for one job, with no memory of this conversation, never the host itself.
+- **Fresh readers.** The host can start separate agents and run Node: the fresh reader is a separate reader started for one job, with no memory of this conversation, never the host itself. A hook holds it to its run folder: it reads only there and writes only its own answer file.
 - **One seat, the host.** The host cannot start separate agents: it reads as the one seat, says so in every result, and still follows every rule.
 - **With the add-on.** `combat-writing-crew`, installed from the same repository (`/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin`), sends the packets to other companies' models on your own keys, each key only to its own provider; then the crew is more than one company. An outside seat is told the word cap; an answer over it is sent back once, and a second overrun is cut at the cap with the rating kept and marked "truncated" in the record.
 - Without the add-on, every seat is one company's models, and every result says so. The plugin never fakes a seat.

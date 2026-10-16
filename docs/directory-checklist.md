@@ -63,8 +63,8 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 | `.mcp.json` valid and matching the schema | n/a | no `.mcp.json` in the listed plugin |
 | Remote MCP servers over `https://` or `wss://` | n/a | none |
 | Local MCP servers started by running a file in the plugin with plain arguments | n/a | none |
-| Hook and MCP commands with full `${CLAUDE_PLUGIN_ROOT}` paths and no other variable, substitution or inline program | pass | one hook, `hooks/hooks.json`: the SessionStart command is `node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js"`, no other variable, substitution or shell operator; `tests/hook_check.js` pins the exact string. No MCP servers. The skill and commands name each script as `${CLAUDE_PLUGIN_ROOT}/scripts/<file>` |
-| No launchers, installs, other variables, substitutions or calls to other files in scripts that hooks or MCP servers run | pass | `hooks/session-start.js` requires no module, reads no environment, file or argument, and prints one JSON line; `tests/hook_check.js` pins that. No MCP servers. The scripts the skill tells the host to run are not part of this check, as the checklist says |
+| Hook and MCP commands with full `${CLAUDE_PLUGIN_ROOT}` paths and no other variable, substitution or inline program | pass | two hooks in `hooks/hooks.json`: the SessionStart command is `node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js"` and the PreToolUse command (Read and Write) is `node "${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js"`, no other variable, substitution or shell operator; `tests/hook_check.js` and `tests/seat_scope_check.js` pin the exact strings. No MCP servers. The skill and commands name each script as `${CLAUDE_PLUGIN_ROOT}/scripts/<file>` |
+| No launchers, installs, other variables, substitutions or calls to other files in scripts that hooks or MCP servers run | pass | `hooks/session-start.js` requires no module, reads no environment, file or argument, and prints one JSON line; `hooks/seat-scope.js` requires only `fs` and `path`, reads the hook input and the seat's transcript record, writes nothing, spawns nothing, fetches nothing and reads no environment; `tests/hook_check.js` and `tests/seat_scope_check.js` pin that. No MCP servers. The scripts the skill tells the host to run are not part of this check, as the checklist says |
 
 ## Choices a reviewer always checks
 
@@ -72,13 +72,13 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 |---|---|---|
 | A package from a registry | n/a | none |
 | A lockfile install (`package.json` beside a lockfile at the plugin root) | pass | no `package.json` in the plugin; `tests/license_check.js` fails a lockfile beside one |
-| A program the validator cannot read through, in a subfolder plugin | pass | the one hook command runs `node` on a plain, commented file inside the plugin, `hooks/session-start.js`, that the validator and a reviewer can read through; no MCP or LSP command, and no `` !`…` `` line in any skill or command. The scripts are plain Node files the skill tells the host to run, which the checklist excludes from this check |
+| A program the validator cannot read through, in a subfolder plugin | pass | both hook commands run `node` on a plain, commented file inside the plugin, `hooks/session-start.js` and `hooks/seat-scope.js`, that the validator and a reviewer can read through; no MCP or LSP command, and no `` !`…` `` line in any skill or command. The scripts are plain Node files the skill tells the host to run, which the checklist excludes from this check |
 
 ## Hooks, skills, commands and agents
 
 | Item | Result | Satisfied by |
 |---|---|---|
-| `hooks/hooks.json` valid, with only documented events and types | pass | one event, `SessionStart` (matcher `startup|resume`), one `command` hook; `claude plugin validate --strict plugins/combat-writing` reports "Validating hooks" and passes; `tests/hook_check.js` pins the shape |
+| `hooks/hooks.json` valid, with only documented events and types | pass | two events, `SessionStart` (matcher `startup|resume`) and `PreToolUse` (no matcher: every tool), one `command` hook each; `claude plugin validate --strict plugins/combat-writing` reports "Validating hooks" and passes; `tests/hook_check.js` and `tests/seat_scope_check.js` pin the shape |
 | `hooks/hooks.json` left out of the `hooks` field | pass | `plugin.json` has no `hooks` field; the file loads from its default path; `tests/marketplace_check.js` fails if the field appears |
 | Valid YAML front matter in each skill, command and agent file, with `description` as one text value | pass | `skills/combat-writing/SKILL.md`, `skills/help/SKILL.md`, `skills/strategy/SKILL.md`, `skills/sparring/SKILL.md`, `skills/battle/SKILL.md`, `agents/seat.md`. `claude plugin validate --strict` passes on `plugins/combat-writing` (the manifest), on the repository root (the marketplace), and on the component folders `plugins/combat-writing/commands`, `plugins/combat-writing/agents` and `plugins/combat-writing/skills`; `skills/combat-writing` on its own is not a validator target, the validator reads the `skills/` folder. `tests/license_check.js` requires front matter on line 1 of every component file |
 | Component folders and files named exactly as Claude Code expects | pass | `skills/<name>/SKILL.md` (the four commands moved from `commands/*.md` to skills on 2026-10-14, the format the docs name for new plugins; they are still typed as `/cw:<name>`), `agents/*.md` |
@@ -89,7 +89,7 @@ Results: **pass** means the item holds and names the file that satisfies it; **p
 |---|---|---|
 | Describe in the README everything the plugin runs, sends or fetches | pass | `plugins/combat-writing/README.md`, "What it runs, sends and fetches"; `tests/readme_check.js` pins the disclosures |
 | Readable source, not compiled, packed or minified | pass | every script under `scripts/` (`lib.js`, `new-run.js`, `add-draft.js`, `packet.js`, `check-answer.js`, `check-flip.js`, `render-record.js`, `render-board.js`) is plain, commented JavaScript; `render-board.js` writes the page's own CSS and a few lines of inline script, all readable |
-| No undisclosed destination, hidden code or change to Claude's permission settings | pass, scan is portal | the plugin makes no outside call, runs one disclosed hook (the session-start line, named in both READMEs), and writes only inside `combat-writing/` in the person's project; the scan itself runs only after submission |
+| No undisclosed destination, hidden code or change to Claude's permission settings | pass, scan is portal | the plugin makes no outside call, runs two disclosed hooks (the session-start line and the seat-scope check, named in both READMEs; the second changes no permission setting, it answers one tool call at a time for the plugin's own seat agent and leaves every other caller untouched), and writes only inside `combat-writing/` in the person's project; the scan itself runs only after submission |
 
 ## Submit page: what the submitter does
 
@@ -125,6 +125,12 @@ The add-on, `plugins/combat-writing-crew/`, is a separate plugin that is never s
 ## Evals
 
 The three cases under `plugins/combat-writing/evals/` load and are graded by `claude plugin eval` (checked on 2026-10-08), but the runs need a shell sandbox that the cloud build session does not have; `evals/README.md` says what to install and how to run them. Running them is Israel's step on a machine with the sandbox.
+
+## The seat's reach, live (the founder's step, like the portal's Validate button)
+
+| Item | Status | Where |
+|---|---|---|
+| One real seat on a scratch run, with the repository's `hooks/seat-scope.js` loaded through a throwaway plugin: a harmless file outside the run folder refused, Grep and Bash refused or absent, the packet read, the answer written with nothing from the outside file, no provider called | pass on Claude Code 2.1.301, 2026-10-16 | `node tests/seat_scope_live.js` from the repository root (`CLAUDE_BIN=<path>` picks the binary); not part of CI, it needs a running Claude Code and one short model call; rerun after every Claude Code update, then put the version it passed on here and in the `PROVED_ON` constant at the top of the hook |
 
 ## Fixed in this pass
 

@@ -223,7 +223,7 @@ Ruled: the round's prompt is visible at the top of the board without opening any
 
 Delivers: `lib.roundTask` (the task from the round's packet, one source, old runs included); the board's round strip, the box over a rating (SEND or BACK) or over final reads alone (FINAL READS, each seat's two numbers) and no box otherwise, the no-rounds next move under the draft heading, the note on a card only for a seat line, the round history in the scoreboard fold; the record's round line with the prompt in quotes; the host's one line after the short form carries the prompt; help, departure 15 and mirror, CLAUDE.md; cw 0.6.1; tests in `board_check.js`, `record_check.js`, `packet_check.js`.
 
-Status: delivered — 2026-10-16 — pull request open; all seventeen checks and the three strict validations pass locally; a copy of the run re-rendered in the scratchpad and opened once for the founder; no provider called, no seat started.
+Status: merged — 2026-10-16 — pull request 25 merged to main.
 
 ## Part 20 — One overrun rule for every seat: a lower retry target, the cut as the net (issue 21)
 
@@ -233,7 +233,7 @@ Ruled: the cut stays as the safety net; the retry asks for a target well under t
 
 Delivers: `lib.retryTarget` and the cap reason naming the target (one line reaching the fresh reader's retry task and the outside seat's `note`); `check-answer.js` cutting the retry's file at the last sentence end at or before the cap with the first line kept, logged in `answer.checked.truncated`; `truncateAnswer` mirrored in `lib.js` and `crew-lib.js`, pinned equal; the add-on's retry line and system line naming the target and the sentence cut (0.4.2); the record and board reading the mark from either log line; the seat agent, battle, sparring, the rules skill, help, departure 12 and mirror, CLAUDE.md, the legend; cw 0.6.2.
 
-Status: delivered — 2026-10-16 — pull request open, stacked on Part 18's branch; all seventeen checks and the three strict validations pass locally; the cut was exercised through the real checker on a scratch run and through the add-on against the fake server in the tests, never a provider; the seat agent keeps Read and Write, no shell.
+Status: merged — 2026-10-16 — pull request 26 merged to main.
 
 ## Part 19 — The board reads at a book measure (issue 22)
 
@@ -241,7 +241,7 @@ Measured: `main` fixed at 1040 px (60% of a laptop-width window); three cards of
 
 Delivers, in `render-board.js` and one helper in `lib.js`: `main` at 1360 px, cards at `minmax(360px,1fr)`, the open read spanning the row at 70ch, the draft panel at 76ch centered, `overflow-wrap:anywhere`, `lib.renderLite` rendering paragraphs, bullets, numbered items, bold, italic, code and a heading as bold after escaping, no link rendered; cw 0.6.3; `board_check.js` extended.
 
-Status: delivered — 2026-10-16 — pull request open, stacked on Part 20's branch; all seventeen checks and the three strict validations pass locally; a copy of the run re-rendered in the scratchpad and opened once for the founder; the column measure computed from the CSS, not a screen.
+Status: merged — 2026-10-16 — pull request 27 merged to main.
 
 ## Part 22 — The brief is the rulebook; the draft's counts are logged and shown (issue 23)
 
@@ -249,7 +249,7 @@ Measured: the brief did not say the greeting names the reader or where the link 
 
 Delivers: the strategy, help, sparring and battle lines saying the seats judge by the brief as written and a format choice it does not state is judged as a fault; `lib.draftFacts` (words, lines, paragraphs) logged by `new-run.js` and `add-draft.js` and shown on the Drafts line and after strategy, with a one-line warning when the draft is one line of more than 60 words; the inbox step says byte for byte, line breaks included; cw 0.6.4; `tests/draft_facts_check.js` new, `strategy_check.js` extended.
 
-Status: delivered — 2026-10-16 — pull request open, stacked on Part 19's branch; all eighteen checks and the three strict validations pass locally; no provider called, no seat started.
+Status: merged — 2026-10-16 — pull request 28 merged to main.
 
 ## Part 21 — Every packet carries the draft's measured counts as facts (issue 24)
 
@@ -259,5 +259,19 @@ Ruled: no claims checker (a checker of claims would be a hidden fourth seat); ev
 
 Delivers: `lib.draftFacts` extended (sentences by a stated rule, exact or "about" when abbreviations or decimals could miscount; em dashes, en dashes, double hyphens; each link's paragraph, line, alone-on-its-line, last-in-draft, in-sentence, never its address); the block in every packet under the draft heading and `draft_facts` in `packet.built`; the same line in the record and on the board; the seat agent and the add-on's system line; departure 16 and mirror; help's worked seat line; cw 0.6.5; tests extended.
 
-Status: delivered — 2026-10-16 — pull request open, stacked on Part 22's branch; all eighteen checks and the three strict validations pass locally; the counter measured on invented texts of the run's shape; no provider called, no seat started; the Groq-seat question waits for the founder's rerun with the counts in the packet.
+Status: merged — 2026-10-16 — pull request 29 merged to main; the Groq-seat question waits for the founder's rerun with the counts in the packet.
+
+## Part 23 — The seat's reach: a hook holds the fresh reader to its run folder (ruled 2026-10-16)
+
+Measured: `agents/seat.md` gives the seat Read and Write with no path scope, and the only guard was an instruction. On this machine (Claude Code 2.1.301), a PreToolUse hook shipped in a plugin fires inside the seat with `agent_type` `cw:seat`, `agent_id`, `cwd` and `tool_input.file_path`; `transcript_path` is the parent session's, and the seat's own transcript sits beside it at `<session dir>/<session_id>/subagents/agent-<agent_id>.jsonl`, its first record the task the host wrote (`Packet:` and `Answer file:`), measured with a throwaway hook that only dumped its input, before anything was built.
+
+Ruled: the seat reads only inside its run folder and writes only its own answer file, judged on the resolved path; any path the check cannot place is denied; proved on this machine before building; one pull request, no issue, its body naming the fix.
+
+Delivers: `hooks/seat-scope.js` (the hook: places the run folder and the answer file from the seat's task, allows a Read inside the run and a Write to the answer file, denies everything else for a seat with a reason in the documented JSON form, prints nothing for any other caller; writes nothing, calls nothing, reads no environment) and its entry in `hooks/hooks.json`; `tests/seat_scope_check.js` (the real hook against a real run and a fake session layout: 70 checks); `hook_check.js` and `marketplace_check.js` updated; the rules skill, the seat agent, help, departure 7 and mirror, both READMEs, the checklist rows, CLAUDE.md; cw 0.6.6. Proof on the founder's machine: one seat on a scratch run with the real hook loaded through a throwaway plugin, a harmless file outside the run folder denied with the reason, the packet read, the answer written, nothing from the outside file in it, no provider called; the scratch folder deleted after.
+
+Review fixes on the open pull request (2026-10-16, from a reader's four points, each measured; the fourth, that the diff is public, is true and needs nothing while no one else has installed): the hook runs on every tool (no matcher; a non-seat call costs about 20 ms, measured), so a seat's Grep, Glob, Bash, WebFetch or any other tool is refused by the hook and not only by the agent's `tools:` line; the hook's 1 MiB input cap, which let an oversized seat Write through (found while measuring: a 1.2 MB Write outside the run was allowed), is gone, and input that does not parse but names a seat is denied; the deny reason for a transcript the hook cannot find names the likely cause (a newer Claude Code moved it) and the next step (`claude --version`, an issue at the repository; the add-on's outside seats are not affected); the Claude Code version the proof ran on lives in one constant, `PROVED_ON`, at the top of the hook, which the reason and the tests read, with no second copy but the checklist's record of the last pass; the sparring and battle skills print a fresh reader's scope refusal under the crew line. The live proof is now a script, `tests/seat_scope_live.js`, not part of CI: a throwaway plugin loading the repository's hook, one real seat asked to read a file outside the run, Grep it and cat it with Bash, then read the packet and write its answer; it asserts the refusal, the packet read, the answer clean, no provider called, and deletes its scratch folder; the checklist row points at it and records the version.
+
+Measured fact (the live script, 2026-10-16, Claude Code 2.1.301): the seat never attempted Grep or Bash and reported both absent, so the `tools: Read, Write` allowlist in `agents/seat.md` is enforced for the plugin subagent on that version; the hook's refusal of every other tool stands behind it for a version where it is not.
+
+Status: delivered — 2026-10-16 — pull request 30 open with the review fixes pushed; all nineteen checks and the three strict validations pass locally; the live proof passed on Claude Code 2.1.301.
 

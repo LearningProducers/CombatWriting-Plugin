@@ -16,8 +16,8 @@
 //     manifest looks like a credential.
 //   - The listed plugin's manifest declares no MCP server, no hooks field and no userConfig,
 //     and the folder has no .mcp.json: it holds no keys and makes no outside call. Its one
-//     hook file, hooks/hooks.json (the session-start line, ruled 2026-10-09), is pinned by
-//     tests/hook_check.js.
+//     hook file, hooks/hooks.json (the session-start line, ruled 2026-10-09, and the seat scope,
+//     ruled 2026-10-16), is pinned by tests/hook_check.js and tests/seat_scope_check.js.
 //   - When the claude CLI is on PATH, `claude plugin validate --strict` passes on the root,
 //     on both plugin folders and on the listed plugin's component folders; otherwise that
 //     step is reported as skipped.
