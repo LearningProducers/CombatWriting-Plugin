@@ -492,6 +492,41 @@ function verdictPhrases(text){
 }
 function verdictOf(text){ var f=verdictPhrases(text); return f.length?f[0]:null; }
 
+// HTML escaping for the board: every seat's words and every draft are text, never markup.
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// A markdown subset for a seat's read on the board (2026-10-15: outside seats write markdown
+// and it printed raw). Escaped first, then only: paragraphs (blank-line separated; a single
+// newline inside one is a line break), bullet lines (* - •) and numbered lines (1. or 1))
+// grouped into lists, **bold**, __bold__, *italic*, `code`, and a # heading line as a bold
+// paragraph. No link is rendered (an address stays text, so the page keeps its one href), no
+// image, no raw HTML, nothing else. The draft itself is not run through this: it is the
+// author's text as pasted.
+function renderLite(text){
+  function inline(l){
+    var e=escapeHtml(l);
+    e=e.replace(/`([^`\n]+)`/g,'<code>$1</code>');
+    e=e.replace(/\*\*([^\n]+?)\*\*/g,'<strong>$1</strong>').replace(/__([^\n]+?)__/g,'<strong>$1</strong>');
+    e=e.replace(/(^|[^*\w])\*(\S(?:[^*\n]*?\S)?)\*(?![\w*])/g,'$1<em>$2</em>');
+    return e;
+  }
+  var src=String(text||'').replace(/\r\n/g,'\n').replace(/^﻿/,'').trim();
+  if(!src)return '';
+  return src.split(/\n\s*\n/).map(function(block){
+    var out=[], para=[], list=null;
+    function flushPara(){ if(para.length){out.push('<p>'+para.map(inline).join('<br>')+'</p>');para=[];} }
+    function flushList(){ if(list){out.push('<'+list.tag+'>'+list.items.map(function(i){return '<li>'+inline(i)+'</li>';}).join('')+'</'+list.tag+'>');list=null;} }
+    block.split('\n').forEach(function(line){
+      var bul=/^\s*[*\-•]\s+(.*)$/.exec(line), num=/^\s*\d+[.)]\s+(.*)$/.exec(line), head=/^\s*#{1,6}\s+(.*)$/.exec(line);
+      if(bul||num){ var tag=num?'ol':'ul'; flushPara(); if(list&&list.tag!==tag)flushList(); if(!list)list={tag:tag,items:[]}; list.items.push((bul||num)[1]); return; }
+      flushList();
+      if(head){ flushPara(); out.push('<p><strong>'+inline(head[1])+'</strong></p>'); return; }
+      para.push(line);
+    });
+    flushPara(); flushList();
+    return out.join('');
+  }).join('');
+}
+
 // The one-line verdict the board frames: the first sentence or two of the answer after its
 // first line (the whole answer under the critique contract), cut at a sentence end before
 // 200 characters, else at a word with an ellipsis. Markdown list and heading marks are dropped.
@@ -505,7 +540,7 @@ function verdictLine(text,contract){
     if(!l){ if(para)break; else continue; }
     para+=(para?' ':'')+l;
   }
-  para=para.replace(/\*\*|__|`/g,'').replace(/\s+/g,' ').trim();
+  para=para.replace(/\*\*|__|`/g,'').replace(/(^|[^*\w])\*(\S(?:[^*\n]*?\S)?)\*(?![\w*])/g,'$1$2').replace(/\s+/g,' ').trim();
   if(para.length<=VERDICT_MAX)return para;
   var head=para.slice(0,VERDICT_MAX+1);
   var cut=Math.max(head.lastIndexOf('. '),head.lastIndexOf('! '),head.lastIndexOf('? '),head.lastIndexOf('." '),head.lastIndexOf('.” '));
@@ -654,7 +689,7 @@ module.exports={
   DEFAULT_FINAL_WORD_CAP:DEFAULT_FINAL_WORD_CAP,DEFAULT_COMPANY:DEFAULT_COMPANY,MODEL_UNREPORTED:MODEL_UNREPORTED,
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
   DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,NO_RATING_LINE:NO_RATING_LINE,
-  SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
+  SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
