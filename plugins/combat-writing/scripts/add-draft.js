@@ -4,7 +4,8 @@
 //   node add-draft.js --run <run folder> --file <path>
 //
 // Copies the file into the run as draft-2.md, draft-3.md, ... (draft.md is never
-// changed), logs draft.added with the SHA-256 and word count, and prints the new
+// changed), logs draft.added with the SHA-256 and the draft's counts (words, lines,
+// paragraphs, lib.draftFacts), and prints the new
 // draft's file name. packet.js reads the newest draft unless told otherwise.
 //
 // A run with no draft.md (strategy stored a brief alone; 2026-10-14, any stage may be
@@ -29,5 +30,5 @@ if(!first){
 var stage=(args.stage&&args.stage!==true)?String(args.stage).toLowerCase():null;
 var buf=fs.readFileSync(args.file);
 fs.writeFileSync(path.join(runDir,name),buf);
-lib.appendLog(runDir,{event:'draft.added',file:name,first:first,stage:stage,source:path.basename(args.file),sha256:lib.sha256(buf),words:lib.wordCount(buf.toString('utf8'))});
+lib.appendLog(runDir,Object.assign({event:'draft.added',file:name,first:first,stage:stage,source:path.basename(args.file),sha256:lib.sha256(buf)},lib.draftFacts(buf.toString('utf8'))));
 process.stdout.write(name+'\n');

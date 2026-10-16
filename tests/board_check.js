@@ -168,7 +168,7 @@ check(/<summary>Test Model \(Anthropic\), seat-1 · 05-final · S\/N read \(4 wo
 // Run details.
 check(/<details class="fold"><summary>Run details<\/summary>/.test(html),'board: no run details fold');
 check(/<p class="meta"><strong>Seat key:<\/strong> seat-1 Test Model · seat-2 Test Model · seat-3 Test Model<\/p>/.test(html),'board: the seat key line is missing or wrong');
-check(/<strong>Started at:<\/strong> /.test(html)&&/<strong>Crew:<\/strong> /.test(html)&&/<strong>Drafts:<\/strong> draft\.md, draft-2\.md\./.test(html),'board: the run details are incomplete');
+check(/<strong>Started at:<\/strong> /.test(html)&&/<strong>Crew:<\/strong> /.test(html)&&/<strong>Drafts:<\/strong> draft\.md \(5 words · 1 paragraph · 1 line\), draft-2\.md \(5 words · 1 paragraph · 1 line\)\./.test(html),'board: the run details are incomplete');
 
 // No chart; nothing averaged; light and dark; a toggle.
 check(!/<svg/.test(html)&&!/class="series"/.test(html)&&!/class="pt /.test(html),'board: the chart should be gone');

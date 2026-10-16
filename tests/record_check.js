@@ -94,7 +94,7 @@ check(/^# Combat Writing record — /.test(lines[0]),'record: first line should 
 check(rec.indexOf(CREDIT)<0,'record: carries the credit line');
 var crew=lines.filter(function(l){return l.indexOf('**Crew:**')===0;})[0]||'';
 check(/Test Model \(Anthropic\), seat-1/.test(crew)&&/seat-3/.test(crew)&&/One company's models/.test(crew)&&/agent configuration/.test(crew),'record: crew line wrong: '+crew);
-check(/\*\*Drafts:\*\* draft\.md \(sha256 [0-9a-f]{12}…\), draft-2\.md \(sha256 [0-9a-f]{12}…\)\./.test(rec),'record: drafts line wrong');
+check(/\*\*Drafts:\*\* draft\.md \(sha256 [0-9a-f]{12}…; 5 words · 1 paragraph · 1 line\), draft-2\.md \(sha256 [0-9a-f]{12}…; 8 words · 1 paragraph · 1 line\)\./.test(rec),'record: drafts line wrong; got '+((rec.match(/\*\*Drafts:\*\*[^\n]*/)||[''])[0]));
 check(rec.indexOf('CEO. Get a yes.')>=0,'record: brief missing');
 var keyIdx=rec.indexOf('**Seat key:** seat-1 Test Model · seat-2 Test Model · seat-3 Test Model');
 check(keyIdx>0&&keyIdx>rec.indexOf('**Crew:**')&&keyIdx<rec.indexOf('## Scoreboard'),'record: the seat key line should follow the crew line');
