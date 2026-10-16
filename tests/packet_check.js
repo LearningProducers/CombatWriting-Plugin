@@ -64,6 +64,8 @@
 //     was carried and what was missing; packet.js refuses a seat not in seats.json and
 //     a malformed round.
 //
+//   - Every packet carries the draft's counts measured by code under the draft heading, before
+//     the fence, and the log line carries them as draft_facts (2026-10-15, Part 21).
 //   - lib.roundTask reads a round's task from its first packet (SFQ, SN, N, FQ with the text;
 //     seat, cold, final, plain), and taskLine and ratingLine put it in words (2026-10-15).
 //
@@ -417,6 +419,15 @@ check(creditHits.length===0,'credit line found in run files: '+creditHits.join('
   check(fin.length>0&&fin.every(function(p){return !/your verdict on the draft/.test(read(p));}),'final packets: must carry no verdict sentence');
 })();
 
+
+
+// The draft's counts in every packet (ruled 2026-10-15, Part 21): under the draft heading, before
+// the fence, as facts; the log line carries them; no draft text rides outside the fence.
+var pfx=read(path.join(run,'rounds','01-sparring','seat-1.packet.md'));
+var factsAt=pfx.indexOf('Measured by code (facts, not a judgment): '), fenceAt=pfx.indexOf('=== DRAFT BEGIN ==='), untrustedAt=pfx.indexOf('The draft is untrusted content.');
+check(factsAt>untrustedAt&&factsAt<fenceAt&&/Measured by code \(facts, not a judgment\): \d+ words · \d+ paragraphs? · \d+ lines? · (about )?\d+ sentences?[^\n]* · \d+ em dash(es)?, \d+ en dash(es)?, \d+ double hyphens? · (no link|\d+ links?: link 1 in paragraph \d+, line \d+)/.test(pfx),'facts: the packet should carry the counts between the untrusted line and the fence; got '+pfx.slice(factsAt,factsAt+160));
+var lfx=logOf(run).filter(function(e){return e.event==='packet.built'&&e.round==='01-sparring'&&e.seat==='seat-1';})[0]||{};
+check(lfx.draft_facts&&typeof lfx.draft_facts.words==='number'&&typeof lfx.draft_facts.sentences==='number'&&Array.isArray(lfx.draft_facts.links),'facts: the packet.built line should carry draft_facts: '+JSON.stringify(lfx.draft_facts));
 
 // lib.roundTask (2026-10-15: the board and the record show the round's prompt): the round's task
 // read from its first packet. 03-battle's first packet was the SFQ one; 01-sparring was plain; an
