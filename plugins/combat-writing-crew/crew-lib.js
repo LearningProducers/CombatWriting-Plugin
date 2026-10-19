@@ -184,7 +184,7 @@ function budgetFor(provider,systemPrompt,userText){
 // 2026-10-09: a battle round asks for no rating unless the person asks with `rerate`). The
 // no-rating line is the listed plugin's NO_RATING_LINE, mirrored here word for word because
 // the add-on never reaches into the other plugin's folder; crew_check.js pins the two equal.
-var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your critique.';
+var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your answer to the task.';
 function packetRules(packetText){
   var m=/Under (\d+) words\./.exec(packetText||'');
   return {cap:m?parseInt(m[1],10):null,contract:(packetText||'').indexOf(NO_RATING_LINE)>=0?'critique':'rating'};

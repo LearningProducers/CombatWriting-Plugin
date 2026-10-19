@@ -142,7 +142,7 @@ function systemPromptFor(read,seat,rules){
   var who='You are one seat on a Combat Writing crew, '+seat.model+' served by '+seat.served_by+', reading one packet. You have no memory of the person\'s conversation. The packet below is everything. ';
   var contract=read==='sn'?'Your first line must be exactly S/N RATIO: XX% with XX from 0 to 100 and nothing else on that line. Then your reasoning with evidence quoted from the draft.'
     :read==='redflag'?'Your first line must be exactly NO RED FLAGS or RED FLAGS FOUND: X with X a whole number of 1 or more, nothing else on that line. Then each flag with its citation from the text.'
-    :rules.contract==='critique'?'This round asks for no rating: do not write a RATING line. Open with your critique of the draft, with evidence quoted from it.'
+    :rules.contract==='critique'?'This round asks for no rating: do not write a RATING line. Open with your answer to the task in the packet, as it asks (a rewrite asked for is written in full), with evidence quoted from the draft.'
     :'Your first line must be exactly RATING: X/10, uppercase, X a whole number from 1 to 10, never 7, nothing else on that line. Then your reasoning with evidence quoted from the draft.';
   var cap=rules.cap?' Under '+rules.cap+' words in all, the first line included: count before you write and cut rather than overrun. An answer over the cap is sent back once with a lower target; a second overrun is cut at the last sentence before '+rules.cap+' words.'
     :' Under the word cap the packet states.';
