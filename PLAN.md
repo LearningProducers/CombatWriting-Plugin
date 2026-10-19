@@ -291,7 +291,7 @@ Ruled: a picker selection plus the person's text is a round, and it fires to exa
 
 Delivers: the rules skill gets the ruling as a bullet (the round fires as chosen; the host's reply after a round holds no draft, no rewrite and no answer of its own to the text; a rerate reply that is not yes or no is no); the battle and sparring skills say it where the picker hands the text on and where the result is printed; the help's picker section says it in one sentence; the packet's no-rating line and the add-on's system line say "open with your answer to the task" instead of "open with your critique", so a seat asked for a rewrite writes the rewrite (`lib.NO_RATING_LINE`, mirrored in `crew-lib.js` and pinned equal; `server.js` critique line); the seat agent says the task is answered as it asks, a rewrite included, and that "no offer to rewrite" means unasked. Two eval cases: `n-rewrite-to-every-seat` (`/cw:battle n: <rewrite guidance> draft: <letter>`: the round runs as 01-battle N to every seat in the crew, the scoreboard shows it, and the host's reply holds no rewritten draft and no answer of its own to the guidance) and `one-seat-line-only` (`/cw:battle seat-1: <question> draft: <letter>`: the round is seat lines to seat-1 alone, the result says which seat it went to, nothing shared, and the host answers nothing itself); the evals README lists six cases. cw 0.6.8, crew 0.4.5.
 
-Status: in progress — 2026-10-19.
+Status: delivered — 2026-10-19 — pull request 34 open; all nineteen checks and the three strict validations pass locally; both eval cases passed on this machine (1.00 with the plugin, 0.50 and 0.25 without).
 
 ## Part 26 — Waiting: a line when the round forms and one per seat as it finishes (issue 33)
 
