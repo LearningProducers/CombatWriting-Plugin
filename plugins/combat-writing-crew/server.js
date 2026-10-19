@@ -25,7 +25,11 @@
 //
 // Keys: the masked prompt's value first (the manifest maps it to CW_CREW_<PROVIDER>_KEY), the
 // conventional environment variable only when the prompt is empty, never a file. Each key goes
-// only to its own provider. Nothing is sent to Learning Producers.
+// only to its own provider. Nothing is sent to Learning Producers. An unset or dropped option
+// reaches the server as an empty string (measured 2026-10-19, Claude Code 2.1.303); a literal
+// ${user_config.<option>} is read as unfilled, never as a key. A seat with no key says the two
+// causes (never entered, or dropped by an update) and the one next step (the configure dialog,
+// the field typed in and saved), names only, never a value.
 //
 // Transport: newline-delimited JSON-RPC 2.0 on stdin/stdout (the MCP stdio transport).
 // Diagnostics go to stderr only. Nothing it writes carries the credit line (ruled 2026-10-12).
@@ -75,7 +79,7 @@ function listSeats(){
       if(!k){
         provider.seats.forEach(function(s){
           var f=lib.keyField(provider);
-          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'no key for '+provider.name+'; '+lib.keyHint(provider),next:f.next,field:f.field,field_title:f.field_title,env:f.env});
+          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'no key for '+provider.name+': '+lib.keyHint(provider),key_shape:lib.keyShape(provider),next:f.next,field:f.field,field_title:f.field_title,env:f.env});
         });
         return;
       }
@@ -201,8 +205,8 @@ function answer(args){
   if(!fs.existsSync(packetPath))throw new Error('no packet at '+path.relative(runDir,packetPath)+'; build it with the listed plugin\'s packet.js first');
   var k=lib.keyFor(provider);
   if(!k){
-    lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,reason:'no key for '+provider.name+'; '+lib.keyHint(provider),next:lib.keyField(provider).next,field:lib.keyField(provider).field});
-    return Promise.resolve({ok:false,seat:seatId,missing:true,reason:'no key for '+provider.name+'; '+lib.keyHint(provider)+'. The seat is missing this round.'});
+    lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,reason:'no key for '+provider.name+': '+lib.keyHint(provider),key_shape:lib.keyShape(provider),next:lib.keyField(provider).next,field:lib.keyField(provider).field});
+    return Promise.resolve({ok:false,seat:seatId,missing:true,reason:'no key for '+provider.name+': '+lib.keyHint(provider)+' The seat is missing this round.'});
   }
   var packet=lib.readText(packetPath);
   var rules=lib.packetRules(packet);

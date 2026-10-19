@@ -20,8 +20,9 @@
 //   - A crew.registered line (the shape the add-on logs) after an addon.state line supersedes
 //     it: with an outside seat seated and nothing else unavailable, there is no Seats line;
 //     with a keyed provider that did not answer, the line names the provider, its reason and
-//     the next command; with no outside seat and no-key entries, the line names the command
-//     and each field as logged.
+//     the next command; with no outside seat and no-key entries, the line names the two causes
+//     a person can hit (never entered, or dropped by an update), one Next with the command and
+//     each field as logged, and what a save with nothing typed does.
 //   - The sentences never carry a key value, and the three next commands are the ones the help
 //     names.
 //
@@ -82,18 +83,19 @@ function registered(entry){ fs.appendFileSync(path.join(run,'log.jsonl'),JSON.st
 function seat(id,model,company){ var f=path.join(run,'seats.json'); var sj=JSON.parse(read(f)); sj.seats.push({id:id,model:model,company:company,served_by:'Groq',provider:'groq',slot:'groq-a',source:'test fixture: an outside seat as the add-on would register it'}); fs.writeFileSync(f,JSON.stringify(sj,null,2)+'\n'); }
 // No outside seat, no-key entries: the command and the fields, Groq first.
 registered({added:[],unavailable:[
-  {slot:'groq-a',provider:'groq',provider_name:'Groq',family:"OpenAI's open-weight line",reason:'no key for Groq; next: '+CONF+', the groq_api_key field (Groq API key, the masked prompt); or set GROQ_API_KEY in the environment when the prompt is empty',next:CONF,field:'groq_api_key',field_title:'Groq API key'},
-  {slot:'groq-b',provider:'groq',provider_name:'Groq',family:"Alibaba's Qwen line",reason:'no key for Groq; next: '+CONF+', the groq_api_key field (Groq API key, the masked prompt); or set GROQ_API_KEY in the environment when the prompt is empty',next:CONF,field:'groq_api_key',field_title:'Groq API key'},
-  {slot:'xai',provider:'xai',provider_name:'xAI',family:"xAI's Grok line",reason:'no key for xAI; next: '+CONF+', the xai_api_key field (xAI API key, the masked prompt); or set XAI_API_KEY in the environment when the prompt is empty',next:CONF,field:'xai_api_key',field_title:'xAI API key'},
+  {slot:'groq-a',provider:'groq',provider_name:'Groq',family:"OpenAI's open-weight line",reason:'no key for Groq: never entered, or dropped by an update (the host rebuilt its credentials store, where the masked prompt keeps it). Next: '+CONF+', type the key into the groq_api_key field (Groq API key) and save; a save with nothing typed says No configuration changes and keeps nothing. GROQ_API_KEY in the environment serves when the prompt is empty.',next:CONF,field:'groq_api_key',field_title:'Groq API key'},
+  {slot:'groq-b',provider:'groq',provider_name:'Groq',family:"Alibaba's Qwen line",reason:'no key for Groq: never entered, or dropped by an update (the host rebuilt its credentials store, where the masked prompt keeps it). Next: '+CONF+', type the key into the groq_api_key field (Groq API key) and save; a save with nothing typed says No configuration changes and keeps nothing. GROQ_API_KEY in the environment serves when the prompt is empty.',next:CONF,field:'groq_api_key',field_title:'Groq API key'},
+  {slot:'xai',provider:'xai',provider_name:'xAI',family:"xAI's Grok line",reason:'no key for xAI: never entered, or dropped by an update (the host rebuilt its credentials store, where the masked prompt keeps it). Next: '+CONF+', type the key into the xai_api_key field (xAI API key) and save; a save with nothing typed says No configuration changes and keeps nothing. XAI_API_KEY in the environment serves when the prompt is empty.',next:CONF,field:'xai_api_key',field_title:'xAI API key'},
   {slot:'ollama',provider:'ollama',provider_name:'Ollama (local)',reason:'off: name the local model in the plugin\'s settings (ollama_model) or in CW_CREW_OLLAMA_MODEL to turn this seat on'},
   {slot:'anthropic',provider:'anthropic',provider_name:'Anthropic',reason:'not built: a stub'}]});
 var r3=render(run);
-check(seatsLines(r3.short).length===1&&seatsLines(r3.short)[0]==='**Seats:** The crew add-on is running and no provider has a key, so the crew is one seat. Next: '+CONF+' and fill a key field: groq_api_key (Groq API key), xai_api_key (xAI API key); a free Groq key seats two. Or set the provider\'s environment variable when the prompt is empty.','no key: the Seats line must name the command and each field once, got '+seatsLines(r3.short).join(' | '));
+check(seatsLines(r3.short).length===1&&seatsLines(r3.short)[0]==='**Seats:** The crew add-on is running and no provider has a key, so the crew is one seat: a key was never entered, or an update dropped it (the host rebuilt its credentials store). Next: '+CONF+', type the key into a key field and save: groq_api_key (Groq API key), xai_api_key (xAI API key); a save with nothing typed says No configuration changes and keeps nothing; a free Groq key seats two. Or set the provider\'s environment variable when the prompt is empty.','no key: the Seats line must name the two causes, the command and each field once, got '+seatsLines(r3.short).join(' | '));
+check(/never entered/.test(seatsLines(r3.short)[0])&&/dropped/.test(seatsLines(r3.short)[0])&&seatsLines(r3.short)[0].split('Next:').length===2,'no key: the Seats line names both causes and one Next');
 check(!/ollama|Anthropic/.test(seatsLines(r3.short)[0]),'no key: an off or not-built entry is not a missing key');
 // An outside seat seated, nothing else expected: no Seats line.
 seat('seat-2','openai/gpt-oss-120b','OpenAI');
 registered({added:[{id:'seat-2',model:'openai/gpt-oss-120b',company:'OpenAI',served_by:'Groq',provider:'groq'}],unavailable:[
-  {slot:'xai',provider:'xai',provider_name:'xAI',family:"xAI's Grok line",reason:'no key for xAI; next: '+CONF+', the xai_api_key field (xAI API key, the masked prompt); or set XAI_API_KEY in the environment when the prompt is empty',next:CONF,field:'xai_api_key',field_title:'xAI API key'}]});
+  {slot:'xai',provider:'xai',provider_name:'xAI',family:"xAI's Grok line",reason:'no key for xAI: never entered, or dropped by an update (the host rebuilt its credentials store, where the masked prompt keeps it). Next: '+CONF+', type the key into the xai_api_key field (xAI API key) and save; a save with nothing typed says No configuration changes and keeps nothing. XAI_API_KEY in the environment serves when the prompt is empty.',next:CONF,field:'xai_api_key',field_title:'xAI API key'}]});
 var r4=render(run);
 check(seatsLines(r4.short).length===0&&seatsLines(r4.record).length===0&&r4.board.indexOf('<strong>Seats:</strong>')<0,'seated: with an outside seat and only unkeyed providers left, there is no Seats line, got '+seatsLines(r4.short).join(' | '));
 // A keyed provider that did not answer is always named, with its reason and the next command.
@@ -108,6 +110,7 @@ check(!/gsk_|sk-[A-Za-z0-9]{8}/.test(all),'a key value appears in the output');
 var help=read(path.join(root,'plugins','combat-writing','skills','help','SKILL.md'));
 [INSTALL,CONF,'/mcp','/reload-plugins'].forEach(function(c){ check(help.indexOf(c)>=0,'help.md does not name '+c); });
 check(/^## Fewer seats than you expected/m.test(help)&&/not installed/.test(help)&&/not running/.test(help)&&/no key/.test(help),'help.md: the three states section is missing');
+check(/never entered/.test(help)&&/dropped/.test(help)&&/No configuration changes/.test(help),'help.md: the no-key state must name the two causes and what an empty save does');
 var skill=read(path.join(root,'plugins','combat-writing','skills','combat-writing','SKILL.md'));
 check(/claude plugin list/.test(skill)&&/crew-state\.js --run <folder> --state down/.test(skill)&&/--state absent/.test(skill)&&/never say only that no crew tools were found/.test(skill),'SKILL.md: the three-state rule is missing');
 

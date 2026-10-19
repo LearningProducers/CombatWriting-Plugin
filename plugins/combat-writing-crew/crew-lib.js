@@ -36,18 +36,44 @@ function loadProviders(){
 // The key route (ruled 2026-10-08): the masked prompt's value first (it reaches the server as
 // the environment variable the plugin manifest maps it to); the conventional environment
 // variable only when the prompt's value is empty; never a file. Returns {key, source} or null.
+//
+// The shapes measured on 2026-10-19 (Claude Code 2.1.303): an option the person never set, or
+// one the host no longer holds, reaches the server as an empty string. A host that substitutes
+// nothing would hand the literal placeholder, ${user_config.<option>}, and that is not a key:
+// it is read as unfilled and never sent to a provider (sent, it draws a 401 and names the wrong
+// cause). The same reading guards the environment variable.
+var PLACEHOLDER=/^\$\{[^}]*\}$/;
+function unfilled(value){ return PLACEHOLDER.test(value); }
+function keyValue(name){
+  var v=name?(process.env[name]||'').trim():'';
+  return unfilled(v)?'':v;
+}
 function keyFor(provider){
   if(provider.keyless)return {key:null,source:'none needed'};
-  var fromPrompt=provider.key_prompt_env?(process.env[provider.key_prompt_env]||'').trim():'';
+  var fromPrompt=keyValue(provider.key_prompt_env);
   if(fromPrompt)return {key:fromPrompt,source:'prompt'};
-  var fromEnv=provider.key_env?(process.env[provider.key_env]||'').trim():'';
+  var fromEnv=keyValue(provider.key_env);
   if(fromEnv)return {key:fromEnv,source:'environment'};
   return null;
 }
+// How the missing key arrived: 'placeholder' when the prompt's variable holds the literal
+// ${user_config.<option>} (the host handed the option unfilled), else 'empty'.
+function keyShape(provider){
+  var v=provider.key_prompt_env?(process.env[provider.key_prompt_env]||'').trim():'';
+  return unfilled(v)?'placeholder':'empty';
+}
 // What to tell the person when a key is missing (ruled 2026-10-13: the exact next command and the
-// key field, never a value): the configure command, the option's id and title from the add-on's own
-// manifest, and the environment variable that serves when the prompt is empty.
+// key field, never a value; 2026-10-19: the two causes a person can hit and the one next step).
+// The causes: the key was never entered, or an update dropped it. Measured 2026-10-19 on this
+// machine: a key entered through the masked prompt lives in the host's credentials store, keyed
+// by plugin id, so a plugin version bump keeps it; but the host rebuilt that store on 2026-10-16
+// (a new item, created at a session start on Claude Code 2.1.301, after an update), and the key
+// went with it while the install and the manifest stood unchanged. The next step is one command:
+// the configure dialog, the field typed in and saved; a save with nothing typed says
+// "No configuration changes" and keeps nothing, which is what a person sees who expects the
+// dropped key to still be there. The environment variable is the standing alternative route.
 var CONFIGURE_COMMAND='/plugin configure combat-writing-crew';
+var CAUSES='never entered, or dropped by an update (the host rebuilt its credentials store, where the masked prompt keeps it)';
 var manifestOptions=null;
 function optionTitle(option){
   if(manifestOptions===null){
@@ -59,9 +85,16 @@ function keyField(provider){
   var option=provider.key_option||(provider.id+'_api_key');
   return {next:CONFIGURE_COMMAND,field:option,field_title:optionTitle(option),env:provider.key_env};
 }
+function keyNext(provider){
+  var f=keyField(provider);
+  return 'Next: '+f.next+', type the key into the '+f.field+' field ('+f.field_title+') and save; a save with nothing typed says No configuration changes and keeps nothing. '+f.env+' in the environment serves when the prompt is empty.';
+}
 function keyHint(provider){
   var f=keyField(provider);
-  return 'next: '+f.next+', the '+f.field+' field ('+f.field_title+', the masked prompt); or set '+f.env+' in the environment when the prompt is empty';
+  var cause=keyShape(provider)==='placeholder'
+    ?'the host handed the '+f.field+' option unfilled (the literal ${user_config.'+f.field+'} reached the server and was not sent)'
+    :CAUSES;
+  return cause+'. '+keyNext(provider);
 }
 
 // A small HTTP client: JSON in, JSON out, with the status and the headers. Follows no redirect.
@@ -223,6 +256,6 @@ function makeWindow(){
 }
 
 module.exports={readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
-  loadProviders:loadProviders,keyFor:keyFor,keyHint:keyHint,keyField:keyField,CONFIGURE_COMMAND:CONFIGURE_COMMAND,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
+  loadProviders:loadProviders,keyFor:keyFor,keyShape:keyShape,keyHint:keyHint,keyNext:keyNext,keyField:keyField,CONFIGURE_COMMAND:CONFIGURE_COMMAND,CAUSES:CAUSES,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
   eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,
   NO_RATING_LINE:NO_RATING_LINE,packetRules:packetRules,wordCount:wordCount,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer};
