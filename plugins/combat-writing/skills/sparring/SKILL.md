@@ -46,9 +46,17 @@ It prints the run folder, seats one fresh reader, `seat-1`, and logs that the ru
 
 If the add-on is present (a `crew_list` tool from the `combat-writing-crew` server), call `crew_register` with the run folder now, before any packet (on a run strategy already registered it adds nothing twice): every available outside seat joins `seats.json` after the fresh reader, one seat per model the person holds a key for (with one Groq key, `seat-2` and `seat-3`: a crew of three). Without the add-on's tools, the crew is the one fresh reader, one company's models: tell installed-but-down from absent with `claude plugin list` and record it with `crew-state.js --run <folder> --state down|absent` (the skill's three states), so the result names the state and the next command. The round name is the next two-digit number plus the kind: `01-sparring`, `02-debate`, `02-sparring` for a second plain round, `01-cold` for a cold read, `03-sparring` after two battle rounds. List `rounds/` to find the next number.
 
-## 4. Build every packet, then start every seat at once
+## 4. Announce the round, build every packet, then start every seat at once
 
-For each seat in `seats.json` (a seat's question file from step 1 goes in as `--question`; the script copies it into the round folder as `<seat>.question.md`):
+As soon as the kind and the seats are known, before any packet is built, print the forming line (issue 33, 2026-10-19):
+
+```
+node ${CLAUDE_PLUGIN_ROOT}/scripts/announce.js --run <folder> --round <round> --kind plain|cold|FQ|seat|debate --to <seat ids, comma-separated> --rerate
+```
+
+It prints one line, "Round 01 forming: the default prompt to 3 seats (seat-1 <short>, seat-2 <short>, seat-3 <short>), rerate", and logs it; show that line as printed. Every sparring round rates, so pass `--rerate`; `--kind FQ` for a `question:` to every seat, `seat` for seat lines, `cold` for a cold read, `debate` for a debate round, `plain` otherwise.
+
+Then, for each seat in `seats.json` (a seat's question file from step 1 goes in as `--question`; the script copies it into the round folder as `<seat>.question.md`):
 
 ```
 node ${CLAUDE_PLUGIN_ROOT}/scripts/packet.js --run <folder> --round <round> --seat <seat id> [--question rounds/<round>/<seat>.question.md] [--cold]
@@ -66,11 +74,13 @@ Never paste the draft, the brief or another seat's words into the agent's task. 
 
 ## 5. Check every answer
 
-For each seat:
+For each seat, as soon as its one-line reply or `crew_answer` result comes back, without waiting for the others:
 
 ```
 node ${CLAUDE_PLUGIN_ROOT}/scripts/check-answer.js <answer file> --run <folder>
 ```
+
+Print the checker's first line as printed, "seat-2 <short> finished round 01-sparring: OK rating 6/10, 412 words" (or FAIL with the reasons), one line per seat as it finishes (issue 33), so every round shows at least two lines, the forming line and one per seat, before the board opens.
 
 With `--run` the checker uses the word cap and the contract the seat was actually sent, read from the run's log; `--word-cap N` overrides the cap only when the person asks for a different one. On FAIL, whatever the reason (the rating line, the cap, or a number that contradicts the verdict: an 8 or more over "not send-ready", a 6 or less over "ships as is", ruled 2026-10-14), start the same seat once more with the same packet and the check's reasons appended to its task ("Your previous answer failed the rating contract: <reasons>. Write it again."; an overrun's reason names the retry target, 80% of the cap, ruled 2026-10-15); for an outside seat, call `crew_answer` again with `note` set to those reasons, which the add-on appends after the packet with the same target. Then run the checker on the second answer too. One overrun rule for every seat: a second answer still over the cap is cut at the cap, at the last sentence end before it, with the rating line kept, by the checker for a fresh reader (it writes the cut file back and reports OK with `truncated`) and by the add-on for an outside seat (the result says `truncated`; run the checker on the cut file as usual); the record marks the read "truncated at N words". If a seat fails twice for any other reason, keep the failed file, record it, and show that seat as `FAILED READ` on the board with the reasons. Never edit a seat's answer. Never fill in a rating for it.
 

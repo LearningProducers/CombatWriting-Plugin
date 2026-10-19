@@ -291,7 +291,7 @@ Ruled: a picker selection plus the person's text is a round, and it fires to exa
 
 Delivers: the rules skill gets the ruling as a bullet (the round fires as chosen; the host's reply after a round holds no draft, no rewrite and no answer of its own to the text; a rerate reply that is not yes or no is no); the battle and sparring skills say it where the picker hands the text on and where the result is printed; the help's picker section says it in one sentence; the packet's no-rating line and the add-on's system line say "open with your answer to the task" instead of "open with your critique", so a seat asked for a rewrite writes the rewrite (`lib.NO_RATING_LINE`, mirrored in `crew-lib.js` and pinned equal; `server.js` critique line); the seat agent says the task is answered as it asks, a rewrite included, and that "no offer to rewrite" means unasked. Two eval cases: `n-rewrite-to-every-seat` (`/cw:battle n: <rewrite guidance> draft: <letter>`: the round runs as 01-battle N to every seat in the crew, the scoreboard shows it, and the host's reply holds no rewritten draft and no answer of its own to the guidance) and `one-seat-line-only` (`/cw:battle seat-1: <question> draft: <letter>`: the round is seat lines to seat-1 alone, the result says which seat it went to, nothing shared, and the host answers nothing itself); the evals README lists six cases. cw 0.6.8, crew 0.4.5.
 
-Status: in progress — 2026-10-19.
+Status: delivered — 2026-10-19 — pull request 34 open; all nineteen checks and the three strict validations pass locally; the one-seat eval case passed on this machine.
 
 ## Part 26 — Waiting: a line when the round forms and one per seat as it finishes (issue 33)
 
@@ -299,5 +299,5 @@ From the same run: nothing shows between a picker selection and the board.
 
 Delivers: `scripts/announce.js --run <folder> --round <nn-kind> --to <seat ids, comma-separated> [--rerate]`, which prints one line when the round is chosen, "Round 03 forming: N to 3 seats (seat-1 <short>, seat-2 <short>, seat-3 <short>), rerate", the kind in the round terms from the task given (`--kind FQ|N|SN|SFQ|seat|plain|cold|debate|final`), and logs `round.announced`; `check-answer.js` prints its first line in the form "seat-2 <short> finished round 03-battle: OK, 6/10, 412 of 500 words" (or FAIL with the reasons) so the host prints one line per seat as its check runs; the battle and sparring skills run `announce.js` right after the kind and the seats are known and before any packet is built, and print each checker's first line as it comes, so every round shows at least two lines before the board opens; `tests/announce_check.js` pins the line, the log and the refusals; `rating_contract_check.js` pins the new headline. cw 0.6.9.
 
-Status: not started.
+Status: in progress — 2026-10-19.
 

@@ -258,7 +258,7 @@ check(lib.wordCount(retry510)>500&&lib.wordCount(retry510)<520,'second overrun: 
 fs.writeFileSync(soAns,retry510);
 var s2=soCheck(soAns);
 var cutText=fs.readFileSync(soAns,'utf8');
-check(s2.code===0&&/^OK rating 6\/10, \d+ words, truncated at 500 words on the second overrun \(cut at the last sentence end; the seat returned \d+\)/.test(s2.first),'second overrun: the second check should pass as cut, got '+s2.first);
+check(s2.code===0&&/^seat-1 .*finished round 01-sparring: OK rating 6\/10, \d+ words, truncated at 500 words on the second overrun \(cut at the last sentence end; the seat returned \d+\)/.test(s2.first),'second overrun: the second check should pass as cut, got '+s2.first);
 check(/^RATING: 6\/10\n\nNot ready\./.test(cutText)&&lib.wordCount(cutText)<=500&&/words\.\n$/.test(cutText)&&cutText.indexOf('tail of words')<0,'second overrun: the file should be cut at a sentence end under the cap with the rating first; got '+lib.wordCount(cutText)+' words ending "'+cutText.slice(-30).replace(/\n/g,'\\n')+'"');
 var s2log=soLog().filter(function(e){return e.event==='answer.checked'&&e.round==='01-sparring';}).pop();
 check(s2log.ok===true&&s2log.truncated&&s2log.truncated.by==='checker'&&s2log.truncated.at===500&&s2log.truncated.cut_at==='sentence'&&s2log.truncated.words_returned>500&&s2log.truncated.words_kept===lib.wordCount(cutText)&&s2log.truncated.first_line_moved===false,'second overrun: log line wrong '+JSON.stringify(s2log.truncated));
@@ -281,21 +281,21 @@ var soAns3=path.join(soRun,'rounds','03-sparring','seat-1.answer.md');
 fs.writeFileSync(soAns3,'RATING: 7/10\n'+new Array(520).join('word ')+'\n'); soCheck(soAns3);
 fs.writeFileSync(soAns3,'RATING: 7/10\n'+new Array(520).join('word ')+'\n');
 var s5=soCheck(soAns3);
-check(s5.code===1&&/^FAIL rating is 7; 7 is forbidden[^\n]*\(cut at 500 words on the second overrun first\)/.test(s5.first)&&lib.wordCount(fs.readFileSync(soAns3,'utf8'))===500,'second overrun with a 7: cut, and still a failed read; got '+s5.first);
+check(s5.code===1&&/^seat-1 .*finished round 03-sparring: FAIL rating is 7; 7 is forbidden[^\n]*\(cut at 500 words on the second overrun first\)/.test(s5.first)&&lib.wordCount(fs.readFileSync(soAns3,'utf8'))===500,'second overrun with a 7: cut, and still a failed read; got '+s5.first);
 // A critique read (a battle round after answered rounds carries them: cap 600): cut with no first line to keep.
 soPacket('04-battle');
 var soAns4=path.join(soRun,'rounds','04-battle','seat-1.answer.md');
 fs.writeFileSync(soAns4,'Not ready. '+new Array(620).join('word ')+'\n'); soCheck(soAns4);
 fs.writeFileSync(soAns4,'Not ready. '+new Array(620).join('word ')+'\n');
 var s6=soCheck(soAns4);
-check(s6.code===0&&/^OK critique, no rating this round, 600 words, truncated at 600 words/.test(s6.first)&&/^Not ready\. word/.test(fs.readFileSync(soAns4,'utf8')),'second overrun, critique: cut as it stands; got '+s6.first);
+check(s6.code===0&&/^seat-1 .*finished round 04-battle: OK critique, no rating this round, 600 words, truncated at 600 words/.test(s6.first)&&/^Not ready\. word/.test(fs.readFileSync(soAns4,'utf8')),'second overrun, critique: cut as it stands; got '+s6.first);
 // A final S/N read: the line kept, cut at 250.
 soPacket('05-final',['--final','sn']);
 var soAns5=path.join(soRun,'rounds','05-final','seat-1.sn.answer.md');
 fs.writeFileSync(soAns5,'S/N RATIO: 60%\n'+new Array(300).join('word ')+'\n'); soCheck(soAns5);
 fs.writeFileSync(soAns5,'S/N RATIO: 60%\n'+new Array(300).join('word ')+'\n');
 var s7=soCheck(soAns5);
-check(s7.code===0&&/^OK S\/N 60%, 250 words, truncated at 250 words/.test(s7.first)&&/^S\/N RATIO: 60%\n/.test(fs.readFileSync(soAns5,'utf8')),'second overrun, final read: the S/N line kept, cut at 250; got '+s7.first);
+check(s7.code===0&&/^seat-1 .*finished round 05-final: OK S\/N 60%, 250 words, truncated at 250 words/.test(s7.first)&&/^S\/N RATIO: 60%\n/.test(fs.readFileSync(soAns5,'utf8')),'second overrun, final read: the S/N line kept, cut at 250; got '+s7.first);
 // The record and the board read the checker's cut from the answer.checked line (the add-on's from crew.answered).
 cp.spawnSync(process.execPath,[path.join(scripts,'render-record.js'),'--run',soRun],{encoding:'utf8'});
 cp.spawnSync(process.execPath,[path.join(scripts,'render-board.js'),'--run',soRun],{encoding:'utf8'});
