@@ -200,7 +200,7 @@ function crewStateLines(runDir,seats,log){
     if(!outside&&noKey.length){
       var fields=[]; noKey.forEach(function(u){ var f=u.field||'the key field'; if(fields.indexOf(f)<0)fields.push(f); });
       var named=noKey.filter(function(u){return u.field;}).map(function(u){return u.field+' ('+(u.field_title||u.provider_name||u.provider)+')';}).filter(function(v,i,a){return a.indexOf(v)===i;});
-      lines.push('The crew add-on is running and no provider has a key, so the crew is one seat. Next: '+(noKey[0].next||ADDON_CONFIGURE)+' and fill a key field: '+(named.length?named.join(', '):fields.join(', '))+'; a free Groq key seats two. Or set the provider\'s environment variable when the prompt is empty.');
+      lines.push('The crew add-on is running and no provider has a key, so the crew is one seat: a key was never entered, or an update dropped it (the host rebuilt its credentials store). Next: '+(noKey[0].next||ADDON_CONFIGURE)+', type the key into a key field and save: '+(named.length?named.join(', '):fields.join(', '))+'; a save with nothing typed says No configuration changes and keeps nothing; a free Groq key seats two. Or set the provider\'s environment variable when the prompt is empty.');
     }
     failed.forEach(function(u){
       lines.push('Not seated: '+(u.provider_name||u.provider)+(u.family?' ('+u.family+')':'')+': '+u.reason+'. Next: run the command again; if it repeats, '+(u.next||ADDON_CONFIGURE)+' to check the '+(u.field||'key')+' field.');

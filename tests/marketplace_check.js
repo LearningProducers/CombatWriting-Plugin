@@ -82,6 +82,16 @@ Object.keys(env).forEach(function(name){
   check(/^CW_CREW_[A-Z_]+$/.test(name),'crew manifest: env name '+name+' should be CW_CREW_*');
 });
 keyOptions.forEach(function(k){ check(Object.keys(env).some(function(n){return env[n]==='${user_config.'+k+'}';}),'crew manifest: option '+k+' is not mapped into the server\'s env'); });
+// The server reads what the manifest maps (2026-10-19): every keyed provider's key_prompt_env is an env name
+// the manifest fills from ${user_config.<its key_option>}, and that option is declared sensitive; the field
+// the no-key message names is a field the dialog shows.
+var providers=JSON.parse(read('plugins/combat-writing-crew/providers.json')).providers||[];
+providers.filter(function(p){return p.key_prompt_env&&!p.stub;}).forEach(function(p){
+  var option=p.key_option||(p.id+'_api_key');
+  check(env[p.key_prompt_env]==='${user_config.'+option+'}','crew: provider '+p.id+' reads '+p.key_prompt_env+', which the manifest maps to '+JSON.stringify(env[p.key_prompt_env])+', expected ${user_config.'+option+'}');
+  check(options[option]&&options[option].sensitive===true,'crew: provider '+p.id+' names the field '+option+', which the manifest does not declare as a sensitive option');
+  check(typeof p.key_env==='string'&&/^[A-Z][A-Z0-9_]+_API_KEY$/.test(p.key_env),'crew: provider '+p.id+' has no conventional key_env');
+});
 var manifestText=read('plugins/combat-writing-crew/.claude-plugin/plugin.json')+read('plugins/combat-writing-crew/providers.json');
 check(!/\b(sk|gsk|xai|pplx)[-_][A-Za-z0-9]{16,}/.test(manifestText),'crew: something that looks like a credential appears in the manifest or provider table');
 check(!crew.hooks&&!crew.commands&&!crew.agents,'crew manifest: the add-on should declare no hooks, commands or agents');

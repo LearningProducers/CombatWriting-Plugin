@@ -18,12 +18,21 @@
 //     is unavailable, the reason names the prompt and the variable and never a value, crew_answer
 //     records the seat as missing, and the fake server is never called, even though a .env and a
 //     key file holding a key sit in the working directory.
-//   - The third state of a short crew (ruled 2026-10-13: running, no key): every no-key entry of
-//     crew_list carries the exact next command (/plugin configure combat-writing-crew), the key
-//     field (groq_api_key) and its title from the manifest (Groq API key); crew_register on a
-//     keyless run adds no seat and logs the same under unavailable; the listed plugin's
-//     render-record.js --short and render-board.js then print a Seats line naming the state, the
-//     command and the fields, under the crew line.
+//   - The two broken shapes (2026-10-19): the prompt's variable empty, which is what the host hands
+//     for an option never set or dropped from its credentials store, and the prompt's variable
+//     holding the literal ${user_config.groq_api_key}, an option the host handed unfilled. Both
+//     are no key: the seat is unavailable, the provider is never called (the literal was sent as a
+//     key before this check and drew a 401), the reason names the cause, and with the literal in
+//     the prompt the environment variable still serves.
+//   - The third state of a short crew (ruled 2026-10-13: running, no key; 2026-10-19: the two
+//     causes and the one next step): every no-key entry of crew_list carries the exact next
+//     command (/plugin configure combat-writing-crew), the key field (groq_api_key) and its title
+//     from the manifest (Groq API key), and its reason names both causes a person can hit (never
+//     entered, or dropped by an update), one Next, the field typed in and saved, and that a save
+//     with nothing typed says No configuration changes; crew_register on a keyless run adds no
+//     seat and logs the same under unavailable; the listed plugin's render-record.js --short and
+//     render-board.js then print a Seats line naming the state, the causes, the command and the
+//     fields, under the crew line.
 //   - crew_list resolves groq-a to the largest live gpt-oss id and groq-b to the newest live
 //     qwen id, skips the excluded and small-context records, and names makers; a provider with
 //     no key is listed as unavailable; the Anthropic entry is listed as not built; Ollama is off
@@ -394,10 +403,12 @@ fake.listen(0,'127.0.0.1',function(){
     }).then(function(r){
       var a=(r.data.seats||[]).filter(function(s){return s.slot==='groq-a';})[0]||{};
       check(a.available===false&&/no key/.test(a.reason)&&/masked prompt/.test(a.reason)&&/GROQ_API_KEY/.test(a.reason)&&!/NEVER_READ/.test(JSON.stringify(r.data)),'key route: with neither set the seat should be unavailable, naming the prompt and the variable, got '+JSON.stringify(a));
+      check(a.key_shape==='empty','key route: an empty prompt variable is the shape "empty", got '+a.key_shape);
       check(r.data.available===0&&requests.length===0,'key route: with no key the provider must not be called');
       // The third state (ruled 2026-10-13): the next command and the key field, names only.
       check(a.next==='/plugin configure combat-writing-crew'&&a.field==='groq_api_key'&&a.field_title==='Groq API key'&&a.env==='GROQ_API_KEY','state 3: crew_list must carry next, field, field_title and env, got '+JSON.stringify(a));
-      check(/^no key for Groq; next: \/plugin configure combat-writing-crew, the groq_api_key field \(Groq API key, the masked prompt\); or set GROQ_API_KEY in the environment when the prompt is empty$/.test(a.reason),'state 3: the reason must name the command, the field, its title and the variable, got '+a.reason);
+      check(/^no key for Groq: never entered, or dropped by an update \(the host rebuilt its credentials store, where the masked prompt keeps it\)\. Next: \/plugin configure combat-writing-crew, type the key into the groq_api_key field \(Groq API key\) and save; a save with nothing typed says No configuration changes and keeps nothing\. GROQ_API_KEY in the environment serves when the prompt is empty\.$/.test(a.reason),'state 3: the reason must name the two causes, one Next with the command, the field, its title, the save and the variable, got '+a.reason);
+      check(/never entered/.test(a.reason)&&/dropped by an update/.test(a.reason)&&a.reason.split('Next:').length===2&&!/gsk_|NEVER_READ/.test(a.reason),'state 3: both causes, exactly one Next, no value, got '+a.reason);
       var x=(r.data.seats||[]).filter(function(s){return s.slot==='xai';})[0]||{};
       check(x.field==='xai_api_key'&&x.field_title==='xAI API key'&&x.next==='/plugin configure combat-writing-crew','state 3: the xAI entry must name its own field, got '+JSON.stringify(x));
       run3=node('new-run.js',['--draft','draft.md','--name','no key','--model','Test Model']).stdout.trim();
@@ -408,16 +419,39 @@ fake.listen(0,'127.0.0.1',function(){
       var line=logOf(run3).filter(function(e){return e.event==='crew.registered';})[0];
       check(!!line&&line.added.length===0&&(line.unavailable||[]).some(function(u){return u.provider_name==='Groq'&&u.field==='groq_api_key'&&u.field_title==='Groq API key'&&u.next==='/plugin configure combat-writing-crew'&&/^no key for Groq/.test(u.reason);}),'state 3: crew.registered must log the next command and the field under unavailable');
       var short=node('render-record.js',['--run',run3,'--short']);
-      check(short.status===0&&/^\*\*Seats:\*\* The crew add-on is running and no provider has a key, so the crew is one seat\. Next: \/plugin configure combat-writing-crew and fill a key field: groq_api_key \(Groq API key\), xai_api_key \(xAI API key\)/m.test(short.stdout),'state 3: the short form must print the Seats line with the command and the fields, got '+short.stdout.split('\n').filter(function(l){return /Seats/.test(l);}).join(' | '));
-      check(/a free Groq key seats two\. Or set the provider's environment variable when the prompt is empty\./.test(short.stdout)&&!/NEVER_READ/.test(short.stdout),'state 3: the Seats line must end with the free-tier note and the variable route, and carry no key');
+      check(short.status===0&&/^\*\*Seats:\*\* The crew add-on is running and no provider has a key, so the crew is one seat: a key was never entered, or an update dropped it \(the host rebuilt its credentials store\)\. Next: \/plugin configure combat-writing-crew, type the key into a key field and save: groq_api_key \(Groq API key\), xai_api_key \(xAI API key\)/m.test(short.stdout),'state 3: the short form must print the Seats line with the two causes, the command and the fields, got '+short.stdout.split('\n').filter(function(l){return /Seats/.test(l);}).join(' | '));
+      check(/; a save with nothing typed says No configuration changes and keeps nothing; a free Groq key seats two\. Or set the provider's environment variable when the prompt is empty\./.test(short.stdout)&&!/NEVER_READ/.test(short.stdout),'state 3: the Seats line must say what an empty save does, end with the free-tier note and the variable route, and carry no key');
       var record=fs.readFileSync(path.join(run3,'record.md'),'utf8');
       check(record.split('\n')[2].indexOf('**Crew:**')===0&&record.split('\n')[4].indexOf('**Seats:** The crew add-on is running and no provider has a key')===0,'state 3: record.md must carry the Seats line right under the crew line');
-      check(node('render-board.js',['--run',run3]).status===0&&/<strong>Seats:<\/strong> The crew add-on is running and no provider has a key, so the crew is one seat\. Next: \/plugin configure combat-writing-crew and fill a key field: groq_api_key \(Groq API key\)/.test(fs.readFileSync(path.join(run3,'board.html'),'utf8')),'state 3: board.html must carry the Seats line');
+      check(node('render-board.js',['--run',run3]).status===0&&/<strong>Seats:<\/strong> The crew add-on is running and no provider has a key, so the crew is one seat: a key was never entered, or an update dropped it \(the host rebuilt its credentials store\)\. Next: \/plugin configure combat-writing-crew, type the key into a key field and save: groq_api_key \(Groq API key\)/.test(fs.readFileSync(path.join(run3,'board.html'),'utf8')),'state 3: board.html must carry the Seats line');
       return s3.call('crew_answer',{run:run,round:'01-sparring',seat:'seat-2'});
     }).then(function(r){
       check(r.isError&&r.data.missing===true&&/no key/.test(r.data.reason)&&!/NEVER_READ/.test(JSON.stringify(r.data))&&requests.length===0,'key route: crew_answer with no key should be missing without a request, got '+JSON.stringify(r.data));
       check(!/NEVER_READ/.test(fs.readFileSync(path.join(run,'log.jsonl'),'utf8')),'key route: a key from a file reached the log');
       s3.stop();
+    });
+  }).then(function(){
+    // The broken shape (2026-10-19): the host hands the option unfilled, the literal placeholder in the
+    // prompt's variable. It is not a key: never sent, named as the cause; the environment variable still serves.
+    requests.length=0;
+    var s3b=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'${user_config.groq_api_key}',GROQ_API_KEY:''}));
+    return s3b.rpc('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'t',version:'1'}}).then(function(){
+      return s3b.call('crew_list');
+    }).then(function(r){
+      var a=(r.data.seats||[]).filter(function(s){return s.slot==='groq-a';})[0]||{};
+      check(a.available===false&&/^no key for Groq: the host handed the groq_api_key option unfilled \(the literal \$\{user_config\.groq_api_key\} reached the server and was not sent\)\. Next: \/plugin configure combat-writing-crew, type the key into the groq_api_key field \(Groq API key\) and save;/.test(a.reason)&&a.key_shape==='placeholder'&&a.next==='/plugin configure combat-writing-crew'&&a.field==='groq_api_key','placeholder: the literal must read as no key with its own cause and the same next step, got '+JSON.stringify(a));
+      check(requests.length===0,'placeholder: the literal must never be sent to the provider, but '+requests.length+' request(s) went out');
+      return s3b.call('crew_answer',{run:run,round:'01-sparring',seat:'seat-2'});
+    }).then(function(r){
+      check(r.isError&&r.data.missing===true&&/unfilled/.test(r.data.reason)&&requests.length===0,'placeholder: crew_answer must be missing without a request, got '+JSON.stringify(r.data));
+      s3b.stop();
+      requests.length=0;
+      var s3c=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'${user_config.groq_api_key}',GROQ_API_KEY:'gsk_FROM_THE_ENVIRONMENT'}));
+      return s3c.rpc('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'t',version:'1'}}).then(function(){return s3c.call('crew_list');}).then(function(r2){
+        var a=(r2.data.seats||[]).filter(function(s){return s.slot==='groq-a';})[0]||{};
+        check(a.available===true&&a.key_source==='environment'&&requests[0]&&requests[0].auth==='Bearer gsk_FROM_THE_ENVIRONMENT','placeholder: with the literal in the prompt the environment variable must serve, got '+JSON.stringify(a)+' auth '+(requests[0]&&requests[0].auth));
+        s3c.stop();
+      });
     });
   }).then(function(){
     // The crew scales by key (ruled 2026-10-09): with a second provider's key present, crew_register seats
