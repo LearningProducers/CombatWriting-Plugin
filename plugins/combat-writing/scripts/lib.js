@@ -83,7 +83,7 @@ function nextLine(seats){
 }
 
 // The line a packet carries when the round asks for no rating; the checker and the add-on read it.
-var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your critique.';
+var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your answer to the task.';
 
 // Every packet carries this line, hardwired, in its Contract section (the founder's words,
 // 2026-10-14): a seat that thinks out loud in its answer is the wall of text the person reads.
