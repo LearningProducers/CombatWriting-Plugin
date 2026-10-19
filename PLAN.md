@@ -299,5 +299,5 @@ From the same run: nothing shows between a picker selection and the board.
 
 Delivers: `scripts/announce.js --run <folder> --round <nn-kind> --to <seat ids, comma-separated> [--rerate]`, which prints one line when the round is chosen, "Round 03 forming: N to 3 seats (seat-1 <short>, seat-2 <short>, seat-3 <short>), rerate", the kind in the round terms from the task given (`--kind FQ|N|SN|SFQ|seat|plain|cold|debate|final`), and logs `round.announced`; `check-answer.js` prints its first line in the form "seat-2 <short> finished round 03-battle: OK, 6/10, 412 of 500 words" (or FAIL with the reasons) so the host prints one line per seat as its check runs; the battle and sparring skills run `announce.js` right after the kind and the seats are known and before any packet is built, and print each checker's first line as it comes, so every round shows at least two lines before the board opens; `tests/announce_check.js` pins the line, the log and the refusals; `rating_contract_check.js` pins the new headline. cw 0.6.9.
 
-Status: not started.
+Status: delivered — 2026-10-19 — pull request 35 open, stacked on pull request 34; all twenty checks and the three strict validations pass locally.
 

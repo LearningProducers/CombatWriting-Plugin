@@ -11,7 +11,10 @@
 //   <seat>.sn.answer.md       sn:       S/N RATIO: XX%, XX 0 to 100 (the app's final read; no 7 rule)
 //   <seat>.redflag.answer.md  redflag:  NO RED FLAGS, or RED FLAGS FOUND: X with X 1 or more (the app's)
 // Reasoning must follow the first line, and the whole answer must be within the word cap.
-// Prints one line: OK or FAIL with the reasons, and a JSON summary on the second line.
+// Prints one line: with --run, "<seat> <short name> finished round <nn-kind>: " then OK or FAIL
+// with the reasons (issue 33, 2026-10-19: the host prints it as each seat finishes, so the person
+// sees one line per seat before the board opens); without --run, OK or FAIL alone. Then a JSON
+// summary on the second line.
 // Exit 0 on pass, 1 on fail, 2 on misuse.
 //
 // The word cap: --word-cap when given; else, with --run, the cap the seat was actually
@@ -61,5 +64,10 @@ if(runDir&&fs.existsSync(path.join(runDir,'log.jsonl'))){
 var headline=result.ok
   ?('OK '+(contract==='rating'?'rating '+result.rating+'/10':contract==='critique'?'critique, no rating this round':contract==='sn'?'S/N '+result.value+'%':(result.value===0?'no red flags':result.value+' red flag(s)'))+', '+result.words+' words'+(truncated?', truncated at '+truncated.at+' words on the second overrun (cut at '+(truncated.cut_at==='sentence'?'the last sentence end':'the word')+'; the seat returned '+truncated.words_returned+')':''))
   :('FAIL '+result.reasons.join('; ')+(truncated?' (cut at '+truncated.at+' words on the second overrun first)':''));
-process.stdout.write(headline+'\n'+JSON.stringify(summary)+'\n');
+var who='';
+if(runDir&&round){
+  var seatRec=null; try{var sf=path.join(runDir,'seats.json'); if(fs.existsSync(sf))seatRec=(JSON.parse(lib.readText(sf)).seats||[]).filter(function(s){return s.id===seatId;})[0]||null;}catch(e){}
+  who=seatId+(seatRec?' '+lib.seatShortName(seatRec):'')+' finished round '+round+': ';
+}
+process.stdout.write(who+headline+'\n'+JSON.stringify(summary)+'\n');
 process.exit(result.ok?0:1);
