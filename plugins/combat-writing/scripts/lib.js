@@ -5,6 +5,8 @@
 //   <root>/combat-writing/runs/<run-id>/
 //     draft.md                 the draft snapshot, copied once, never changed
 //     draft-2.md, draft-3.md   revised drafts added later by add-draft.js; the newest is the default
+//     canon.md, canon-2.md     the draft as shipped, byte for byte, written by champion.js (ruled 2026-10-19):
+//                              canon.md once, canon-2.md only after a revised draft is shipped
 //     brief.md                 the context brief, when the person gave one
 //     seats.json               the crew: id, model, company, and where the name came from
 //     log.jsonl                one JSON object per line, timestamped; the source of truth for what was sent
@@ -54,7 +56,67 @@ var ADDON_STATE={
 };
 
 // The commands, for the lines the record prints (the plugin is `cw`; the commands are /cw:<name>).
-var CMD={strategy:'/cw:strategy',sparring:'/cw:sparring',battle:'/cw:battle',help:'/cw:help'};
+var CMD={strategy:'/cw:strategy',sparring:'/cw:sparring',battle:'/cw:battle',champion:'/cw:champion',help:'/cw:help'};
+
+// Champion (ruled 2026-10-19, issue 13): one command, three keywords, each writing to a
+// different place. `shipped` freezes the newest draft as canon in the run folder with the time
+// and the channel; `result:` is one dated line in the run's log and record; `insight:` is one
+// dated, run-tagged line in the project's vault, one file across all runs, kept beside the runs
+// folder so it outlives them. champion.js is the only writer of the three.
+var VAULT_FILE='insight-vault.md';
+var VAULT_REL=path.join('combat-writing',VAULT_FILE);
+var VAULT_HEADING='# Insight Vault';
+var VAULT_INTRO='What the Combat Writing runs in this project revealed: insights and lexicon, one dated line per entry, tagged with the run that produced it (step 19). Appended by '+CMD.champion+' insight; nothing already here is changed by the plugin.';
+// The vault's place is read from the run folder alone: <project>/combat-writing/runs/<run-id>/
+// puts it at <project>/combat-writing/insight-vault.md. A run folder anywhere else has no vault.
+function vaultPath(runDir){
+  var parent=path.dirname(path.resolve(runDir)), grand=path.dirname(parent);
+  if(path.basename(parent)!=='runs'||path.basename(grand)!=='combat-writing')return null;
+  return path.join(grand,VAULT_FILE);
+}
+// The host name of an address, by string cut: the scheme and a leading www. dropped, cut at the
+// first slash, query or fragment. stripScheme drops the scheme and the // only, for the board,
+// which shows an address as text and never as a link.
+function stripScheme(url){ return String(url||'').replace(/^https?:\/\//i,''); }
+function hostOf(url){ return stripScheme(url).replace(/^www\./i,'').split(/[\/?#]/)[0]; }
+// The match of a canon against a page's text (shipped with a link): paragraphs, not sentences.
+// Each canon paragraph and the whole page go through normalizeQuote, the flip check's normalizer
+// (curly quotes to straight, whitespace runs to one space, edge punctuation trimmed), and a
+// paragraph is found when the page holds it word for word. One definition of "word for word"
+// in the plugin: the one that judges a seat's quote. The marks are measured against the page
+// text the host saved, nothing more.
+function canonMatch(canon,page){
+  var paras=String(canon||'').replace(/\r\n/g,'\n').split(/\n\s*\n/).map(function(p){return normalizeQuote(p);}).filter(Boolean);
+  var hay=normalizeQuote(String(page||''));
+  var found=paras.filter(function(p){return hay.indexOf(p)>=0;}).length;
+  return {found:found,of:paras.length,status:found&&found===paras.length?'matches':found?'partial':'not-found'};
+}
+function matchWords(m){
+  if(!m)return 'not checked';
+  if(m.status==='matches')return 'matches canon';
+  if(m.status==='partial')return m.found+' of '+m.of+' paragraphs found';
+  return 'not found';
+}
+// A time in words, UTC, to the minute: 2026-10-19 14:02 UTC.
+function whenUtc(iso){ var d=new Date(iso); return d.toISOString().slice(0,10)+' '+d.toISOString().slice(11,16)+' UTC'; }
+function dateUtc(iso){ return new Date(iso).toISOString().slice(0,10); }
+// The Shipped line, one function for the script, the record and the board, from a
+// champion.shipped log line: the time, the channel (the host of the address with the channel
+// words in parentheses, or the words alone, or the host alone), which canon froze which draft
+// (or that an existing canon shipped again), and the live mark.
+function shippedLine(e){
+  var channel=e.host?e.host+(e.channel?' ('+e.channel+')':''):(e.channel||'');
+  var canon=e.canon_new?e.canon+' froze '+e.draft:e.canon+' again ('+e.draft+')';
+  var live=!e.url?'no page to check':e.live===true?'live: '+matchWords(e.match):e.live===false?'not live: the address gave no page':'not checked: no page text reached the script';
+  return 'Shipped '+whenUtc(e.at)+' · '+channel+' · '+canon+' · '+live;
+}
+function championEvents(log){ return log.filter(function(e){return /^champion\./.test(e.event||'');}); }
+// The text Next line after a champion call (champion closes like strategy, with a line, not the
+// picker): the remaining entries, and step 19's return to the piece on the same run.
+function championNextLine(runDir){
+  var hasCanon=!!latestCanon(runDir);
+  return 'Next: '+(hasCanon?'':CMD.champion+' shipped <link, or email to whom> (freezes the final draft as canon with the time and the channel) · ')+CMD.champion+' result: <what came back, silence included> · '+CMD.champion+' insight: <what you learned, or a term and what it means> · '+CMD.battle+' draft: <path> to return to the piece on this run.';
+}
 
 // Where the run started (2026-10-14: any stage may be skipped, the order is the person's choice).
 // new-run.js logs the stage whose command made the run in run.created; the line names it, what
@@ -213,13 +275,19 @@ function crewStateLines(runDir,seats,log){
   return lines;
 }
 
-// Drafts in order: draft.md, draft-2.md, draft-3.md ... The last is the newest.
-function listDrafts(runDir){
-  return fs.readdirSync(runDir).filter(function(n){return /^draft(-\d+)?\.md$/.test(n);})
-    .sort(function(a,b){return draftNumber(a)-draftNumber(b);});
+// Numbered files in order: <base>.md, <base>-2.md, <base>-3.md ... The last is the newest.
+// Drafts (draft.md, draft-2.md) and canons (canon.md, canon-2.md) are numbered the same way.
+function numberOf(name,base){ var m=new RegExp('^'+base+'-(\\d+)\\.md$').exec(name); return m?parseInt(m[1],10):1; }
+function listNumbered(runDir,base){
+  var re=new RegExp('^'+base+'(-\\d+)?\\.md$');
+  return fs.readdirSync(runDir).filter(function(n){return re.test(n);})
+    .sort(function(a,b){return numberOf(a,base)-numberOf(b,base);});
 }
-function draftNumber(name){ var m=/^draft-(\d+)\.md$/.exec(name); return m?parseInt(m[1],10):1; }
+function listDrafts(runDir){ return listNumbered(runDir,'draft'); }
+function draftNumber(name){ return numberOf(name,'draft'); }
 function latestDraft(runDir){ var d=listDrafts(runDir); return d.length?d[d.length-1]:null; }
+function listCanons(runDir){ return listNumbered(runDir,'canon'); }
+function latestCanon(runDir){ var c=listCanons(runDir); return c.length?c[c.length-1]:null; }
 
 // Rounds in order: rounds/01-sparring, rounds/02-debate, ... sorted by their two-digit prefix.
 function listRounds(runDir){
@@ -763,7 +831,8 @@ module.exports={
   DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,NO_RATING_LINE:NO_RATING_LINE,
   SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
-  listDrafts:listDrafts,latestDraft:latestDraft,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
+  listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
+  URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
   capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip
 };

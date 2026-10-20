@@ -10,8 +10,10 @@
 // alone goes to the named seats only), a battle round that asked for no rating marked "critique", an outside
 // seat's second overrun the add-on or the checker cut marked "truncated at N words", the final round's S/N and
 // red-flag counts per seat), then every answer in full by round under its seat's name, then
-// the log of what was sent. Nothing is averaged, summed or ranked. Rebuilt after every
-// round; the log and the answer files are the truth.
+// the log of what was sent. A Champion section (ruled 2026-10-19) sits between the scoreboard
+// and the answers only when the log holds a champion.* line: the Shipped, Result and Insight
+// lines in order. Nothing is averaged, summed or ranked. Rebuilt after every round; the log
+// and the answer files are the truth.
 //
 // --short prints what the person sees in the terminal after a round (2026-10-14: the board is
 // the result, the terminal is short): the crew line, the Seats line when the crew is short, the
@@ -137,6 +139,23 @@ if(rounds.length){
   // The text Next line (2026-10-14): kept here, and printed by --short for the host's picker.
   out.push('**'+lib.nextLine(seats).replace(/^Next: /,'Next:** '));
 }else out.push(noRoundsLine);
+// Champion (ruled 2026-10-19): what was shipped, what came back, what the run taught, from the
+// champion.* log lines in order, only when there are any (a run with none renders as before).
+// No line here starts with |, so the --short slice never carries it: champion is not a round.
+var champ=lib.championEvents(log);
+if(champ.length){
+  out.push('');
+  out.push('## Champion');
+  out.push('');
+  out.push('What was shipped, what came back, and what the run taught. The live and match marks are measured by code against the page text the host saved, never by a seat.');
+  if(!champ.some(function(e){return e.event==='champion.shipped';})){ out.push(''); out.push('**Shipped:** not recorded.'); }
+  champ.forEach(function(e){
+    out.push('');
+    if(e.event==='champion.shipped')out.push('**Shipped:** '+lib.shippedLine(e).replace(/^Shipped /,'')+(e.url?' · '+e.url:''));
+    else if(e.event==='champion.result')out.push('**Result:** '+lib.dateUtc(e.at)+' · '+String(e.text||'').replace(/\s+/g,' ').trim());
+    else if(e.event==='champion.insight')out.push('**Insight:** '+lib.dateUtc(e.at)+' · '+e.text+' · '+e.vault);
+  });
+}
 out.push('');
 out.push('## Answers');
 rounds.forEach(function(r){

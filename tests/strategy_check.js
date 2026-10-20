@@ -4,9 +4,9 @@
 // reads the stored draft and brief with no repaste.
 //
 // What it pins, on the command files:
-//   - plugins/combat-writing/skills/ holds exactly battle, combat-writing, help, sparring and
-//     strategy, each a SKILL.md; there is no commands/ folder (the four commands moved to the
-//     skills format on 2026-10-14).
+//   - plugins/combat-writing/skills/ holds exactly battle, champion, combat-writing, help,
+//     sparring and strategy, each a SKILL.md; there is no commands/ folder (the commands moved
+//     to the skills format on 2026-10-14; champion joined them on 2026-10-19).
 //   - strategy's SKILL.md has front matter on line 1 with a name, a description and an argument-hint, the
 //     SPDX comment on the line after it, and its text: writes the whole paste to the inbox
 //     before parsing; runs new-run.js with --draft and --brief; builds no packet and starts
@@ -16,9 +16,9 @@
 //     choice); it carries no credit line and never names the host by a product name. The
 //     any-order rules themselves (a brief alone, a run started at battle) are pinned by
 //     tests/order_check.js.
-//   - help.md: the four-stages section has four bullets, Strategy, Sparring and Battle each
-//     naming its command on its own line, Champion saying it has no command; the commands
-//     section lists all four commands, each with an example.
+//   - help.md: the four-stages section has four bullets, each naming its command on its own
+//     line, Champion's naming /cw:champion and its three keywords (ruled 2026-10-19); the
+//     commands section lists all five commands, each with an example.
 //   - sparring.md says a bare command after strategy uses the stored draft and brief with no
 //     repaste, by the newest run whose rounds/ is empty, and that a pasted draft still starts
 //     a new run.
@@ -55,7 +55,7 @@ function read(p){ return fs.readFileSync(p,'utf8'); }
 // The four commands are skills (moved from commands/ on 2026-10-14, the format the docs name for
 // new plugins), beside the rules skill combat-writing; there is no commands/ folder.
 var skillDirs=fs.readdirSync(path.join(plugin,'skills')).filter(function(d){return fs.existsSync(path.join(plugin,'skills',d,'SKILL.md'));}).sort();
-check(skillDirs.join(',')==='battle,combat-writing,help,sparring,strategy','skills/: expected battle, combat-writing, help, sparring, strategy; got '+skillDirs.join(','));
+check(skillDirs.join(',')==='battle,champion,combat-writing,help,sparring,strategy','skills/: expected battle, champion, combat-writing, help, sparring, strategy; got '+skillDirs.join(','));
 check(!fs.existsSync(path.join(plugin,'commands')),'commands/ should be gone: the four commands are skills');
 function cmd(name){ return path.join(plugin,'skills',name,'SKILL.md'); }
 
@@ -94,10 +94,11 @@ check(stageBullets.length===4,'help.md: expected four stage bullets, found '+sta
   var b=stageBullets[i]||'';
   check(b.indexOf('**'+p[0])===2&&b.indexOf('`/cw:'+p[1]+'`')>0,'help.md: stage bullet '+(i+1)+' must be '+p[0]+' naming /cw:'+p[1]+'; got: '+b.slice(0,80));
 });
+// Champion is a command (ruled 2026-10-19): its bullet names /cw:champion and the three keywords.
 var champion=stageBullets[3]||'';
-check(champion.indexOf('**Champion')===2&&/no command/i.test(champion)&&!/\/cw:champion/.test(champion),'help.md: the Champion bullet must say it has no command and name none; got: '+champion.slice(0,80));
+check(champion.indexOf('**Champion')===2&&champion.indexOf('`/cw:champion`')>0&&/`shipped/.test(champion)&&/`result:/.test(champion)&&/`insight:/.test(champion)&&!/no command/i.test(champion),'help.md: the Champion bullet must name /cw:champion and the keywords shipped, result: and insight:; got: '+champion.slice(0,80));
 var cmdSection=help.slice(commandsStart,help.indexOf('\n## ',commandsStart+1));
-['strategy','sparring','battle','help'].forEach(function(c){
+['strategy','sparring','battle','champion','help'].forEach(function(c){
   var re=new RegExp('^- `/cw:'+c+'`','m');
   check(re.test(cmdSection),'help.md: the commands section lists no /cw:'+c);
   var ex=new RegExp('Example: `/cw:'+c+'\\b');
