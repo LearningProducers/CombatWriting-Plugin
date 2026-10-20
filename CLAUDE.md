@@ -27,6 +27,8 @@ The motto is "Reading is Peace. Writing is War." It is brand. It is never soften
 
 **One change per pull request** (Google's engineering practices, Small CLs). One issue, one change, one pull request a reviewer can describe in a sentence. A second change found on the way, a fix beside the task, a cleanup, a rule that turned out wrong, opens its own issue and its own pull request; it never rides on this one.
 
+**The issue closes on merge** (founder ruling 2026-10-19). Every pull request body carries `Closes #N` for the issue it resolves, one line per issue, so the merge closes it; the founder never closes an issue by hand. The line sits under WHY, where the issue is named, and is no section's whole text. A pull request that resolves no issue says so in WHY. Issues 13 and 36 were resolved by pull request 37, which merged before this rule and carried no such line; they stay open until a pull request that touches them carries `Closes #13` and `Closes #36`, or the founder rules otherwise.
+
 ## Terms
 
 - A **seat** is one model judging the draft.
