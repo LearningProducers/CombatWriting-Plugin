@@ -317,4 +317,4 @@ Ruled: on the first run inside a git repository, the plugin writes `combat-writi
 
 Delivers: `lib.inGitRepo` (a `.git` entry found walking up from the project root; no command run) and `lib.writeGitignore` (written, kept, or not a repository); `new-run.js` calls it after making the run folder and logs `gitignore.written` when it wrote; `render-record.js --short` prints `lib.GITIGNORE_LINE` once per run that wrote it (the log line `gitignore.printed`, like the legend); the help, both READMEs, the rules skill and CLAUDE.md say so beside the rule; `tests/gitignore_check.js` runs the real scripts in a `git init` folder and pins the file's bytes, the log, the line once, `git status --porcelain -uall` after a run and after an insight, a second run writing nothing new, a file already there kept byte for byte, and nothing written outside a repository. cw 0.7.1.
 
-Status: delivered — 2026-10-19 — pull request open; all twenty-two checks and the strict validations pass locally.
+Status: delivered — 2026-10-19 — pull request 39 open; all twenty-two checks and the strict validations pass locally.
