@@ -39,6 +39,13 @@
 //     --file, an empty file, --page with no address, --live yes, --live no with --page, a missing
 //     page file, --at not a date, shipped on a brief-only run, insight on a run copied outside
 //     combat-writing/runs/, --page on result.
+//   - The page's route and kind (issue 40): an HTML page holding the canon inside markup,
+//     with a script, a style and entities, matches by its text (page_kind html); a page with no
+//     markup is page_kind text; --page with --digest records a digest the host's tool returned
+//     (page_kind digest, no match) and the line says so, never "not found"; --digest without
+//     --page, with a value, or on result is refused; the skill names the shell fetch first, the
+//     web tool as the fallback, and --digest, and the rules skill, the help and the README carry
+//     the route in one wording.
 //   - The source: champion.js builds its address pattern from lib.URL_RE and holds no https?:
 //     literal, comments included (the network, fetch and child_process bans for every script are
 //     pinned by marketplace_check.js and open_board_check.js).
@@ -144,6 +151,23 @@ var pageNone=inboxFile('none.page.md','A page about something else.\n');
 var sNot=node('champion.js',['--run',run,'--kind','shipped','--file',ship5,'--page',pageNone]);
 check(sNot.status===0&&/· live: not found$/.test(sNot.stdout.trim())&&champLines(run).pop().match.status==='not-found','shipped (page with none of the canon): got '+JSON.stringify(sNot.stdout.trim()));
 check(!fs.existsSync(path.join(run,'canon-3.md')),'shipped (5): no canon-3.md: the draft did not change');
+// An HTML page is measured by its text (issue 40): the canon's paragraphs inside markup, with
+// tags inside a paragraph, entities, a script and a style block, match.
+var pageHtml=inboxFile('post.page.md','<!doctype html><html><head><title>A post</title><style>p{margin:0}</style><script>var x="Dear board";</script></head><body><div class="post"><h1>Dana&#39;s letter</h1><p>Dear <b>board</b>, buy the&nbsp;company.</p>\n<p>The numbers are in the <em>appendix</em>, page&#32;4.</p></div><!-- Dear board, buy the company. --></body></html>\n');
+var sHtml=node('champion.js',['--run',run,'--kind','shipped','--file',ship5,'--page',pageHtml]);
+check(sHtml.status===0&&/· live: matches canon$/.test(sHtml.stdout.trim()),'shipped (HTML page): must match by the page\'s text; got '+JSON.stringify(sHtml.stdout.trim())+' '+sHtml.stderr);
+var eHtml=champLines(run).pop();
+check(eHtml.page_kind==='html'&&eHtml.digest===false&&eHtml.match&&eHtml.match.status==='matches','shipped (HTML page): log line wrong: '+JSON.stringify(eHtml));
+check(champLines(run).filter(function(e){return e.page==='site.page.md';}).pop().page_kind==='text','shipped (text page): page_kind must be text');
+// A digest the tool returned (issue 40): recorded as one, never measured, never "not found".
+var pageDigest=inboxFile('digest.page.md','The page says Dana asked the board to buy the company and that the numbers are in an appendix.\n');
+var sDigest=node('champion.js',['--run',run,'--kind','shipped','--file',ship5,'--page',pageDigest,'--digest']);
+check(sDigest.status===0&&/· live: a digest came back, not the page; not measured$/.test(sDigest.stdout.trim()),'shipped (digest): got '+JSON.stringify(sDigest.stdout.trim())+' '+sDigest.stderr);
+var eDigest=champLines(run).pop();
+check(eDigest.page==='digest.page.md'&&eDigest.page_kind==='digest'&&eDigest.digest===true&&eDigest.live===true&&eDigest.match===null,'shipped (digest): log line wrong: '+JSON.stringify(eDigest));
+check(!fs.existsSync(path.join(run,'canon-3.md')),'shipped (HTML, digest): no canon-3.md: the draft did not change');
+node('render-record.js',['--run',run]);
+check(/\*\*Shipped:\*\* [^\n]* · live: a digest came back, not the page; not measured · https:\/\/example\.invalid\/letter\n/.test(read(path.join(run,'record.md'))),'record: the digest line');
 
 // A revised draft after the canon: the heading says the revision is not shipped.
 write(path.join(proj,'rev4.md'),P1+'\n\nThe numbers are in the appendix, page 5.\n');
@@ -204,7 +228,11 @@ check(/\*\*Shipped\*\* \(the piece went out; the link, or email to whom\); \*\*R
 check(/"Other", that cannot be suppressed/.test(skill)&&/Text typed there goes through the same best-guess rule/.test(skill),'champion skill: must say what text typed into the Other row does');
 check(/Three lines on screen after a `shipped`: the Shipped line, the opener's line, the Next line\./.test(skill),'champion skill: must name the three lines after a shipped');
 check(/\.paste\.md/.test(skill)&&/Parse only after that file exists/.test(skill)&&/<slug>\.shipped\.md/.test(skill)&&/<slug>\.result\.md/.test(skill)&&/<slug>\.insight\.md/.test(skill)&&/<slug>\.page\.md/.test(skill),'champion skill: the inbox cut');
-check(/Never a second fetch, never any other address, never a fetch for `result` or `insight`\./.test(skill),'champion skill: one fetch, by the host, for shipped alone');
+check(/One fetch: never a second, never any other address, never a fetch for `result` or `insight`, never by a script\./.test(skill),'champion skill: one fetch, by the host, for shipped alone');
+// The route (issue 40): a shell fetch when there is a shell, the web tool when there is none, --digest for a digest.
+check(/by whichever route of your own returns the page as it is/.test(skill)&&/`curl -sL --max-time 30 <address> -o combat-writing\/inbox\/<slug>\.page\.md`/.test(skill)&&/add `--digest`/.test(skill),'champion skill: the route must name the shell fetch, the web tool as the fallback, and --digest');
+['combat-writing','help'].forEach(function(n){ check(/by whichever route of (its|your) own returns the page as it is/.test(read(path.join(plugin,'skills',n,'SKILL.md'))),n+' skill: must carry the route in its one wording'); });
+check(/by whichever route of its own returns the page as it is/.test(read(path.join(plugin,'README.md'))),'plugin README: must carry the route in its one wording');
 check(skill.indexOf(CREDIT)<0&&!/\bClaude\b/.test(skill)&&/the host/.test(skill),'champion skill: no credit line, no product name for the host');
 check(skill.split('/cw:help for the full guide.').length>=3,'champion skill: every question to the person must end with the help line');
 check(/champion closes like strategy, with the text Next line, not the picker/i.test(skill)&&/Next: \/cw:champion shipped <link, or email to whom>/.test(skill),'champion skill: closes with the text Next line');
@@ -229,6 +257,9 @@ var oi=node('champion.js',['--run',outside,'--kind','insight','--file',inboxFile
 check(oi.status===2&&/not under combat-writing\/runs\//.test(oi.stderr),'refusal (insight on a run outside combat-writing/runs/): got '+oi.status+' '+oi.stderr);
 refused(['--run',run,'--kind','result','--file',ship1,'--page',page1],'--page on result');
 refused(['--run',run,'--kind','insight','--file',ship1,'--live','no'],'--live on insight');
+refused(['--run',run,'--kind','shipped','--file',ship1,'--digest'],'--digest without --page');
+refused(['--run',run,'--kind','shipped','--file',ship1,'--page',page1,'--digest','yes'],'--digest with a value');
+refused(['--run',run,'--kind','result','--file',ship1,'--digest'],'--digest on result');
 check(champLines(run).length===before&&read(vault)===vaultBefore&&!fs.existsSync(path.join(run,'canon-3.md')),'refusals: nothing may be written');
 
 // (9) The source.

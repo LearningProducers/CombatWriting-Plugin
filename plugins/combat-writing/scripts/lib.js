@@ -116,6 +116,19 @@ function canonMatch(canon,page){
   var found=paras.filter(function(p){return hay.indexOf(p)>=0;}).length;
   return {found:found,of:paras.length,status:found&&found===paras.length?'matches':found?'partial':'not-found'};
 }
+// The page's text (issue 40, ruled 2026-10-19): a page the host saved whole is HTML on most
+// channels, so before the match the markup is dropped: scripts, styles and comments go, block
+// ends become paragraph breaks, every other tag goes, the common entities are decoded. A page
+// with no markup is measured as it is. Returns {kind: 'html' | 'text', text}.
+function pageText(raw){
+  var s=String(raw||'').replace(/^﻿/,'');
+  if(!/<(?:html|head|body|p|div|article|section|br|h[1-6]|li|span)[\s>\/]/i.test(s))return {kind:'text',text:s};
+  s=s.replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<!--[\s\S]*?-->/g,' ');
+  s=s.replace(/<\/(?:p|div|li|h[1-6]|tr|blockquote|section|article|header|footer|pre)>/gi,'\n\n').replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'');
+  s=s.replace(/&nbsp;/g,' ').replace(/&#(\d+);/g,function(_,n){return String.fromCharCode(parseInt(n,10));}).replace(/&#x([0-9a-f]+);/gi,function(_,h){return String.fromCharCode(parseInt(h,16));})
+    .replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
+  return {kind:'html',text:s};
+}
 function matchWords(m){
   if(!m)return 'not checked';
   if(m.status==='matches')return 'matches canon';
@@ -132,7 +145,7 @@ function dateUtc(iso){ return new Date(iso).toISOString().slice(0,10); }
 function shippedLine(e){
   var channel=e.host?e.host+(e.channel?' ('+e.channel+')':''):(e.channel||'');
   var canon=e.canon_new?e.canon+' froze '+e.draft:e.canon+' again ('+e.draft+')';
-  var live=!e.url?'no page to check':e.live===true?'live: '+matchWords(e.match):e.live===false?'not live: the address gave no page':'not checked: no page text reached the script';
+  var live=!e.url?'no page to check':e.digest?'live: a digest came back, not the page; not measured':e.live===true?'live: '+matchWords(e.match):e.live===false?'not live: the address gave no page':'not checked: no page text reached the script';
   return 'Shipped '+whenUtc(e.at)+' · '+channel+' · '+canon+' · '+live;
 }
 function championEvents(log){ return log.filter(function(e){return /^champion\./.test(e.event||'');}); }
@@ -858,7 +871,7 @@ module.exports={
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   GITIGNORE_FILE:GITIGNORE_FILE,GITIGNORE_LINES:GITIGNORE_LINES,GITIGNORE_LINE:GITIGNORE_LINE,inGitRepo:inGitRepo,writeGitignore:writeGitignore,
-  URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
+  URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
   capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip
 };
