@@ -6,7 +6,10 @@
 //
 // Copies the draft (and the brief, when given) into a new folder under
 // <root>/combat-writing/runs/<run-id>/, writes seats.json with one fresh reader, and
-// opens log.jsonl. Prints the run folder path on stdout. At least one of --draft and --brief
+// opens log.jsonl. Prints the run folder path on stdout, and nothing else. On the first run
+// inside a git repository it also writes <root>/combat-writing/.gitignore with exactly two
+// lines, runs/ and inbox/ (issue 36, ruled 2026-10-19), never overwriting a file already there,
+// and logs gitignore.written so the short form says so once. At least one of --draft and --brief
 // is required: strategy may store a brief alone (2026-10-14: any stage may be skipped, the
 // order is the person's choice), and sparring or battle then brings the draft into the same
 // run through add-draft.js, which writes draft.md when there is none. --stage names the
@@ -59,6 +62,10 @@ var runDir=path.join(root,lib.RUNS_DIR,runId);
 var n=2;
 while(fs.existsSync(runDir)){runDir=path.join(root,lib.RUNS_DIR,runId+'-'+(n++));}
 fs.mkdirSync(path.join(runDir,'rounds'),{recursive:true});
+// The ignore file (issue 36, ruled 2026-10-19): on the first run inside a git repository,
+// combat-writing/.gitignore with runs/ and inbox/, never overwriting a file already there,
+// nothing outside a repository. Logged so the short form says so once.
+var ignore=lib.writeGitignore(root);
 
 var draft=null;
 if(hasDraft){draft=fs.readFileSync(args.draft);fs.writeFileSync(path.join(runDir,'draft.md'),draft);}
@@ -74,4 +81,5 @@ lib.appendLog(runDir,{event:'run.created',run:path.basename(runDir),stage:stage,
   brief:briefHash?{file:'brief.md',sha256:briefHash}:null,
   seats:seats.map(function(s){return {id:s.id,model:s.model,company:s.company};}),
   crew_note:'one fresh reader, every seat is '+company+'\'s models until the crew add-on registers outside seats; the plugin never fakes a seat and never pads the crew'});
+if(ignore.state==='written')lib.appendLog(runDir,{event:'gitignore.written',file:path.join('combat-writing',lib.GITIGNORE_FILE).split(path.sep).join('/'),lines:lib.GITIGNORE_LINES});
 process.stdout.write(runDir+'\n');

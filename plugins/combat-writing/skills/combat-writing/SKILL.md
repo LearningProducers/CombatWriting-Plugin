@@ -46,7 +46,7 @@ With fresh readers, the `seat` agent inherits your model. Name each seat by the 
 
 ## The scripts
 
-All plain Node, no dependencies, run from the person's project folder. They write only inside `combat-writing/runs/<run-id>/` in that folder, never inside the plugin.
+All plain Node, no dependencies, run from the person's project folder. They write only inside `combat-writing/` in that folder, never inside the plugin: the run folder under `combat-writing/runs/<run-id>/`, the vault `combat-writing/insight-vault.md` (champion), and, on the first run inside a git repository, `combat-writing/.gitignore` with exactly two lines, `runs/` and `inbox/` (issue 36, ruled 2026-10-19), which `new-run.js` writes once, never over a file already there, and which the short form says once; show that line as printed.
 
 | Script | What it does |
 |---|---|
