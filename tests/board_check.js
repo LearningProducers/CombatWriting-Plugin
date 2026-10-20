@@ -46,6 +46,12 @@
 //     spanning the row at 70ch, the draft panel at 76ch, long words wrapping; a seat's read
 //     renders a markdown subset after escaping (lists, bold, italic, code, a heading as bold),
 //     no link, no markup from the seat, the page's one href still record.md.
+//   - The canon controls (ruled 2026-10-19): only when the run holds a canon, the draft panel
+//     carries read aloud (the browser's speech synthesis, with pause and stop), copy (the
+//     clipboard) and download (a .txt named for the run), the canon text in the page, the
+//     Shipped strip under the round strip, the heading naming the canon and the draft it froze,
+//     and the Champion fold; the page still has one href and makes no outside request; a run
+//     with no canon has none of it.
 //   - No chart, no chart point, no series: the board is simple (2026-10-14).
 //   - No averaged number: no "average", "mean", "overall", "consensus" or "total" rating,
 //     no fractional rating.
@@ -268,6 +274,35 @@ check(mdRead.indexOf('<ol><li>Step one</li><li>Step two with '+LONG+'</li></ol>'
 check(mdRead.indexOf('<p>A line<br>with a break and a [link](https://example.invalid/x) and 2 * 3 * 4 and a_snake_case_word.</p>')>=0,'board (markdown): a link stays text, lone stars and underscores are left alone; got '+mdRead.slice(-200));
 check(mdHtml.indexOf('<script>alert')<0&&!/<a /.test(mdRead)&&(mdHtml.match(/href=/g)||[]).length===1,'board (markdown): no markup from the seat, no new href');
 check(/<blockquote>Not ready: the close is soft and the ask is late\.<\/blockquote>/.test(mdHtml),'board (markdown): the framed verdict line drops the marks');
+// The canon controls (ruled 2026-10-19): only when the run holds a canon, three client-side
+// controls on the draft panel, read aloud (speech synthesis with pause and stop), copy (the
+// clipboard) and download (a .txt named for the run), the canon text in the page, the Shipped
+// strip under the round strip, the heading naming the canon and the draft it froze, the Champion
+// fold; the page still has one href and makes no outside request. The fresh run above has no
+// canon and none of it.
+['canon-speak','canon-pause','canon-stop','canon-copy','canon-download','canon-text','round shipped','Champion: shipped'].forEach(function(id){ check(html.indexOf(id)<0&&freshHtml.indexOf(id)<0,'board (no canon): "'+id+'" must not be on the page'); });
+fs.mkdirSync(path.join(proj,'combat-writing','inbox'),{recursive:true});
+write(path.join(proj,'combat-writing','inbox','ship.shipped.md'),'https://www.example.invalid/posts/abc123 LinkedIn post\n');
+write(path.join(proj,'combat-writing','inbox','ship.page.md'),'Dear board, buy the company.\n');
+var sh=node('champion.js',['--run',run,'--kind','shipped','--file','combat-writing/inbox/ship.shipped.md','--page','combat-writing/inbox/ship.page.md','--at','2026-10-19T14:02:00Z']);
+check(sh.status===0&&sh.stdout.trim()==='Shipped 2026-10-19 14:02 UTC · example.invalid (LinkedIn post) · canon.md froze draft-2.md · live: matches canon','champion shipped: exit '+sh.status+' '+sh.stdout+sh.stderr);
+node('render-board.js',['--run',run]);
+var shipHtml=fs.readFileSync(path.join(run,'board.html'),'utf8');
+check(/<p class="round shipped"><b>Shipped<\/b> · 2026-10-19 14:02 UTC · example\.invalid \(LinkedIn post\) · canon\.md froze draft-2\.md · live: matches canon · www\.example\.invalid\/posts\/abc123 · 0 results · 0 insights<\/p>/.test(shipHtml),'board (canon): the Shipped strip is missing or wrong; got '+(/<p class="round shipped">[^]*?<\/p>/.exec(shipHtml)||[''])[0]);
+check(shipHtml.indexOf('<p class="round shipped">')>shipHtml.indexOf('<p class="round">')&&shipHtml.indexOf('<p class="round shipped">')<shipHtml.indexOf('<h2>The draft'),'board (canon): the Shipped strip sits under the round strip and above the draft');
+check(/<h2>The draft · draft-2\.md, a revision · shipped as canon\.md, which froze draft-2\.md<\/h2>/.test(shipHtml),'board (canon): the heading must name the canon and the draft it froze; got '+(/<h2>The draft[^<]*<\/h2>/.exec(shipHtml)||[''])[0]);
+check(/<div class="canon-controls"[^>]*><span class="meta">Canon: canon\.md froze draft-2\.md<\/span> <button type="button" id="canon-speak"[^>]*>🔊 Read aloud<\/button> <button type="button" id="canon-pause"[^>]*>Pause<\/button> <button type="button" id="canon-stop"[^>]*>Stop<\/button> <button type="button" id="canon-copy"[^>]*>Copy<\/button> <button type="button" id="canon-download"[^>]*>Download \.txt<\/button>/.test(shipHtml),'board (canon): the three controls (read aloud with pause and stop, copy, download) are missing or out of order');
+check(/<div id="canon-text" hidden>Dear board, buy the company\.\n<\/div>/.test(shipHtml),'board (canon): the canon text must be in the page, escaped, exactly');
+check(/speechSynthesis/.test(shipHtml)&&/SpeechSynthesisUtterance/.test(shipHtml)&&/synth\.pause\(\)/.test(shipHtml)&&/synth\.resume\(\)/.test(shipHtml)&&/synth\.cancel\(\)/.test(shipHtml),'board (canon): the reading must use the browser\'s speech synthesis with pause, resume and stop');
+check(/navigator\.clipboard/.test(shipHtml)&&/execCommand\("copy"\)/.test(shipHtml),'board (canon): copy must use the clipboard API with a fallback');
+check(/a\.download="\d{4}-\d\d-\d\d-\d{4}-board-canon\.txt"/.test(shipHtml)&&/data:text\/plain;charset=utf-8,/.test(shipHtml),'board (canon): download must name the file for the run and build it from the text in the page');
+check(/<details class="fold"><summary>Champion: shipped, results, insights<\/summary>/.test(shipHtml)&&/<strong>Shipped:<\/strong> 2026-10-19 14:02 UTC · example\.invalid \(LinkedIn post\) · canon\.md froze draft-2\.md · live: matches canon · www\.example\.invalid\/posts\/abc123<\/p>/.test(shipHtml),'board (canon): the Champion fold must carry the Shipped line');
+check(shipHtml.indexOf('Champion: shipped')<shipHtml.indexOf('<summary>Run details'),'board (canon): the Champion fold sits before Run details');
+check(!/\b(https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(shipHtml)&&!/<link\b/i.test(shipHtml)&&!/<script[^>]+src=/i.test(shipHtml)&&!/<img\b/i.test(shipHtml)&&!/<iframe\b/i.test(shipHtml)&&!/@import/i.test(shipHtml)&&!/url\(/i.test(shipHtml)&&!/\bfetch\(/.test(shipHtml)&&!/XMLHttpRequest/.test(shipHtml),'board (canon): the page must still make no outside request');
+var shipHrefs=shipHtml.match(/href="[^"]*"/g)||[];
+check(shipHrefs.length===1&&shipHrefs[0]==='href="record.md"','board (canon): hrefs are '+JSON.stringify(shipHrefs)+', expected only record.md');
+check(!/<a /.test(shipHtml.replace(/<a href="record\.md">/,'')),'board (canon): the address must be text, never a link');
+
 // The log and a refusal.
 var log=fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);});
 check(log.some(function(e){return e.event==='board.rendered'&&e.file==='board.html'&&e.rounds===5;}),'log: board.rendered missing');

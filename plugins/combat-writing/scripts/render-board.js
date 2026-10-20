@@ -30,6 +30,16 @@
 // tablet, an opened read spans the row at 70 characters, the draft panel is 76 characters,
 // and long words and addresses wrap. Rebuilt after every round from the files and log.jsonl.
 //
+// Champion (ruled 2026-10-19): when the run holds a champion.shipped line, a Shipped strip sits
+// under the round strip (the Shipped line, the address as text with its scheme cut, never a
+// link, and the counts of results and insights); the draft heading says whether the newest
+// draft is the canon or a revision after it; the draft panel gets three client-side controls on
+// the canon, like a canon piece in the Combat Writing app: read aloud (the browser's own speech
+// synthesis, with pause and stop), copy (the clipboard, the canon text exactly) and download (a
+// .txt named for the run), and nothing is fetched for any of them; a folded "Champion" section
+// before Run details carries the record's Shipped, Result and Insight lines. With no canon the
+// controls are not on the page.
+//
 // Prints the page's path on stdout and appends board.rendered to the log.
 
 var fs=require('fs'), path=require('path');
@@ -149,6 +159,7 @@ html.push('.motto{font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-s
 html.push('.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}button{font:13px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--rule);border-radius:6px;padding:4px 10px;cursor:pointer}');
 html.push('.facts{max-width:76ch;margin:10px auto 0}.paper{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:28px 32px;font-size:17px;line-height:1.65;box-shadow:0 1px 2px rgba(0,0,0,.06);max-width:76ch;margin:0 auto;overflow-wrap:anywhere}.paper p{margin:0 0 1em}.paper p:last-child{margin-bottom:0}');
 html.push('.round{margin:18px 0 0;padding:12px 16px;overflow-wrap:anywhere;border-left:4px solid var(--frame);background:var(--surface-2);border-radius:0 4px 4px 0;font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.round b{color:var(--ink)}.rounds{list-style:none;padding:0;margin:14px 0 0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.rounds li{padding:4px 0;border-bottom:1px solid var(--rule)}.rounds b{color:var(--ink)}.frame figcaption .note-line{display:block;margin-top:4px;color:var(--ink-2)}');
+html.push('.round.shipped{border-left-color:var(--send);margin-top:10px}.canon-controls{max-width:76ch;margin:0 auto 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.canon-controls button:disabled{opacity:.5;cursor:default}');
 html.push('.verdict{margin:28px 0 0;padding:34px 24px;border-radius:6px;text-align:center;color:var(--send-ink);background:var(--send)}.verdict.back{background:var(--back);color:var(--back-ink)}.verdict.final{background:var(--none);color:var(--none-ink)}.verdict .word{font:800 clamp(28px,6vw,64px)/1.05 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.06em;text-transform:uppercase;margin:0}.verdict .why{margin:14px auto 0;max-width:720px;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;opacity:.92}.verdict .numbers{list-style:none;padding:0;margin:18px 0 0;display:flex;gap:10px 22px;justify-content:center;flex-wrap:wrap;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}.verdict .numbers b{font-size:20px;margin-right:6px;font-variant-numeric:tabular-nums}');
 html.push('.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:28px;margin-top:4px}.frame:has(details[open]){grid-column:1/-1}.frame{margin:0;background:var(--paper);border:10px solid var(--frame);outline:1px solid var(--rule);box-shadow:inset 0 0 0 1px var(--rule),inset 0 0 0 6px var(--paper),inset 0 0 0 7px var(--frame),0 10px 24px rgba(0,0,0,.12);padding:34px 28px 26px;display:flex;flex-direction:column;align-items:center;text-align:center}');
 html.push('.badge{font:700 12px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:7px 12px;border:1px solid var(--frame);border-radius:999px;color:var(--ink)}.badge.failed,.badge.missing{color:var(--bad);border-color:var(--bad)}.badge.critique{color:var(--ink-2);border-color:var(--ink-3)}.badge .mark{font-weight:400;letter-spacing:0;text-transform:none;margin-left:6px;color:var(--ink-2)}.flip-valid .badge .mark{color:var(--good)}.flip-invalid .badge .mark{color:var(--bad)}');
@@ -182,10 +193,32 @@ function roundLine(round){
 }
 if(rounds.length)html.push('<p class="round">'+roundLine(rounds[rounds.length-1])+'</p>');
 
+// The Shipped strip (ruled 2026-10-19): the latest shipping, visible with nothing opened. The
+// address is text with its scheme cut, never an href: the page keeps its one link.
+var champ=lib.championEvents(log);
+var shipped=champ.filter(function(e){return e.event==='champion.shipped';});
+var lastShip=shipped.length?shipped[shipped.length-1]:null;
+var nResults=champ.filter(function(e){return e.event==='champion.result';}).length;
+var nInsights=champ.filter(function(e){return e.event==='champion.insight';}).length;
+var canonFile=lib.latestCanon(runDir);
+var canonText=canonFile?lib.readText(path.join(runDir,canonFile)):null;
+// Which draft the newest canon froze, from the log line that wrote it (the files decide which
+// canon is newest; the log says which draft it came from).
+var canonFroze=null; shipped.forEach(function(e){ if(e.canon===canonFile&&e.canon_new)canonFroze=e.draft; });
+var canonCurrent=!!canonFile&&!!newestDraft&&lib.sha256(fs.readFileSync(path.join(runDir,canonFile)))===lib.sha256(fs.readFileSync(path.join(runDir,newestDraft)));
+if(lastShip)html.push('<p class="round shipped"><b>Shipped</b> · '+esc(lib.shippedLine(lastShip).replace(/^Shipped /,''))+(lastShip.url?' · '+esc(lib.stripScheme(lastShip.url)):'')+' · '+nResults+' result'+(nResults===1?'':'s')+' · '+nInsights+' insight'+(nInsights===1?'':'s')+'</p>');
+
 // 1. The draft, in full.
 if(newestDraft){
-  html.push('<h2>The draft'+(newestDraft!=='draft.md'?' · '+esc(newestDraft)+', a revision':'')+'</h2>');
+  var canonClause=!canonFile?'':canonCurrent?' · shipped as '+esc(canonFile)+(canonFroze?', which froze '+esc(canonFroze):''):' · '+esc(canonFile)+' froze '+esc(canonFroze||'an earlier draft')+'; this revision is not shipped';
+  html.push('<h2>The draft'+(newestDraft!=='draft.md'?' · '+esc(newestDraft)+', a revision':'')+canonClause+'</h2>');
   if(!rounds.length)html.push('<p class="meta">'+esc(noRoundsLine)+'</p>');
+  // The canon controls (ruled 2026-10-19), only when the run holds a canon: read aloud, copy,
+  // download, all on the canon text exactly, all in the browser, nothing fetched.
+  if(canonFile){
+    html.push('<div class="canon-controls" aria-label="The canon, '+esc(canonFile)+'"><span class="meta">Canon: '+esc(canonFile)+(canonFroze?' froze '+esc(canonFroze):'')+'</span> <button type="button" id="canon-speak" aria-label="Read the canon aloud">🔊 Read aloud</button> <button type="button" id="canon-pause" aria-label="Pause or resume the reading" disabled>Pause</button> <button type="button" id="canon-stop" aria-label="Stop the reading" disabled>Stop</button> <button type="button" id="canon-copy" aria-label="Copy the canon text">Copy</button> <button type="button" id="canon-download" aria-label="Download the canon as a text file">Download .txt</button> <span class="meta" id="canon-status" aria-live="polite"></span></div>');
+    html.push('<div id="canon-text" hidden>'+esc(canonText)+'</div>');
+  }
   html.push('<div class="paper">'+paras(lib.readText(path.join(runDir,newestDraft)))+'</div>');
   // The counts every packet carries (ruled 2026-10-15): the person sees what the seats were told.
   html.push('<p class="meta facts"><strong>'+esc(lib.FACTS_HEADING)+':</strong> '+esc(lib.draftFactsFull(lib.draftFacts(lib.readText(path.join(runDir,newestDraft)))))+'.</p>');
@@ -284,6 +317,19 @@ if(rounds.length){
   html.push('</details>');
 }
 
+// 4b. Folded: champion (ruled 2026-10-19), the record's lines, only when the log holds any.
+if(champ.length){
+  html.push('<details class="fold"><summary>Champion: shipped, results, insights</summary>');
+  html.push('<p class="note">What was shipped, what came back, and what the run taught. The live and match marks are measured by code against the page text the host saved, never by a seat.</p>');
+  if(!shipped.length)html.push('<p class="meta"><strong>Shipped:</strong> not recorded.</p>');
+  champ.forEach(function(e){
+    if(e.event==='champion.shipped')html.push('<p class="meta"><strong>Shipped:</strong> '+esc(lib.shippedLine(e).replace(/^Shipped /,''))+(e.url?' · '+esc(lib.stripScheme(e.url)):'')+'</p>');
+    else if(e.event==='champion.result')html.push('<p class="meta"><strong>Result:</strong> '+esc(lib.dateUtc(e.at))+' · '+esc(String(e.text||'').replace(/\s+/g,' ').trim())+'</p>');
+    else if(e.event==='champion.insight')html.push('<p class="meta"><strong>Insight:</strong> '+esc(lib.dateUtc(e.at))+' · '+esc(e.text)+' · '+esc(e.vault)+'</p>');
+  });
+  html.push('</details>');
+}
+
 // 5. Folded: the run details.
 html.push('<details class="fold"><summary>Run details</summary>');
 html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies: '+esc(companies.join(', '))+'.')+' '+esc(lib.nameSources(seats))+'</p>');
@@ -296,6 +342,19 @@ html.push('<p class="note">The full record, every answer in full and the log of 
 html.push('</details>');
 html.push('<script>');
 html.push('(function(){var b=document.getElementById("theme");var r=document.documentElement;b.addEventListener("click",function(){var dark=r.getAttribute("data-theme")==="dark"||(r.getAttribute("data-theme")!=="light"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches);r.setAttribute("data-theme",dark?"light":"dark");});})();');
+if(canonFile){
+  // The canon controls: the browser's own speech synthesis (the system's voices), the clipboard,
+  // and a download built from the text in the page. No request leaves the page.
+  html.push('(function(){var t=document.getElementById("canon-text");if(!t)return;var text=t.textContent;var speak=document.getElementById("canon-speak"),pause=document.getElementById("canon-pause"),stop=document.getElementById("canon-stop"),copy=document.getElementById("canon-copy"),dl=document.getElementById("canon-download"),st=document.getElementById("canon-status");function say(m){st.textContent=m;}var synth=window.speechSynthesis;var held=false;function idle(){held=false;pause.disabled=true;stop.disabled=true;pause.textContent="Pause";speak.disabled=false;}');
+  html.push('speak.addEventListener("click",function(){if(!synth||!window.SpeechSynthesisUtterance){say("This browser has no speech synthesis.");return;}synth.cancel();var u=new SpeechSynthesisUtterance(text);u.onstart=function(){say("Reading the canon aloud.");pause.disabled=false;stop.disabled=false;speak.disabled=true;};u.onend=function(){say("Finished reading.");idle();};u.onerror=function(e){var why=e&&e.error?e.error:"";if(why!=="interrupted"&&why!=="canceled")say("Reading stopped"+(why?": "+why:"")+".");idle();};synth.speak(u);});');
+  // The engine's own paused flag changes asynchronously (measured in Chromium, 2026-10-19), so the
+  // button keeps its own state.
+  html.push('pause.addEventListener("click",function(){if(!synth)return;if(held){held=false;synth.resume();pause.textContent="Pause";say("Resumed.");}else{held=true;synth.pause();pause.textContent="Resume";say("Paused.");}});');
+  html.push('stop.addEventListener("click",function(){if(!synth)return;synth.cancel();say("Stopped.");idle();});');
+  html.push('copy.addEventListener("click",function(){function ok(){say("Canon copied to the clipboard.");}function fallback(){var ta=document.createElement("textarea");ta.value=text;ta.setAttribute("readonly","");ta.style.position="fixed";ta.style.left="-9999px";document.body.appendChild(ta);ta.select();var done=false;try{done=document.execCommand("copy");}catch(e){}document.body.removeChild(ta);if(done)ok();else say("Copy failed; select the draft and copy it by hand.");}if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(ok,fallback);else fallback();});');
+  html.push('dl.addEventListener("click",function(){var a=document.createElement("a");a.setAttribute("href","data:text/plain;charset=utf-8,"+encodeURIComponent(text));a.download='+JSON.stringify(path.basename(runDir)+'-'+canonFile.replace(/\.md$/,'')+'.txt')+';document.body.appendChild(a);a.click();document.body.removeChild(a);say("Downloaded "+a.download+".");});');
+  html.push('window.addEventListener("pagehide",function(){if(synth)synth.cancel();});})();');
+}
 html.push('</script>');
 html.push('</main></body></html>');
 fs.writeFileSync(path.join(runDir,lib.BOARD_FILE),html.join('\n')+'\n');

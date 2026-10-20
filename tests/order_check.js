@@ -226,6 +226,15 @@ var screenOne=/\*\*Battle: everyone\*\*[^\n]*\*\*Battle: one seat\*\*[^\n]*\*\*D
 check(screenOne.test(rules)&&screenOne.test(battle)&&screenOne.test(sparring),'the Next picker: screen one must be Battle: everyone / Battle: one seat / Debate: seats re-read and rerate / More in the rules skill, battle and sparring');
 check(/\*\*FQ\*\*, "same question to every seat, nothing shared"; \*\*N\*\*, "same guidance to every seat, nothing shared"; \*\*SN\*\*, "everyone reads each other plus responds to your prompt"; \*\*SFQ\*\*, "everyone reads each other's response to this question plus responds to your question"/.test(rules),'the Next picker: the four round labels and descriptions, in order, in the rules skill');
 check(/\*\*Final reads\*\*[^\n]*\*\*Help\*\*[^\n]*\*\*Done for now\*\*/.test(rules),'the Next picker: the More screen must be Final reads / Help / Done for now');
+// Champion under More (ruled 2026-10-19): between Final reads and Help, with Shipped / Result /
+// Insight on its second screen, in the rules skill, battle, sparring and the help.
+var more=/\*\*Final reads\*\*[^\n]*\*\*Champion\*\*[^\n]*\*\*Help\*\*[^\n]*\*\*Done for now\*\*/;
+var three=/\*\*Shipped\*\*[^\n]*\*\*Result\*\*[^\n]*\*\*Insight\*\*/;
+[['combat-writing',rules],['battle',battle],['sparring',sparring],['help',help]].forEach(function(p){
+  check(more.test(p[1]),p[0]+': the More screen must carry Champion between Final reads and Help');
+  check(three.test(p[1]),p[0]+': Champion\'s second screen must be Shipped / Result / Insight');
+});
+check(/then `\/cw:champion` runs as if typed/.test(rules),'the Next picker: after Champion\'s text, /cw:champion runs as if typed');
 check(/ask for the text in one line/.test(rules)&&/\*\*Rerate\*\*[^\n]*\*\*No rating\*\*/.test(rules),'the Next picker: the text line and the rerate yes/no');
 check(/Done for now prints the text Next line, as `render-record\.js --run <folder> --next` prints it, and nothing else\./.test(rules),'the Next picker: Done for now must print the text Next line (--next) and nothing else');
 check(/the seat list as the existing picker builds it/.test(rules),'the Next picker: the seat list is the existing picker\'s');
