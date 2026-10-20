@@ -4,7 +4,7 @@
 // only writer of canon, results and the vault.
 //
 //   node champion.js --run <run folder> --kind shipped|result|insight --file <inbox file>
-//                    [--page <inbox file>] [--live no] [--at <time>]
+//                    [--page <inbox file> [--digest]] [--live no] [--at <time>]
 //
 // Everything the person typed reaches this script as a file cut from the inbox, never as inline
 // text (the packet rule, applied to champion). --at dates an entry to when it happened (any form
@@ -16,11 +16,14 @@
 //   draft came after the canon and canon-2.md is written, numbered like the drafts. The files
 //   decide. The text: the first address in it (lib.URL_RE) is the link, the host name cut from
 //   it by string; the rest of the words are the channel ("LinkedIn post", "email to Dana Ruiz").
-//   The page: the host opens the address once with its own web tool and saves what came back
-//   whole; --page hands that file here and is the proof the link was live, measured by
-//   lib.canonMatch against the canon paragraph by paragraph; --live no says the host opened the
-//   address and got no page; neither, with an address, is recorded as not checked. This script
-//   never fetches. Logs champion.shipped; prints the Shipped line (lib.shippedLine).
+//   The page: the host opens the address once, by its own route (a shell fetch, or its web tool
+//   when it has no shell), and saves what came back whole; --page hands that file here and is
+//   the proof the link was live, an HTML page reduced to its text (lib.pageText) and measured by
+//   lib.canonMatch against the canon paragraph by paragraph; --page with --digest says the
+//   host's tool returned a digest, not the page, which is recorded and never measured (issue 40);
+//   --live no says the host opened the address and got no page; neither, with an address, is
+//   recorded as not checked. This script never fetches. Logs champion.shipped with page_kind
+//   (text, html or digest); prints the Shipped line (lib.shippedLine).
 // result: one dated line in the person's words, silence included (steps 16 to 18 all land here;
 //   the plugin computes and fetches no metric). Logs champion.result; prints "Result recorded
 //   <date>: <text>". No gate on a prior `shipped`: a piece shipped by hand still has results.
@@ -60,7 +63,10 @@ function oneLine(s){ return s.replace(/\s+/g,' ').trim(); }
 if(kind!=='shipped'){
   if(args.page!==undefined)lib.die('--page belongs to shipped; '+kind+' checks no page');
   if(args.live!==undefined)lib.die('--live belongs to shipped; '+kind+' checks no page');
+  if(args.digest!==undefined)lib.die('--digest belongs to shipped; '+kind+' checks no page');
 }
+if(args.digest!==undefined&&args.digest!==true)lib.die('--digest takes no value: it says the page file holds a digest the host\'s tool returned, not the page');
+if(args.digest===true&&args.page===undefined)lib.die('--digest goes with --page: the digest the tool returned is the page file');
 
 if(kind==='shipped'){
   var draft=lib.latestDraft(runDir);
@@ -97,8 +103,11 @@ if(kind==='shipped'){
   }
   if(canonNew)fs.writeFileSync(path.join(runDir,canon),draftBuf);
   var live=page?true:args.live!==undefined?false:null;
-  var match=page?lib.canonMatch(draftBuf.toString('utf8'),pageText):null;
-  var e={event:'champion.shipped',at:at,canon:canon,canon_new:canonNew,draft:draft,sha256:sha,url:url,host:host,channel:channel,page:page,live:live,match:match,source:source};
+  var digest=args.digest===true;
+  // An HTML page is measured by its text (issue 40); a digest is recorded, never measured.
+  var reduced=page&&!digest?lib.pageText(pageText):null;
+  var match=reduced?lib.canonMatch(draftBuf.toString('utf8'),reduced.text):null;
+  var e={event:'champion.shipped',at:at,canon:canon,canon_new:canonNew,draft:draft,sha256:sha,url:url,host:host,channel:channel,page:page,page_kind:page?(digest?'digest':reduced.kind):null,digest:page?digest:null,live:live,match:match,source:source};
   lib.appendLog(runDir,e);
   process.stdout.write(lib.shippedLine(e)+'\n');
 }else if(kind==='result'){
