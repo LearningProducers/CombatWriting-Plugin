@@ -74,6 +74,31 @@ function vaultPath(runDir){
   if(path.basename(parent)!=='runs'||path.basename(grand)!=='combat-writing')return null;
   return path.join(grand,VAULT_FILE);
 }
+// The ignore file (issue 36, ruled 2026-10-19): on the first run inside a git repository the
+// plugin writes <project>/combat-writing/.gitignore with exactly two lines, runs/ and inbox/,
+// so the runs and the inbox stay out of git and the vault stays with the project, and the
+// result says so once. A file already there is never overwritten; outside a git repository
+// nothing is written. A repository is found by walking up from the project root to a .git
+// entry (a folder or a file); no command is run.
+var GITIGNORE_FILE='.gitignore';
+var GITIGNORE_LINES=['runs/','inbox/'];
+var GITIGNORE_LINE='Wrote combat-writing/.gitignore with two lines, runs/ and inbox/, so the runs and the inbox stay out of git and the vault stays with the project; a file already there is never overwritten.';
+function inGitRepo(dir){
+  var d=path.resolve(dir);
+  for(;;){
+    if(fs.existsSync(path.join(d,'.git')))return true;
+    var up=path.dirname(d);
+    if(up===d)return false;
+    d=up;
+  }
+}
+function writeGitignore(root){
+  if(!inGitRepo(root))return {state:'not-a-repo',file:null};
+  var p=path.join(root,'combat-writing',GITIGNORE_FILE);
+  if(fs.existsSync(p))return {state:'kept',file:p};
+  fs.writeFileSync(p,GITIGNORE_LINES.join('\n')+'\n');
+  return {state:'written',file:p};
+}
 // The host name of an address, by string cut: the scheme and a leading www. dropped, cut at the
 // first slash, query or fragment. stripScheme drops the scheme and the // only, for the board,
 // which shows an address as text and never as a link.
@@ -832,6 +857,7 @@ module.exports={
   SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
+  GITIGNORE_FILE:GITIGNORE_FILE,GITIGNORE_LINES:GITIGNORE_LINES,GITIGNORE_LINE:GITIGNORE_LINE,inGitRepo:inGitRepo,writeGitignore:writeGitignore,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
   capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip

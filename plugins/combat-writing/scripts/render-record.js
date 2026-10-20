@@ -18,7 +18,8 @@
 // --short prints what the person sees in the terminal after a round (2026-10-14: the board is
 // the result, the terminal is short): the crew line, the Seats line when the crew is short, the
 // scoreboard legend the first time this run prints it and never again (the log line
-// legend.printed), the scoreboard, the board's path, and last the seat key (one line, every
+// legend.printed), the ignore-file line once when this run wrote combat-writing/.gitignore (the
+// log line gitignore.printed), the scoreboard, the board's path, and last the seat key (one line, every
 // seat by id and short name, from the live crew). On a run with no round it prints the no-rounds
 // line and the Started-at line instead of the scoreboard. It still writes record.md. --next
 // prints the text Next line alone (the picker's "Done for now", or a host with no picker).
@@ -204,6 +205,9 @@ if(args.next===true){
 }else if(args.short===true){
   var s=[out.filter(function(l){return l.indexOf('**Crew:**')===0;})[0],''];
   out.filter(function(l){return l.indexOf('**Seats:**')===0;}).forEach(function(l){ s.push(l,''); });
+  // The ignore file, said once (issue 36): the run that wrote combat-writing/.gitignore says so in
+  // its first short form and never again, like the legend.
+  if(log.some(function(e){return e.event==='gitignore.written';})&&!log.some(function(e){return e.event==='gitignore.printed';})){ s.push(lib.GITIGNORE_LINE,''); lib.appendLog(runDir,{event:'gitignore.printed'}); }
   if(rounds.length){
     // The legend once per run: the first short form of the run prints it and logs that it did.
     var legendShown=log.some(function(e){return e.event==='legend.printed';});

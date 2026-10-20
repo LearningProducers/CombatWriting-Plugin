@@ -69,7 +69,7 @@ Steps 15 to 19: publish, watch the numbers, acknowledge, follow through, and wri
 
 - `combat-writing/runs/<date-time-slug>/` in your project: the draft snapshot and any revisions, the canon once shipped, the brief (written by strategy, or by sparring or battle when a draft is pasted there), every packet, every answer, `log.jsonl`, `record.md` (the full record, with the stage the run started at, the text Next line and the Champion section) and `board.html` (the board, the result: it opens in your browser after every sparring and battle round and after `shipped`, a local file, never published).
 - `combat-writing/inbox/` in your project: whatever you paste, written whole before anything is parsed, then cut into the draft, the brief, the questions and the champion entries.
-- `combat-writing/insight-vault.md` in your project: the Insight Vault, one file across all runs, appended by `/cw:champion insight:`. If you ignore run folders in git, ignore `combat-writing/runs/` and `combat-writing/inbox/`, never `combat-writing/`, so the vault stays with the project.
+- `combat-writing/insight-vault.md` in your project: the Insight Vault, one file across all runs, appended by `/cw:champion insight:`. If you ignore run folders in git, ignore `combat-writing/runs/` and `combat-writing/inbox/`, never `combat-writing/`, so the vault stays with the project. On the first run inside a git repository, the plugin writes `combat-writing/.gitignore` with exactly two lines, `runs/` and `inbox/`, and says so once in the result; a file already there is never overwritten.
 - Nothing is written anywhere else. Nothing is fetched but the one link you give `shipped`, which the host opens once; the plugin's scripts call nothing and hold no keys.
 
 ## Where you are running
