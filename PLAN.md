@@ -427,6 +427,8 @@ The timing spec, for Part 48, keyed on the disk so both doors move alike: `round
 - PLAIN: one command prints everything the board and the record know about a run as one JSON object; nothing on the person's screen changes.
 - COST: `lib.runState` (the cells, the latest ratings, the band, the final reads, the champion lines, the briefing when present) lifted from `render-board.js` and `render-record.js`, which keep their own code until a later cleanup; `render-state.js` with `--run` and `--write`; `tests/state_check.js` on the fixtures `board_check.js` uses, pinning every seat, round and band, a 7 in a fixture answer rendered as a failed read and never a rating, and the shape named above; CLAUDE.md's run-folder list and scripts line. Loss: none. BUYS: the one source every presentation reads. NOT COSPLAY: the numbers in the JSON are the same functions' output as the board's, pinned equal on the same fixtures.
 
+Status: delivered — 2026-10-21 — pull request 51 open as a draft; all twenty-three checks and the three strict validations pass locally; `lib.runState`, `roundCell`, `finalCell`, `bandOf` and `noRoundsLine` lifted into `lib.js` with the board's words; `render-state.js` prints without touching the run and writes `state.json` with `state.rendered` on `--write`; `tests/state_check.js` (50 checks) pins the shape, the band's why-line equal to the board's, a 7 as a failed read, and the no-write promise; cw 0.8.0.
+
 ## Part 44 — The shell (screen 0.1.0)
 
 **44.1** Add `screen/` so that a person watching a run stops reading a browser page or a terminal transcript to know where the round stands, for the person at the keyboard.

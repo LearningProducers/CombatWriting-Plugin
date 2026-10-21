@@ -862,6 +862,157 @@ function checkFlip(text,self,previousText,carried){
     reason:'the quote attributed to '+quotes[0].seat.id+' is not in that seat\'s answer (altered or misattributed)'};
 }
 
+
+// The run as one object (Part 43, 2026-10-21): every presentation over a run reads this,
+// the screen first, so the rules that make a cell, a latest rating or the band live once.
+// Built from the files and log.jsonl, like the record and the board; nothing is averaged. The
+// why-lines of the band and the no-rounds line are the board's words, pinned equal by
+// tests/state_check.js; render-board.js and render-record.js keep their own code until a
+// later cleanup moves them onto runState.
+var STATE_SCHEMA=1;
+var STATE_FILE='state.json';
+function pluginVersion(){ try{ return JSON.parse(readText(path.join(__dirname,'..','.claude-plugin','plugin.json'))).version||null; }catch(e){ return null; } }
+function lastLogWhere(log,pred){ for(var i=log.length-1;i>=0;i--){ if(pred(log[i]))return log[i]; } return null; }
+function noRoundsLine(hasDraft,hasBrief){
+  return hasDraft
+    ?'No rounds yet. The draft'+(hasBrief?' and the brief are':' is')+' stored; no seat has read it. Next: '+CMD.sparring+' for the first reads and ratings, or '+CMD.battle+' to start with the discussion.'
+    :'No rounds yet. The brief is stored; there is no draft yet. Next: '+CMD.sparring+' or '+CMD.battle+' with the draft pasted; it joins this run.';
+}
+// A cut read: the add-on's cut (crew.answered) or the checker's (answer.checked), whichever is
+// last for that seat, round and read.
+function truncationOf(log,seatId,round,read){
+  var e=lastLogWhere(log,function(x){return (x.event==='crew.answered'&&x.round===round&&x.seat===seatId&&(x.read||'rating')===read)
+    ||(x.event==='answer.checked'&&x.round===round&&x.seat===seatId&&x.truncated&&(x.contract==='sn'||x.contract==='redflag'?x.contract:'rating')===read);});
+  if(!e||!e.truncated)return null;
+  return Object.assign({by:e.event==='answer.checked'?'checker':'add-on'},e.truncated);
+}
+function withTrunc(mark,t){ return t?(mark?mark+' · ':'')+'truncated at '+t.at+' words':mark; }
+// One seat in one non-final round: kind is missing, not-asked, failed, critique, first, stand,
+// held, flip-valid or flip-invalid; rating is the number or null (a 7 or a contradiction is a
+// failed read, so a rating here is always a sound one); text is the scoreboard cell's word.
+function roundCell(runDir,seat,round,seats,log){
+  var rel=path.join('rounds',round,seat.id+'.answer.md'), p=path.join(runDir,rel);
+  var q=path.join(runDir,'rounds',round,seat.id+'.question.md');
+  var note=fs.existsSync(q)?readText(q).trim():null;
+  if(!fs.existsSync(p))return wasAsked(runDir,round,seat.id,log)?{kind:'missing',text:'missing',rating:null,mark:'',title:'',note:note,file:null}:{kind:'not-asked',text:'not asked',rating:null,mark:'',title:'the round was put to other seats only',note:note,file:null};
+  var text=readText(p);
+  var contract=contractSent(runDir,round,p,log);
+  var logged=lastLogWhere(log,function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract===contract);});
+  var check=checkAnswer(text,logged?logged.word_cap:null,contract);
+  var trunc=truncationOf(log,seat.id,round,'rating');
+  var base={file:rel,words:wordCount(text),word_cap:logged?logged.word_cap:null,contract:contract,answer:text,truncated:trunc,note:note,verdict_line:verdictLine(text,contract),from:null,cited:null,flip:null};
+  if(!check.ok)return Object.assign(base,{kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,wrote:check.rating,mark:withTrunc('',trunc),reasons:check.reasons});
+  if(contract==='critique')return Object.assign(base,{kind:'critique',text:'critique',title:'this round asked for no rating',rating:null,mark:withTrunc('',trunc),reasons:[]});
+  var flip=lastLogWhere(log,function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
+  if(!flip){ var inputs=flipInputs(runDir,seat,round,seats); flip=checkFlip(text,seat,inputs.ownRated?inputs.ownRated.text:null,inputs.prevAnswers); }
+  var kind={first:'first',stand:'stand',held:'held','flip-valid':'flip-valid','flip-invalid':'flip-invalid',unrated:'first'}[flip.status]||'first';
+  var mark={first:'',stand:'Stand',held:'held, no Stand','flip-valid':'flip from '+flip.from+', valid','flip-invalid':'flip from '+flip.from+', INVALID'}[kind]||'';
+  var title={'flip-valid':'quoted '+flip.cited,'flip-invalid':flip.reason||'quote not found'}[kind]||'';
+  return Object.assign(base,{kind:kind,rating:check.rating,text:check.rating+'/10',mark:withTrunc(mark,trunc),title:title,reasons:[],from:flip.from===undefined?null:flip.from,cited:flip.cited||null,flip:flip.status});
+}
+// One seat in a final round: its S/N read and its red-flag read, each missing, sound or failed.
+function finalCell(runDir,seat,round,log){
+  var out={};
+  ['sn','redflag'].forEach(function(c){
+    var rel=path.join('rounds',round,seat.id+'.'+c+'.answer.md'), p=path.join(runDir,rel);
+    if(!fs.existsSync(p)){ out[c]={missing:true,ok:false,value:null,reasons:[],truncated:null,file:null,words:0,answer:null}; return; }
+    var logged=lastLogWhere(log,function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&e.contract===c;});
+    var text=readText(p);
+    var r=checkAnswer(text,logged?logged.word_cap:null,c);
+    out[c]={missing:false,ok:r.ok,value:r.ok?r.value:null,reasons:r.reasons||[],truncated:truncationOf(log,seat.id,round,c),file:rel,words:wordCount(text),answer:text};
+  });
+  out.text=finalText(out);
+  return out;
+}
+function finalText(f){
+  var snT=f.sn.missing?'S/N missing':f.sn.ok?'S/N '+f.sn.value+'%':'S/N failed read';
+  var rfT=f.redflag.missing?'red flags missing':f.redflag.ok?(f.redflag.value===0?'no red flags':f.redflag.value+' red flag'+(f.redflag.value===1?'':'s')):'red-flag read failed';
+  return snT+' · '+rfT;
+}
+// The band (ruled 2026-10-14 and 2026-10-15): from every seat's own latest rating, nothing
+// averaged; every rated seat at 8 or more is SEND; any at 6 or less is BACK TO THE DRAWING
+// BOARD and the band names it; FINAL READS over each seat's two numbers when the run holds final
+// reads and no rating; no band at all otherwise. The words are the board's.
+function bandOf(seats,latest,finalRounds,finalCells){
+  var rated=seats.filter(function(s){return !!latest[s.id];});
+  var low=rated.filter(function(s){return latest[s.id].rating<=6;});
+  var lastFinal=finalRounds.length?finalRounds[finalRounds.length-1]:null;
+  if(!rated.length){
+    if(lastFinal)return {verdict:'FINAL READS',why:'No seat has rated this draft. These are the final reads of round '+lastFinal+', each seat\'s own S/N ratio and red-flag count. Nothing is averaged.',low:[],numbers:seats.map(function(s){return {seat:s.id,label:seatLabel(s),text:finalCells[s.id].text};}),final_round:lastFinal};
+    return {verdict:null,why:null,low:[],numbers:[],final_round:null};
+  }
+  var numbers=rated.map(function(s){return {seat:s.id,label:seatLabel(s),rating:latest[s.id].rating,round:latest[s.id].round};});
+  if(!low.length)return {verdict:'SEND',why:(rated.length===1?'The one rated seat':'Every rated seat')+' put it at 8 or more: a working document by '+(rated.length===1?'its':'each seat\'s')+' own number. Nothing is averaged.',low:[],numbers:numbers,final_round:lastFinal};
+  return {verdict:'BACK TO THE DRAWING BOARD',why:low.map(function(s){return seatLabel(s)+' rated it '+latest[s.id].rating+'/10';}).join('; ')+': a problem document by '+(low.length===1?'that seat\'s':'those seats\'')+' own number. Nothing is averaged; one seat at 6 or less sends it back.',low:low.map(function(s){return s.id;}),numbers:numbers,final_round:lastFinal};
+}
+function runState(runDir){
+  runDir=path.resolve(runDir);
+  var seats=readSeats(runDir).seats;
+  var log=readLog(runDir);
+  var rounds=listRounds(runDir);
+  var finalRounds=rounds.filter(isFinalRound);
+  var tableRounds=rounds.filter(function(r){return !isFinalRound(r);});
+  var drafts=listDrafts(runDir), newestDraft=latestDraft(runDir);
+  var hasBrief=fs.existsSync(path.join(runDir,'brief.md'));
+  var created=null; log.forEach(function(e){ if(e.event==='run.created'&&!created)created=e; });
+  var draftsOut=drafts.map(function(d){
+    var e=lastLogWhere(log,function(x){return (x.event==='draft.added'&&x.file===d)||(x.event==='run.created'&&d==='draft.md');});
+    var buf=fs.readFileSync(path.join(runDir,d)), text=buf.toString('utf8'), f=draftFacts(text);
+    return {file:d,n:draftNumber(d),sha256:(e&&(e.sha256||(e.draft&&e.draft.sha256)))||sha256(buf),facts:f,facts_line:draftFactsLine(f),facts_full:draftFactsFull(f),one_line_warning:oneLineWarning(f),newest:d===newestDraft,text:text};
+  });
+  var champ=championEvents(log);
+  var shipped=champ.filter(function(e){return e.event==='champion.shipped';});
+  var canons=listCanons(runDir).map(function(c){
+    var froze=null; shipped.forEach(function(e){ if(e.canon===c&&e.canon_new)froze=e.draft; });
+    var buf=fs.readFileSync(path.join(runDir,c));
+    return {file:c,n:numberOf(c,'canon'),froze_draft:froze,current:!!newestDraft&&sha256(buf)===sha256(fs.readFileSync(path.join(runDir,newestDraft))),text:buf.toString('utf8')};
+  });
+  var seatsOut=seats.map(function(s){ return {id:s.id,model:s.model,company:s.company,served_by:s.served_by||null,provider:s.provider||null,short:seatShortName(s),label:seatLabel(s),fresh_reader:isFreshReader(s),source:s.source||null}; });
+  var companies=seats.map(function(s){return s.company;}).filter(function(v,i,a){return a.indexOf(v)===i;});
+  var crewLine=seats.map(seatLabel).join('; ')+'. '+(companies.length===1?'One company\'s models ('+companies[0]+').':companies.length+' companies: '+companies.join(', ')+'.')+' '+nameSources(seats);
+  var grid={}, finals={};
+  seats.forEach(function(s){ grid[s.id]={}; finals[s.id]={}; tableRounds.forEach(function(r){grid[s.id][r]=roundCell(runDir,s,r,seats,log);}); finalRounds.forEach(function(r){finals[s.id][r]=finalCell(runDir,s,r,log);}); });
+  var roundsOut=rounds.map(function(r){
+    var fin=isFinalRound(r);
+    var task=roundTask(runDir,r,log);
+    var asked=askedIn(runDir,r,log);
+    var put=seats.filter(function(s){return !asked||asked[s.id];});
+    var done=put.filter(function(s){return fs.existsSync(path.join(runDir,'rounds',r,s.id+(fin?'.sn':'')+'.answer.md'));});
+    var ann=lastLogWhere(log,function(e){return e.event==='round.announced'&&e.round===r;});
+    var packets=log.filter(function(e){return e.event==='packet.built'&&e.round===r;}).map(function(e){return {seat:e.seat,file:e.file,draft:e.draft,mode:e.mode,contract:e.contract,rerate:!!e.rerate,reads_round:e.reads_round||null,word_cap:e.word_cap,carried:(e.carried||[]).map(function(c){return c.seat;}),missing:e.missing||[],not_asked:e.not_asked||[],ts:e.ts};});
+    var cells={}; seats.forEach(function(s){ cells[s.id]=fin?finals[s.id][r]:grid[s.id][r]; });
+    return {round:r,n:parseInt(r.slice(0,2),10),kind:roundKind(r),final:fin,task:task,task_line:taskLine(task),rating_line:ratingLine(task,r),
+      announced:ann?{kind:ann.kind,to:ann.to||[],rerate:!!ann.rerate,line:ann.line||null,ts:ann.ts}:null,
+      put_to:put.map(function(s){return s.id;}),answered:done.map(function(s){return s.id;}),all_seats:!asked||put.length===seats.length,packets:packets,cells:cells};
+  });
+  var latest={}, latestTurn={};
+  seats.forEach(function(s){
+    latest[s.id]=null; latestTurn[s.id]=null;
+    tableRounds.forEach(function(r){ var c=grid[s.id][r]; if(c.rating!==null&&c.rating!==undefined)latest[s.id]={round:r,rating:c.rating}; if(c.kind!=='not-asked')latestTurn[s.id]={round:r,kind:c.kind}; });
+  });
+  var lastFinalCells={}; if(finalRounds.length)seats.forEach(function(s){ lastFinalCells[s.id]=finals[s.id][finalRounds[finalRounds.length-1]]; });
+  var band=bandOf(seats,latest,finalRounds,lastFinalCells);
+  var championOut={
+    shipped:shipped.map(function(e){ return {at:e.at,when:whenUtc(e.at),line:shippedLine(e),canon:e.canon,canon_new:!!e.canon_new,draft:e.draft,url:e.url||null,address_text:e.url?stripScheme(e.url):null,host:e.host||null,channel:e.channel||null,live:e.live===undefined?null:e.live,digest:!!e.digest,page_kind:e.page_kind||null,match:e.match||null}; }),
+    results:champ.filter(function(e){return e.event==='champion.result';}).map(function(e){ return {at:e.at,date:dateUtc(e.at),text:String(e.text||'').replace(/\s+/g,' ').trim()}; }),
+    insights:champ.filter(function(e){return e.event==='champion.insight';}).map(function(e){ return {at:e.at,date:dateUtc(e.at),text:e.text,vault:e.vault}; })
+  };
+  var noRounds=noRoundsLine(!!newestDraft,hasBrief);
+  return {
+    schema:STATE_SCHEMA,plugin_version:pluginVersion(),rendered_at:new Date().toISOString(),
+    run:{id:path.basename(runDir),dir:runDir,stage_started:created&&created.stage?created.stage:null,first_round:rounds.length?rounds[0]:null,started_line:startedAtLine(runDir,log,rounds)},
+    drafts:draftsOut,newest_draft:newestDraft,
+    brief:{present:hasBrief,file:hasBrief?'brief.md':null,text:hasBrief?readText(path.join(runDir,'brief.md')).trim():null},
+    canons:canons,newest_canon:latestCanon(runDir),
+    seats:seatsOut,crew_line:crewLine,seats_lines:crewStateLines(runDir,seats,log),seat_key:seatKey(seats),name_sources:nameSources(seats),
+    briefing:null,
+    rounds:roundsOut,latest:latest,latest_turn:latestTurn,band:band,champion:championOut,
+    next_line:rounds.length?nextLine(seats):noRounds,no_rounds_line:noRounds,legend:SCOREBOARD_LEGEND,
+    board_file:BOARD_FILE,record_file:'record.md',board_present:fs.existsSync(path.join(runDir,BOARD_FILE)),record_present:fs.existsSync(path.join(runDir,'record.md')),
+    gitignore_written:log.some(function(e){return e.event==='gitignore.written';}),log_lines:log.length
+  };
+}
+
 module.exports={
   RUNS_DIR:RUNS_DIR,DEFAULT_WORD_CAP:DEFAULT_WORD_CAP,DEFAULT_SYNTHESIS_WORD_CAP:DEFAULT_SYNTHESIS_WORD_CAP,
   DEFAULT_FINAL_WORD_CAP:DEFAULT_FINAL_WORD_CAP,DEFAULT_COMPANY:DEFAULT_COMPANY,MODEL_UNREPORTED:MODEL_UNREPORTED,
@@ -873,5 +1024,6 @@ module.exports={
   GITIGNORE_FILE:GITIGNORE_FILE,GITIGNORE_LINES:GITIGNORE_LINES,GITIGNORE_LINE:GITIGNORE_LINE,inGitRepo:inGitRepo,writeGitignore:writeGitignore,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
   capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
-  normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip
+  normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
+  STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,roundCell:roundCell,finalCell:finalCell,finalText:finalText,bandOf:bandOf,runState:runState
 };
