@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
+# The screen (Part 44): uv's virtual environment and Python caches, never committed.
+screen/.venv/
+__pycache__/
