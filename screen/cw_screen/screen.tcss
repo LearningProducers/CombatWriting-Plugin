@@ -8,6 +8,10 @@ Screen { background: $background; color: $ink; }
 
 #body { padding: 1 2; }
 #body > * { max-width: 76; }
+/* Vertical's own default is height 1fr with overflow hidden, which inside the scrolling body
+   clipped the dialogue to a share of the window (measured 2026-10-22 on a real run: 55 rows of
+   turns in a 12-row box). The two lists grow with their content; the body scrolls. */
+#dialogue, #available { height: auto; }
 
 #foot { dock: bottom; height: 2; }
 #tabs { height: 1; padding: 0 1; background: $panel; color: $ink-2; }

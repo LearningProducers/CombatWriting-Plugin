@@ -73,6 +73,31 @@ async def main():
         check("Mission  not set" in text and "Objective  not set" in text, "shell: mission and objective should read not set")
         check(("RAT" + "ING: 8/10") not in text, "shell: a closed read should not show its first line")
 
+        # The dialogue is never clipped (measured 2026-10-22 on a real run: Vertical's default
+        # height, 1fr with overflow hidden, showed two of ten turns). From the real state, one
+        # round put to six seats: every turn is laid out, the list is as tall as its turns, a
+        # seat's note shows only when it is not the round's own prompt.
+        import copy
+        from textual.containers import Vertical
+        wide = copy.deepcopy(app.state)
+        r0 = wide["rounds"][0]
+        r0["put_to"] = [f"seat-{i}" for i in range(1, 7)]
+        r0["cells"]["seat-1"]["note"] = r0["task"]["text"]
+        r0["cells"]["seat-2"]["note"] = "Seat two, say more."
+        app.screen.apply(wide, None)
+        await pilot.pause(0.3)
+        text = app.screen_text()
+        dialogue = app.screen.query_one("#dialogue", Vertical)
+        check(len(app.screen.query(Entry)) == 6 and "seat-6" in text, "shell: every seat the round was put to should have an entry")
+        def tall(box):
+            return sum(c.outer_size.height + c.styles.margin.height for c in box.children)
+        check(dialogue.size.height == tall(dialogue) and dialogue.size.height > 14, f"shell: the dialogue is clipped: {dialogue.size.height} rows for {tall(dialogue)} rows of turns")
+        available = app.screen.query_one("#available", Vertical)
+        check(available.size.height == tall(available), "shell: the available block is clipped")
+        check(text.count("your note: “Seat two, say more.”") == 1 and ("your note: “" + r0["task"]["text"]) not in text, "shell: a seat line shows as the seat's note; the round's own prompt does not:\n" + text)
+        app.screen.apply(app.state, None)
+        await pilot.pause(0.3)
+
         # A new answer lands on disk and is checked: the entry and the launch follow within a few sweeps.
         answer(run, proj, "01-sparring", "seat-2", "RAT" + "ING: 4/10\nNot ready. The close pleads.\n")
         took = await wait_for(app, pilot, lambda t: "BACK TO THE DRAWING BOARD" in t)

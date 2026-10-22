@@ -104,6 +104,10 @@ class Briefing(Chrome):
                 head += f" · {r['rating_line']}"
             head += f" · {len(r.get('answered', []))} of {len(put)} seat{'s' if len(put) != 1 else ''} answered"
             widgets.append(RoundLine(head))
+            # A seat's own note: the question file beside its packet. A run built before FQ existed
+            # (2026-10-09) holds the round's shared question in every seat's file; that is the
+            # round's prompt, already on the round line, not the seat's own note.
+            task_text = " ".join(((r.get("task") or {}).get("text") or "").split())
             for sid in put:
                 cell = r.get("cells", {}).get(sid) or {}
                 seat = seats.get(sid, {"id": sid, "label": sid})
@@ -112,7 +116,8 @@ class Briefing(Chrome):
                     read = "\n\n".join(x.get("answer") or "" for x in (cell.get("sn"), cell.get("redflag")) if x and x.get("answer"))
                     widgets.append(Entry(key, seat_head(seat), final_head(cell), "", read or None, key in self.opened))
                 else:
-                    note = f"  (your note: “{cell['note']}”)" if cell.get("note") else ""
+                    own = cell.get("note") and " ".join(cell["note"].split()) != task_text
+                    note = f"  (your note: “{cell['note']}”)" if own else ""
                     widgets.append(Entry(key, seat_head(seat) + note, badge_of(cell), verdict_of(cell), cell.get("answer"), key in self.opened))
         if forming:
             widgets.append(RoundLine(forming.get("line") or f"Round {forming.get('round')} forming", forming=True))
