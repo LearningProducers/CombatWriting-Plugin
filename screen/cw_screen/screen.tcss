@@ -1,0 +1,36 @@
+/* SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 */
+/* The theme: the tokens are the board's CSS variables, registered in palette.py. */
+
+Screen { background: $background; color: $ink; }
+
+#title { dock: top; height: 1; padding: 0 1; background: $panel; color: $ink-2; }
+#title .motto { color: $ink-3; }
+
+#body { padding: 1 2; }
+#body > * { max-width: 76; }
+/* Vertical's own default is height 1fr with overflow hidden, which inside the scrolling body
+   clipped the dialogue to a share of the window (measured 2026-10-22 on a real run: 55 rows of
+   turns in a 12-row box). The two lists grow with their content; the body scrolls. */
+#dialogue, #available { height: auto; }
+
+#foot { dock: bottom; height: 2; }
+#tabs { height: 1; padding: 0 1; background: $panel; color: $ink-2; }
+#fresh { height: 1; padding: 0 1; color: $ink-3; }
+#fresh.stale { background: $back; color: $back-ink; }
+
+.heading { color: $ink-3; margin-top: 1; }
+.line { color: $ink; }
+.line.dim { color: $ink-3; }
+.round { color: $ink-2; margin-top: 1; border-left: thick $frame; padding-left: 1; }
+.forming { color: $ink-2; margin-top: 1; border-left: thick $none; padding-left: 1; }
+
+Entry { padding: 0 0 0 1; margin-top: 1; }
+Entry:focus { background: $panel; }
+Entry.opened { border-left: tall $rule; }
+
+#launch { margin-top: 1; padding: 1 2; background: $panel; color: $ink-3; }
+#launch.send { background: $send; color: $send-ink; }
+#launch.back { background: $back; color: $back-ink; }
+#launch.final { background: $none; color: $none-ink; }
+
+#notyet { color: $ink-3; }

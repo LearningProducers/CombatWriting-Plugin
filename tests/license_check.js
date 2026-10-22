@@ -66,7 +66,7 @@ function listFiles(){
   (function walk(dir){
     fs.readdirSync(path.join(root,dir),{withFileTypes:true}).forEach(function(d){
       var rel=dir?dir+'/'+d.name:d.name;
-      if(d.isDirectory()){ if(d.name==='.git'||d.name==='node_modules')return; walk(rel); }
+      if(d.isDirectory()){ if(d.name==='.git'||d.name==='node_modules'||d.name==='.venv'||d.name==='__pycache__')return; walk(rel); }
       else acc.push(rel);
     });
   })('');
@@ -79,6 +79,10 @@ function expectedId(rel){
   var base=path.basename(rel);
   if(/\.json$/i.test(base))return null;
   if(base==='NOTICE')return null;
+  // The screen's generated lock and its Python version pin carry none (Part 44): uv rewrites
+  // uv.lock, and .python-version is one bare line uv reads. Its .py, .toml and .tcss files
+  // carry the Shield header like every other executable file.
+  if(base==='uv.lock'||base==='.python-version')return null;
   if(rel.indexOf('LICENSES/')===0)return null;
   if(/^plugins\/[^/]+\/LICENSE(\.[a-z]+)?$/i.test(rel))return null;
   if(IMAGE_OR_FONT.test(base))return null;
@@ -86,7 +90,7 @@ function expectedId(rel){
   if(/^plugins\/[^/]+\/method\//.test(rel))return CC;
   return SHIELD;
 }
-var HEADER_RE=/^\s*(\/\/|#|<!--|\*|;)?\s*SPDX-License-Identifier:\s*(\S+)/;
+var HEADER_RE=/^\s*(\/\/|#|<!--|\/\*|\*|;)?\s*SPDX-License-Identifier:\s*(\S+)/;
 
 files.forEach(function(rel){
   var want=expectedId(rel);
@@ -95,7 +99,7 @@ files.forEach(function(rel){
   var text=buf.toString('utf8');
   var lines=text.split('\n');
   var headers=[];
-  lines.forEach(function(l,i){ var m=HEADER_RE.exec(l); if(m)headers.push({line:i+1,id:m[2].replace(/\s*-->\s*$/,'')}); });
+  lines.forEach(function(l,i){ var m=HEADER_RE.exec(l); if(m)headers.push({line:i+1,id:m[2].replace(/\s*(-->|\*\/)\s*$/,'')}); });
   if(want===null){
     check(headers.length===0,rel+': carries a header but its kind takes none');
     return;

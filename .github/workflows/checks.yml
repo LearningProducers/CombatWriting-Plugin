@@ -1,21 +1,21 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-# Two jobs.
+# Three jobs.
 #
 # `checks`, on every pull request targeting main and on each push to main: check out the
-# repository, set up Node, run the version-bump gate (pull requests only), install the
-# Claude Code CLI from npm at an exact version, run every check in tests/ (files named
-# *_check.js; twenty-three today), then run `claude plugin validate --strict` on the listed
-# plugin, on the add-on and on the repository root (the marketplace manifest). Any failing
-# step fails the job. `claude plugin validate` needs no login and makes no call with a key.
+# repository, set up Node, run the version-bump gate (pull requests only; it covers the two
+# plugin folders and, since Part 44, screen/), install the Claude Code CLI from npm at an exact
+# version, run every check in tests/ (files named *_check.js; twenty-three today), then run
+# `claude plugin validate --strict` on the listed plugin, on the add-on and on the repository
+# root (the marketplace manifest). Any failing step fails the job. `claude plugin validate`
+# needs no login and makes no call with a key.
 #
-# The version-bump gate: for each of plugins/combat-writing and plugins/combat-writing-crew,
-# if any file under that folder differs from the pull request's base commit, the version in
-# that folder's .claude-plugin/plugin.json must differ from the base's. Changes outside the
-# two plugin folders (docs, CI, tests) need no bump. The gate fails naming the plugin that
-# needs one. The marketplace entry must match each plugin.json version; the validation of
-# the repository root and tests/marketplace_check.js already pin that.
+# `screen`, on the same events (Part 44): check out, set up Node (the screen runs the plugin's
+# scripts with it) and uv (pinned by commit; it provides Python 3.12 from screen/.python-version),
+# install screen/ from its committed lock with `uv sync --frozen`, and run every check in
+# screen/tests/ (files named *_check.py). No provider is called: the checks build a run with
+# the real plugin scripts in a temporary folder and drive the app headless.
 #
-# `tag`, on push to main only, after `checks` passes: for each plugin folder, read the name
+# `tag`, on push to main only, after `checks` and `screen` pass: for each plugin folder, read the name
 # and the version from .claude-plugin/plugin.json (the name from the manifest, never the
 # folder: the listed plugin is `cw` in `plugins/combat-writing/`) and, if the tag
 # <plugin-name>--v<version> is not on origin, create an annotated tag with that exact name and the message
@@ -74,6 +74,19 @@ jobs:
               echo "$dir: changed, version $base_v -> $head_v"
             fi
           done
+          # The screen (Part 44): a change under screen/ bumps the version in screen/pyproject.toml.
+          if printf '%s\n' "$changed" | grep -q "^screen/"; then
+            head_v=$(grep -m1 '^version = ' screen/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+            base_v=$(git show "$BASE_SHA:screen/pyproject.toml" 2>/dev/null | grep -m1 '^version = ' | sed 's/version = "\(.*\)"/\1/' || echo "(none)")
+            if [ "$head_v" = "$base_v" ]; then
+              echo "::error::screen/ changed but its version is still $head_v. Bump version in screen/pyproject.toml."
+              rc=1
+            else
+              echo "screen/: changed, version ${base_v:-(none)} -> $head_v"
+            fi
+          else
+            echo "screen/: no file changed, no bump needed"
+          fi
           exit $rc
       - name: Install the Claude Code CLI at an exact version
         run: npm install -g @anthropic-ai/claude-code@2.1.296
@@ -95,9 +108,39 @@ jobs:
         run: claude plugin validate --strict plugins/combat-writing-crew
       - name: Validate the repository root (the marketplace manifest)
         run: claude plugin validate --strict .
+  screen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Set up Node (the screen runs the plugin's scripts with it)
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+      - name: Set up uv (it provides Python 3.12 from screen/.python-version)
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: screen/uv.lock
+      - name: Install the screen from its lock
+        working-directory: screen
+        run: uv sync --frozen
+      - name: Run every check in screen/tests/
+        working-directory: screen
+        run: |
+          rc=0
+          n=0
+          for f in tests/*_check.py; do
+            n=$((n + 1))
+            echo "== $f"
+            uv run python "$f" || rc=1
+          done
+          echo "ran $n checks"
+          [ "$n" -gt 0 ] || rc=1
+          exit $rc
   tag:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: checks
+    needs: [checks, screen]
     runs-on: ubuntu-latest
     permissions:
       contents: write
