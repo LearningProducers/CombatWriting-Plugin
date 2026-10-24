@@ -211,6 +211,8 @@ Ruling on the bands (2026-10-14, on the open pull request): 8 and above is SEND,
 
 Status: merged — 2026-10-15 — pull request 19 merged to main.
 
+Amended 2026-10-24 (issue 54, cw 0.8.1): `open-board.js` reads the opener's exit instead of printing opened the moment it spawns; a non-zero exit prints the failed line with the reason and the command to open the board by hand, logged `ok: false`; an opener still running after three seconds is released and counted as opened. Origin: inside Claude Code's sandbox macOS `open` exits 1 (no Launch Services) and the detached spawn reported success over it on every run since 2026-10-20. `tests/open_board_check.js` pins a failing fake and a hanging fake. cw-screen 0.1.2 for its README's one sentence on the board.
+
 ## The founder's rulings of 2026-10-15: six problems from the first run started at battle
 
 The run: an 80-word draft judged against a brief by three seats, started at battle, one SN round, no rating asked. Six problems, each measured against the files and the run before anything was planned, and each the founder ruled on; one part and one pull request per problem (the board's measure takes two of them), built in the order 18, 20, 19, 22, 21. No name, brief text or draft text from the run goes into any file, commit, issue or pull request.

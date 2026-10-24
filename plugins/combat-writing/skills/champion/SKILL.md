@@ -51,7 +51,7 @@ The first rebuilds `record.md` with its Champion section (the Shipped, Result an
 
 ## 6. The result
 
-The script's line as printed; then the opener's line after `shipped` ("Board opened in your browser: <path>", or the no-opener line with the path) or `Board: <path>` after `result` and `insight`; then one Next line and nothing after it. Champion closes like strategy, with the text Next line, not the picker:
+The script's line as printed; then the opener's line after `shipped` ("Board opened in your browser: <path>", or the no-opener or failed-opener line with the path) or `Board: <path>` after `result` and `insight`; then one Next line and nothing after it. Champion closes like strategy, with the text Next line, not the picker:
 
 ```
 Next: /cw:champion shipped <link, or email to whom> (freezes the final draft as canon with the time and the channel) · /cw:champion result: <what came back, silence included> · /cw:champion insight: <what you learned, or a term and what it means> · /cw:battle draft: <path> to return to the piece on this run.

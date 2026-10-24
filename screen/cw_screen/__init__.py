@@ -6,6 +6,6 @@ own render-state.js, read from the run folder it watches. It writes nothing insi
 folder, calls no provider and reads no key.
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 MOTTO = "Reading is Peace. Writing is War."
 STATE_SCHEMA = 1
