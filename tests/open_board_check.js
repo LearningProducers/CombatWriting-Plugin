@@ -16,6 +16,12 @@
 //     in your browser: <path>", exits 0, and logs board.opened with ok true.
 //   - An opener that does not exist: the script prints "Board: <path> (no browser opener here:
 //     ENOENT; open it in any browser)", still exits 0, and logs ok false with the reason.
+//   - An opener that starts and exits non-zero (issue 54: a shell with no desktop, the sandbox):
+//     the script prints "Board: <path> (the opener failed: <first stderr line> (exit N); open it
+//     yourself: <the command>)", still exits 0, and logs ok false with that reason; the opened
+//     line is never printed over a failure.
+//   - An opener still running at the deadline (a browser holding the process): the opened line,
+//     exit 0 within the deadline plus a margin, and the log's reason says it was released.
 //   - The opener gets the local path and nothing else: no URL, no publish, no network.
 //   - A run with no board.html exits 2 and names render-board.js; a missing --run exits 2.
 //   - The listed plugin's scripts require child_process in open-board.js only, and it spawns
@@ -69,6 +75,33 @@ var missing=node('open-board.js',['--run',run,'--opener',path.join(proj,'no-such
 check(missing.status===0&&missing.stdout.trim()==='Board: '+board+' (no browser opener here: ENOENT; open it in any browser)','missing opener: expected the fallback line and exit 0, got '+missing.status+' '+JSON.stringify(missing.stdout.trim()));
 var e3=readLog(run).filter(function(e){return e.event==='board.opened';}).pop();
 check(e3&&e3.ok===false&&e3.reason==='ENOENT','missing opener: board.opened should log ok false with ENOENT, got '+JSON.stringify(e3));
+
+// An opener that starts and fails (issue 54): the failed line with the reason and the command, exit 0, ok false.
+var failing=path.join(proj,'failing-opener.js');
+fs.writeFileSync(failing,'process.stderr.write("no desktop here\\nsecond line\\n");process.exit(1);\n');
+var failed=node('open-board.js',['--run',run,'--opener',process.execPath+' '+failing]);
+var triedLine='Board: '+board+' (the opener failed: no desktop here (exit 1); open it yourself: '+process.execPath+' '+failing+' '+board+')';
+check(failed.status===0&&failed.stdout.trim()===triedLine,'failing opener: expected the failed line and exit 0, got '+failed.status+' '+JSON.stringify(failed.stdout.trim()));
+check(!/opened in your browser/.test(failed.stdout),'failing opener: the opened line must never print over a failure');
+var e4=readLog(run).filter(function(e){return e.event==='board.opened';}).pop();
+check(e4&&e4.ok===false&&e4.reason==='no desktop here (exit 1)','failing opener: board.opened should log ok false with the first stderr line and the exit, got '+JSON.stringify(e4));
+
+// An opener that fails with nothing on stderr: the exit code alone is the reason.
+var silent=path.join(proj,'silent-opener.js');
+fs.writeFileSync(silent,'process.exit(3);\n');
+var quiet=node('open-board.js',['--run',run,'--opener',process.execPath+' '+silent]);
+check(quiet.status===0&&quiet.stdout.trim()==='Board: '+board+' (the opener failed: exit 3; open it yourself: '+process.execPath+' '+silent+' '+board+')','silent failing opener: expected exit 3 as the reason, got '+JSON.stringify(quiet.stdout.trim()));
+
+// An opener that never exits (a browser holding the process): opened, released, within the deadline plus a margin.
+var hanging=path.join(proj,'hanging-opener.js');
+fs.writeFileSync(hanging,'setTimeout(function(){},8000);\n');
+var t0=Date.now();
+var held=node('open-board.js',['--run',run,'--opener',process.execPath+' '+hanging]);
+var took=Date.now()-t0;
+check(held.status===0&&held.stdout.trim()==='Board opened in your browser: '+board,'hanging opener: expected the opened line, got '+held.status+' '+JSON.stringify(held.stdout.trim()));
+check(took>=2500&&took<6000,'hanging opener: should return at the deadline (about 3 s), took '+took+' ms');
+var e5=readLog(run).filter(function(e){return e.event==='board.opened';}).pop();
+check(e5&&e5.ok===true&&/still running after 3000 ms; released/.test(String(e5.reason)),'hanging opener: board.opened should log ok true with the released reason, got '+JSON.stringify(e5));
 
 // The source: child_process in open-board.js alone, no network, no URL, only the three openers.
 var src=fs.readFileSync(path.join(scripts,'open-board.js'),'utf8');

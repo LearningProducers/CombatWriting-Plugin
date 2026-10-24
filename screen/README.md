@@ -3,7 +3,7 @@
 
 **Reading is Peace. Writing is War.**
 
-The screen is the Combat Writing plugin's full-screen terminal interface: a second terminal tab that shows the current run live while the slash commands run in Claude Code. It renders; it never computes the run. Every number on it is the output of the plugin's own `render-state.js`, read from the run folder it watches, so the rating that leads every result is the same number the record and the board show. It writes nothing inside a run folder, calls no provider and reads no key. The browser board keeps opening after every round as it does today, with the screen watching or not.
+The screen is the Combat Writing plugin's full-screen terminal interface: a second terminal tab that shows the current run live while the slash commands run in Claude Code. It renders; it never computes the run. Every number on it is the output of the plugin's own `render-state.js`, read from the run folder it watches, so the rating that leads every result is the same number the record and the board show. It writes nothing inside a run folder, calls no provider and reads no key. The browser board still opens after every round wherever the shell can reach a browser, with the screen watching or not; where it cannot (a sandboxed shell, a headless box) the plugin prints the command to open the board by hand, and the screen is the route that needs no browser.
 
 This folder is part of the plugin's repository and is source-available under the same terms: you can read every file and run the screen under the terms in the repository's [NOTICE](../NOTICE); it is not released under an OSI-approved license.
 
