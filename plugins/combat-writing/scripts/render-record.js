@@ -208,6 +208,8 @@ if(args.next===true){
   // The ignore file, said once (issue 36): the run that wrote combat-writing/.gitignore says so in
   // its first short form and never again, like the legend.
   if(log.some(function(e){return e.event==='gitignore.written';})&&!log.some(function(e){return e.event==='gitignore.printed';})){ s.push(lib.GITIGNORE_LINE,''); lib.appendLog(runDir,{event:'gitignore.printed'}); }
+  // The project brief, said once (issue 65): the run that kept the brief as the project's says so in its first short form.
+  if(log.some(function(e){return e.event==='brief.kept';})&&!log.some(function(e){return e.event==='brief.kept.printed';})){ s.push(lib.PROJECT_BRIEF_KEPT_LINE,''); lib.appendLog(runDir,{event:'brief.kept.printed'}); }
   if(rounds.length){
     // The legend once per run: the first short form of the run prints it and logs that it did.
     var legendShown=log.some(function(e){return e.event==='legend.printed';});
@@ -218,8 +220,10 @@ if(args.next===true){
     s.push('','Board: '+path.join(runDir,lib.BOARD_FILE));
   }else{
     s.push(noRoundsLine,'','Started at: '+lib.startedAtLine(runDir,log,rounds));
-    // After strategy (2026-10-15): the draft's counts, and the one-line warning, before any seat reads it.
+    // After strategy (2026-10-15): the draft's counts, and the one-line warning, before any seat reads it;
+    // and which brief the run has (issue 65).
     if(newestFacts)s.push('','Draft: '+lib.draftFactsLine(newestFacts)+(oneLine?'\n'+oneLine:''));
+    s.push('',lib.briefLine(log.filter(function(e){return e.event==='run.created';})[0]||null));
   }
   s.push('','Seat key: '+lib.seatKey(seats));
   process.stdout.write(s.join('\n')+'\n');
