@@ -1,5 +1,5 @@
 {
-  "note": "Provider entries for the Combat Writing crew add-on. Each entry names an address, the key it needs (a prompt value first, an environment variable when the prompt is empty, never a file), the maker map for the ids its catalog returns, the seats it offers as model families (a pattern and a preference, never a pinned id), and its call budget. No model id is written here.",
+  "note": "Provider entries for the Combat Writing crew add-on. Each entry names an address, the key it needs (a prompt value first, an environment variable when the prompt is empty, then a NAME=value line in the person's own owner-only key file, <home>/.combat-writing/keys; never a file inside a project or the plugin), the maker map for the ids its catalog returns, the seats it offers as model families (a pattern and a preference, never a pinned id), and its call budget. No model id is written here.",
   "makers": {
     "openai": "OpenAI",
     "qwen": "Alibaba",

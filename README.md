@@ -32,7 +32,7 @@ Version 0.7.0. The plugin is `cw` (renamed from `combat-writing` on 2026-10-14; 
 
 ## The add-on
 
-`plugins/combat-writing-crew/` is a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew can be more than one company's models. It is installed from this repository as a marketplace, not from the directory. Each key goes only to its own provider, never to Learning Producers, and is never stored in a file: a masked prompt first, an environment variable only when the prompt is empty. One free Groq key seats two outside models beside the fresh reader: a crew of three. Each outside seat is told the word cap; a second overrun is cut at the cap with the rating kept and marked in the record. See [its README](plugins/combat-writing-crew/README.md).
+`plugins/combat-writing-crew/` is a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew can be more than one company's models. It is installed from this repository as a marketplace, not from the directory. Each key goes only to its own provider, never to Learning Producers, and is never stored in a file by the add-on: a masked prompt first, an environment variable when the prompt is empty, then one line in a key file you write by hand in your home folder, owner-only, the route that survives the host rebuilding its credentials store (Part 36.2). One free Groq key seats two outside models beside the fresh reader: a crew of three. Each outside seat is told the word cap; a second overrun is cut at the cap with the rating kept and marked in the record. See [its README](plugins/combat-writing-crew/README.md).
 
 ## Licensing
 

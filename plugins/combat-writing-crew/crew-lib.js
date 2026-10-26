@@ -4,11 +4,12 @@
 // The add-on reads the same run folder the listed plugin writes (combat-writing/runs/<run-id>/
 // in the person's project): seats.json, log.jsonl, rounds/<nn-kind>/<seat>.packet.md, and it
 // writes <seat>.answer.md (or <seat>.sn.answer.md / <seat>.redflag.answer.md) beside the packet
-// plus one log line per event. Nothing else is written anywhere. Keys come from the process
-// environment only: the masked prompt's value first, the conventional variable when the
-// prompt is empty, never a file.
+// plus one log line per event. Nothing else is written anywhere. Keys come from the masked
+// prompt's value first, the conventional environment variable when the prompt is empty, then
+// one NAME=value line in the person's own key file, <home>/.combat-writing/keys, owner-only
+// (Part 36.2, stamped 2026-10-20, issue 62); never a file inside a project or the plugin.
 
-var fs=require('fs'), path=require('path'), http=require('http'), https=require('https'), url=require('url');
+var fs=require('fs'), path=require('path'), os=require('os'), http=require('http'), https=require('https'), url=require('url');
 
 function readText(p){ return fs.readFileSync(p,'utf8'); }
 function appendLog(runDir,obj){
@@ -33,9 +34,10 @@ function loadProviders(){
   return JSON.parse(readText(p));
 }
 
-// The key route (ruled 2026-10-08): the masked prompt's value first (it reaches the server as
-// the environment variable the plugin manifest maps it to); the conventional environment
-// variable only when the prompt's value is empty; never a file. Returns {key, source} or null.
+// The key route (ruled 2026-10-08; the third route stamped 2026-10-20, Part 36.2, issue 62):
+// the masked prompt's value first (it reaches the server as the environment variable the
+// plugin manifest maps it to); the conventional environment variable only when the prompt's
+// value is empty; then the person's own key file, below. Returns {key, source} or null.
 //
 // The shapes measured on 2026-10-19 (Claude Code 2.1.303): an option the person never set, or
 // one the host no longer holds, reaches the server as an empty string. A host that substitutes
@@ -48,19 +50,67 @@ function keyValue(name){
   var v=name?(process.env[name]||'').trim():'';
   return unfilled(v)?'':v;
 }
+// The key file (Part 36.2, stamped 2026-10-20, issue 62; the measurement, Part 36.1): the
+// host's credentials store, where the masked prompt keeps a key, was rebuilt by the host on
+// 2026-10-16 and again on 2026-10-24, each on a Claude Code update, and the key went with it
+// both times while the install stood; no rebuild touches a file. So the third route is one
+// file the person writes by hand in a Terminal, never through a tool call (a key typed into
+// a tool call lands in a transcript): <home>/.combat-writing/keys, NAME=value lines where
+// NAME is the provider's environment name (GROQ_API_KEY=...), # comments and blank lines
+// allowed. It is read only when it is a regular file (never a symlink) whose mode has no
+// group or other bits and whose folder has none either; a file that fails that, or carries
+// a line that is not NAME=value, is refused whole, the reason naming the mode or the line
+// number and never a line's content, so the file's permissions are the floor. The key file
+// is never inside a project or the plugin, and the add-on never writes it. CW_CREW_KEY_FILE
+// moves the path for the tests only.
+var KEY_FILE='.combat-writing/keys';
+function keyFilePath(){ var o=(process.env.CW_CREW_KEY_FILE||'').trim(); return o?o:path.join(os.homedir(),'.combat-writing','keys'); }
+function keyFileShown(){ var o=(process.env.CW_CREW_KEY_FILE||'').trim(); return o?o:'~/'+KEY_FILE; }
+function modeOf(st){ return (st.mode&0o777).toString(8); }
+var KEY_LINE=/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/;
+function readKeyFile(){
+  var p=keyFilePath(), shown=keyFileShown(), st;
+  try{ st=fs.lstatSync(p); }catch(e){ return {present:false,keys:{},refused:null}; }
+  if(!st.isFile())return {present:true,keys:{},refused:shown+' is not a regular file (a symlink or a folder); nothing is read from it'};
+  if(st.mode&0o077)return {present:true,keys:{},refused:shown+' is open to others (mode '+modeOf(st)+'); it must be owner-only: chmod 600 '+shown+'; nothing is read from it'};
+  var dst;
+  try{ dst=fs.statSync(path.dirname(p)); }catch(e){ return {present:true,keys:{},refused:'the folder of '+shown+' cannot be read; nothing is read from it'}; }
+  if(dst.mode&0o077)return {present:true,keys:{},refused:'the folder of '+shown+' is open to others (mode '+modeOf(dst)+'); it must be owner-only: chmod 700 '+path.dirname(shown)+'; nothing is read from it'};
+  var text;
+  try{ text=fs.readFileSync(p,'utf8'); }catch(e){ return {present:true,keys:{},refused:shown+' could not be read ('+(e.code||'error')+'); nothing is read from it'}; }
+  var keys={}, lines=text.split('\n');
+  for(var i=0;i<lines.length;i++){
+    var l=lines[i].replace(/\r$/,'').trim();
+    if(!l||l.charAt(0)==='#')continue;
+    var m=KEY_LINE.exec(l);
+    if(!m)return {present:true,keys:{},refused:shown+' line '+(i+1)+' is not a NAME=value line; nothing is read from it'};
+    var v=m[2].trim();
+    if(/^".*"$/.test(v)||/^'.*'$/.test(v))v=v.slice(1,-1);
+    keys[m[1]]=v;
+  }
+  return {present:true,keys:keys,refused:null};
+}
 function keyFor(provider){
   if(provider.keyless)return {key:null,source:'none needed'};
   var fromPrompt=keyValue(provider.key_prompt_env);
   if(fromPrompt)return {key:fromPrompt,source:'prompt'};
   var fromEnv=keyValue(provider.key_env);
   if(fromEnv)return {key:fromEnv,source:'environment'};
+  if(provider.key_env){
+    var f=readKeyFile();
+    var fromFile=!f.refused&&typeof f.keys[provider.key_env]==='string'?f.keys[provider.key_env].trim():'';
+    if(fromFile&&!unfilled(fromFile))return {key:fromFile,source:'file'};
+  }
   return null;
 }
 // How the missing key arrived: 'placeholder' when the prompt's variable holds the literal
-// ${user_config.<option>} (the host handed the option unfilled), else 'empty'.
+// ${user_config.<option>} (the host handed the option unfilled); 'file-refused' when a key
+// file is there and was refused (its permissions or a malformed line); else 'empty'.
 function keyShape(provider){
   var v=provider.key_prompt_env?(process.env[provider.key_prompt_env]||'').trim():'';
-  return unfilled(v)?'placeholder':'empty';
+  if(unfilled(v))return 'placeholder';
+  if(readKeyFile().refused)return 'file-refused';
+  return 'empty';
 }
 // What to tell the person when a key is missing (ruled 2026-10-13: the exact next command and the
 // key field, never a value; 2026-10-19: the two causes a person can hit and the one next step).
@@ -71,7 +121,8 @@ function keyShape(provider){
 // went with it while the install and the manifest stood unchanged. The next step is one command:
 // the configure dialog, the field typed in and saved; a save with nothing typed says
 // "No configuration changes" and keeps nothing, which is what a person sees who expects the
-// dropped key to still be there. The environment variable is the standing alternative route.
+// dropped key to still be there. The environment variable and the key file are the standing
+// alternative routes; the file is the one that survives the host (Part 36.2).
 var CONFIGURE_COMMAND='/plugin configure combat-writing-crew';
 var CAUSES='never entered, or dropped by an update (the host rebuilt its credentials store, where the masked prompt keeps it)';
 var manifestOptions=null;
@@ -83,16 +134,19 @@ function optionTitle(option){
 }
 function keyField(provider){
   var option=provider.key_option||(provider.id+'_api_key');
-  return {next:CONFIGURE_COMMAND,field:option,field_title:optionTitle(option),env:provider.key_env};
+  return {next:CONFIGURE_COMMAND,field:option,field_title:optionTitle(option),env:provider.key_env,file:keyFileShown()};
 }
 function keyNext(provider){
   var f=keyField(provider);
-  return 'Next: '+f.next+', type the key into the '+f.field+' field ('+f.field_title+') and save; a save with nothing typed says No configuration changes and keeps nothing. '+f.env+' in the environment serves when the prompt is empty.';
+  return 'Next: '+f.next+', type the key into the '+f.field+' field ('+f.field_title+') and save; a save with nothing typed says No configuration changes and keeps nothing. '+f.env+' in the environment serves when the prompt is empty, and so does a '+f.env+'=<key> line in '+f.file+' (owner-only: chmod 600 the file, chmod 700 its folder; written by hand in a Terminal, never typed into a session).';
 }
 function keyHint(provider){
   var f=keyField(provider);
-  var cause=keyShape(provider)==='placeholder'
+  var shape=keyShape(provider);
+  var cause=shape==='placeholder'
     ?'the host handed the '+f.field+' option unfilled (the literal ${user_config.'+f.field+'} reached the server and was not sent)'
+    :shape==='file-refused'
+    ?CAUSES+', and the key file was refused: '+readKeyFile().refused
     :CAUSES;
   return cause+'. '+keyNext(provider);
 }
@@ -297,7 +351,7 @@ function scrubIds(text){
 }
 
 module.exports={readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
-  loadProviders:loadProviders,keyFor:keyFor,keyShape:keyShape,keyHint:keyHint,keyNext:keyNext,keyField:keyField,CONFIGURE_COMMAND:CONFIGURE_COMMAND,CAUSES:CAUSES,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
+  loadProviders:loadProviders,keyFor:keyFor,keyShape:keyShape,keyHint:keyHint,keyNext:keyNext,keyField:keyField,keyFilePath:keyFilePath,keyFileShown:keyFileShown,readKeyFile:readKeyFile,KEY_FILE:KEY_FILE,CONFIGURE_COMMAND:CONFIGURE_COMMAND,CAUSES:CAUSES,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
   eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,
   parseCapRefusal:parseCapRefusal,tokensForCap:tokensForCap,loweredMaxTokens:loweredMaxTokens,capRefusalReason:capRefusalReason,TOKENS_PER_WORD:TOKENS_PER_WORD,FIRST_LINE_TOKENS:FIRST_LINE_TOKENS,CAP_MARGIN:CAP_MARGIN,scrubIds:scrubIds,
   NO_RATING_LINE:NO_RATING_LINE,packetRules:packetRules,wordCount:wordCount,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer};
