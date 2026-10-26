@@ -99,6 +99,45 @@ function writeGitignore(root){
   fs.writeFileSync(p,GITIGNORE_LINES.join('\n')+'\n');
   return {state:'written',file:p};
 }
+// The project brief (issue 65, 2026-10-26): <project>/combat-writing/brief.md, beside the vault,
+// the brief every new run in the project carries when none comes with it, written by
+// new-run.js --keep alone (the person wrote `keep` on a brief line) and never otherwise; it
+// rides with the project in git as the vault does. A run's brief has a measured source, read
+// from the path new-run.js was handed: 'project' (that file), 'last' (another run's brief.md
+// under combat-writing/runs/, the run id kept), 'pasted' (a file in combat-writing/inbox/),
+// 'given' (any other path); none means no brief (--no-brief, or nothing and no project brief).
+var PROJECT_BRIEF_FILE='brief.md';
+var PROJECT_BRIEF_REL=path.join('combat-writing',PROJECT_BRIEF_FILE);
+var PROJECT_BRIEF_KEPT_LINE='Kept the brief as the project\'s: combat-writing/brief.md now serves every new run in this project that brings no brief of its own (a brief: on a run is that run\'s; cold leaves it out of a read). It rides with the project in git, as the vault does; add brief.md to combat-writing/.gitignore if it must not.';
+function projectBriefPath(root){ return path.join(path.resolve(root),'combat-writing',PROJECT_BRIEF_FILE); }
+function under(p,dir){ var rel=path.relative(dir,p); return rel&&!rel.startsWith('..')&&!path.isAbsolute(rel)?rel:null; }
+// Real paths on both sides, so a project reached through a symlink (macOS's /var is one) still measures.
+function realOr(p){ p=path.resolve(p); try{ return fs.realpathSync(p); }catch(e){ var d=path.dirname(p); return d===p?p:path.join(realOr(d),path.basename(p)); } }
+function briefSourceOf(briefFile,root){
+  var p=realOr(briefFile), r=realOr(root);
+  if(p===projectBriefPath(r))return {source:'project',from:null};
+  var rel=under(p,path.join(r,RUNS_DIR));
+  if(rel){ var parts=rel.split(path.sep); if(parts.length===2&&parts[1]==='brief.md')return {source:'last',from:parts[0]}; }
+  if(under(p,path.join(r,'combat-writing','inbox')))return {source:'pasted',from:null};
+  return {source:'given',from:null};
+}
+// The words for a run's brief, from run.created: the Started-at line and the short form's Brief line.
+function briefWords(created,dflt){
+  var b=created&&created.brief;
+  if(!b)return null;
+  if(b.source==='project')return 'the project\'s brief';
+  if(b.source==='last')return 'the brief from run '+(b.from||'?');
+  if(b.source==='pasted')return 'the brief pasted';
+  return dflt;
+}
+function briefLine(created){
+  var b=created&&created.brief;
+  if(!b)return 'Brief: none.';
+  if(b.source==='project')return 'Brief: the project\'s (combat-writing/brief.md).';
+  if(b.source==='last')return 'Brief: from run '+(b.from||'?')+'.';
+  if(b.source==='pasted')return 'Brief: stored, pasted with the draft.';
+  return 'Brief: brief.md, stored.';
+}
 // The host name of an address, by string cut: the scheme and a leading www. dropped, cut at the
 // first slash, query or fragment. stripScheme drops the scheme and the // only, for the board,
 // which shows an address as text and never as a link.
@@ -165,8 +204,8 @@ function startedAtLine(runDir,log,rounds){
   var created=null, firstDraft=null; log.forEach(function(e){ if(e.event==='run.created'&&!created)created=e; if(e.event==='draft.added'&&e.first&&!firstDraft)firstDraft=e; });
   var stage=created&&created.stage?created.stage:null;
   var s;
-  if(stage==='strategy')s='strategy: '+(created.draft?'the draft and '+(created.brief?'the brief':'no brief')+' stored first':'the brief stored first, the draft brought later by '+(firstDraft&&firstDraft.stage?firstDraft.stage:'sparring or battle'));
-  else if(stage)s=stage+': the run was made from a pasted draft, with no strategy stage'+(created.brief?' (a brief came with it)':'');
+  if(stage==='strategy')s='strategy: '+(created.draft?'the draft and '+(created.brief?briefWords(created,'the brief'):'no brief')+' stored first':briefWords(created,'the brief')+' stored first, the draft brought later by '+(firstDraft&&firstDraft.stage?firstDraft.stage:'sparring or battle'));
+  else if(stage)s=stage+': the run was made from a pasted draft, with no strategy stage'+(created.brief?' ('+briefWords(created,'a brief')+' came with it)':'');
   else s='a stage not recorded (the run was made before the stage was logged)';
   var first=rounds.length?rounds[0]:null;
   s+='. '+(first?'First round: '+first+(roundKind(first)==='battle'?' (battle before sparring)':'')+'.':'No round yet.');
@@ -1022,6 +1061,7 @@ module.exports={
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   GITIGNORE_FILE:GITIGNORE_FILE,GITIGNORE_LINES:GITIGNORE_LINES,GITIGNORE_LINE:GITIGNORE_LINE,inGitRepo:inGitRepo,writeGitignore:writeGitignore,
+  PROJECT_BRIEF_FILE:PROJECT_BRIEF_FILE,PROJECT_BRIEF_REL:PROJECT_BRIEF_REL,PROJECT_BRIEF_KEPT_LINE:PROJECT_BRIEF_KEPT_LINE,projectBriefPath:projectBriefPath,briefSourceOf:briefSourceOf,briefWords:briefWords,briefLine:briefLine,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
   capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,

@@ -1,8 +1,15 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // new-run.js: creates the run folder for one Combat Writing session.
 //
-//   node new-run.js [--draft <file>] [--brief <file>] [--stage strategy|sparring|battle]
+//   node new-run.js [--draft <file>] [--brief <file> | --no-brief] [--keep] [--stage strategy|sparring|battle]
 //                   [--name <slug>] [--model "<model name>"] [--company "<company>"] [--root <dir>]
+//
+// The brief (issue 65, 2026-10-26): --brief <file> is the run's brief; with no --brief, the
+// project's brief, <root>/combat-writing/brief.md, serves when it exists; --no-brief means none.
+// --keep copies the run's brief to the project's (overwriting: keep means "this is now the
+// project's"), logged brief.kept, and the short form says so once. run.created logs the brief's
+// source, read from the path (lib.briefSourceOf): project, last (another run's brief.md, the run
+// id kept), pasted (an inbox file) or given; the record's Started-at line names it.
 //
 // Copies the draft (and the brief, when given) into a new folder under
 // <root>/combat-writing/runs/<run-id>/, writes seats.json with one fresh reader, and
@@ -40,6 +47,9 @@ if(args.draft===true)lib.die('--draft takes a file path');
 if(args.brief===true)lib.die('--brief takes a file path');
 if(hasDraft&&!fs.existsSync(args.draft))lib.die('draft not found: '+args.draft);
 if(hasBrief&&!fs.existsSync(args.brief))lib.die('brief not found: '+args.brief);
+var noBrief=args['no-brief']===true, keep=args.keep===true;
+if(noBrief&&hasBrief)lib.die('--no-brief and --brief together: one or the other');
+if(keep&&!hasBrief)lib.die('--keep needs --brief: it copies that brief to combat-writing/brief.md, the project\'s');
 var STAGES=['strategy','sparring','battle'];
 var stage=null;
 if(args.stage!==undefined){
@@ -69,8 +79,22 @@ var ignore=lib.writeGitignore(root);
 
 var draft=null;
 if(hasDraft){draft=fs.readFileSync(args.draft);fs.writeFileSync(path.join(runDir,'draft.md'),draft);}
-var briefHash=null;
-if(hasBrief){var brief=fs.readFileSync(args.brief);fs.writeFileSync(path.join(runDir,'brief.md'),brief);briefHash=lib.sha256(brief);}
+// The brief: the file given, else the project's when it exists and --no-brief was not said.
+var briefFile=hasBrief?path.resolve(args.brief):null;
+if(!briefFile&&!noBrief&&fs.existsSync(lib.projectBriefPath(root)))briefFile=lib.projectBriefPath(root);
+var briefHash=null, briefSource=null, kept=null;
+if(briefFile){
+  var brief=fs.readFileSync(briefFile);
+  fs.writeFileSync(path.join(runDir,'brief.md'),brief);
+  briefHash=lib.sha256(brief);
+  briefSource=lib.briefSourceOf(briefFile,root);
+  if(keep){
+    var pb=lib.projectBriefPath(root);
+    fs.mkdirSync(path.dirname(pb),{recursive:true});
+    fs.writeFileSync(pb,brief);
+    kept={file:lib.PROJECT_BRIEF_REL.split(path.sep).join('/'),sha256:briefHash};
+  }
+}
 
 var seats=[{id:'seat-1',model:model,company:company,
   source:'agent configuration (model: inherit); the model name was supplied by the host from what it knows about the agent it runs, not read from an API field'}];
@@ -78,8 +102,9 @@ fs.writeFileSync(path.join(runDir,'seats.json'),JSON.stringify({seats:seats},nul
 
 lib.appendLog(runDir,{event:'run.created',run:path.basename(runDir),stage:stage,
   draft:draft?Object.assign({file:'draft.md',sha256:lib.sha256(draft)},lib.draftFacts(draft.toString('utf8'))):null,
-  brief:briefHash?{file:'brief.md',sha256:briefHash}:null,
+  brief:briefHash?{file:'brief.md',sha256:briefHash,source:briefSource.source,from:briefSource.from}:null,
   seats:seats.map(function(s){return {id:s.id,model:s.model,company:s.company};}),
   crew_note:'one fresh reader, every seat is '+company+'\'s models until the crew add-on registers outside seats; the plugin never fakes a seat and never pads the crew'});
 if(ignore.state==='written')lib.appendLog(runDir,{event:'gitignore.written',file:path.join('combat-writing',lib.GITIGNORE_FILE).split(path.sep).join('/'),lines:lib.GITIGNORE_LINES});
+if(kept)lib.appendLog(runDir,{event:'brief.kept',file:kept.file,sha256:kept.sha256});
 process.stdout.write(runDir+'\n');
