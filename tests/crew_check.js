@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // crew_check.js: the crew add-on's MCP server takes keys from the masked prompt over the
-// environment and never from a file, resolves models from the live catalog without a pinned
+// environment over the person's owner-only key file (never a file in the project or the
+// plugin), resolves models from the live catalog without a pinned
 // id, names each seat from the model field the API returns, refuses a packet too long to
 // send, records a failed call as missing, honors the per-minute wait, writes the answer to
 // the right file, and logs a complete line.
@@ -15,9 +16,18 @@
 //     names crew_list, crew_register and crew_answer.
 //   - Key route: with both the prompt value and the environment variable set, the request carries
 //     the prompt's value; with the prompt empty, the environment variable; with neither, the seat
-//     is unavailable, the reason names the prompt and the variable and never a value, crew_answer
-//     records the seat as missing, and the fake server is never called, even though a .env and a
-//     key file holding a key sit in the working directory.
+//     is unavailable, the reason names the prompt, the variable and the key file and never a
+//     value, crew_answer records the seat as missing, and the fake server is never called, even
+//     though a .env and a key file holding a key sit in the working directory.
+//   - The key file (Part 36.2, stamped 2026-10-20, issue 62): with the prompt and the variable
+//     empty, a NAME=value line in the key file (CW_CREW_KEY_FILE points the tests at one) seats
+//     the provider with key_source "file", the catalog read and the packet carry its value, and
+//     the value is in no log line, tool result or stderr; the prompt beats the variable beats the
+//     file; a file open to others (0644), a folder open to others (0755), a symlink and a line
+//     that is not NAME=value are each refused whole, the seat unavailable with key_shape
+//     "file-refused" and the reason naming the mode or the line number and never a line's
+//     content, and the provider never called; readKeyFile reads comments, blank lines, quotes and
+//     an `export` prefix; the default path is <home>/.combat-writing/keys.
 //   - The two broken shapes (2026-10-19): the prompt's variable empty, which is what the host hands
 //     for an option never set or dropped from its credentials store, and the prompt's variable
 //     holding the literal ${user_config.groq_api_key}, an option the host handed unfilled. Both
@@ -496,7 +506,8 @@ fake.listen(0,'127.0.0.1',function(){
       check(r.data.available===0&&requests.length===0,'key route: with no key the provider must not be called');
       // The third state (ruled 2026-10-13): the next command and the key field, names only.
       check(a.next==='/plugin configure combat-writing-crew'&&a.field==='groq_api_key'&&a.field_title==='Groq API key'&&a.env==='GROQ_API_KEY','state 3: crew_list must carry next, field, field_title and env, got '+JSON.stringify(a));
-      check(/^no key for Groq: never entered, or dropped by an update \(the host rebuilt its credentials store, where the masked prompt keeps it\)\. Next: \/plugin configure combat-writing-crew, type the key into the groq_api_key field \(Groq API key\) and save; a save with nothing typed says No configuration changes and keeps nothing\. GROQ_API_KEY in the environment serves when the prompt is empty\.$/.test(a.reason),'state 3: the reason must name the two causes, one Next with the command, the field, its title, the save and the variable, got '+a.reason);
+      check(/^no key for Groq: never entered, or dropped by an update \(the host rebuilt its credentials store, where the masked prompt keeps it\)\. Next: \/plugin configure combat-writing-crew, type the key into the groq_api_key field \(Groq API key\) and save; a save with nothing typed says No configuration changes and keeps nothing\. GROQ_API_KEY in the environment serves when the prompt is empty, and so does a GROQ_API_KEY=<key> line in ~\/\.combat-writing\/keys \(owner-only: chmod 600 the file, chmod 700 its folder; written by hand in a Terminal, never typed into a session\)\.$/.test(a.reason),'state 3: the reason must name the two causes, one Next with the command, the field, its title, the save, the variable and the key file, got '+a.reason);
+      check(a.file==='~/.combat-writing/keys','state 3: crew_list must name the key file as the third route, got '+a.file);
       check(/never entered/.test(a.reason)&&/dropped by an update/.test(a.reason)&&a.reason.split('Next:').length===2&&!/gsk_|NEVER_READ/.test(a.reason),'state 3: both causes, exactly one Next, no value, got '+a.reason);
       var x=(r.data.seats||[]).filter(function(s){return s.slot==='xai';})[0]||{};
       check(x.field==='xai_api_key'&&x.field_title==='xAI API key'&&x.next==='/plugin configure combat-writing-crew','state 3: the xAI entry must name its own field, got '+JSON.stringify(x));
@@ -581,6 +592,89 @@ fake.listen(0,'127.0.0.1',function(){
       check(!r.isError&&r.data.added.length===0&&(line.unavailable||[]).some(function(u){return /org_\[redacted\]/.test(u.reason);})&&fs.readFileSync(path.join(run5,'log.jsonl'),'utf8').indexOf('TESTORG')<0,'scrub on the catalog: crew.registered should carry the mark and never the id');
       check(s5.stderr().indexOf('TESTORG')<0&&s5.stderr().indexOf('CATALOGFAIL')<0,'scrub on the catalog: the server\'s stderr carries the id or the key');
       s5.stop();
+    });
+  }).then(function(){
+    // The key file (Part 36.2, issue 62): the third route, read only when owner-only, refused whole otherwise.
+    var kf=path.join(proj,'keyfiles'); fs.mkdirSync(kf);
+    function keyDir(name,dirMode){ var d=path.join(kf,name); fs.mkdirSync(d); fs.chmodSync(d,dirMode); return d; }
+    function keyFile(dir,text,mode){ var f=path.join(dir,'keys'); fs.writeFileSync(f,text); fs.chmodSync(f,mode); return f; }
+    var good=keyFile(keyDir('good',0o700),'# the crew keys\n\nGROQ_API_KEY=gsk_FROM_THE_FILE\nXAI_API_KEY="xai_FROM_THE_FILE"\nexport MISTRAL_API_KEY=\'mst_FROM_THE_FILE\'\n',0o600);
+    var open=keyFile(keyDir('open',0o700),'GROQ_API_KEY=gsk_FROM_THE_FILE\n',0o644);
+    var openFolderDir=keyDir('openfolder',0o755); var openFolder=keyFile(openFolderDir,'GROQ_API_KEY=gsk_FROM_THE_FILE\n',0o600);
+    var bad=keyFile(keyDir('bad',0o700),'GROQ_API_KEY=gsk_FROM_THE_FILE\nthis line is not a key, SECRET_IN_FILE\n',0o600);
+    var linkDir=keyDir('link',0o700); var link=path.join(linkDir,'keys'); fs.symlinkSync(good,link);
+    // The reader itself.
+    process.env.CW_CREW_KEY_FILE=good;
+    var rk=lib.readKeyFile();
+    check(rk.present===true&&rk.refused===null&&rk.keys.GROQ_API_KEY==='gsk_FROM_THE_FILE'&&rk.keys.XAI_API_KEY==='xai_FROM_THE_FILE'&&rk.keys.MISTRAL_API_KEY==='mst_FROM_THE_FILE'&&Object.keys(rk.keys).length===3,'readKeyFile: comments, blank lines, quotes and an export prefix, got '+JSON.stringify(rk));
+    check(lib.keyFilePath()===good&&lib.keyFileShown()===good,'readKeyFile: CW_CREW_KEY_FILE moves the path and the shown name');
+    process.env.CW_CREW_KEY_FILE=open; check(/^.* is open to others \(mode 644\); it must be owner-only: chmod 600 .*; nothing is read from it$/.test(lib.readKeyFile().refused||'')&&Object.keys(lib.readKeyFile().keys).length===0,'readKeyFile: a 0644 file is refused whole, got '+lib.readKeyFile().refused);
+    process.env.CW_CREW_KEY_FILE=openFolder; check(/^the folder of .* is open to others \(mode 755\); it must be owner-only: chmod 700 .*; nothing is read from it$/.test(lib.readKeyFile().refused||''),'readKeyFile: a 0755 folder is refused, got '+lib.readKeyFile().refused);
+    process.env.CW_CREW_KEY_FILE=bad; var badRead=lib.readKeyFile(); check(/ line 2 is not a NAME=value line; nothing is read from it$/.test(badRead.refused||'')&&badRead.refused.indexOf('SECRET_IN_FILE')<0&&Object.keys(badRead.keys).length===0,'readKeyFile: a malformed line is named by number and never by content, got '+badRead.refused);
+    process.env.CW_CREW_KEY_FILE=link; check(/ is not a regular file \(a symlink or a folder\); nothing is read from it$/.test(lib.readKeyFile().refused||''),'readKeyFile: a symlink is refused, got '+lib.readKeyFile().refused);
+    process.env.CW_CREW_KEY_FILE=path.join(kf,'absent','keys'); check(lib.readKeyFile().present===false&&lib.readKeyFile().refused===null,'readKeyFile: no file is no key and no refusal');
+    delete process.env.CW_CREW_KEY_FILE;
+    check(lib.keyFilePath()===path.join(os.homedir(),'.combat-writing','keys')&&lib.keyFileShown()==='~/.combat-writing/keys'&&lib.KEY_FILE==='.combat-writing/keys','the default key file is <home>/.combat-writing/keys, shown as ~/.combat-writing/keys');
+    // The file alone seats: the prompt and the variable empty.
+    requests.length=0;
+    var s6=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'',GROQ_API_KEY:'',CW_CREW_KEY_FILE:good}));
+    var run6=node('new-run.js',['--draft','draft.md','--name','file','--model','Test Model']).stdout.trim();
+    var results6=[];
+    return s6.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'t',version:'1'}}).then(function(){return s6.call('crew_list');}).then(function(r){
+      results6.push(r);
+      var a=(r.data.seats||[]).filter(function(s){return s.slot==='groq-a';})[0]||{};
+      var x=(r.data.seats||[]).filter(function(s){return s.slot==='xai';})[0]||{};
+      check(a.available===true&&a.key_source==='file'&&x.available===true&&x.key_source==='file'&&r.data.available===3,'key file: with the prompt and the variable empty the file should seat Groq and xAI, got '+JSON.stringify({a:a,x:x,available:r.data.available}));
+      var cat=requests.filter(function(q){return q.url==='/v1/models';});
+      check(cat.length>=1&&cat.every(function(q){return q.auth==='Bearer gsk_FROM_THE_FILE'||q.auth==='Bearer xai_FROM_THE_FILE';}),'key file: the catalog reads should carry the file\'s keys, got '+JSON.stringify(cat.map(function(q){return q.auth;})));
+      return s6.call('crew_register',{run:run6});
+    }).then(function(r){
+      results6.push(r);
+      check(!r.isError&&r.data.added.length===3,'key file: crew_register should seat three outside seats from the file, got '+JSON.stringify(r.data.added));
+      node('packet.js',['--run',run6,'--round','01-sparring','--seat','seat-2']);
+      return s6.call('crew_answer',{run:run6,round:'01-sparring',seat:'seat-2'});
+    }).then(function(r){
+      results6.push(r);
+      check(!r.isError&&r.data.ok===true,'key file: crew_answer should answer on the file\'s key, got '+JSON.stringify(r.data));
+      var req=requests.filter(function(q){return q.url==='/v1/chat/completions';}).pop();
+      check(!!req&&req.auth==='Bearer gsk_FROM_THE_FILE','key file: the packet should carry the file\'s key, got '+(req&&req.auth));
+      var e=logOf(run6).filter(function(x){return x.event==='crew.answered';}).pop()||{};
+      check(e.key_source==='file','key file: the answer log line should read key_source file, got '+e.key_source);
+      var everything=fs.readFileSync(path.join(run6,'log.jsonl'),'utf8')+JSON.stringify(results6.map(function(x){return x.raw;}))+s6.stderr();
+      check(everything.indexOf('FROM_THE_FILE')<0,'key file: the key\'s value reached a log line, a tool result or stderr');
+      console.log('key file: both Groq seats and the xAI seat from the file; key_source '+e.key_source);
+      s6.stop();
+      // The order: the prompt beats the variable beats the file.
+      requests.length=0;
+      var s7=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'gsk_FROM_THE_PROMPT',GROQ_API_KEY:'gsk_FROM_THE_ENVIRONMENT',CW_CREW_KEY_FILE:good}));
+      return s7.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'t',version:'1'}}).then(function(){return s7.call('crew_list');}).then(function(r){
+        var a=(r.data.seats||[]).filter(function(s){return s.slot==='groq-a';})[0]||{};
+        check(a.key_source==='prompt'&&requests[0]&&requests[0].auth==='Bearer gsk_FROM_THE_PROMPT','order: the prompt beats the variable and the file, got '+a.key_source+' '+(requests[0]&&requests[0].auth));
+        s7.stop(); requests.length=0;
+        var s8=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'',GROQ_API_KEY:'gsk_FROM_THE_ENVIRONMENT',CW_CREW_KEY_FILE:good}));
+        return s8.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'t',version:'1'}}).then(function(){return s8.call('crew_list');}).then(function(r2){
+          var a2=(r2.data.seats||[]).filter(function(s){return s.slot==='groq-a';})[0]||{};
+          check(a2.key_source==='environment'&&requests[0]&&requests[0].auth==='Bearer gsk_FROM_THE_ENVIRONMENT','order: the variable beats the file, got '+a2.key_source+' '+(requests[0]&&requests[0].auth));
+          s8.stop();
+        });
+      });
+    }).then(function(){
+      // The refusals: a seat unavailable with key_shape file-refused and the reason named; the provider never called.
+      function refused(name,file,re){
+        requests.length=0;
+        var s=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'',GROQ_API_KEY:'',CW_CREW_KEY_FILE:file}));
+        return s.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'t',version:'1'}}).then(function(){return s.call('crew_list');}).then(function(r){
+          var a=(r.data.seats||[]).filter(function(x){return x.slot==='groq-a';})[0]||{};
+          check(a.available===false&&a.key_shape==='file-refused'&&re.test(a.reason)&&/^no key for Groq: never entered, or dropped by an update \(the host rebuilt its credentials store, where the masked prompt keeps it\), and the key file was refused: /.test(a.reason)&&a.reason.split('Next:').length===2,name+': expected file-refused with the reason, got '+JSON.stringify(a));
+          check(requests.length===0,name+': the provider must not be called');
+          check(JSON.stringify(r.raw).indexOf('FROM_THE_FILE')<0&&JSON.stringify(r.raw).indexOf('SECRET_IN_FILE')<0&&s.stderr().indexOf('FROM_THE_FILE')<0,name+': a value or a line\'s content reached the result or stderr');
+          s.stop();
+        });
+      }
+      return refused('a 0644 key file',open,/the key file was refused: .*keyfiles\/open\/keys is open to others \(mode 644\); it must be owner-only: chmod 600 .*keyfiles\/open\/keys; nothing is read from it\. Next:/)
+        .then(function(){return refused('a 0755 key folder',openFolder,/the key file was refused: the folder of .*openfolder\/keys is open to others \(mode 755\); it must be owner-only: chmod 700 .*keyfiles\/openfolder; nothing is read from it\. Next:/);})
+        .then(function(){return refused('a malformed key file',bad,/the key file was refused: .*keyfiles\/bad\/keys line 2 is not a NAME=value line; nothing is read from it\. Next:/);})
+        .then(function(){return refused('a symlinked key file',link,/the key file was refused: .*keyfiles\/link\/keys is not a regular file \(a symlink or a folder\); nothing is read from it\. Next:/);});
     });
   }).then(function(){
     // The window arithmetic.

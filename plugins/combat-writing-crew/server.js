@@ -29,12 +29,17 @@
 //                  missing with the provider's limit and what the reply needs named.
 //
 // Keys: the masked prompt's value first (the manifest maps it to CW_CREW_<PROVIDER>_KEY), the
-// conventional environment variable only when the prompt is empty, never a file. Each key goes
-// only to its own provider. Nothing is sent to Learning Producers. An unset or dropped option
-// reaches the server as an empty string (measured 2026-10-19, Claude Code 2.1.303); a literal
-// ${user_config.<option>} is read as unfilled, never as a key. A seat with no key says the two
-// causes (never entered, or dropped by an update) and the one next step (the configure dialog,
-// the field typed in and saved), names only, never a value.
+// conventional environment variable only when the prompt is empty, then one NAME=value line in
+// the person's own key file, <home>/.combat-writing/keys, owner-only, written by hand (Part
+// 36.2, issue 62; crew-lib.js readKeyFile: a file open to others or with a malformed line is
+// refused whole with the reason named, never a line's content). Never a file inside a project or
+// the plugin. Each key goes only to its own provider. Nothing is sent to Learning Producers. An
+// unset or dropped option reaches the server as an empty string (measured 2026-10-19, Claude
+// Code 2.1.303); a literal ${user_config.<option>} is read as unfilled, never as a key. A seat
+// with no key says the two causes (never entered, or dropped by an update), the key file's
+// refusal when there is one, and the next step (the configure dialog, the field typed in and
+// saved; the variable; the file), names only, never a value. key_source on the answer log line
+// names the route that served: prompt, environment or file.
 //
 // Transport: newline-delimited JSON-RPC 2.0 on stdin/stdout (the MCP stdio transport).
 // Diagnostics go to stderr only. Nothing it writes carries the credit line (ruled 2026-10-12).
@@ -88,7 +93,7 @@ function listSeats(){
       if(!k){
         provider.seats.forEach(function(s){
           var f=lib.keyField(provider);
-          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'no key for '+provider.name+': '+lib.keyHint(provider),key_shape:lib.keyShape(provider),next:f.next,field:f.field,field_title:f.field_title,env:f.env});
+          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'no key for '+provider.name+': '+lib.keyHint(provider),key_shape:lib.keyShape(provider),next:f.next,field:f.field,field_title:f.field_title,env:f.env,file:f.file});
         });
         return;
       }
@@ -138,7 +143,7 @@ function registerSeats(runDir){
     });
     lib.writeSeats(runDir,seatsFile);
     lib.appendLog(runDir,{event:'crew.registered',added:added.map(function(s){return {id:s.id,model:s.model,company:s.company,served_by:s.served_by,provider:s.provider};}),
-      unavailable:seats.filter(function(s){return !s.available;}).map(function(s){return {slot:s.slot,provider:s.provider,provider_name:s.provider_name,family:s.family,reason:s.reason,next:s.next,field:s.field,field_title:s.field_title};})});
+      unavailable:seats.filter(function(s){return !s.available;}).map(function(s){return {slot:s.slot,provider:s.provider,provider_name:s.provider_name,family:s.family,reason:s.reason,key_shape:s.key_shape,next:s.next,field:s.field,field_title:s.field_title,env:s.env,file:s.file};})});
     return {added:added,unavailable:seats.filter(function(s){return !s.available;}),seats:seatsFile.seats};
   });
 }

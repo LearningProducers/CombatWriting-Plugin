@@ -1,8 +1,8 @@
 {
   "name": "combat-writing-crew",
   "displayName": "Combat Writing Crew (add-on)",
-  "version": "0.4.7",
-  "description": "The Combat Writing add-on: a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew is the fresh reader plus one seat per outside model you hold a key for. One free Groq key seats two: a crew of three. Each key goes only to its own provider, never to Learning Producers, never into a file. An outside seat's second overrun of the word cap is cut at the cap with its rating kept and marked in the record. Not listed in the Claude plugin directory; installed from the Learning Producers marketplace.",
+  "version": "0.5.0",
+  "description": "The Combat Writing add-on: a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew is the fresh reader plus one seat per outside model you hold a key for. One free Groq key seats two: a crew of three. Each key goes only to its own provider, never to Learning Producers; the add-on writes no file, and the one file it reads is the owner-only key file you write by hand in your home folder (~/.combat-writing/keys), the route that survives a host update. An outside seat's second overrun of the word cap is cut at the cap with its rating kept and marked in the record. Not listed in the Claude plugin directory; installed from the Learning Producers marketplace.",
   "author": {
     "name": "Learning Producers Inc.",
     "url": "https://learningproducers.com"
@@ -15,37 +15,37 @@
     "groq_api_key": {
       "type": "string",
       "title": "Groq API key",
-      "description": "Seats Groq's free models (OpenAI's open-weight line and Alibaba's Qwen line). Sent only to api.groq.com. Leave empty to use the GROQ_API_KEY environment variable instead.",
+      "description": "Seats Groq's free models (OpenAI's open-weight line and Alibaba's Qwen line). Sent only to api.groq.com. Leave empty to use GROQ_API_KEY from the environment, or a GROQ_API_KEY=... line in your owner-only ~/.combat-writing/keys file, instead.",
       "sensitive": true
     },
     "xai_api_key": {
       "type": "string",
       "title": "xAI API key",
-      "description": "Seats xAI's Grok line. Sent only to api.x.ai. Leave empty to use XAI_API_KEY, or to leave the seat out.",
+      "description": "Seats xAI's Grok line. Sent only to api.x.ai. Leave empty to use XAI_API_KEY from the environment or from your owner-only ~/.combat-writing/keys file, or to leave the seat out.",
       "sensitive": true
     },
     "perplexity_api_key": {
       "type": "string",
       "title": "Perplexity API key",
-      "description": "Seats Perplexity's Sonar line. Sent only to api.perplexity.ai. Leave empty to use PERPLEXITY_API_KEY, or to leave the seat out.",
+      "description": "Seats Perplexity's Sonar line. Sent only to api.perplexity.ai. Leave empty to use PERPLEXITY_API_KEY from the environment or from your owner-only ~/.combat-writing/keys file, or to leave the seat out.",
       "sensitive": true
     },
     "openai_api_key": {
       "type": "string",
       "title": "OpenAI API key",
-      "description": "Seats OpenAI's GPT line. Sent only to api.openai.com. Leave empty to use OPENAI_API_KEY, or to leave the seat out.",
+      "description": "Seats OpenAI's GPT line. Sent only to api.openai.com. Leave empty to use OPENAI_API_KEY from the environment or from your owner-only ~/.combat-writing/keys file, or to leave the seat out.",
       "sensitive": true
     },
     "mistral_api_key": {
       "type": "string",
       "title": "Mistral API key",
-      "description": "Seats Mistral's large line. Sent only to api.mistral.ai. Leave empty to use MISTRAL_API_KEY, or to leave the seat out.",
+      "description": "Seats Mistral's large line. Sent only to api.mistral.ai. Leave empty to use MISTRAL_API_KEY from the environment or from your owner-only ~/.combat-writing/keys file, or to leave the seat out.",
       "sensitive": true
     },
     "gemini_api_key": {
       "type": "string",
       "title": "Gemini API key",
-      "description": "Seats Google's Gemini line through its OpenAI-compatible endpoint. Sent only to generativelanguage.googleapis.com. Leave empty to use GEMINI_API_KEY, or to leave the seat out.",
+      "description": "Seats Google's Gemini line through its OpenAI-compatible endpoint. Sent only to generativelanguage.googleapis.com. Leave empty to use GEMINI_API_KEY from the environment or from your owner-only ~/.combat-writing/keys file, or to leave the seat out.",
       "sensitive": true
     },
     "ollama_model": {
