@@ -151,8 +151,8 @@ check(fs.readFileSync(answer,'utf8')==='RATING: 8/10\nFirst.\n','the hook must n
 
 // hooks.json carries the entry; the script is clean.
 var hooks=JSON.parse(fs.readFileSync(path.join(plugin,'hooks','hooks.json'),'utf8'));
-var pre=hooks.hooks.PreToolUse||[];
-check(pre.length===1&&pre[0].matcher===undefined&&pre[0].hooks.length===1&&pre[0].hooks[0].type==='command'&&pre[0].hooks[0].command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js"'&&typeof pre[0].hooks[0].timeout==='number'&&pre[0].hooks[0].timeout<=10,'hooks.json: the PreToolUse entry must run seat-scope.js on every tool (no matcher) with a short timeout: '+JSON.stringify(pre));
+var pre=(hooks.hooks.PreToolUse||[]).filter(function(e){return e.matcher===undefined;});  // the host-output entry (matcher AskUserQuestion, issue 60) sits beside it
+check(pre.length===1&&pre[0].hooks.length===1&&pre[0].hooks[0].type==='command'&&pre[0].hooks[0].command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js"'&&typeof pre[0].hooks[0].timeout==='number'&&pre[0].hooks[0].timeout<=10,'hooks.json: the one PreToolUse entry with no matcher must run seat-scope.js on every tool with a short timeout: '+JSON.stringify(pre));
 var src=fs.readFileSync(hook,'utf8');
 check(src.split('\n')[0]==='// SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0','seat-scope.js: no Shield header on line 1');
 check(!/writeFileSync|appendFileSync|mkdirSync|child_process|\bfetch\(|https?:\/\/|process\.env/.test(src.replace(/\/\/[^\n]*/g,'')),'seat-scope.js: must write nothing, spawn nothing, fetch nothing, read no environment');

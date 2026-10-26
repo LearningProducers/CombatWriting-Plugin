@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // hook_check.js: the listed plugin's session-start hook (ruled 2026-10-09; since 2026-10-16 the
-// seat-scope hook sits beside it in hooks.json, pinned by tests/seat_scope_check.js),
+// seat-scope hook sits beside it in hooks.json, pinned by tests/seat_scope_check.js; since
+// 2026-10-26 the host-output hook too, issue 60, pinned by tests/host_output_check.js),
 // and it reads, writes and calls nothing.
 //
 // What it pins:
-//   - plugins/combat-writing/hooks/ holds exactly hooks.json and session-start.js.
+//   - plugins/combat-writing/hooks/ holds exactly hooks.json, host-output.js, seat-scope.js and
+//     session-start.js.
 //   - hooks.json has the top-level `hooks` wrapper, two events, SessionStart and PreToolUse,
 //     SessionStart with one entry
 //     whose one command hook runs node on a file inside the plugin, named through
@@ -26,7 +28,7 @@ function read(rel){ return fs.readFileSync(path.join(root,rel),'utf8'); }
 
 var dir='plugins/combat-writing/hooks';
 var files=fs.existsSync(path.join(root,dir))?fs.readdirSync(path.join(root,dir)).sort():[];
-check(files.join(',')==='hooks.json,seat-scope.js,session-start.js','hooks/: expected exactly hooks.json, seat-scope.js and session-start.js, found '+files.join(','));
+check(files.join(',')==='hooks.json,host-output.js,seat-scope.js,session-start.js','hooks/: expected exactly hooks.json, host-output.js, seat-scope.js and session-start.js, found '+files.join(','));
 
 var hooks=null;
 try{hooks=JSON.parse(read(dir+'/hooks.json'));}catch(e){failures.push('hooks.json: '+e.message);}
