@@ -55,6 +55,15 @@
 //     window to age out before it is sent; the wait is in the result and the log. A 429 with
 //     Retry-After: 1 is waited out and retried once (waited_ms >= 1000). A 500 and an empty
 //     reply are recorded as crew.failed and the seat is missing, with no answer file.
+//   - A per-request output cap (issue 56, measured 2026-10-24 on Groq's free tier) is not a window:
+//     a 429 reading "on output tokens per minute (OTPM): Limit 1000, Requested 1513" with
+//     Retry-After: 60 is answered by one resend at once (no Retry-After wait, no minute) with
+//     max_tokens lowered by the ratio and the margin, floor(2800*1000/1513*0.95) = 1758, which
+//     covers the 600-word cap's floor of 1,000 tokens; the answer lands, and the log line and the
+//     result carry max_tokens_lowered with the four numbers. With Limit 300 the lowered value (527)
+//     is under the floor: one request, no resend, no wait, the seat missing with a reason naming
+//     the provider's limit, the cap and what the reply needs, and crew.failed carrying output_cap.
+//     parseCapRefusal reads Groq's two shapes (OTPM, and TPM with its Used count) and nothing else.
 //   - The window arithmetic (crew-lib makeWindow) waits when the next call would cross the wall or
 //     the request limit, and not otherwise.
 //   - The listed plugin's checker, flip check and record then read the outside seat's answer as
@@ -86,10 +95,13 @@ var proj=fs.mkdtempSync(path.join(os.tmpdir(),'cw-crew-'));
 
 // ---- the fake provider ---------------------------------------------------------------------
 var requests=[]; var rateLimited=false;
+// Groq's per-request output cap refusal, the shape measured 2026-10-24 (the organization clause the
+// real message carries is left out here; scrubbing it is its own issue).
+function capMessage(model,limit){ return 'Request too large for model `'+model+'` service tier `on_demand` on output tokens per minute (OTPM): Limit '+limit+', Requested 1513. The request\'s expected output tokens exceed the enforced limit; reduce max_tokens (or the request\'s expected output) and try again. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing'; }
 var fake=http.createServer(function(req,res){
   var chunks=[]; req.on('data',function(c){chunks.push(c);}); req.on('end',function(){
     var body=chunks.length?JSON.parse(Buffer.concat(chunks).toString('utf8')):null;
-    requests.push({method:req.method,url:req.url,auth:req.headers['authorization']||null,body:body});
+    requests.push({method:req.method,url:req.url,auth:req.headers['authorization']||null,body:body,t:Date.now()});
     function json(status,obj,headers){res.writeHead(status,Object.assign({'Content-Type':'application/json'},headers||{}));res.end(JSON.stringify(obj));}
     if(req.method==='GET'&&req.url==='/v1/models'){
       if(!req.headers['authorization'])return json(401,{error:{message:'no key'}});
@@ -111,6 +123,9 @@ var fake=http.createServer(function(req,res){
       if(/FAILME/.test(user))return json(500,{error:{message:'boom'}});
       if(/EMPTYME/.test(user))return json(200,{model:body.model,choices:[{message:{role:'assistant',content:''}}]});
       if(/RATELIMIT/.test(user)&&!rateLimited){rateLimited=true;return json(429,{error:{message:'rate limit'}},{'Retry-After':'1'});}
+      // The per-request output cap: refused above 2,000 max_tokens, answered below; Retry-After rides as Groq sends it.
+      if(/CAPME/.test(user)&&body.max_tokens>2000)return json(429,{error:{message:capMessage(body.model,1000),type:'tokens',code:'rate_limit_exceeded'}},{'Retry-After':'60'});
+      if(/CAPLOW/.test(user))return json(429,{error:{message:capMessage(body.model,300),type:'tokens',code:'rate_limit_exceeded'}},{'Retry-After':'60'});
       var sys=body.messages[0].content;
       // The reply pads its lines with trailing spaces, as a real model did; the server must strip them.
       var retried=/Note from the host on this retry/.test(user);
@@ -363,6 +378,45 @@ fake.listen(0,'127.0.0.1',function(){
       ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','09-battle','--seat',s]); });
       var p3=fs.readFileSync(path.join(run,'rounds','09-battle','seat-1.packet.md'),'utf8');
       check(/## The other seats' answers \(round 07-battle\)/.test(p3)&&/seat-2\n\n=== ANSWER BEGIN ===/.test(p3)&&/seat-3 — missing/.test(p3),'after failures: the next packet should read the latest round with a sound answer and list seat-3 as missing');
+    });
+  }).then(function(){
+    // A per-request output cap (issue 56): the refusal is answered by one resend at once with max_tokens
+    // lowered by the ratio; the Retry-After of 60 is not waited. Under the floor: one request, missing.
+    fs.mkdirSync(path.join(run,'rounds','10-battle'),{recursive:true});
+    fs.writeFileSync(path.join(run,'rounds','10-battle','seat-3.packet.md'),'# Packet for seat-3\n\nUnder 600 words.\n\nCAPME please rate this.\n');
+    fs.writeFileSync(path.join(run,'rounds','10-battle','seat-2.packet.md'),'# Packet for seat-2\n\nUnder 600 words.\n\nCAPLOW please rate this.\n');
+    check(lib.tokensForCap(600)===1000&&lib.tokensForCap(500)===840&&lib.tokensForCap(250)===440,'tokensForCap: 1.6 tokens a word plus 40, got '+[600,500,250].map(lib.tokensForCap).join(','));
+    check(lib.loweredMaxTokens(2800,1000,1513)===1758&&lib.loweredMaxTokens(2800,300,1513)===527,'loweredMaxTokens: the ratio with the 5% margin, floored, got '+lib.loweredMaxTokens(2800,1000,1513)+','+lib.loweredMaxTokens(2800,300,1513));
+    var otpm=lib.parseCapRefusal(capMessage('qwen/x',1000));
+    check(!!otpm&&otpm.kind==='output'&&otpm.limit===1000&&otpm.requested===1513,'parseCapRefusal: Groq\'s OTPM shape, got '+JSON.stringify(otpm));
+    var tpm=lib.parseCapRefusal('Rate limit reached for model `x` in organization `y` service tier `on_demand` on tokens per minute (TPM): Limit 6000, Used 0, Requested 7117. Please try again in 11.17s.');
+    check(!!tpm&&tpm.kind==='total'&&tpm.limit===6000&&tpm.requested===7117,'parseCapRefusal: Groq\'s TPM shape reads as total, got '+JSON.stringify(tpm));
+    check(lib.parseCapRefusal('rate limit')===null&&lib.parseCapRefusal('')===null&&lib.parseCapRefusal(null)===null,'parseCapRefusal: any other text is null');
+    var t0=Date.now();
+    return s1.call('crew_answer',{run:run,round:'10-battle',seat:'seat-3'}).then(function(r){
+      var calls=requests.filter(function(q){return q.url==='/v1/chat/completions'&&/CAPME/.test(q.body.messages[1].content);});
+      check(!r.isError&&r.data.ok===true&&calls.length===2,'output cap: expected the refusal and one resend, got '+calls.length+' call(s) '+JSON.stringify(r.data));
+      check(calls.length===2&&calls[0].body.max_tokens===2800&&calls[1].body.max_tokens===1758,'output cap: the resend should carry max_tokens lowered to floor(2800*1000/1513*0.95)=1758, got '+JSON.stringify(calls.map(function(c){return c.body.max_tokens;})));
+      check(calls.length===2&&calls[1].t-calls[0].t<1000,'output cap: the resend must follow at once, not after Retry-After (60 s) or the minute; gap '+(calls.length===2?calls[1].t-calls[0].t:'?')+' ms');
+      check(Date.now()-t0<5000,'output cap: the whole call should take seconds, took '+(Date.now()-t0)+' ms');
+      var L=r.data.max_tokens_lowered||{};
+      check(L.from===2800&&L.to===1758&&L.limit===1000&&L.requested===1513,'output cap: the result should carry max_tokens_lowered, got '+JSON.stringify(r.data.max_tokens_lowered));
+      var f=path.join(run,'rounds','10-battle','seat-3.answer.md');
+      check(fs.existsSync(f)&&/^RATING: 8\/10/.test(fs.readFileSync(f,'utf8')),'output cap: the answer should land after the resend');
+      var e=logOf(run).filter(function(x){return x.event==='crew.answered'&&x.round==='10-battle'&&x.seat==='seat-3';}).pop()||{};
+      check(!!e.max_tokens_lowered&&e.max_tokens_lowered.from===2800&&e.max_tokens_lowered.to===1758&&e.max_tokens_lowered.limit===1000&&e.max_tokens_lowered.requested===1513&&e.reservation===2800,'output cap: the log line should carry max_tokens_lowered beside the reservation, got '+JSON.stringify({lowered:e.max_tokens_lowered,reservation:e.reservation}));
+      if(calls.length===2)console.log('output cap: max_tokens '+calls[0].body.max_tokens+' -> '+calls[1].body.max_tokens+' (Limit 1000, Requested 1513), resend after '+(calls[1].t-calls[0].t)+' ms');
+      return s1.call('crew_answer',{run:run,round:'10-battle',seat:'seat-2'});
+    }).then(function(r){
+      var done=Date.now();
+      var calls=requests.filter(function(q){return q.url==='/v1/chat/completions'&&/CAPLOW/.test(q.body.messages[1].content);});
+      check(calls.length===1,'cap under the floor: expected one request and no resend, got '+calls.length);
+      check(r.isError&&r.data.ok===false&&r.data.missing===true&&r.data.reason==='Groq allows 300 output tokens per request on this model\'s tier; a 600-word reply needs about 1,000; the seat is missing this round (a paid tier, or a smaller cap).','cap under the floor: the reason should name the limit, the cap and the need, got '+JSON.stringify(r.data));
+      check(calls.length===1&&done-calls[0].t<1000,'cap under the floor: the refusal must return at once, not after Retry-After; '+(calls.length===1?done-calls[0].t:'?')+' ms');
+      check(!fs.existsSync(path.join(run,'rounds','10-battle','seat-2.answer.md')),'cap under the floor: an answer file appeared');
+      var e=logOf(run).filter(function(x){return x.event==='crew.failed'&&x.round==='10-battle'&&x.seat==='seat-2';}).pop()||{};
+      check(e.status===429&&!!e.output_cap&&e.output_cap.limit===300&&e.output_cap.requested===1513&&e.output_cap.max_tokens===2800&&e.output_cap.lowered_to===527&&e.output_cap.needed===1000&&e.output_cap.cap_words===600&&/^Groq allows 300 output tokens/.test(e.reason),'cap under the floor: crew.failed should carry output_cap with the numbers, got '+JSON.stringify(e.output_cap)+' '+e.reason);
+      console.log('cap under the floor: '+(r.data&&r.data.reason));
     });
   }).then(function(){
     // Misuse.
