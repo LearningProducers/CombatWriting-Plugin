@@ -26,6 +26,18 @@
 // Seat key line (a failed script, nothing to show), and a third picker after the same short form
 // (a host that will not print never loops).
 //
+// What the transcript holds when this hook runs (measured 2026-10-26 on the Claude Code version
+// in PROVED_ON, on the founder's session and the build session's own, issue 68): a message's records (its thinking,
+// text and tool_use blocks) are appended together with the message's tool results, after the
+// tool has run and before the next model call. So the message that holds the picker call is NOT
+// on disk when PreToolUse fires, and text printed in that same message is invisible here; the
+// text of every earlier message is on disk. The skills therefore order the print into the message
+// before the picker's: the short form, the opener's line and the round line, then one script call
+// (render-state.js --write, which the screen reads), then the picker in the next message. The
+// deny reason says so. The first version of this hook (cw 0.8.2 to 0.8.4) did not know this and
+// refused a faithful print made in the picker's own message; the loop cap let the third call
+// through, and the host gave up after two.
+//
 // Output on deny: one JSON line, hookSpecificOutput.permissionDecision "deny" with the reason,
 // exit 0 (the documented form). On allow: nothing, exit 0. The hook reads the transcript; it
 // writes nothing, calls nothing, reads no environment, and prints nothing from the draft: the
@@ -139,5 +151,5 @@ process.stdin.on('end',function(){
   if(opener)required.push({name:'the opener\'s line',value:opener.line});
   var missing=required.filter(function(r){return shown.indexOf(normalize(r.value))<0;});
   if(!missing.length)return allow();
-  return deny('the short form render-record.js --short printed has not been shown to the person. Print it exactly as printed (the Crew line, any Seats line, the legend when printed, the scoreboard, the Board line, the Seat key line), then the opener\'s line when it failed (it carries the command to open the board by hand), then one line naming the round, then open the picker again. Missing: '+missing.map(function(r){return r.name+' ("'+r.value+'")';}).join('; ')+'. Measured on Claude Code '+PROVED_ON+'; if the short form was printed and this still refuses, a newer Claude Code may keep the transcript in another shape: run `claude --version` and open an issue at '+ISSUES+' naming the version');
+  return deny('the short form render-record.js --short printed has not been shown to the person, or was shown in the same message as this picker call, which the transcript does not hold yet (a message lands with its tool result, after the tool runs). Print it exactly as printed (the Crew line, any Seats line, the legend when printed, the scoreboard, the Board line, the Seat key line), then the opener\'s line when it failed (it carries the command to open the board by hand), then one line naming the round, then run render-state.js --run <folder> --write, and open the picker in the message after that call returns. Missing: '+missing.map(function(r){return r.name+' ("'+r.value+'")';}).join('; ')+'. Measured on Claude Code '+PROVED_ON+'; if the short form was printed and this still refuses, a newer Claude Code may keep the transcript in another shape: run `claude --version` and open an issue at '+ISSUES+' naming the version');
 });
