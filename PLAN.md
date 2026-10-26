@@ -527,7 +527,7 @@ Ruled and built: the plugin puts the result on the person's screen with no host 
 
 Delivers: `hooks/show-result.js` and its `hooks.json` entry (PostToolUse, matcher `Bash`, timeout 10); `hooks/host-output.js`, `tests/host_output_check.js` and the eval grader `seat-key-shown.md` removed, the loss named (nothing holds the picker; the screen no longer depends on the host); `tests/show_result_check.js` (the real hook around the real short form and opener lines with a fake opener: 38 checks); `hook_check.js` re-pinned (three events); the battle, sparring and rules skills say the hook shows the result and the host never reprints it; CLAUDE.md, the checklist rows, both READMEs; cw 0.8.6. Not measured before shipping, by the founder's rule of the day ("build as we send"): how the terminal lays out a multi-line `systemMessage`; the first round after the merge is the measurement, and if the layout is poor the hook's message gets its own shape in the next PR.
 
-Status: delivered — 2026-10-26 — pull request open; every check and the three strict validations pass locally; the live pass is the founder's next round.
+Status: delivered — 2026-10-26 — pull request 71 open as a draft; every check (25 files) and the three strict validations pass locally; the live pass is the founder's next round.
 
 ## Part 56 — The brief uploaded once, the next piece loaded without it (issue 65, cw 0.8.4)
 
