@@ -64,6 +64,13 @@
 //     is under the floor: one request, no resend, no wait, the seat missing with a reason naming
 //     the provider's limit, the cap and what the reply needs, and crew.failed carrying output_cap.
 //     parseCapRefusal reads Groq's two shapes (OTPM, and TPM with its Used count) and nothing else.
+//   - The id scrub (issue 58, measured 2026-10-24): the fake's 500, its always-429 route and a failing
+//     catalog read carry Groq's organization clause with a stand-in id (org_01JTESTORG…) and a
+//     key-shaped string (gsk_LEAKEDKEY…); the crew_answer reason, the crew.failed line, the crew_list
+//     reason, the crew.registered line and the server's stderr carry org_[redacted] and [key redacted]
+//     and never the id or the string. scrubIds itself: the six underscore kinds, the hyphenated kinds
+//     with a digit in the tail, English compounds (user-friendly, org-wide) untouched, the four key
+//     prefixes, idempotent, and the cap refusal's numbers still parsed after the scrub.
 //   - The window arithmetic (crew-lib makeWindow) waits when the next call would cross the wall or
 //     the request limit, and not otherwise.
 //   - The listed plugin's checker, flip check and record then read the outside seat's answer as
@@ -95,9 +102,12 @@ var proj=fs.mkdtempSync(path.join(os.tmpdir(),'cw-crew-'));
 
 // ---- the fake provider ---------------------------------------------------------------------
 var requests=[]; var rateLimited=false;
-// Groq's per-request output cap refusal, the shape measured 2026-10-24 (the organization clause the
-// real message carries is left out here; scrubbing it is its own issue).
-function capMessage(model,limit){ return 'Request too large for model `'+model+'` service tier `on_demand` on output tokens per minute (OTPM): Limit '+limit+', Requested 1513. The request\'s expected output tokens exceed the enforced limit; reduce max_tokens (or the request\'s expected output) and try again. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing'; }
+// Groq's per-request output cap refusal, the shape measured 2026-10-24, with the organization clause the
+// real message carries and a stand-in id (issue 58: the scrub must leave the numbers readable). The
+// stand-ins below are shaped so that the scrub catches them and a credential sweep over this file does
+// not (no 16-character run after a key prefix, no 8-character run after user_ or org-).
+var ORG='org_01JTESTORG0000000000000000', KEYISH='gsk_LEAKED_KEY_VALUE_0000';
+function capMessage(model,limit){ return 'Request too large for model `'+model+'` in organization `'+ORG+'` service tier `on_demand` on output tokens per minute (OTPM): Limit '+limit+', Requested 1513. The request\'s expected output tokens exceed the enforced limit; reduce max_tokens (or the request\'s expected output) and try again. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing'; }
 var fake=http.createServer(function(req,res){
   var chunks=[]; req.on('data',function(c){chunks.push(c);}); req.on('end',function(){
     var body=chunks.length?JSON.parse(Buffer.concat(chunks).toString('utf8')):null;
@@ -105,6 +115,8 @@ var fake=http.createServer(function(req,res){
     function json(status,obj,headers){res.writeHead(status,Object.assign({'Content-Type':'application/json'},headers||{}));res.end(JSON.stringify(obj));}
     if(req.method==='GET'&&req.url==='/v1/models'){
       if(!req.headers['authorization'])return json(401,{error:{message:'no key'}});
+      // A catalog read that fails with the organization clause (issue 58).
+      if(req.headers['authorization']==='Bearer gsk_CATALOGFAIL')return json(500,{error:{message:'catalog down for organization `'+ORG+'`'}});
       return json(200,{data:[
         {id:'openai/gpt-oss-20b',owned_by:'OpenAI',created:200,context_window:131072,max_completion_tokens:32768,active:true},
         {id:'openai/gpt-oss-120b',owned_by:'OpenAI',created:100,context_window:131072,max_completion_tokens:32768,active:true},
@@ -120,7 +132,9 @@ var fake=http.createServer(function(req,res){
     if(req.method==='POST'&&req.url==='/v1/chat/completions'){
       if(!req.headers['authorization'])return json(401,{error:{message:'no key'}});
       var user=body.messages[1].content;
-      if(/FAILME/.test(user))return json(500,{error:{message:'boom'}});
+      // The 500 and the always-429 carry the organization clause and a key-shaped string (issue 58).
+      if(/FAILME/.test(user))return json(500,{error:{message:'boom in organization `'+ORG+'` with key '+KEYISH}});
+      if(/TWICE429/.test(user))return json(429,{error:{message:'Rate limit reached for model `'+body.model+'` in organization `'+ORG+'` service tier `on_demand` on requests per minute (RPM): Limit 30, Used 30, Requested 1. Please try again in 2s.'}},{'Retry-After':'1'});
       if(/EMPTYME/.test(user))return json(200,{model:body.model,choices:[{message:{role:'assistant',content:''}}]});
       if(/RATELIMIT/.test(user)&&!rateLimited){rateLimited=true;return json(429,{error:{message:'rate limit'}},{'Retry-After':'1'});}
       // The per-request output cap: refused above 2,000 max_tokens, answered below; Retry-After rides as Groq sends it.
@@ -370,6 +384,11 @@ fake.listen(0,'127.0.0.1',function(){
       check(r.isError&&r.data.missing===true&&/HTTP 500/.test(r.data.reason)&&/missing this round/.test(r.data.reason),'failed call: '+JSON.stringify(r.data));
       check(!fs.existsSync(path.join(run,'rounds','08-battle','seat-2.answer.md')),'failed call: an answer file appeared');
       check(logOf(run).some(function(e){return e.event==='crew.failed'&&e.round==='08-battle'&&e.seat==='seat-2'&&e.status===500;}),'failed call: crew.failed not logged');
+      // The id scrub (issue 58): the provider's prose reaches the result and the log with the marks, never the id.
+      check(r.data.reason==='HTTP 500: boom in organization `org_[redacted]` with key [key redacted]. The seat is missing this round.','scrub on a 500: the reason should carry the marks, got '+r.data.reason);
+      check(JSON.stringify(r.raw).indexOf('TESTORG')<0&&JSON.stringify(r.raw).indexOf('LEAKEDKEY')<0,'scrub on a 500: the tool result carries the id or the key shape');
+      var fl=logOf(run).filter(function(e){return e.event==='crew.failed'&&e.round==='08-battle'&&e.seat==='seat-2';})[0]||{};
+      check(/org_\[redacted\]/.test(fl.reason)&&/\[key redacted\]/.test(fl.reason)&&fl.reason.indexOf('TESTORG')<0,'scrub on a 500: crew.failed should carry the marks, got '+fl.reason);
       return s1.call('crew_answer',{run:run,round:'08-battle',seat:'seat-3'});
     }).then(function(r){
       check(r.isError&&r.data.missing===true&&/empty reply/.test(r.data.reason)&&!fs.existsSync(path.join(run,'rounds','08-battle','seat-3.answer.md')),'empty reply: '+JSON.stringify(r.data));
@@ -417,6 +436,22 @@ fake.listen(0,'127.0.0.1',function(){
       var e=logOf(run).filter(function(x){return x.event==='crew.failed'&&x.round==='10-battle'&&x.seat==='seat-2';}).pop()||{};
       check(e.status===429&&!!e.output_cap&&e.output_cap.limit===300&&e.output_cap.requested===1513&&e.output_cap.max_tokens===2800&&e.output_cap.lowered_to===527&&e.output_cap.needed===1000&&e.output_cap.cap_words===600&&/^Groq allows 300 output tokens/.test(e.reason),'cap under the floor: crew.failed should carry output_cap with the numbers, got '+JSON.stringify(e.output_cap)+' '+e.reason);
       console.log('cap under the floor: '+(r.data&&r.data.reason));
+    });
+  }).then(function(){
+    // The id scrub on the site measured 2026-10-24 (issue 58): a 429 that still refuses after the wait carries
+    // Groq's organization clause; the reason, the result and the log carry org_[redacted] and never the id.
+    fs.mkdirSync(path.join(run,'rounds','11-battle'),{recursive:true});
+    fs.writeFileSync(path.join(run,'rounds','11-battle','seat-2.packet.md'),'# Packet for seat-2\n\nTWICE429 please rate this.\n');
+    return s1.call('crew_answer',{run:run,round:'11-battle',seat:'seat-2'}).then(function(r){
+      var calls=requests.filter(function(q){return q.url==='/v1/chat/completions'&&/TWICE429/.test(q.body.messages[1].content);});
+      check(r.isError&&r.data.missing===true&&calls.length===2&&/^HTTP 429: Rate limit reached for model `[^`]+` in organization `org_\[redacted\]` service tier `on_demand` on requests per minute \(RPM\): Limit 30, Used 30, Requested 1\. Please try again in 2s\. \(rate limit still hit after waiting\)\. The seat is missing this round\.$/.test(r.data.reason),'scrub on a 429: expected two attempts and the marked reason, got '+calls.length+' call(s), reason '+(r.data&&r.data.reason));
+      check(JSON.stringify(r.raw).indexOf('TESTORG')<0,'scrub on a 429: the tool result carries the id');
+      var e=logOf(run).filter(function(x){return x.event==='crew.failed'&&x.round==='11-battle';}).pop()||{};
+      check(e.status===429&&/org_\[redacted\]/.test(e.reason)&&e.reason.indexOf('TESTORG')<0,'scrub on a 429: crew.failed should carry the mark and never the id, got '+e.reason);
+      console.log('scrubbed 429 reason: '+(r.data&&r.data.reason));
+      var wholeLog=fs.readFileSync(path.join(run,'log.jsonl'),'utf8');
+      check(wholeLog.indexOf('TESTORG')<0&&wholeLog.indexOf('LEAKEDKEY')<0,'scrub: the run\'s log.jsonl carries the id or the key shape');
+      check(s1.stderr().indexOf('TESTORG')<0&&s1.stderr().indexOf('LEAKEDKEY')<0,'scrub: the server\'s stderr carries the id or the key shape');
     });
   }).then(function(){
     // Misuse.
@@ -528,6 +563,26 @@ fake.listen(0,'127.0.0.1',function(){
       s4.stop();
     });
   }).then(function(){
+    // A catalog read that fails with the organization clause (issue 58): the crew_list reason and the
+    // crew.registered line carry the mark, never the id; so does the server's stderr.
+    requests.length=0;
+    var s5=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'gsk_CATALOGFAIL'}));
+    var run5=node('new-run.js',['--draft','draft.md','--name','catalog','--model','Test Model']).stdout.trim();
+    return s5.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'t',version:'1'}}).then(function(){
+      s5.notify('notifications/initialized');
+      return s5.call('crew_list');
+    }).then(function(r){
+      var a=(r.data.seats||[]).filter(function(s){return s.slot==='groq-a';})[0]||{};
+      check(a.available===false&&a.reason==='Groq did not answer: catalog read failed: HTTP 500 catalog down for organization `org_[redacted]`','scrub on the catalog: the reason should carry the mark, got '+JSON.stringify(a));
+      check(JSON.stringify(r.raw).indexOf('TESTORG')<0,'scrub on the catalog: the tool result carries the id');
+      return s5.call('crew_register',{run:run5});
+    }).then(function(r){
+      var line=logOf(run5).filter(function(e){return e.event==='crew.registered';})[0]||{unavailable:[]};
+      check(!r.isError&&r.data.added.length===0&&(line.unavailable||[]).some(function(u){return /org_\[redacted\]/.test(u.reason);})&&fs.readFileSync(path.join(run5,'log.jsonl'),'utf8').indexOf('TESTORG')<0,'scrub on the catalog: crew.registered should carry the mark and never the id');
+      check(s5.stderr().indexOf('TESTORG')<0&&s5.stderr().indexOf('CATALOGFAIL')<0,'scrub on the catalog: the server\'s stderr carries the id or the key');
+      s5.stop();
+    });
+  }).then(function(){
     // The window arithmetic.
     var w=lib.makeWindow(), b={hard_cap:8000,rpm:3};
     check(w.waitFor(3000,b)===0,'window: an empty window should not wait');
@@ -552,6 +607,16 @@ fake.listen(0,'127.0.0.1',function(){
     check(lib.resolveSeat({match:'^qwen/',prefer:'newest'},cat,{}).id==='qwen/b','resolve: newest qwen');
     check(lib.resolveSeat({match:'^qwen/',prefer:'newest'},cat,{'qwen/b':1}).id==='qwen/a','resolve: a taken id is skipped');
     check(lib.resolveSeat({match:'^nope/',prefer:'newest'},cat,{})===null,'resolve: no match is null');
+    // The id scrub itself (issue 58).
+    check(lib.scrubIds('in organization `'+ORG+'` for user_ABC123 and proj_12345678, acct_a1b2c3d4, team_X9Y8Z7W6, key_0123456789')==='in organization `org_[redacted]` for user_[redacted] and proj_[redacted], acct_[redacted], team_[redacted], key_[redacted]','scrubIds: the six underscore kinds, got '+lib.scrubIds('in organization `'+ORG+'` for user_ABC123 and proj_12345678, acct_a1b2c3d4, team_X9Y8Z7W6, key_0123456789'));
+    check(lib.scrubIds('organization org-AbC1234 and user-u1s2e3r4x5y6z7')==='organization org-[redacted] and user-[redacted]','scrubIds: the hyphenated kinds with a digit in the tail, got '+lib.scrubIds('organization org-AbC1234 and user-u1s2e3r4x5y6z7'));
+    check(lib.scrubIds('a user-friendly, org-wide, team-level note about key_value and org_id')==='a user-friendly, org-wide, team-level note about key_value and org_id','scrubIds: English compounds and short tails must stand');
+    check(lib.scrubIds('keys sk-proj-abcdef1 '+KEYISH+' xai-abcdefghijklmnop pplx-abcdefghijklmnop and sk_live_abcdefghijklmnop')==='keys [key redacted] [key redacted] [key redacted] [key redacted] and [key redacted]','scrubIds: the key-shaped strings, got '+lib.scrubIds('keys sk-proj-abcdef1 '+KEYISH+' xai-abcdefghijklmnop pplx-abcdefghijklmnop and sk_live_abcdefghijklmnop'));
+    check(lib.scrubIds('task-abcdefghijkl and a gsk_short')==='task-abcdefghijkl and a gsk_short','scrubIds: a prefix inside a word and a short tail must stand');
+    check(lib.scrubIds(null)===''&&lib.scrubIds(undefined)===''&&lib.scrubIds('')===''&&lib.scrubIds(42)==='42','scrubIds: nothing in, nothing out; a number as its digits');
+    check(lib.scrubIds(lib.scrubIds(ORG))==='org_[redacted]','scrubIds: idempotent');
+    var scrubbedCap=lib.parseCapRefusal(lib.scrubIds(capMessage('qwen/x',1000)));
+    check(!!scrubbedCap&&scrubbedCap.kind==='output'&&scrubbedCap.limit===1000&&scrubbedCap.requested===1513&&lib.scrubIds(capMessage('qwen/x',1000)).indexOf('TESTORG')<0,'scrubIds: the cap refusal\'s numbers survive the scrub and the id does not');
     var src=fs.readFileSync(path.join(crewDir,'server.js'),'utf8')+fs.readFileSync(path.join(crewDir,'crew-lib.js'),'utf8')+fs.readFileSync(path.join(crewDir,'providers.json'),'utf8');
     check(!/gpt-oss-120b|qwen3|grok-\d|sonar-[a-z]|gpt-4|gpt-5|mistral-large-\d|gemini-\d/.test(src),'a model id is pinned in the add-on');
   }).catch(function(err){

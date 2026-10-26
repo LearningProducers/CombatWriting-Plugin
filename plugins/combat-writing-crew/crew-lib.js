@@ -278,8 +278,26 @@ function capRefusalReason(providerName,limit,capWords,needed){
   return providerName+' allows '+limit.toLocaleString()+' output tokens per request on this model\'s tier; '+(capWords?'a '+capWords+'-word reply needs about '+needed.toLocaleString():'a reply needs at least '+needed.toLocaleString())+'; the seat is missing this round (a paid tier, or a smaller cap)';
 }
 
+// The id scrub (issue 58, measured 2026-10-24): a provider's error text can name the account the
+// key belongs to (Groq's "in organization `org_…`"), and the add-on used to copy that prose as it
+// stood into the crew.failed line, the tool result and a crew_list reason. scrubIds runs over
+// every provider or thrown message before it reaches a log line, a tool result or stderr. It
+// replaces an account-id token, one of org, user, proj, acct, team or key, an underscore and six
+// or more letters or digits, with <kind>_[redacted]; the hyphenated form OpenAI's ids take
+// (org-…, user-…) the same way, but only when the tail carries a digit, so an English compound
+// (user-friendly, org-wide, team-level) stands; and a key-shaped string, sk, gsk, xai or pplx
+// followed by a separator and twelve or more key characters, with [key redacted]. The numbers a
+// cap refusal carries (Limit, Requested) are untouched, so parseCapRefusal still reads them.
+// Named limit: a key with no prefix (Gemini's, Mistral's) is not key-shaped by this rule.
+var ID_UNDERSCORE=/\b(org|user|proj|acct|team|key)_[A-Za-z0-9]{6,}\b/g;
+var ID_HYPHEN=/\b(org|user|proj|acct|team|key)-(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{6,}\b/g;
+var KEY_SHAPE=/\b(sk|gsk|xai|pplx)[-_][A-Za-z0-9_-]{12,}/g;
+function scrubIds(text){
+  return String(text===undefined||text===null?'':text).replace(KEY_SHAPE,'[key redacted]').replace(ID_UNDERSCORE,'$1_[redacted]').replace(ID_HYPHEN,'$1-[redacted]');
+}
+
 module.exports={readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
   loadProviders:loadProviders,keyFor:keyFor,keyShape:keyShape,keyHint:keyHint,keyNext:keyNext,keyField:keyField,CONFIGURE_COMMAND:CONFIGURE_COMMAND,CAUSES:CAUSES,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
   eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,
-  parseCapRefusal:parseCapRefusal,tokensForCap:tokensForCap,loweredMaxTokens:loweredMaxTokens,capRefusalReason:capRefusalReason,TOKENS_PER_WORD:TOKENS_PER_WORD,FIRST_LINE_TOKENS:FIRST_LINE_TOKENS,CAP_MARGIN:CAP_MARGIN,
+  parseCapRefusal:parseCapRefusal,tokensForCap:tokensForCap,loweredMaxTokens:loweredMaxTokens,capRefusalReason:capRefusalReason,TOKENS_PER_WORD:TOKENS_PER_WORD,FIRST_LINE_TOKENS:FIRST_LINE_TOKENS,CAP_MARGIN:CAP_MARGIN,scrubIds:scrubIds,
   NO_RATING_LINE:NO_RATING_LINE,packetRules:packetRules,wordCount:wordCount,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer};

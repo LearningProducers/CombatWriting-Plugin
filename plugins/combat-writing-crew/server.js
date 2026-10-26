@@ -38,6 +38,10 @@
 //
 // Transport: newline-delimited JSON-RPC 2.0 on stdin/stdout (the MCP stdio transport).
 // Diagnostics go to stderr only. Nothing it writes carries the credit line (ruled 2026-10-12).
+// A provider's error text, and any thrown error's message, passes through crew-lib.js scrubIds
+// (issue 58) before it reaches a log line, a tool result or stderr: an account id the provider
+// put in its prose (Groq's "in organization `org_…`") lands as org_[redacted], a key-shaped
+// string as [key redacted].
 
 var fs=require('fs'), path=require('path');
 var lib=require('./crew-lib.js');
@@ -48,7 +52,7 @@ var windows={};  // per provider id
 var queues={};   // per provider id: a promise chain so calls to one provider go one at a time
 var catalogs={}; // per provider id: {at, list}
 
-function log(msg){ process.stderr.write('[combat-writing-crew] '+msg+'\n'); }
+function log(msg){ process.stderr.write('[combat-writing-crew] '+lib.scrubIds(msg)+'\n'); }
 function providersTable(){ return lib.loadProviders(); }
 function providerById(id){ return providersTable().providers.filter(function(p){return p.id===id;})[0]; }
 
@@ -61,7 +65,7 @@ function fetchCatalog(provider,key){
   var headers={};
   if(key)headers['Authorization']='Bearer '+key;
   return lib.request('GET',provider.base_url.replace(/\/$/,'')+'/models',headers,null,30000).then(function(res){
-    if(res.status!==200)throw new Error('catalog read failed: HTTP '+res.status+(res.json&&res.json.error&&res.json.error.message?' '+res.json.error.message:''));
+    if(res.status!==200)throw new Error('catalog read failed: HTTP '+res.status+(res.json&&res.json.error&&res.json.error.message?' '+lib.scrubIds(res.json.error.message):''));
     var records=res.json&&(res.json.data||res.json.models||res.json);
     var list=lib.eligibleCatalog(records,provider.catalog);
     catalogs[provider.id]={at:now,list:list};
@@ -106,7 +110,7 @@ function listSeats(){
         });
       },function(err){
         provider.seats.forEach(function(s){
-          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:provider.name+' did not answer: '+err.message});
+          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:provider.name+' did not answer: '+lib.scrubIds(err.message)});
         });
       });
     });
@@ -248,7 +252,7 @@ function answer(args){
         return {ok:false,seat:seatId,missing:true,output_cap:c,reason:capReason+'.'};
       }
       if(res.status!==200){
-        var msg=res.json&&res.json.error&&res.json.error.message?res.json.error.message:(res.text||'').slice(0,200);
+        var msg=lib.scrubIds(res.json&&res.json.error&&res.json.error.message?res.json.error.message:(res.text||'').slice(0,200));
         var reason='HTTP '+res.status+(msg?': '+msg:'')+(res.status===429?(out.max_tokens_lowered?' (still refused after max_tokens was lowered to '+out.max_tokens_lowered.to+')':' (rate limit still hit after waiting)'):res.status===413?' (payload too large for the provider)':res.status===401?' (the key was refused)':'');
         lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,model_requested:seat.model,file:path.relative(runDir,packetPath),status:res.status,waited_ms:out.waited_ms,max_tokens_lowered:out.max_tokens_lowered||null,reason:reason});
         return {ok:false,seat:seatId,missing:true,reason:reason+'. The seat is missing this round.'};
@@ -288,8 +292,9 @@ function answer(args){
   });
   queues[provider.id]=run.catch(function(){});
   return run.catch(function(err){
-    lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,model_requested:seat.model,reason:err.message});
-    return {ok:false,seat:seatId,missing:true,reason:err.message+'. The seat is missing this round.'};
+    var why=lib.scrubIds(err.message);
+    lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,model_requested:seat.model,reason:why});
+    return {ok:false,seat:seatId,missing:true,reason:why+'. The seat is missing this round.'};
   });
 }
 // ---- MCP over stdio ------------------------------------------------------------------------
@@ -320,7 +325,7 @@ function handle(msg){
     else if(name==='crew_register')p=Promise.resolve().then(function(){return registerSeats(path.resolve(String(args.run||'')));}).then(function(r){return textResult(r);});
     else if(name==='crew_answer')p=Promise.resolve().then(function(){return answer(args);}).then(function(r){return textResult(r,!r.ok);});
     else p=Promise.reject(new Error('unknown tool '+name));
-    return p.catch(function(err){return textResult({error:err.message},true);});
+    return p.catch(function(err){return textResult({error:lib.scrubIds(err.message)},true);});
   }
   return Promise.reject({code:-32601,message:'method not found: '+method});
 }
@@ -343,7 +348,7 @@ process.stdin.on('data',function(chunk){
       return;
     }
     handle(msg).then(function(result){send({jsonrpc:'2.0',id:msg.id,result:result});},function(err){
-      send({jsonrpc:'2.0',id:msg.id,error:err&&err.code?err:{code:-32000,message:(err&&err.message)||String(err)}});
+      send({jsonrpc:'2.0',id:msg.id,error:err&&err.code?err:{code:-32000,message:lib.scrubIds((err&&err.message)||String(err))}});
     });
   });
 });
