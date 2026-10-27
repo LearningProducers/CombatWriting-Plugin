@@ -744,4 +744,4 @@ Delivers: `scripts/lib.js`, `scripts/packet.js`, `scripts/check-answer.js`, `scr
 
 Live pass on a copy of the SlotCycle run, 2026-10-27, before the pull request opened: a round 06 SN formed as SN4; its packet carried the founder's prompt and no default ask; round 05 re-checked named seat-2's rewrite a copy of claude-fable-5-1's at 84 in 100; the board carried no fence line and every reading opened on "Jeff,".
 
-Status: in progress — 2026-10-27 — built on branch `claude/105-five-fixes`; every check and the three strict validations pass locally; the live pass on the founder's own next round after the update: the forming line's count agreeing with the board, no default ask under the prompt, a copy named when one happens, no fence lines on the board, two standard voices.
+Status: delivered — 2026-10-27 — pull request 110 open as a draft; every check and the three strict validations pass locally; the live pass on the founder's own next round after the update: the forming line's count agreeing with the board, no default ask under the prompt, a copy named when one happens, no fence lines on the board, two standard voices.
