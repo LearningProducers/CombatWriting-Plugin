@@ -439,6 +439,17 @@ var lib=require(path.join(scripts,'lib.js'));
 var tk=lib.roundTask(run,'03-battle');
 check(tk.kind==='SFQ'&&tk.text==='Where do you overlap and where do you split?'&&tk.contract==='rating'&&tk.rerate===true&&tk.first_round===false,'roundTask: 03-battle should be the SFQ with its text: '+JSON.stringify(tk));
 check(lib.taskLine(tk)==='SFQ: “Where do you overlap and where do you split?”'&&lib.ratingLine(tk,'03-battle')==='a new rating asked','taskLine/ratingLine: SFQ round wrong: '+lib.taskLine(tk)+' / '+lib.ratingLine(tk,'03-battle'));
+check(tk.n===1&&lib.kindLabel(tk)==='SFQ','roundTask: the first SFQ of the run is n 1 with its bare name: '+JSON.stringify(tk));
+// The count (issue 99): a second SFQ later in the run is SFQ2 on the task line; the kinds count apart.
+write(path.join(proj,'sfq2.md'),'Which line moved you?\n');
+var p9=node('packet.js',['--run',run,'--round','09-battle','--seat','seat-1','--sfq','sfq2.md']);
+check(p9.status===0,'09-battle SFQ packet: '+p9.stderr);
+var tk9=lib.roundTask(run,'09-battle');
+check(tk9.kind==='SFQ'&&tk9.n===2&&lib.kindLabel(tk9)==='SFQ2'&&lib.taskLine(tk9)==='SFQ2: “Which line moved you?”','roundTask: the second SFQ should be SFQ2: '+JSON.stringify(tk9)+' / '+lib.taskLine(tk9));
+check(lib.roundTask(run,'03-battle').n===1,'roundTask: a later SFQ never renumbers the first');
+check(lib.announcedOrdinal([{event:'round.announced',round:'01-battle',kind:'SN'},{event:'round.announced',round:'02-battle',kind:'SFQ'},{event:'round.announced',round:'02-battle',kind:'SN'},{event:'round.announced',round:'03-battle',kind:'SFQ'}],'SFQ','04-battle')===2,'announcedOrdinal: counts the last announcement per earlier round');
+check(lib.announcedOrdinal([{event:'round.announced',round:'01-battle',kind:'SN'}],'SN','01-battle')===1&&lib.announcedOrdinal([],'seat','02-battle')===0,'announcedOrdinal: the round itself is not counted; seat lines have no count');
+fs.rmSync(path.join(run,'rounds','09-battle'),{recursive:true,force:true});
 var tk1=lib.roundTask(run,'01-sparring');
 check(tk1.kind==='plain'&&tk1.text===lib.DEFAULT_READ_PROMPT&&lib.taskLine(tk1).indexOf('the default prompt: “')===0&&lib.ratingLine(tk1,'01-sparring')==='a rating asked','roundTask: 01-sparring should be plain with the default read prompt: '+JSON.stringify(tk1));
 node('packet.js',['--run',run,'--round','11-battle','--seat','seat-2','--n','n.md']);

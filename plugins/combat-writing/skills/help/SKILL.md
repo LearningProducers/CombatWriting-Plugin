@@ -74,6 +74,7 @@ Every sparring and battle result ends with a picker instead of a line to retype 
 - **N, navigation** (`n:`): the same new guidance put to every seat individually. No seat sees another's answer; each seat has its own earlier turn.
 - **SN, synthesis navigation** (`sn:`): each seat's synthesis is shared with the others plus a new prompt; everyone answers and everyone reads each other.
 - **SFQ, synthesis focus question** (`sfq:`): the crew's answers are shared plus a new question.
+- **The count**: the second round of a kind in a run carries its number, SN then SN2, SFQ then SFQ2, on the board's round line, in the record and in the forming line; the first of a kind keeps its bare name. Rounds themselves stay numbered in order whatever their kind.
 - **Seat line** (`seat-2:`): a note or question to one seat only, alone or with any round term. A round of seat lines alone goes to the named seats; the record marks the others "not asked".
 - **rerate**: the round asks for a rating, the rating line first. Without it a battle round carries no rating and the record shows it as a critique.
 - **Two sections** in a round that shares (SN, SFQ, or a plain round after the first): each seat writes **Answer**, its reply to your prompt with its verdict first, then **To the crew**, where it agrees or disagrees with the other seats, each named by its model, quoted word for word, or asks them something. The board frames the Answer; the crew part is under it.

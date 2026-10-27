@@ -48,7 +48,7 @@ sj.seats.push({id:'seat-2',model:'openai/gpt-oss-120b',company:'OpenAI',served_b
 sj.seats.push({id:'seat-3',model:'qwen/qwen3.8-27b',company:'Alibaba',served_by:'Groq',provider:'groq',slot:'groq-b',source:'test fixture'});
 fs.writeFileSync(path.join(run,'seats.json'),JSON.stringify(sj,null,2)+'\n');
 var a2=node('announce.js',['--run',run,'--round','03-battle','--kind','n','--to','seat-1,seat-2,seat-3','--rerate']);
-check(a2.status===0&&a2.stdout==='Round 03 forming: N to 3 seats (seat-1 Test Model, seat-2 gpt-oss, seat-3 qwen), rerate\n','three seats, rerate, kind in any case: got '+JSON.stringify(a2.stdout));
+check(a2.status===0&&a2.stdout==='Round 03 forming: N2 to 3 seats (seat-1 Test Model, seat-2 gpt-oss, seat-3 qwen), rerate\n','three seats, rerate, kind in any case, the second N of the run (issue 99): got '+JSON.stringify(a2.stdout));
 var a3=node('announce.js',['--run',run,'--round','04-battle','--kind','seat','--to','seat-2, seat-3']);
 check(a3.status===0&&a3.stdout==='Round 04 forming: seat lines to 2 seats (seat-2 gpt-oss, seat-3 qwen)\n','seat lines to two: got '+JSON.stringify(a3.stdout));
 check(a3.stdout.indexOf('seat-1')<0,'a seat the round does not go to must not be named');
@@ -58,9 +58,17 @@ check(a4.status===0&&/^Round 05 forming: a seat line to 1 seat \(seat-2 gpt-oss\
   var r=node('announce.js',['--run',run,'--round','02-sparring','--kind',k[0],'--to','seat-1,seat-2,seat-3']);
   check(r.status===0&&r.stdout.indexOf('Round 02 forming: '+k[1]+' to 3 seats (')===0,'kind '+k[0]+' should read "'+k[1]+'", got '+JSON.stringify(r.stdout));
 });
+// The count (issue 99): round 02's last announcement above was debate, so an SFQ on round 07 is the
+// first SFQ; one on round 08 is SFQ2; a seat line never counts.
+var a6=node('announce.js',['--run',run,'--round','07-battle','--kind','sfq','--to','seat-1,seat-2,seat-3']);
+check(a6.status===0&&a6.stdout.indexOf('Round 07 forming: SFQ to 3 seats (')===0,'first SFQ keeps its bare name: got '+JSON.stringify(a6.stdout));
+var a7=node('announce.js',['--run',run,'--round','08-battle','--kind','SFQ','--to','seat-1,seat-2,seat-3']);
+check(a7.status===0&&a7.stdout.indexOf('Round 08 forming: SFQ2 to 3 seats (')===0,'second SFQ forms as SFQ2: got '+JSON.stringify(a7.stdout));
+var a8=node('announce.js',['--run',run,'--round','09-battle','--kind','seat','--to','seat-2']);
+check(a8.status===0&&/forming: a seat line to 1 seat/.test(a8.stdout)&&!/seat line2/.test(a8.stdout),'seat lines carry no count: got '+JSON.stringify(a8.stdout));
 var a5=node('announce.js',['--run',run,'--round','06-final','--kind','final','--to','seat-1,seat-2,seat-3','--rerate']);
 check(a5.status===0&&a5.stdout==='Round 06 forming: the final reads to 3 seats (seat-1 Test Model, seat-2 gpt-oss, seat-3 qwen)\n','final reads never say rerate, got '+JSON.stringify(a5.stdout));
-check(logOf(run).filter(function(e){return e.event==='round.announced';}).length===11,'every accepted announce logs one line');
+check(logOf(run).filter(function(e){return e.event==='round.announced';}).length===14,'every accepted announce logs one line');
 
 // Refusals: exit 2, nothing logged.
 var count=logOf(run).length;

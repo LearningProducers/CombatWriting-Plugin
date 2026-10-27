@@ -631,8 +631,36 @@ function roundContract(runDir,round,log){
 // 'cold' for the cold read; 'final' for the final reads; 'plain' with the default prompt the
 // packet sent. A round with no packet at all is 'plain' with no text.
 var TASK_LABELS=[['SFQ','Synthesis focus question (SFQ): '],['SN','Synthesis navigation (SN): '],['N','Navigation (N): '],['FQ','Focus question (FQ): ']];
+var TASK_KINDS=TASK_LABELS.map(function(t){return t[0];});
+// The task with its count within the run (issue 99, 2026-10-27, the founder's words: "it ought to
+// say SFQ2 because it was the second one"): `n` is which of its kind this round is, counted per
+// kind over the run's rounds in order for the four kinds the packet labels (FQ, N, SN, SFQ), and
+// 0 for every other kind. The first of a kind keeps its bare name; the second is SN2, SFQ2. Read
+// from the packets at render time, so a run already on disk reads the same way once updated.
 function roundTask(runDir,round,log){
   log=log||readLog(runDir);
+  var out=roundTaskBare(runDir,round,log);
+  out.n=0;
+  if(TASK_KINDS.indexOf(out.kind)>=0){
+    var n=1;
+    listRounds(runDir).forEach(function(r){ if(r<round&&roundTaskBare(runDir,r,log).kind===out.kind)n++; });
+    out.n=n;
+  }
+  return out;
+}
+// The kind with its count: SN, SN2, SFQ2; the other kinds as they are.
+function kindLabel(task){ return task.kind+(task.n>1?String(task.n):''); }
+// The same count before any packet exists, for the forming line (announce.js): one more than the
+// rounds before this one whose last announcement was of this kind. A round announced and never
+// built counts here and not in roundTask; the two agree on every round that ran.
+function announcedOrdinal(log,kind,round){
+  if(TASK_KINDS.indexOf(kind)<0)return 0;
+  var last={};
+  log.forEach(function(e){ if(e.event==='round.announced'&&e.round&&e.round<round)last[e.round]=e.kind; });
+  var n=1; Object.keys(last).forEach(function(r){ if(last[r]===kind)n++; });
+  return n;
+}
+function roundTaskBare(runDir,round,log){
   var contract=roundContract(runDir,round,log);
   if(isFinalRound(round))return {kind:'final',text:null,contract:'final',rerate:false,first_round:false};
   var line=null; for(var i=0;i<log.length;i++){ var e=log[i]; if(e.event==='packet.built'&&e.round===round){line=e;break;} }
@@ -657,14 +685,14 @@ function roundTask(runDir,round,log){
   return out;
 }
 // One phrase for the task, for the round strip, the record and the round history:
-// `SN: “text”`, `seat lines`, `cold read, the draft alone`, `final reads: S/N ratio and red
-// flags`, or `the default prompt: “text”`.
+// `SN: “text”` (`SN2: “text”` for the second SN of the run, issue 99), `seat lines`, `cold read,
+// the draft alone`, `final reads: S/N ratio and red flags`, or `the default prompt: “text”`.
 function taskLine(task){
   if(task.kind==='final')return 'final reads: S/N ratio and red flags';
   if(task.kind==='seat')return 'seat lines';
   if(task.kind==='cold')return 'cold read, the draft alone';
   if(task.kind==='plain')return task.text?'the default prompt: “'+task.text+'”':'no task recorded';
-  return task.kind+': “'+task.text+'”';
+  return kindLabel(task)+': “'+task.text+'”';
 }
 // What the round asked for, in three words: no rating, a new rating, or a rating.
 function ratingLine(task,round){
@@ -1267,7 +1295,7 @@ module.exports={
   PROJECT_BRIEF_FILE:PROJECT_BRIEF_FILE,PROJECT_BRIEF_REL:PROJECT_BRIEF_REL,PROJECT_BRIEF_KEPT_LINE:PROJECT_BRIEF_KEPT_LINE,projectBriefPath:projectBriefPath,briefSourceOf:briefSourceOf,briefWords:briefWords,briefLine:briefLine,
   BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
-  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
   STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,roundCell:roundCell,finalCell:finalCell,finalText:finalText,bandOf:bandOf,runState:runState
 };
