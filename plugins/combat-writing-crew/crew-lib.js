@@ -267,7 +267,7 @@ var SENTENCE_CUT_WINDOW=60;
 function truncateAnswer(text,cap,read,contract){
   if(!cap||wordCount(text)<=cap)return null;
   var returned=wordCount(text);
-  var re=read==='sn'?/^S\/N RATIO: \d{1,3}%$/:read==='redflag'?/^(NO RED FLAGS|RED FLAGS FOUND: \d+)$/:contract==='critique'?null:/^RATING: \d{1,2}\/10$/;
+  var re=read==='sn'?/^S\/N RATIO: \d{1,3}%$/:read==='redflag'?/^(NO RED FLAGS|RED FLAGS FOUND: \d+)$/:(contract==='critique'||contract==='crew'||read==='crew')?null:/^RATING: \d{1,2}\/10$/;
   var lines=text.split('\n'), head=null, moved=false;
   if(re){
     for(var i=0;i<lines.length;i++){

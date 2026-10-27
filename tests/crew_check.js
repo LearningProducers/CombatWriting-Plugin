@@ -157,7 +157,7 @@ var fake=http.createServer(function(req,res){
       // The two sections (issue 80): the fake writes the labels when the system line asks for them, as a seat that reads it would.
       var two=/Two sections, each opened by a line holding only its label/.test(sys);
       // On a retry marked TRUNCATEME the reply is 600-odd words with the rating line LAST, as a real seat did twice.
-      var content=/S\/N RATIO/.test(sys)?'S/N RATIO: 70%  \nSignal: the ask. Noise: the posture.   \n':/RED FLAGS/.test(sys)?'NO RED FLAGS \nNothing an informed reader would distrust.\n'
+      var content=/second pass/.test(sys)?'I agree with Test Model 1.0 (Anthropic): "The ask lands." Where I differ: the close.\n':/S\/N RATIO/.test(sys)?'S/N RATIO: 70%  \nSignal: the ask. Noise: the posture.   \n':/RED FLAGS/.test(sys)?'NO RED FLAGS \nNothing an informed reader would distrust.\n'
         :/asks for no rating/.test(sys)?(two?'Answer\n\nThe ask lands and the close still apologizes.\n\nTo the crew\n\nseat-1 wrote "The ask lands in the first line." and I agree.\n':'The ask lands and the close still apologizes. seat-1 wrote "The ask lands in the first line." and I agree.\n')
         :/TRUNCATEME/.test(user)?'Opening line. The ask lands. '+new Array(350).join('alpha ')+'\n\nSecond paragraph. '+new Array(350).join('beta ')+'\n\nRATING: 8/10  \n'
         :(retried?'RATING: 6/10  \n'+(two?'Answer\n\n':'')+'Second try, shorter.'+(two?'\n\nTo the crew\n\n':' ')+'seat-1 wrote "The ask lands in the first line." and I agree.\n':'RATING: 8/10  \n'+(two?'Answer\n\n':'')+'The ask lands.'+(two?'\n\nTo the crew\n\n':' ')+'seat-1 wrote "The ask lands in the first line." and I agree.  \n');
@@ -367,6 +367,23 @@ fake.listen(0,'127.0.0.1',function(){
     check(ca.status===0&&/OK critique, no rating this round/.test(ca.stdout),'critique read: the checker should pass it under the critique contract, got '+ca.stdout.split('\n')[0]);
     var e=logOf(run).filter(function(x){return x.event==='crew.answered'&&x.round==='05-battle';}).pop()||{};
     check(e.contract==='critique'&&e.truncated===null&&e.word_cap===600,'critique read: log line wrong '+JSON.stringify({contract:e.contract,truncated:e.truncated,cap:e.word_cap}));
+    // The second pass of a first round (issue 88): a crew packet through the add-on with read: "crew"; the
+    // system line says the second pass and no rating; the reply lands in <seat>.crew.answer.md; the log
+    // line reads read crew, contract crew, cap 300; the listed plugin's checker passes it under crew.
+    var pc=node('packet.js',['--run',run,'--round','05-battle','--seat','seat-2','--crew']);
+    check(pc.status===0&&/seat-2\.crew\.packet\.md$/.test(pc.stdout.trim()),'second pass: packet.js --crew should write seat-2.crew.packet.md, got '+pc.status+' '+pc.stderr);
+    return s1.call('crew_answer',{run:run,round:'05-battle',seat:'seat-2',read:'crew'});
+  }).then(function(r){
+    var f=path.join(run,'rounds','05-battle','seat-2.crew.answer.md');
+    var req=requests.filter(function(q){return q.url==='/v1/chat/completions';}).pop();
+    check(!r.isError&&r.data.ok&&/This is the round's second pass/.test(req.body.messages[0].content)&&/never by seat number alone/.test(req.body.messages[0].content)&&!/RATING: X\/10/.test(req.body.messages[0].content)&&/Under 300 words in all/.test(req.body.messages[0].content),'second pass: the system line should say the second pass, no rating, the cap of 300, got '+req.body.messages[0].content.slice(0,300));
+    check(fs.existsSync(f)&&/^I agree with Test Model 1\.0 \(Anthropic\): "The ask lands\."/.test(fs.readFileSync(f,'utf8')),'second pass: the reply should land in seat-2.crew.answer.md');
+    var ca=node('check-answer.js',[f,'--run',run]);
+    check(ca.status===0&&/OK to the crew, second pass, \d+ words/.test(ca.stdout),'second pass: the checker should pass it under the crew contract, got '+ca.stdout.split('\n')[0]);
+    var e=logOf(run).filter(function(x){return x.event==='crew.answered'&&x.round==='05-battle'&&x.read==='crew';}).pop()||{};
+    check(e.contract==='crew'&&e.word_cap===300&&e.file==='rounds/05-battle/seat-2.crew.answer.md'&&e.packet==='rounds/05-battle/seat-2.crew.packet.md','second pass: log line wrong '+JSON.stringify({contract:e.contract,cap:e.word_cap,file:e.file,packet:e.packet}));
+    return s1.call('crew_answer',{run:run,round:'05-battle',seat:'seat-2',read:'nonsense'}).then(function(r2){ check(r2.isError&&/read must be rating, sn, redflag or crew/.test(JSON.stringify(r2.raw)),'read: an unknown kind is refused by name'); });
+  }).then(function(){
     // Too long to send: a packet that leaves less than the floor for a reply is refused before any request.
     fs.mkdirSync(path.join(run,'rounds','06-battle'),{recursive:true});
     fs.writeFileSync(path.join(run,'rounds','06-battle','seat-2.packet.md'),'# Packet for seat-2\n\n'+new Array(7200).join('word ')+'\n');

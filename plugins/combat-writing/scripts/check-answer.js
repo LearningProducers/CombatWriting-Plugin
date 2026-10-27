@@ -42,14 +42,14 @@ if(!fs.existsSync(file))lib.die('answer file not found: '+file);
 var runDir=(args.run&&args.run!==true)?path.resolve(args.run):null;
 var rel=runDir?path.relative(runDir,path.resolve(file)).split(path.sep):[];
 var round=rel.length>=3&&rel[0]==='rounds'?rel[1]:null;
-var seatId=path.basename(file).replace(/(\.sn|\.redflag)?\.answer\.md$/,'');
+var seatId=path.basename(file).replace(/(\.sn|\.redflag|\.crew)?\.answer\.md$/,'');
 var contract=args.contract&&args.contract!==true?args.contract:(runDir&&round)?lib.contractSent(runDir,round,path.resolve(file)):lib.contractOf(file);
-if(['rating','critique','sn','redflag'].indexOf(contract)<0)lib.die('--contract must be rating, critique, sn or redflag');
+if(['rating','critique','sn','redflag','crew'].indexOf(contract)<0)lib.die('--contract must be rating, critique, sn, redflag or crew');
 var capSource='default', cap=null;
 if(args['word-cap']&&args['word-cap']!==true){cap=parseInt(args['word-cap'],10);capSource='--word-cap';}
 else if(runDir&&round){var fromRun=lib.capSent(runDir,round,path.resolve(file));if(fromRun!==null){cap=fromRun;capSource='packet';}}
 var text=lib.readText(file);
-var capInForce=cap||(contract==='rating'||contract==='critique'?lib.DEFAULT_WORD_CAP:lib.DEFAULT_FINAL_WORD_CAP);
+var capInForce=cap||(contract==='rating'||contract==='critique'?lib.DEFAULT_WORD_CAP:contract==='crew'?lib.DEFAULT_CREW_WORD_CAP:lib.DEFAULT_FINAL_WORD_CAP);
 var truncated=null, second=false;
 // The two sections (issue 80): held when the packet asked for them (--sections says so without a run).
 var sections=(runDir&&round)?lib.sectionsSent(runDir,round,path.resolve(file)):args.sections===true;
@@ -59,7 +59,7 @@ if(runDir&&round){
   // overrun (crew.answered with truncated), which is a second answer by definition.
   second=lib.readLog(runDir).some(function(e){return (e.event==='answer.checked'&&e.round===round&&e.seat===seatId&&e.file===relFile&&e.ok===false)||(e.event==='crew.answered'&&e.round===round&&e.seat===seatId&&e.file===relFile&&!!e.truncated);});
   if(second&&lib.wordCount(text)>capInForce){
-    var cut=lib.truncateAnswer(text,capInForce,contract==='sn'?'sn':contract==='redflag'?'redflag':'rating',contract);
+    var cut=lib.truncateAnswer(text,capInForce,contract==='sn'?'sn':contract==='redflag'?'redflag':contract==='crew'?'crew':'rating',contract);
     if(cut){text=cut.text+'\n';fs.writeFileSync(file,text);truncated=Object.assign({by:'checker'},cut.truncated);}
   }
 }
@@ -78,7 +78,7 @@ if(runDir&&fs.existsSync(path.join(runDir,'log.jsonl'))){
   lib.appendLog(runDir,Object.assign({event:'answer.checked',round:round,seat:seatId},summary,{file:rel.join('/')}));
 }
 var headline=result.ok
-  ?('OK '+(contract==='rating'?'rating '+result.rating+'/10':contract==='critique'?'critique, no rating this round':contract==='sn'?'S/N '+result.value+'%':(result.value===0?'no red flags':result.value+' red flag(s)'))+', '+result.words+' words'+(truncated?', truncated at '+truncated.at+' words on the second overrun (cut at '+(truncated.cut_at==='sentence'?'the last sentence end':'the word')+'; the seat returned '+truncated.words_returned+')':'')+(sectionNotes.length?', accepted without its two sections on the second check ('+sectionNotes.join('; ')+')':''))
+  ?('OK '+(contract==='rating'?'rating '+result.rating+'/10':contract==='critique'?'critique, no rating this round':contract==='crew'?'to the crew, second pass':contract==='sn'?'S/N '+result.value+'%':(result.value===0?'no red flags':result.value+' red flag(s)'))+', '+result.words+' words'+(truncated?', truncated at '+truncated.at+' words on the second overrun (cut at '+(truncated.cut_at==='sentence'?'the last sentence end':'the word')+'; the seat returned '+truncated.words_returned+')':'')+(sectionNotes.length?', accepted without its two sections on the second check ('+sectionNotes.join('; ')+')':''))
   :('FAIL '+result.reasons.join('; ')+(truncated?' (cut at '+truncated.at+' words on the second overrun first)':''));
 var who='';
 if(runDir&&round){

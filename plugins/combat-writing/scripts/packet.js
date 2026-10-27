@@ -99,9 +99,15 @@ if((sfq||sn||nav||fq)&&(cold||finalMode))lib.die('--sfq, --sn, --n and --fq do n
 if(question&&finalMode)lib.die('--question has no place in a final read');
 var rerate=args.rerate===true;
 if(rerate&&finalMode)lib.die('--rerate has no place in a final read');
+// The second pass of a first round (issue 88): --crew builds <seat>.crew.packet.md carrying this same
+// round's first-pass answers, asking for To the crew alone; it rides with nothing else.
+var crewPass=args.crew===true;
+if(crewPass&&(cold||finalMode||question||sfq||sn||nav||fq||rerate))lib.die('--crew rides alone: it is the second pass of the round, built after every seat answered');
+if(crewPass&&lib.roundKind(args.round)!=='battle')lib.die('--crew is a battle round\'s second pass; the round is '+args.round);
+if(crewPass&&!fs.existsSync(path.join(runDir,'rounds',args.round)))lib.die('--crew needs the round\'s first pass on disk: '+args.round+' has no folder');
 // The contract this packet asks for: the final reads' own lines; no rating in a battle round
-// unless --rerate; a rating everywhere else.
-var contract=finalMode?finalMode:(lib.roundKind(args.round)==='battle'&&!rerate)?'critique':'rating';
+// unless --rerate; a rating everywhere else; the second pass its own.
+var contract=finalMode?finalMode:crewPass?'crew':(lib.roundKind(args.round)==='battle'&&!rerate)?'critique':'rating';
 var rated=contract==='rating';
 
 var draftName=args.draft&&args.draft!==true?args.draft:lib.latestDraft(runDir);
@@ -113,21 +119,22 @@ var brief=(!cold&&!finalMode&&fs.existsSync(path.join(runDir,'brief.md')))?lib.r
 // The previous round feeds the seat's own earlier turn in every non-cold, non-final packet;
 // the other seats' answers are carried only when the round shares them: not in an N or FQ
 // round, and not for a seat line alone in a battle round (SN and SFQ share as they say).
-var prev=(cold||finalMode)?null:lib.previousRound(runDir,args.round);
+var prev=(cold||finalMode)?null:crewPass?args.round:lib.previousRound(runDir,args.round);
 var seatAlone=!!question&&!sn&&!sfq&&!nav&&!fq&&lib.roundKind(args.round)==='battle';
 // A sparring round shares nothing even after earlier rounds (sparring is each seat reading alone;
 // debate is the round that shares), so sparring after battle is a read and a rating on the draft.
 var shares=!!prev&&!nav&&!fq&&!seatAlone&&lib.roundKind(args.round)!=='sparring';
 var prevAnswers=shares?lib.roundAnswers(runDir,prev,seats):[];
-var own=prev?lib.latestOwnAnswer(runDir,seat,args.round):null;
-var ownRated=prev?lib.latestOwnRating(runDir,seat,args.round):null;
+// The second pass reads this round's own first-pass answer, not an earlier round's.
+var own=crewPass?(prevAnswers.filter(function(a){return a.seat.id===seat.id&&!a.missing;})[0]||null):prev?lib.latestOwnAnswer(runDir,seat,args.round):null;
+var ownRated=(prev&&!crewPass)?lib.latestOwnRating(runDir,seat,args.round):null;
 var others=prevAnswers.filter(function(a){return a.seat.id!==seat.id;});
 var carried=others.filter(function(a){return !a.missing;});
 var missing=others.filter(function(a){return a.missing;});
-var synthesis=shares;
+var synthesis=shares&&!crewPass;
 // The two sections (issue 80): a battle packet that carries the other seats' answers asks for an
 // Answer section and a To the crew section; debate (sparring's sharing round) keeps the rating-first read.
-var sections=shares&&lib.roundKind(args.round)==='battle';
+var sections=shares&&!crewPass&&lib.roundKind(args.round)==='battle';
 // The first round of a run, by a battle command: nothing earlier to carry or to hold against.
 var firstRound=!prev&&!cold&&!finalMode&&lib.roundKind(args.round)==='battle';
 var synthesisTerm=!!(sn||sfq);
@@ -139,7 +146,7 @@ if(prev){
 }
 
 var cap=args['word-cap']&&args['word-cap']!==true?parseInt(args['word-cap'],10)
-  :finalMode?lib.DEFAULT_FINAL_WORD_CAP:synthesis?lib.DEFAULT_SYNTHESIS_WORD_CAP:lib.DEFAULT_WORD_CAP;
+  :finalMode?lib.DEFAULT_FINAL_WORD_CAP:crewPass?lib.DEFAULT_CREW_WORD_CAP:synthesis?lib.DEFAULT_SYNTHESIS_WORD_CAP:lib.DEFAULT_WORD_CAP;
 
 var roundDir=path.join(runDir,'rounds',args.round);
 fs.mkdirSync(roundDir,{recursive:true});
@@ -151,7 +158,7 @@ if(question){
 }
 
 var out=[];
-out.push('# Packet for '+lib.seatLabel(seat)+' — round '+args.round+(finalMode?' ('+(finalMode==='sn'?'S/N ratio':'red flags')+')':''));
+out.push('# Packet for '+lib.seatLabel(seat)+' — round '+args.round+(finalMode?' ('+(finalMode==='sn'?'S/N ratio':'red flags')+')':crewPass?' (second pass: to the crew)':''));
 out.push('');
 out.push('You are '+lib.seatLabel(seat)+'. The crew in this run: '+seats.map(lib.seatLabel).join('; ')+'.');
 if(cold)out.push('This is the cold read: the draft alone, no brief, no other seat\'s answer.');
@@ -165,6 +172,12 @@ out.push('## Your task');
 out.push('');
 if(finalMode==='sn')out.push(lib.SN_PROMPT);
 else if(finalMode==='redflag')out.push(lib.REDFLAG_PROMPT);
+else if(crewPass){
+  var task=lib.roundTask(runDir,args.round);
+  if(task&&task.text)out.push('The round\'s prompt was, '+task.kind+': '+task.text);
+  if(task&&task.text)out.push('');
+  out.push(lib.CREW_PASS_LINE);
+}
 else{
   if(sfq){out.push('Synthesis focus question (SFQ): '+sfq.text);out.push('');}
   if(sn){out.push('Synthesis navigation (SN): '+sn.text);out.push('');}
@@ -196,6 +209,7 @@ else if(finalMode==='redflag'){
   // The app's knowledge-cutoff clause for this read, as its code sends it.
   out.push('KNOWLEDGE CUTOFF AWARENESS: Your training data may predate the document\'s timeframe. Dates that seem "future" to you may be present or past to the author — the real-world clock has advanced past your knowledge cutoff. Do NOT flag current or recent-seeming dates as "future dates," "fiction," or "speculative" on cutoff grounds alone. Only flag dates if they are internally inconsistent within the document itself (e.g., an event dated before its stated prerequisites). Cite exact lines for any flags. No analysis, no suggestions, no summaries beyond the flags. It is completely acceptable to return NO RED FLAGS — do not manufacture issues.');
 }
+else if(contract==='crew')out.push(lib.NO_RATING_LINE+' Open with your reply to the other seats; the whole answer is To the crew. Under '+cap+' words.');
 else if(contract==='critique')out.push(lib.NO_RATING_LINE+' '+(sections?lib.SECTIONS_LINE+' In the Answer, your critique of the structure and content of the draft, with specific evidence from it. Under '+cap+' words in all.':lib.VERDICT_SENTENCE_LINE_CRITIQUE+' Then your critique of the structure and content of the draft, with specific evidence from it. Under '+cap+' words.'));
 else{
   out.push('Your first line must be exactly `RATING: X/10`, uppercase, X a whole number from 1 to 10, never 7, nothing else on that line. '+(sections?lib.SECTIONS_LINE+' In the Answer, your reasoning with specific evidence from the draft. Under '+cap+' words in all.':lib.VERDICT_SENTENCE_LINE+' Then your reasoning with specific evidence from the draft. Under '+cap+' words.')+' The number and the verdict must agree: 8 to 10 is a working document, 1 to 6 a problem document; an 8 or more that says the draft is not send-ready, or a 6 or less that says it ships as it is, is a failed read.');
@@ -224,9 +238,9 @@ out.push(draft.replace(/\s+$/,''));
 out.push('=== DRAFT END ===');
 if(own){
   out.push('');
-  out.push('## Your earlier turn (round '+own.round+')');
+  out.push(crewPass?'## Your answer (this round, first pass)':'## Your earlier turn (round '+own.round+')');
   out.push('');
-  out.push('This is what you wrote in round '+own.round+'. Hold it or revise it against '+(shares?'the other seats\' answers':fq||question?'the question above':nav||sn||sfq?'the guidance above':'a fresh read of the draft')+'; either way, say which.');
+  out.push(crewPass?'This is what you wrote on the draft alone. Do not rewrite it here; reply to the other seats.':'This is what you wrote in round '+own.round+'. Hold it or revise it against '+(shares?'the other seats\' answers':fq||question?'the question above':nav||sn||sfq?'the guidance above':'a fresh read of the draft')+'; either way, say which.');
   out.push('');
   out.push('=== YOUR EARLIER ANSWER BEGIN ===');
   out.push(own.text.replace(/\s+$/,''));
@@ -234,7 +248,7 @@ if(own){
 }
 if(shares){
   out.push('');
-  out.push('## The other seats\' answers (round '+prev+')');
+  out.push(crewPass?'## The other seats\' answers (this round, first pass)':'## The other seats\' answers (round '+prev+')');
   carried.forEach(function(o){
     out.push('');
     out.push('### '+lib.seatLabel(o.seat));
@@ -253,11 +267,11 @@ if(shares){
   });
 }
 out.push('');
-var packetPath=path.join(roundDir,seat.id+(finalMode?'.'+finalMode:'')+'.packet.md');
+var packetPath=path.join(roundDir,seat.id+(finalMode?'.'+finalMode:crewPass?'.crew':'')+'.packet.md');
 fs.writeFileSync(packetPath,out.join('\n'));
 lib.appendLog(runDir,{event:'packet.built',round:args.round,seat:seat.id,model:seat.model,company:seat.company,
-  mode:finalMode?'final-'+finalMode:cold?'cold':nav?'navigation':fq?'focus':seatAlone?'seat':(synthesis||synthesisTerm)?'synthesis':'read',
-  contract:contract,rerate:rerate,shares:shares,sections:sections,first_round:firstRound,
+  mode:finalMode?'final-'+finalMode:crewPass?'crew':cold?'cold':nav?'navigation':fq?'focus':seatAlone?'seat':(synthesis||synthesisTerm)?'synthesis':'read',
+  contract:contract,rerate:rerate,shares:shares,sections:sections,first_round:firstRound,pass:crewPass?'crew':null,
   file:path.relative(runDir,packetPath),draft:draftName,draft_facts:facts,brief_included:!!brief,
   question:question?path.basename(question.file):null,sfq:sfq?path.basename(sfq.file):null,sn:sn?path.basename(sn.file):null,n:nav?path.basename(nav.file):null,fq:fq?path.basename(fq.file):null,
   reads_round:shares?prev:null,own_previous:own?own.round:null,own_rating:ownRated?ownRated.round:null,

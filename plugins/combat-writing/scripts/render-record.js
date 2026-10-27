@@ -184,6 +184,8 @@ rounds.forEach(function(r){
       var t=truncationOf(s,r,f.indexOf('.sn.')>=0?'sn':f.indexOf('.redflag.')>=0?'redflag':'rating');
       if(t){out.push('*'+lib.truncationLine(t)+'*');out.push('');}
       out.push(lib.readText(p).replace(/\s+$/,''));
+      // The second pass of a first round (issue 88), under the answer it belongs to.
+      if(f===s.id+'.answer.md'){ var crew=lib.crewPassOf(runDir,r,s.id,log); if(crew){out.push('');out.push('*'+lib.CREW_PASS_HEADING+':*');out.push('');out.push(crew.text);} }
     });
   });
 });

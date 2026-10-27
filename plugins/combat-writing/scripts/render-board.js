@@ -266,11 +266,15 @@ if(tableRounds.length){
         ?'<span class="badge critique">Critique · no rating asked'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>'
         :'<span class="badge">Rating '+c.rating+'/10'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
       quote=lib.verdictLine(c.answer,c.contract)||'(no words after the first line)';
+      // The second pass of a first round (issue 88): under the read, in the fold and in the spoken text.
+      var crew=t?lib.crewPassOf(runDir,t.round,s.id,log):null;
+      var crewHtml=crew?'<p><strong>'+esc(lib.CREW_PASS_HEADING)+'</strong></p>'+read(crew.text):'';
+      var spoken=plainText(c.answer)+(crew?'\n\n'+lib.CREW_PASS_HEADING+'.\n\n'+plainText(crew.text):'');
       // Read aloud (issue 82): the answer as plain text in the page, the controls on the frame; the
       // script below wires every frame to the browser's speech synthesis, one seat at a time.
       fold='<div class="read-controls"><button type="button" class="seat-speak" aria-label="Read this seat\'s '+(c.kind==='critique'?'critique':'read')+' aloud">🔊 Read aloud</button> <button type="button" class="seat-pause" aria-label="Pause or resume the reading" disabled>Pause</button> <button type="button" class="seat-stop" aria-label="Stop the reading" disabled>Stop</button> <span class="meta seat-status" aria-live="polite"></span></div>'
-        +'<div class="seat-text" hidden>'+esc(plainText(c.answer))+'</div>'
-        +'<details><summary>Read the full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words)</summary><div class="read">'+read(c.answer)+'</div></details>';
+        +'<div class="seat-text" hidden>'+esc(spoken)+'</div>'
+        +'<details><summary>Read the full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words'+(crew?', then '+crew.words+' to the crew':'')+')</summary><div class="read">'+read(c.answer)+crewHtml+'</div></details>';
     }
     var finalLine='';
     if(finalRounds.length){ var f=finalCell(s,finalRounds[finalRounds.length-1]); finalLine='<p class="final">'+esc(finalRounds[finalRounds.length-1])+': '+esc(finalText(f))+'</p>'; }

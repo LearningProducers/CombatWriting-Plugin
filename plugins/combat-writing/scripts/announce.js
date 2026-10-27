@@ -18,7 +18,7 @@ var runDir=path.resolve(args.run);
 var seats=lib.readSeats(runDir).seats||[];
 var round=String(args.round).trim();
 if(!/^\d\d-(sparring|debate|battle|final)$/.test(round))lib.die('--round must be <nn>-sparring|debate|battle|final; got '+round);
-var KINDS={FQ:'FQ',N:'N',SN:'SN',SFQ:'SFQ',seat:'seat lines',plain:'the default prompt',cold:'a cold read',debate:'debate',final:'the final reads'};
+var KINDS={FQ:'FQ',N:'N',SN:'SN',SFQ:'SFQ',seat:'seat lines',plain:'the default prompt',cold:'a cold read',debate:'debate',final:'the final reads',crew:'the second pass, to the crew'};
 var kindKey=Object.keys(KINDS).filter(function(k){return k.toLowerCase()===String(args.kind).trim().toLowerCase();})[0];
 if(!kindKey)lib.die('--kind must be one of '+Object.keys(KINDS).join(', ')+'; got '+args.kind);
 var ids=String(args.to).split(',').map(function(s){return s.trim();}).filter(Boolean);
@@ -28,6 +28,9 @@ var unknown=ids.filter(function(id){return !byId[id];});
 if(unknown.length)lib.die('--to names a seat not in seats.json: '+unknown.join(', ')+' (the crew is '+seats.map(function(s){return s.id;}).join(', ')+')');
 var rerate=!!args.rerate&&kindKey!=='final';
 var kindWord=kindKey==='seat'?(ids.length===1?'a seat line':'seat lines'):KINDS[kindKey];
-var line='Round '+round.slice(0,2)+' forming: '+kindWord+' to '+ids.length+' seat'+(ids.length===1?'':'s')+' ('+ids.map(function(id){return id+' '+lib.seatShortName(byId[id]);}).join(', ')+')'+(rerate?', rerate':'');
+// The second pass of a first round (issue 88) has its own line, so the person sees the crew turn to each other.
+var line=kindKey==='crew'
+  ?'Round '+round.slice(0,2)+', second pass: to the crew, '+ids.length+' seat'+(ids.length===1?'':'s')+' ('+ids.map(function(id){return id+' '+lib.seatShortName(byId[id]);}).join(', ')+')'
+  :'Round '+round.slice(0,2)+' forming: '+kindWord+' to '+ids.length+' seat'+(ids.length===1?'':'s')+' ('+ids.map(function(id){return id+' '+lib.seatShortName(byId[id]);}).join(', ')+')'+(rerate?', rerate':'');
 lib.appendLog(runDir,{event:'round.announced',round:round,kind:kindKey,to:ids,rerate:rerate,line:line});
 process.stdout.write(line+'\n');
