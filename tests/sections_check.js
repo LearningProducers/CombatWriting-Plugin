@@ -65,7 +65,7 @@ check(c1.length===3&&c1.every(function(e){return e.ok&&e.sections===null&&e.sect
 // 2. The second round shares: SN, SFQ and a plain round ask for the sections; FQ, N and a seat line do not; sparring does not.
 node('packet.js',['--run',run,'--round','02-battle','--seat','seat-1','--sn','sn.md']);
 var p2=contractOf(path.join(run,'rounds','02-battle','seat-1.packet.md'));
-check(p2.indexOf(lib.SECTIONS_LINE)>=0&&packetLine(run,'02-battle','seat-1').sections===true&&/In the Answer, your critique of the structure and content of the draft, with specific evidence from it\. Under 600 words in all\./.test(p2)&&p2.indexOf(lib.NO_RATING_LINE)>=0,'SN second round: the sections line in the Contract, sections true, the cap in all; got '+p2.slice(0,300));
+check(p2.indexOf(lib.SECTIONS_LINE_PROMPTED)>=0&&p2.indexOf(lib.SECTIONS_LINE)<0&&packetLine(run,'02-battle','seat-1').sections===true&&packetLine(run,'02-battle','seat-1').prompted===true&&p2.indexOf(lib.PROMPT_FIRST_LINE+' Under 600 words in all.')>=0&&p2.indexOf(lib.NO_RATING_LINE)>=0,'SN second round: the sections line in the Contract, sections true, the cap in all; got '+p2.slice(0,300));
 check(lib.capSent(run,'02-battle',path.join(run,'rounds','02-battle','seat-1.answer.md'))===600,'capSent reads 600 from the packet line');
 fs.writeFileSync(path.join(run,'log.jsonl'),logOf(run).filter(function(e){return !(e.event==='packet.built'&&e.round==='02-battle');}).map(JSON.stringify).join('\n')+'\n');
 check(lib.capSent(run,'02-battle',path.join(run,'rounds','02-battle','seat-1.answer.md'))===600&&lib.sectionsSent(run,'02-battle',path.join(run,'rounds','02-battle','seat-1.answer.md'))===true,'capSent and sectionsSent fall back to the packet text ("Under 600 words in all.", the sections line) with no log line');
@@ -90,7 +90,7 @@ var good='Answer\n\nNot ready: the ask is buried.\n\nThe close never asks.\n\nTo
 var sec=lib.answerSections(good);
 check(sec.labeled&&sec.answer==='Not ready: the ask is buried.\n\nThe close never asks.'&&sec.crew==='seat-2 wrote "the ask is vague"; I agree.'&&sec.answer_at===0&&sec.crew_at===6,'answerSections cuts the two parts, got '+JSON.stringify(sec));
 check(lib.sectionReasons(good,'critique').length===0&&lib.sectionReasons('RATING: 8/10\n'+good,'rating').length===0,'sectionReasons: a labeled answer has none, the rating line allowed before the label');
-check(JSON.stringify(lib.sectionReasons('Not ready.\n\nseat-2 said "x".\n','critique'))===JSON.stringify(['no Answer section: open with a line holding only "Answer", then your reply to the task, the verdict line first','no To the crew section: after your answer, a line holding only "To the crew", then where you agree or disagree with the other seats, each named by its model, quoted, or your question to them']),'sectionReasons: both labels missing, two reasons in order');
+check(JSON.stringify(lib.sectionReasons('Not ready.\n\nseat-2 said "x".\n','critique'))===JSON.stringify(['no Answer section: open with a line holding only "Answer", then your reply to the task','no To the crew section: after your answer, a line holding only "To the crew", then where you agree or disagree with the other seats, each named by its model, quoted, or your question to them']),'sectionReasons: both labels missing, two reasons in order');
 check(/^no Answer section: open with a line holding only "Answer" after the rating line/.test(lib.sectionReasons('RATING: 8/10\nNot ready.\n','rating')[0]),'sectionReasons under the rating contract names the rating line');
 check(lib.sectionReasons('To the crew\n\nx\n\nAnswer\n\ny\n','critique')[0]==='the To the crew section comes before the Answer section; the Answer comes first','sectionReasons: the crew part first');
 check(lib.sectionReasons('A preface.\n\nAnswer\n\ny\n\nTo the crew\n\nz\n','critique')[0]==='text before the Answer label: nothing goes before it'&&lib.sectionReasons('RATING: 8/10\nA preface.\n\nAnswer\n\ny\n\nTo the crew\n\nz\n','rating')[0]==='text before the Answer label: only the rating line goes before it','sectionReasons: text before the label');
@@ -108,7 +108,7 @@ check(r3.ok&&r3.rating===8&&r3.sections===true,'checkAnswer: a labeled rated ans
 var f=path.join(run,'rounds','02-battle','seat-1.answer.md');
 fs.writeFileSync(f,'Still not ready: the ask is buried.\n\nseat-2 wrote "the ask is vague"; I agree.\n');
 var k1=node('check-answer.js',[f,'--run',run]);
-check(k1.status===1&&/^seat-1 Test Model finished round 02-battle: FAIL no Answer section: open with a line holding only "Answer", then your reply to the task, the verdict line first; no To the crew section/.test(k1.stdout),'first check of an unlabeled answer in a sharing round fails with the reasons; got '+k1.stdout.split('\n')[0]);
+check(k1.status===1&&/^seat-1 Test Model finished round 02-battle: FAIL no Answer section: open with a line holding only "Answer", then your reply to the task; no To the crew section/.test(k1.stdout),'first check of an unlabeled answer in a sharing round fails with the reasons; got '+k1.stdout.split('\n')[0]);
 var k2=node('check-answer.js',[f,'--run',run]);
 var s2=JSON.parse(k2.stdout.trim().split('\n')[1]);
 check(k2.status===0&&/^seat-1 Test Model finished round 02-battle: OK critique, no rating this round, 15 words, accepted without its two sections on the second check \(no Answer section/.test(k2.stdout)&&s2.ok===true&&s2.sections===false&&s2.section_notes.length===2&&s2.reasons.length===0,'second check: accepted, the faults as notes; got '+k2.stdout.split('\n')[0]);
@@ -134,7 +134,7 @@ var rules=crewLib.packetRules(read(path.join(run,'rounds','02-battle','seat-1.pa
 check(rules.cap===600&&rules.contract==='critique'&&rules.sections===true,'packetRules reads the cap in all, the critique contract and sections; got '+JSON.stringify(rules));
 check(crewLib.packetRules(read(path.join(run,'rounds','01-battle','seat-1.packet.md'))).sections===false,'packetRules: no sections on a first-round packet');
 var server=read(path.join(root,'plugins','combat-writing-crew','server.js'));
-check(/var sections=rules\.sections\?' Two sections, each opened by a line holding only its label: Answer, your reply to the task with the verdict line first; then To the crew, where you agree or disagree with the other seats, each named by its model as the packet labels it, never by seat number alone, quoted word for word, or put a question to them\.':'';/.test(server),'the server\'s system line names the two sections when the packet asks');
+check(/var sections=rules\.sections\?' Two sections, each opened by a line holding only its label: Answer, your reply to the task'\+\(rules\.verdict_first\?' with the verdict line first':' as it asks'\)\+'; then To the crew, where you agree or disagree with the other seats, each named by its model as the packet labels it, never by seat number alone, quoted word for word, or put a question to them\.':'';/.test(server),'the server\'s system line names the two sections when the packet asks');
 
 // 6. The text.
 var agent=read(path.join(plugin,'agents','seat.md')), battle=skill('battle'), rules_=skill('combat-writing'), help=skill('help'), claude=read(path.join(root,'CLAUDE.md'));

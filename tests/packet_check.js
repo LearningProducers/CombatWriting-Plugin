@@ -416,7 +416,7 @@ check(creditHits.length===0,'credit line found in run files: '+creditHits.join('
   // A critique packet carries the critique form of the verdict sentence; a final packet carries neither verdict sentence.
   var crit=packets.filter(function(p){return read(p).indexOf('No rating this round')>=0;});
   // A sharing critique packet carries the two-sections line in its place (issue 80: the verdict line first, inside the Answer).
-  check(crit.length>0&&crit.every(function(p){var t=read(p);return /Your first sentence is your verdict on the draft, in one line\./.test(t)||t.indexOf(require(path.join(scripts,'lib.js')).SECTIONS_LINE)>=0;}),'critique packets: the verdict sentence (critique form) or the sections line is missing');
+  check(crit.length>0&&crit.every(function(p){var t=read(p);var L=require(path.join(scripts,'lib.js'));return /Your first sentence is your verdict on the draft, in one line\./.test(t)||t.indexOf(L.SECTIONS_LINE)>=0||t.indexOf(L.PROMPT_FIRST_LINE)>=0||t.indexOf(L.REWRITE_LINE)>=0;}),'critique packets: the verdict sentence (critique form), the sections line, the prompt-first line or the rewrite line is missing');
   var fin=packets.filter(function(p){return /\.(sn|redflag)\.packet\.md$/.test(p);});
   check(fin.length>0&&fin.every(function(p){return !/your verdict on the draft/.test(read(p));}),'final packets: must carry no verdict sentence');
 })();

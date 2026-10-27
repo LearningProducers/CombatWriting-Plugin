@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // check-answer.js: verifies one seat's answer file against its first-line contract.
 //
-//   node check-answer.js <answer file> [--word-cap <n>] [--run <run folder>] [--contract rating|sn|redflag] [--sections]
+//   node check-answer.js <answer file> [--word-cap <n>] [--run <run folder>] [--contract rating|sn|redflag] [--sections] [--rewrite]
 //
 // The contract comes from the packet the seat was sent (with --run), else from the file
 // name, unless --contract says otherwise. The two sections of a battle answer that shares
@@ -53,6 +53,8 @@ var capInForce=cap||(contract==='rating'||contract==='critique'?lib.DEFAULT_WORD
 var truncated=null, second=false;
 // The two sections (issue 80): held when the packet asked for them (--sections says so without a run).
 var sections=(runDir&&round)?lib.sectionsSent(runDir,round,path.resolve(file)):args.sections===true;
+// The rewrite (issue 103): held when the packet asked for one (--rewrite says so without a run); its faults ride with the section faults.
+var rewrite=(runDir&&round)?lib.rewriteSent(runDir,round,path.resolve(file)):args.rewrite===true;
 if(runDir&&round){
   var relFile=rel.join('/');
   // A second answer: one whose first check failed, or one the add-on already cut on the seat's second
@@ -63,7 +65,7 @@ if(runDir&&round){
     if(cut){text=cut.text+'\n';fs.writeFileSync(file,text);truncated=Object.assign({by:'checker'},cut.truncated);}
   }
 }
-var result=lib.checkAnswer(text,cap,contract,{sections:sections});
+var result=lib.checkAnswer(text,cap,contract,{sections:sections,rewrite:rewrite});
 // On the second check a section fault is a note, not a failure (issue 80): the seat was sent back once
 // for it, as for an overrun, and a read is never lost over a label.
 var sectionNotes=[];
@@ -73,7 +75,7 @@ if(second&&result.section_reasons.length){
   result.ok=result.reasons.length===0;
 }
 var summary={file:path.basename(file),contract:contract,ok:result.ok,rating:result.rating,value:result.value,words:result.words,
-  word_cap:capInForce,word_cap_source:capSource,reasons:result.reasons,truncated:truncated,sections:result.sections,section_notes:sectionNotes};
+  word_cap:capInForce,word_cap_source:capSource,reasons:result.reasons,truncated:truncated,sections:result.sections,rewrite:result.rewrite,section_notes:sectionNotes};
 if(runDir&&fs.existsSync(path.join(runDir,'log.jsonl'))){
   lib.appendLog(runDir,Object.assign({event:'answer.checked',round:round,seat:seatId},summary,{file:rel.join('/')}));
 }
