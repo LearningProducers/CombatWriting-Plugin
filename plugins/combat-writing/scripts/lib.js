@@ -364,6 +364,22 @@ function budgetLine(b){
   });
   return line;
 }
+// The warning alone (the founder, 2026-10-27: the measurement is accessible, not presented; the
+// terminal gets only what must be known before the send): null when every packet fits, else one line
+// naming each seat whose packet the add-on will refuse and by how much.
+function budgetWarning(b){
+  var over=[];
+  b.walls.forEach(function(w){ w.over.forEach(function(o){ over.push({w:w,o:o}); }); });
+  if(!over.length)return null;
+  return 'Round '+String(b.round).slice(0,2)+(b.pass==='crew'?', second pass':'')+': '+over.map(function(x){return x.o.seat+'\'s packet, about '+thousands(x.o.tokens)+' tokens, is over the room '+x.w.provider_name+' allows ('+thousands(x.w.per_minute)+' a minute per model with '+thousands(x.w.reply_floor)+' kept for the reply) by about '+thousands(x.o.over_by)+' tokens ('+thousands(x.o.over_by*4)+' characters)';}).join('; ')+'; the add-on will refuse it before it is sent. Cut that much from the prompt or the brief, or run the round with less carried.';
+}
+// Every round's budget line, for the record and the board: one per round, the second pass its own line.
+function budgetLines(runDir,log){
+  log=log||readLog(runDir);
+  var seen={}, keys=[];
+  log.forEach(function(e){ if(e.event!=='packet.built'||!e.size)return; var k=e.round+'|'+(e.pass==='crew'?'crew':''); if(!seen[k]){seen[k]=true;keys.push(k);} });
+  return keys.map(function(k){ var p=k.split('|'); return budgetLine(roundBudget(runDir,p[0],{pass:p[1]||null})); });
+}
 
 // The faults against SECTIONS_LINE, as the checker's reasons: both labels, Answer first, the crew part after it.
 function sectionReasons(text,contract){
@@ -1251,7 +1267,7 @@ module.exports={
   PROJECT_BRIEF_FILE:PROJECT_BRIEF_FILE,PROJECT_BRIEF_REL:PROJECT_BRIEF_REL,PROJECT_BRIEF_KEPT_LINE:PROJECT_BRIEF_KEPT_LINE,projectBriefPath:projectBriefPath,briefSourceOf:briefSourceOf,briefWords:briefWords,briefLine:briefLine,
   BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
-  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
   STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,roundCell:roundCell,finalCell:finalCell,finalText:finalText,bandOf:bandOf,runState:runState
 };
