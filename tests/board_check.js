@@ -309,6 +309,16 @@ check(log.some(function(e){return e.event==='board.rendered'&&e.file==='board.ht
 var bad=path.join(proj,'nothing'); fs.mkdirSync(bad);
 check(node('render-board.js',['--run',bad]).status===2,'render-board: a folder with no seats.json should exit 2');
 
+// Read aloud on every read frame (issue 82): seat-1's critique frame carries the controls and its answer as
+// plain text; the missing and failed frames carry none; the fresh run carries none; the script wires every
+// frame to speech synthesis with pause, resume and stop; the page still has one href and no outside request.
+check(!!f1&&/<div class="read-controls"><button type="button" class="seat-speak" aria-label="Read this seat's critique aloud">🔊 Read aloud<\/button> <button type="button" class="seat-pause"[^>]*disabled>Pause<\/button> <button type="button" class="seat-stop"[^>]*disabled>Stop<\/button> <span class="meta seat-status" aria-live="polite"><\/span><\/div><div class="seat-text" hidden>The close is the problem, as seat-2 said\.<\/div><details>/.test(f1[1]),'board (read aloud): seat-1\'s frame should carry the controls and the plain text before its fold; got '+(f1?f1[1].slice(0,400):''));
+check(!!f2&&f2[1].indexOf('seat-speak')<0&&!!f3&&f3[1].indexOf('seat-speak')<0,'board (read aloud): a missing or failed frame carries no control');
+check(freshHtml.indexOf('class="seat-speak"')<0&&freshHtml.indexOf('class="seat-text"')<0,'board (read aloud): a run with no rounds carries no control and no spoken text');
+check((html.match(/class="seat-speak"/g)||[]).length===1&&/querySelectorAll\("\.frame"\)/.test(html)&&/new SpeechSynthesisUtterance\(t\.textContent\)/.test(html)&&/playing\.idle\(\)/.test(html)&&(html.match(/href="[^"]*"/g)||[]).length===1,'board (read aloud): one control on the page, the script reading the seat text, one seat at a time, still one href');
+var mdPlain=/<div class="seat-text" hidden>([^<]*)<\/div>/.exec(mdHtml);
+check(!!mdPlain&&mdPlain[1].indexOf('**')<0&&mdPlain[1].indexOf('#')<0&&/Not ready: the close is soft and the ask is late\./.test(mdPlain[1]),'board (read aloud): the spoken text drops the markdown marks; got '+(mdPlain?mdPlain[1].slice(0,200):'none'));
+
 fs.rmSync(proj,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'board_check: '+failures.length+' failure(s), ':'board_check: all passed, ')+passes+' checks');

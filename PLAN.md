@@ -600,3 +600,15 @@ Ruled and built: a battle packet that carries the other seats' answers (SN, SFQ,
 Delivers: `scripts/lib.js`, `scripts/packet.js`, `scripts/check-answer.js` (`--sections` without a run), `agents/seat.md`, the battle, rules and help skills, CLAUDE.md; `crew-lib.js`, `server.js`; `tests/sections_check.js` (new: the packets by round kind, the reader, the checker's two checks, the board's frame, the add-on's mirror and system line, the text); `tests/crew_check.js` (the fake Groq writes the labels when the system line asks) and `tests/packet_check.js` (a sharing critique packet carries the sections line in place of the verdict sentence) re-pinned; cw 0.8.10, crew 0.5.2 (Part 36.3's number moves to 0.5.3). Not here: read-aloud on each seat's card and the picker after strategy (the next two PRs); a fold per section on the board (the Answer is framed, the whole read folded as before).
 
 Status: delivered — 2026-10-26 — pull request 81 open as a draft; every check (28 files) and the three strict validations pass locally; the live pass is the founder's next SN round after the update: each card framed on the seat's Answer, the two labels in the full read.
+
+## Part 63 — Read aloud on every seat's framed read (issue 82, cw 0.8.11)
+
+The founder's words, 2026-10-26: "it is evident we need a TTS for each LLM response text box"; on the next round, "i still don't see a speaker button for TTS".
+
+Measured: the board carried read-aloud on the canon alone (issue 13), on the draft panel once the piece was shipped; a seat's critique, the text the founder reads three times a round, had none.
+
+Ruled and built: every read frame on the board carries the canon's control, read aloud with pause and stop, through the browser's own speech synthesis and nothing else: the answer spoken as plain text (`plainText` in `render-board.js`: the markdown marks dropped, the two labels read as words), held in the page beside the frame's controls, one seat at a time (starting one cancels another), none on a missing or failed read or a seat not yet read; the canon's control stands as it is. No request leaves the page.
+
+Delivers: `scripts/render-board.js` (the controls, the hidden text, the CSS, one script for every frame); `tests/board_check.js` (a control and the plain text on the critique frame, none on the missing and failed frames and on a fresh run, the script's shape, one seat at a time, one href still, the marks dropped); CLAUDE.md, the plugin README, the help; cw 0.8.11. Not here: the picker after strategy (the next PR); a voice choice.
+
+Status: delivered — 2026-10-26 — pull request 83 open as a draft; every check (28 files) and the three strict validations pass locally; the live pass is the founder's next board after the update: the speaker on each card, one voice at a time.
