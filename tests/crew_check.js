@@ -154,11 +154,13 @@ var fake=http.createServer(function(req,res){
       var sys=body.messages[0].content;
       // The reply pads its lines with trailing spaces, as a real model did; the server must strip them.
       var retried=/Note from the host on this retry/.test(user);
+      // The two sections (issue 80): the fake writes the labels when the system line asks for them, as a seat that reads it would.
+      var two=/Two sections, each opened by a line holding only its label/.test(sys);
       // On a retry marked TRUNCATEME the reply is 600-odd words with the rating line LAST, as a real seat did twice.
       var content=/S\/N RATIO/.test(sys)?'S/N RATIO: 70%  \nSignal: the ask. Noise: the posture.   \n':/RED FLAGS/.test(sys)?'NO RED FLAGS \nNothing an informed reader would distrust.\n'
-        :/asks for no rating/.test(sys)?'The ask lands and the close still apologizes. seat-1 wrote "The ask lands in the first line." and I agree.\n'
+        :/asks for no rating/.test(sys)?(two?'Answer\n\nThe ask lands and the close still apologizes.\n\nTo the crew\n\nseat-1 wrote "The ask lands in the first line." and I agree.\n':'The ask lands and the close still apologizes. seat-1 wrote "The ask lands in the first line." and I agree.\n')
         :/TRUNCATEME/.test(user)?'Opening line. The ask lands. '+new Array(350).join('alpha ')+'\n\nSecond paragraph. '+new Array(350).join('beta ')+'\n\nRATING: 8/10  \n'
-        :(retried?'RATING: 6/10  \nSecond try, shorter. seat-1 wrote "The ask lands in the first line." and I agree.\n':'RATING: 8/10  \nThe ask lands. seat-1 wrote "The ask lands in the first line." and I agree.  \n');
+        :(retried?'RATING: 6/10  \n'+(two?'Answer\n\n':'')+'Second try, shorter.'+(two?'\n\nTo the crew\n\n':' ')+'seat-1 wrote "The ask lands in the first line." and I agree.\n':'RATING: 8/10  \n'+(two?'Answer\n\n':'')+'The ask lands.'+(two?'\n\nTo the crew\n\n':' ')+'seat-1 wrote "The ask lands in the first line." and I agree.  \n');
       // The returned id differs from the requested one by a date suffix, as a real provider's did; the suffix is not stacked on a re-request of the returned id.
       return json(200,{id:'chatcmpl-1',model:body.model.replace(/-0725$/,'')+'-0725',choices:[{message:{role:'assistant',content:content},finish_reason:'stop'}],usage:{prompt_tokens:321,completion_tokens:40,total_tokens:361}});
     }
