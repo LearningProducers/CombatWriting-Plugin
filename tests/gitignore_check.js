@@ -63,7 +63,8 @@ var ignoreFile=path.join(repo,'combat-writing','.gitignore');
 check(fs.existsSync(ignoreFile)&&read(ignoreFile)==='runs/\ninbox/\n','gitignore: must hold exactly "runs/\\ninbox/\\n"; got '+JSON.stringify(fs.existsSync(ignoreFile)?read(ignoreFile):null));
 var w=logOf(run1).filter(function(e){return e.event==='gitignore.written';});
 check(w.length===1&&w[0].file==='combat-writing/.gitignore'&&JSON.stringify(w[0].lines)==='["runs/","inbox/"]','gitignore: one gitignore.written line with the file and the two lines; got '+JSON.stringify(w));
-if(git)check(JSON.stringify(status(repo))==='["?? combat-writing/.gitignore"]','git status after the first run: must show only combat-writing/.gitignore; got '+JSON.stringify(status(repo)));
+// The brief given to the first run is the project's too (issue 72), so combat-writing/brief.md stands beside the ignore file.
+if(git)check(JSON.stringify(status(repo))==='["?? combat-writing/.gitignore","?? combat-writing/brief.md"]','git status after the first run: must show combat-writing/.gitignore and the project brief only; got '+JSON.stringify(status(repo)));
 else console.log('note: git not on PATH; the git status checks were skipped here (CI runs them)');
 
 // The short form says so once.
@@ -80,7 +81,7 @@ fs.mkdirSync(path.join(repo,'combat-writing','inbox'),{recursive:true});
 fs.writeFileSync(path.join(repo,'combat-writing','inbox','i.insight.md'),'Lead with the ask.\n');
 var ins=node('champion.js',['--run',run1,'--kind','insight','--file','combat-writing/inbox/i.insight.md'],repo);
 check(ins.status===0&&fs.existsSync(path.join(repo,'combat-writing','insight-vault.md')),'champion insight: exit '+ins.status+' '+ins.stderr);
-if(git)check(JSON.stringify(status(repo))==='["?? combat-writing/.gitignore","?? combat-writing/insight-vault.md"]','git status after an insight: must show the ignore file and the vault only; got '+JSON.stringify(status(repo)));
+if(git)check(JSON.stringify(status(repo))==='["?? combat-writing/.gitignore","?? combat-writing/brief.md","?? combat-writing/insight-vault.md"]','git status after an insight: must show the ignore file, the project brief and the vault only; got '+JSON.stringify(status(repo)));
 
 // A second run writes nothing new.
 var st=fs.statSync(ignoreFile);
@@ -92,7 +93,7 @@ check(read(ignoreFile)==='runs/\ninbox/\n'&&st2.mtimeMs===st.mtimeMs,'second run
 check(!logOf(run2).some(function(e){return /^gitignore\./.test(e.event);}),'second run: its log must hold no gitignore line');
 var s3=node('render-record.js',['--run',run2,'--short'],repo);
 check(s3.status===0&&s3.stdout.indexOf(IGNORE_LINE)<0,'second run: its short form must carry no ignore-file line');
-if(git)check(JSON.stringify(status(repo))==='["?? combat-writing/.gitignore","?? combat-writing/insight-vault.md"]','git status after the second run: unchanged; got '+JSON.stringify(status(repo)));
+if(git)check(JSON.stringify(status(repo))==='["?? combat-writing/.gitignore","?? combat-writing/brief.md","?? combat-writing/insight-vault.md"]','git status after the second run: unchanged; got '+JSON.stringify(status(repo)));
 
 // A file already there is kept.
 var kept=project('kept');

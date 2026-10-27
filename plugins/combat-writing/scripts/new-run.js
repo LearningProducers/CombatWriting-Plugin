@@ -1,26 +1,31 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // new-run.js: creates the run folder for one Combat Writing session.
 //
-//   node new-run.js [--draft <file>] [--brief <file> | --no-brief] [--keep] [--stage strategy|sparring|battle]
+//   node new-run.js [--draft <file>] [--brief <file> | --no-brief] [--stage strategy|sparring|battle]
 //                   [--name <slug>] [--model "<model name>"] [--company "<company>"] [--root <dir>]
 //
-// The brief (issue 65, 2026-10-26): --brief <file> is the run's brief; with no --brief, the
-// project's brief, <root>/combat-writing/brief.md, serves when it exists; --no-brief means none.
-// --keep copies the run's brief to the project's (overwriting: keep means "this is now the
-// project's"), logged brief.kept, and the short form says so once. run.created logs the brief's
-// source, read from the path (lib.briefSourceOf): project, last (another run's brief.md, the run
-// id kept), pasted (an inbox file) or given; the record's Started-at line names it.
+// The brief (issue 65, 2026-10-26; issue 72 the same day): --brief <file> is the run's brief and
+// the project's: unless that file is the project's brief itself, <root>/combat-writing/brief.md
+// is written from it (the founder's rule: the brief typed overrides the previous one), logged
+// brief.kept with the sha256 when the project's brief changed, and the short form says so once.
+// With no --brief, the project's brief serves when it exists; --no-brief means none for this
+// run and leaves the project's alone. --keep, the word of issue 65, is refused by name: every
+// brief given is kept. run.created logs the brief's source, read from the path
+// (lib.briefSourceOf): project, last (another run's brief.md, the run id kept), pasted (an
+// inbox file) or given; the record's Started-at line names it.
 //
 // Copies the draft (and the brief, when given) into a new folder under
 // <root>/combat-writing/runs/<run-id>/, writes seats.json with one fresh reader, and
 // opens log.jsonl. Prints the run folder path on stdout, and nothing else. On the first run
 // inside a git repository it also writes <root>/combat-writing/.gitignore with exactly two
 // lines, runs/ and inbox/ (issue 36, ruled 2026-10-19), never overwriting a file already there,
-// and logs gitignore.written so the short form says so once. At least one of --draft and --brief
-// is required: strategy may store a brief alone (2026-10-14: any stage may be skipped, the
-// order is the person's choice), and sparring or battle then brings the draft into the same
-// run through add-draft.js, which writes draft.md when there is none. --stage names the
-// command that made the run; the record and the board say where the run started.
+// and logs gitignore.written so the short form says so once. With neither --draft nor --brief
+// the project's brief, when it exists, makes a brief-only run (issue 72: strategy with a brief
+// update alone stores the updated brief); with no project brief either, the call is refused:
+// strategy may store a brief alone (2026-10-14: any stage may be skipped, the order is the
+// person's choice), and sparring or battle then brings the draft into the same run through
+// add-draft.js, which writes draft.md when there is none. --stage names the command that made
+// the run; the record and the board say where the run started.
 //
 // The crew (ruled 2026-10-09, enforced 2026-10-12): one fresh reader, seat-1, plus one
 // seat per outside model the crew add-on has a key for; the add-on's crew_register appends
@@ -42,14 +47,16 @@ var lib=require('./lib.js');
 var args=lib.parseArgs(process.argv.slice(2));
 
 var hasDraft=!!args.draft&&args.draft!==true, hasBrief=!!args.brief&&args.brief!==true;
-if(!hasDraft&&!hasBrief)lib.die('--draft <file> or --brief <file> is required (a brief alone is allowed: the draft joins the run later through add-draft.js)');
+var root=path.resolve(args.root&&args.root!==true?args.root:process.cwd());
+var noBrief=args['no-brief']===true;
+var projectBriefThere=!noBrief&&fs.existsSync(lib.projectBriefPath(root));
+if(!hasDraft&&!hasBrief&&!projectBriefThere)lib.die('--draft <file> or --brief <file> is required (a brief alone is allowed: the draft joins the run later through add-draft.js)');
 if(args.draft===true)lib.die('--draft takes a file path');
 if(args.brief===true)lib.die('--brief takes a file path');
 if(hasDraft&&!fs.existsSync(args.draft))lib.die('draft not found: '+args.draft);
 if(hasBrief&&!fs.existsSync(args.brief))lib.die('brief not found: '+args.brief);
-var noBrief=args['no-brief']===true, keep=args.keep===true;
 if(noBrief&&hasBrief)lib.die('--no-brief and --brief together: one or the other');
-if(keep&&!hasBrief)lib.die('--keep needs --brief: it copies that brief to combat-writing/brief.md, the project\'s');
+if(args.keep!==undefined)lib.die('--keep is gone (issue 72): every brief given with --brief is the project\'s; pass --brief alone');
 var STAGES=['strategy','sparring','battle'];
 var stage=null;
 if(args.stage!==undefined){
@@ -57,7 +64,6 @@ if(args.stage!==undefined){
   stage=String(args.stage).toLowerCase();
 }
 
-var root=path.resolve(args.root&&args.root!==true?args.root:process.cwd());
 if(args.seats!==undefined)lib.die('--seats is not an option: the crew is one fresh reader, seat-1, plus the outside seats the add-on registers, never padded (ruled 2026-10-09, enforced 2026-10-12)');
 var model=(args.model&&args.model!==true)?String(args.model).trim():lib.MODEL_UNREPORTED;
 var company=(args.company&&args.company!==true)?String(args.company).trim():lib.DEFAULT_COMPANY;
@@ -81,18 +87,20 @@ var draft=null;
 if(hasDraft){draft=fs.readFileSync(args.draft);fs.writeFileSync(path.join(runDir,'draft.md'),draft);}
 // The brief: the file given, else the project's when it exists and --no-brief was not said.
 var briefFile=hasBrief?path.resolve(args.brief):null;
-if(!briefFile&&!noBrief&&fs.existsSync(lib.projectBriefPath(root)))briefFile=lib.projectBriefPath(root);
+if(!briefFile&&projectBriefThere)briefFile=lib.projectBriefPath(root);
 var briefHash=null, briefSource=null, kept=null;
 if(briefFile){
   var brief=fs.readFileSync(briefFile);
   fs.writeFileSync(path.join(runDir,'brief.md'),brief);
   briefHash=lib.sha256(brief);
   briefSource=lib.briefSourceOf(briefFile,root);
-  if(keep){
+  // A brief given is the project's (issue 72): written unless it is that file, logged when it changed.
+  if(briefSource.source!=='project'){
     var pb=lib.projectBriefPath(root);
+    var before=fs.existsSync(pb)?lib.sha256(fs.readFileSync(pb)):null;
     fs.mkdirSync(path.dirname(pb),{recursive:true});
     fs.writeFileSync(pb,brief);
-    kept={file:lib.PROJECT_BRIEF_REL.split(path.sep).join('/'),sha256:briefHash};
+    if(before!==briefHash)kept={file:lib.PROJECT_BRIEF_REL.split(path.sep).join('/'),sha256:briefHash,replaced:before};
   }
 }
 
@@ -106,5 +114,5 @@ lib.appendLog(runDir,{event:'run.created',run:path.basename(runDir),stage:stage,
   seats:seats.map(function(s){return {id:s.id,model:s.model,company:s.company};}),
   crew_note:'one fresh reader, every seat is '+company+'\'s models until the crew add-on registers outside seats; the plugin never fakes a seat and never pads the crew'});
 if(ignore.state==='written')lib.appendLog(runDir,{event:'gitignore.written',file:path.join('combat-writing',lib.GITIGNORE_FILE).split(path.sep).join('/'),lines:lib.GITIGNORE_LINES});
-if(kept)lib.appendLog(runDir,{event:'brief.kept',file:kept.file,sha256:kept.sha256});
+if(kept)lib.appendLog(runDir,{event:'brief.kept',file:kept.file,sha256:kept.sha256,replaced:kept.replaced});
 process.stdout.write(runDir+'\n');

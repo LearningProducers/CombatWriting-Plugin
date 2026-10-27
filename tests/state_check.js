@@ -168,7 +168,7 @@ write(path.join(send,'rounds','01-sparring','seat-2.answer.md'),'RATING: 8/10\nR
 ['seat-1','seat-2'].forEach(function(s){ node('check-answer.js',[path.join(send,'rounds','01-sparring',s+'.answer.md'),'--run',send]); });
 var ss=JSON.parse(node('render-state.js',['--run',send]).stdout);
 check(ss.band.verdict==='SEND'&&ss.band.low.length===0&&ss.band.numbers.map(function(n){return n.rating;}).join(',')==='9,8'&&/^Every rated seat put it at 8 or more/.test(ss.band.why),'state (send): band wrong: '+JSON.stringify(ss.band));
-var nr=seatMore(node('new-run.js',['--draft','draft.md','--name','norating','--stage','battle','--model','Test Model']).stdout.trim(),2,'Test Model');
+var nr=seatMore(node('new-run.js',['--draft','draft.md','--name','norating','--stage','battle','--no-brief','--model','Test Model']).stdout.trim(),2,'Test Model');
 write(path.join(proj,'sn.md'),'Is this ready to go to the board?\n');
 ['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',nr,'--round','01-battle','--seat',s,'--sn','sn.md']); });
 write(path.join(nr,'rounds','01-battle','seat-1.answer.md'),'Not ready: the ask is buried.\n');

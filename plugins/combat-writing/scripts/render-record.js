@@ -204,6 +204,8 @@ if(args.next===true){
   process.stdout.write((rounds.length?lib.nextLine(seats):noRoundsLine)+'\n');
 }else if(args.short===true){
   var s=[out.filter(function(l){return l.indexOf('**Crew:**')===0;})[0],''];
+  var createdLine=log.filter(function(e){return e.event==='run.created';})[0]||null;
+  var briefText=fs.existsSync(path.join(runDir,'brief.md'))?lib.readText(path.join(runDir,'brief.md')):null;
   out.filter(function(l){return l.indexOf('**Seats:**')===0;}).forEach(function(l){ s.push(l,''); });
   // The ignore file, said once (issue 36): the run that wrote combat-writing/.gitignore says so in
   // its first short form and never again, like the legend.
@@ -217,13 +219,15 @@ if(args.next===true){
     var tableStart=out.indexOf('## Scoreboard');
     var tableEnd=out.indexOf('## Answers');
     s=s.concat(out.slice(tableStart+1,tableEnd).filter(function(l){return l.indexOf('|')===0;}));
+    // Which brief the run has, on every round (issue 72): the source and the newest dated update, so the hook's message names it.
+    s.push('',lib.briefLine(createdLine,briefText));
     s.push('','Board: '+path.join(runDir,lib.BOARD_FILE));
   }else{
     s.push(noRoundsLine,'','Started at: '+lib.startedAtLine(runDir,log,rounds));
     // After strategy (2026-10-15): the draft's counts, and the one-line warning, before any seat reads it;
     // and which brief the run has (issue 65).
     if(newestFacts)s.push('','Draft: '+lib.draftFactsLine(newestFacts)+(oneLine?'\n'+oneLine:''));
-    s.push('',lib.briefLine(log.filter(function(e){return e.event==='run.created';})[0]||null));
+    s.push('',lib.briefLine(createdLine,briefText));
   }
   s.push('','Seat key: '+lib.seatKey(seats));
   process.stdout.write(s.join('\n')+'\n');

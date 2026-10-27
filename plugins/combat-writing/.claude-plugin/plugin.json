@@ -1,7 +1,7 @@
 {
   "name": "cw",
   "displayName": "Combat Writing",
-  "version": "0.8.6",
+  "version": "0.8.7",
   "description": "Combat Writing: a crew of AI model seats attacks your draft. Four stages, a command for each, the first three in the order you choose: /cw:strategy stores your draft and your context brief, written by you, in a run folder in your project; /cw:sparring has every seat rate it 1 to 10 on its first line, 7 forbidden, with its own critique; /cw:battle has the seats discuss the structure and content of the draft, reading each other and quoting by model name, in focus question (FQ), navigation (N), synthesis navigation (SN) and synthesis focus question (SFQ) rounds, or one seat answers a note of its own; they rate again when you ask with rerate, and a changed rating is checked against the quote. Any stage may be skipped: battle and sparring start a run from a pasted draft, and a battle on an unread draft is its first round. A missing keyword opens a picker, and every sparring and battle result ends with a picker for the next round. Final reads for signal-to-noise and red flags. Every run leaves a record and a visual board in your project, naming the stage it started at. The rating leads every result; scores are never averaged. /cw:champion records the piece as shipped, freezing the final draft as canon with the time and the channel, each result as it comes, silence included, and your insights in a vault that outlives the run; it fetches only the link you give it, once, and nothing else. /cw:help explains the method.",
   "author": {
     "name": "Learning Producers Inc.",
