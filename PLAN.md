@@ -694,4 +694,4 @@ Ruled and built: `budget.js` logs `budget.measured` (the largest packet's tokens
 
 Delivers: `scripts/lib.js`, `scripts/budget.js`, `scripts/render-record.js`, `scripts/render-board.js`; the four skills; CLAUDE.md, the add-on README; `tests/budget_check.js` repinned (35 checks); cw 0.8.16, crew 0.5.9 (Part 36.3's number moves to 0.5.10). Not here: the cap lever (carrying each other seat's Answer section alone in later rounds), the `source:` keyword, the honest free-tier line in the help.
 
-Status: built — 2026-10-27 — every check and the three strict validations pass locally; the pull request opens next; the live pass is the founder's next round after the update: nothing new on the terminal, the Packets lines under the board's Run details.
+Status: delivered — 2026-10-27 — pull request 98 open as a draft; every check and the three strict validations pass locally; the live pass is the founder's next round after the update: nothing new on the terminal, the Packets lines under the board's Run details.
