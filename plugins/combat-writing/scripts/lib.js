@@ -250,6 +250,47 @@ function nextLine(seats){
 
 // The line a packet carries when the round asks for no rating; the checker and the add-on read it.
 var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your answer to the task.';
+// The two sections of a battle answer that shares (issue 80, 2026-10-26, the founder's words: "the
+// first section is open ended response by the LLM responding directly to the prompt. Then a response
+// to the AI crew or question to the ai crew"): a packet that carries the other seats' answers asks
+// for them in its Contract (SECTIONS_LINE, mirrored word for word in the add-on's crew-lib.js, which
+// reads it to tell an outside seat the same). A label is a line holding only the label, in any case,
+// with or without markdown marks or a colon (sectionLabelOf); answerSections cuts the answer by them;
+// checkAnswer holds a seat to both when asked (opts.sections), and check-answer.js turns the faults
+// into notes on the second check, so a read is never lost over a label; verdictLine frames the Answer.
+var SECTIONS_LINE='Two sections, each opened by a line holding only its label: `Answer`, your reply to the task, the verdict line first; then `To the crew`, where you agree or disagree with the other seats by name, quoted word for word, or put a question to them. Nothing before the Answer label but the rating line when one is asked.';
+var SECTION_LABELS={answer:'Answer',crew:'To the crew'};
+function sectionLabelOf(line){
+  var s=String(line||'').replace(/[#*_`>\s:.\-]+/g,' ').trim().toLowerCase();
+  if(s==='answer')return 'answer';
+  if(s==='to the crew')return 'crew';
+  return null;
+}
+// {answer, crew, labeled, answer_at, crew_at}: the text under each label (null when the label is absent),
+// labeled true when both stand, the line index of each label.
+function answerSections(text){
+  var lines=String(text||'').replace(/^﻿/,'').split(/\r?\n/);
+  var a=-1, c=-1;
+  lines.forEach(function(l,i){ var k=sectionLabelOf(l); if(k==='answer'&&a<0)a=i; else if(k==='crew'&&c<0)c=i; });
+  var answer=a>=0?lines.slice(a+1,c>a?c:lines.length).join('\n').trim():null;
+  var crew=c>=0?lines.slice(c+1,a>c?a:lines.length).join('\n').trim():null;
+  return {answer:answer,crew:crew,labeled:a>=0&&c>=0,answer_at:a,crew_at:c};
+}
+// The faults against SECTIONS_LINE, as the checker's reasons: both labels, Answer first, the crew part after it.
+function sectionReasons(text,contract){
+  var s=answerSections(text), reasons=[];
+  if(s.answer_at<0)reasons.push('no Answer section: open with a line holding only "Answer"'+(contract==='rating'?' after the rating line':'')+', then your reply to the task, the verdict line first');
+  if(s.crew_at<0)reasons.push('no To the crew section: after your answer, a line holding only "To the crew", then where you agree or disagree with the other seats by name, quoted, or your question to them');
+  if(s.answer_at>=0&&s.crew_at>=0&&s.crew_at<s.answer_at)reasons.push('the To the crew section comes before the Answer section; the Answer comes first');
+  if(s.answer_at>=0){
+    var lines=String(text||'').replace(/^﻿/,'').split(/\r?\n/).slice(0,s.answer_at).filter(function(l){return l.trim();});
+    var allowed=contract==='rating'?1:0;
+    if(lines.length>allowed)reasons.push('text before the Answer label: '+(contract==='rating'?'only the rating line goes before it':'nothing goes before it'));
+  }
+  if(s.answer!==null&&!s.answer)reasons.push('the Answer section is empty');
+  if(s.crew!==null&&!s.crew)reasons.push('the To the crew section is empty');
+  return reasons;
+}
 
 // Every packet carries this line, hardwired, in its Contract section (the founder's words,
 // 2026-10-14): a seat that thinks out loud in its answer is the wall of text the person reads.
@@ -438,7 +479,7 @@ function capSent(runDir,round,answerFile,log){
   if(e&&typeof e.word_cap==='number')return e.word_cap;
   var packetPath=packetPathOf(runDir,round,answerFile);
   if(fs.existsSync(packetPath)){
-    var m=/Under (\d+) words\./.exec(readText(packetPath));
+    var m=/Under (\d+) words( in all)?\./.exec(readText(packetPath));
     if(m)return parseInt(m[1],10);
   }
   return null;
@@ -455,6 +496,14 @@ function contractSent(runDir,round,answerFile,log){
   var packetPath=packetPathOf(runDir,round,answerFile);
   if(fs.existsSync(packetPath)&&readText(packetPath).indexOf(NO_RATING_LINE)>=0)return 'critique';
   return contractOf(answerFile);
+}
+// Whether the packet a seat was sent asked for the two sections (issue 80): the packet.built
+// line's `sections`, else the packet file carrying SECTIONS_LINE; a packet built by hand, false.
+function sectionsSent(runDir,round,answerFile,log){
+  var e=packetLine(runDir,round,answerFile,log);
+  if(e&&typeof e.sections==='boolean')return e.sections;
+  var packetPath=packetPathOf(runDir,round,answerFile);
+  return fs.existsSync(packetPath)&&readText(packetPath).indexOf(SECTIONS_LINE)>=0;
 }
 
 // What one round asked of its seats, from its packet.built lines: 'final', 'critique' or
@@ -772,12 +821,14 @@ function renderLite(text){
 }
 
 // The one-line verdict the board frames: the first sentence or two of the answer after its
-// first line (the whole answer under the critique contract), cut at a sentence end before
-// 200 characters, else at a word with an ellipsis. Markdown list and heading marks are dropped.
+// first line (the whole answer under the critique contract; the Answer section when the answer
+// carries the two labels, issue 80), cut at a sentence end before 200 characters, else at a word
+// with an ellipsis. Markdown list and heading marks are dropped.
 var VERDICT_MAX=200;
 function verdictLine(text,contract){
   var lines=String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/);
-  var body=lines.slice(contract==='critique'?0:1);
+  var sec=answerSections(text);
+  var body=sec.answer!==null?sec.answer.split(/\r?\n/):lines.slice(contract==='critique'?0:1);
   var para='';
   for(var i=0;i<body.length;i++){
     var l=body[i].replace(/^[\s#>*\-]+/,'').trim();
@@ -817,8 +868,9 @@ function parseRating(text){
 //   sn:       S/N RATIO: XX%, XX 0 to 100, nothing else on the line. (The app's; no 7 ban.)
 //   redflag:  NO RED FLAGS, or RED FLAGS FOUND: X with X 1 or more, nothing else on the line. (The app's.)
 //   Trailing spaces or tabs on the first line are tolerated on every contract; trailing text is not.
-function checkAnswer(text,wordCap,contract){
+function checkAnswer(text,wordCap,contract,opts){
   contract=contract||'rating';
+  opts=opts||{};
   var reasons=[];
   var cap=wordCap||(contract==='rating'||contract==='critique'?DEFAULT_WORD_CAP:DEFAULT_FINAL_WORD_CAP);
   var lines=text.replace(/^﻿/,'').split(/\r?\n/);
@@ -859,7 +911,11 @@ function checkAnswer(text,wordCap,contract){
   // The cap reason names the retry target (ruled 2026-10-15); it reaches a fresh reader in its retry
   // task and an outside seat in its retry note, so both get the same number from this one line.
   if(words>cap)reasons.push(words+' words, over the cap of '+cap+'; write it again under '+retryTarget(cap)+' words, counting them; a second answer over '+cap+' is cut at the last sentence before '+cap);
-  return {ok:reasons.length===0,contract:contract,rating:rating,value:value,words:words,reasons:reasons};
+  // The two sections (issue 80), only when the packet asked for them; the reasons are listed apart so
+  // check-answer.js can turn them into notes on a second check.
+  var sectionFaults=opts.sections&&(contract==='rating'||contract==='critique')?sectionReasons(text,contract):[];
+  reasons=reasons.concat(sectionFaults);
+  return {ok:reasons.length===0,contract:contract,rating:rating,value:value,words:words,reasons:reasons,sections:opts.sections?answerSections(text).labeled:null,section_reasons:sectionFaults};
 }
 
 // The record's line for a cut read, for either cutter: the checker (a fresh reader, 2026-10-15)
@@ -1091,7 +1147,7 @@ module.exports={
   PROJECT_BRIEF_FILE:PROJECT_BRIEF_FILE,PROJECT_BRIEF_REL:PROJECT_BRIEF_REL,PROJECT_BRIEF_KEPT_LINE:PROJECT_BRIEF_KEPT_LINE,projectBriefPath:projectBriefPath,briefSourceOf:briefSourceOf,briefWords:briefWords,briefLine:briefLine,
   BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
-  capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
   STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,roundCell:roundCell,finalCell:finalCell,finalText:finalText,bandOf:bandOf,runState:runState
 };

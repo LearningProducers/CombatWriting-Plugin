@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // check-answer.js: verifies one seat's answer file against its first-line contract.
 //
-//   node check-answer.js <answer file> [--word-cap <n>] [--run <run folder>] [--contract rating|sn|redflag]
+//   node check-answer.js <answer file> [--word-cap <n>] [--run <run folder>] [--contract rating|sn|redflag] [--sections]
 //
 // The contract comes from the packet the seat was sent (with --run), else from the file
-// name, unless --contract says otherwise:
+// name, unless --contract says otherwise. The two sections of a battle answer that shares
+// (issue 80, Answer then To the crew, lib.SECTIONS_LINE) are held when the packet asked for
+// them (lib.sectionsSent with --run; --sections without one): a missing label fails the first
+// check and is sent back with the reason; on the second check it is a note (section_notes in
+// the summary and the log line), the answer accepted, so a read is never lost over a label.
 //   <seat>.answer.md          rating:   RATING: X/10, uppercase, X 1 to 10, never 7, nothing else on the line
 //                             critique: a battle round that asked for no rating (ruled 2026-10-09):
 //                                       no RATING line; the critique opens the answer
@@ -46,23 +50,35 @@ if(args['word-cap']&&args['word-cap']!==true){cap=parseInt(args['word-cap'],10);
 else if(runDir&&round){var fromRun=lib.capSent(runDir,round,path.resolve(file));if(fromRun!==null){cap=fromRun;capSource='packet';}}
 var text=lib.readText(file);
 var capInForce=cap||(contract==='rating'||contract==='critique'?lib.DEFAULT_WORD_CAP:lib.DEFAULT_FINAL_WORD_CAP);
-var truncated=null;
+var truncated=null, second=false;
+// The two sections (issue 80): held when the packet asked for them (--sections says so without a run).
+var sections=(runDir&&round)?lib.sectionsSent(runDir,round,path.resolve(file)):args.sections===true;
 if(runDir&&round){
   var relFile=rel.join('/');
-  var second=lib.readLog(runDir).some(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seatId&&e.file===relFile&&e.ok===false;});
+  // A second answer: one whose first check failed, or one the add-on already cut on the seat's second
+  // overrun (crew.answered with truncated), which is a second answer by definition.
+  second=lib.readLog(runDir).some(function(e){return (e.event==='answer.checked'&&e.round===round&&e.seat===seatId&&e.file===relFile&&e.ok===false)||(e.event==='crew.answered'&&e.round===round&&e.seat===seatId&&e.file===relFile&&!!e.truncated);});
   if(second&&lib.wordCount(text)>capInForce){
     var cut=lib.truncateAnswer(text,capInForce,contract==='sn'?'sn':contract==='redflag'?'redflag':'rating',contract);
     if(cut){text=cut.text+'\n';fs.writeFileSync(file,text);truncated=Object.assign({by:'checker'},cut.truncated);}
   }
 }
-var result=lib.checkAnswer(text,cap,contract);
+var result=lib.checkAnswer(text,cap,contract,{sections:sections});
+// On the second check a section fault is a note, not a failure (issue 80): the seat was sent back once
+// for it, as for an overrun, and a read is never lost over a label.
+var sectionNotes=[];
+if(second&&result.section_reasons.length){
+  sectionNotes=result.section_reasons;
+  result.reasons=result.reasons.filter(function(r){return sectionNotes.indexOf(r)<0;});
+  result.ok=result.reasons.length===0;
+}
 var summary={file:path.basename(file),contract:contract,ok:result.ok,rating:result.rating,value:result.value,words:result.words,
-  word_cap:capInForce,word_cap_source:capSource,reasons:result.reasons,truncated:truncated};
+  word_cap:capInForce,word_cap_source:capSource,reasons:result.reasons,truncated:truncated,sections:result.sections,section_notes:sectionNotes};
 if(runDir&&fs.existsSync(path.join(runDir,'log.jsonl'))){
   lib.appendLog(runDir,Object.assign({event:'answer.checked',round:round,seat:seatId},summary,{file:rel.join('/')}));
 }
 var headline=result.ok
-  ?('OK '+(contract==='rating'?'rating '+result.rating+'/10':contract==='critique'?'critique, no rating this round':contract==='sn'?'S/N '+result.value+'%':(result.value===0?'no red flags':result.value+' red flag(s)'))+', '+result.words+' words'+(truncated?', truncated at '+truncated.at+' words on the second overrun (cut at '+(truncated.cut_at==='sentence'?'the last sentence end':'the word')+'; the seat returned '+truncated.words_returned+')':''))
+  ?('OK '+(contract==='rating'?'rating '+result.rating+'/10':contract==='critique'?'critique, no rating this round':contract==='sn'?'S/N '+result.value+'%':(result.value===0?'no red flags':result.value+' red flag(s)'))+', '+result.words+' words'+(truncated?', truncated at '+truncated.at+' words on the second overrun (cut at '+(truncated.cut_at==='sentence'?'the last sentence end':'the word')+'; the seat returned '+truncated.words_returned+')':'')+(sectionNotes.length?', accepted without its two sections on the second check ('+sectionNotes.join('; ')+')':''))
   :('FAIL '+result.reasons.join('; ')+(truncated?' (cut at '+truncated.at+' words on the second overrun first)':''));
 var who='';
 if(runDir&&round){
