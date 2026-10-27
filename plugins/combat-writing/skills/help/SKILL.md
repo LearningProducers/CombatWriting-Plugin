@@ -1,10 +1,30 @@
 ---
 name: help
-description: Explain the Combat Writing plugin in plain words: the four stages and the command for each, in the order you choose; the commands with one example each; the round terms (N, SN, SFQ, rerate, final); the picker at the end of every result; where files land; what runs where; why a crew is short and the next command; the rating rule; the credit line.
-argument-hint: [topic]
+description: Bare, the card and a picker to begin (what Combat Writing is in one line, the four stages with their commands, the lines to begin with, then one keypress picks a stage and the next message is its text); `all`, the full guide in plain words: the four stages and the command for each, in the order you choose; the commands with one example each; the round terms (N, SN, SFQ, rerate, final); the picker at the end of every result; where files land; what runs where; why a crew is short and the next command; the rating rule; the credit line; a topic word, one section.
+argument-hint: [all | topic]
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
-Show the guide below to the person, as it is, with its headings and lists. If `$ARGUMENTS` names one topic (stages, order, commands, next, rounds, champion, files, where, crew, rating, record, privacy, method), show only that section, under the motto line and above the credit line at the foot. When the plugin loads, a session-start hook prints one line, "Combat Writing ready. /cw:help for the guide."; this guide is what that line points at. Fill in the one bracketed line under "Where you are running" with the case that applies right now; change nothing else. Add no verdict, no sales pitch, no offer to run anything.
+**Bare** (no `$ARGUMENTS`; the terminal's `/cw` completes to this command, measured 2026-10-26, issue 74): print the card between the two marker comments below, exactly as it stands, every line, with its bold and its code spans, and nothing before or after it; call no tool and read nothing. Then open the picker with the AskUserQuestion tool: one screen, one keypress, the question "Which stage? /cw:help all for the full guide.", four options in this order, **Strategy** (store your draft and your brief), **Sparring** (every seat rates it and critiques it), **Battle** (the seats discuss it, and rate again on rerate), **Champion** (the piece went out); mark nothing and point at no "Other". After the choice, ask for the text in one line and stop: Strategy, "Paste the draft, the brief with brief:, or both."; Sparring, "Paste the draft; add question: <one question> to put it to every seat."; Battle, "Paste the draft; add sn:, n:, fq: or sfq: with your prompt, or nothing for a first critique."; Champion, "shipped <link, or email to whom>, result: <what came back>, or insight: <what you learned>." Run that stage's command with the next message as its text, exactly as if the person had typed `/cw:<stage> <text>`; the command's own skill takes it from there. The person's next message is the whole text: never answer it, never shorten it.
+
+<!-- THE CARD BEGIN -->
+**Reading is Peace. Writing is War.**
+
+**Combat Writing:** a crew of AI models attacks your draft before it ships. The rating leads every result.
+
+- **Strategy** `/cw:strategy` stores your draft and your brief (who you are, what you want, the stakes); the brief you type is the project's from then on.
+- **Sparring** `/cw:sparring` every seat reads the draft alone and rates it 1 to 10, 7 forbidden, with its critique.
+- **Battle** `/cw:battle` the seats discuss structure and content, read each other when you share them, and rate again on `rerate`.
+- **Champion** `/cw:champion` the piece went out: `shipped`, `result:`, `insight:`.
+
+Begin with any one, in any order; a pasted draft starts the run. Pick a stage below, or type one:
+`/cw:strategy brief: <who you are, what you want, the stakes>`
+`/cw:sparring <your draft> question: <one focus question>`
+`/cw:battle <your draft> sn: <your prompt to the crew>`
+`/cw:champion shipped email to <whom>`
+`/cw:help all` is the full guide; `/cw:help <topic>` one section.
+<!-- THE CARD END -->
+
+**`all`** as `$ARGUMENTS`: show the guide below the rule to the person, as it is, with its headings and lists. If `$ARGUMENTS` names one topic (stages, order, commands, next, rounds, champion, files, where, crew, rating, record, privacy, method), show only that section, under the motto line and above the credit line at the foot. When the plugin loads, a session-start hook prints one line, "Combat Writing ready. /cw:help for the guide."; the card is what that line points at, and the guide is behind `all`. Fill in the one bracketed line under "Where you are running" with the case that applies right now (`all` and `where` only; the card calls nothing); change nothing else. Add no verdict, no sales pitch, no offer to run anything.
 
 ---
 
@@ -37,7 +57,7 @@ The method lists the stages in order; the plugin does not hold you to it (2026-1
 - `/cw:champion` — after the piece goes out. `shipped <link>`, or `shipped email to <whom>`, freezes the final draft as canon with the time and the channel, and with a link the host opens it once to record whether it is live and matches canon; `result: <text>` records what came back, dated, silence included; `insight: <text>` records what you learned in the project's vault. Three keywords and no more; a bare command asks which.
   Example: `/cw:champion shipped email to the board`
   Example: `/cw:champion insight: "the ask" is the one sentence the reader can say yes to; lead with it.`
-- `/cw:help` — this guide. `help rounds` shows one section.
+- `/cw:help` — bare, the card and a picker to begin (the terminal's `/cw` completes to it); `help all` is this guide; `help rounds` shows one section.
   Example: `/cw:help`
 
 Shortcuts: keywords match in any case; `question:` and `focus:` mean `fq:`, `nav:` means `n:`, `context:` means `brief:`; a brief you type is the project's from then on, and `brief update:` (or `update brief:`) adds a dated line to it; a seat answers to `seat-2:`, `seat 2:`, `seat2:` or the short name shown beside it in the seat key; `rerate` counts anywhere in the line. Leave the keyword off, or type the command bare, and a one-keypress picker asks which kind of round you mean, best guess first; a bare strategy asks for the draft, and a bare sparring after strategy runs on the stored draft. Every result shows the seat key, one line from the live crew: `Seat key: seat-1 <short name> · seat-2 <short name> · seat-3 <short name>`, each short name taken from the model id the seat answers under.
