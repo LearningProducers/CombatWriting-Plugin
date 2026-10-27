@@ -707,3 +707,15 @@ Ruled and built: `lib.roundTask` carries `n`, which of its kind the round is, co
 Delivers: `scripts/lib.js`, `scripts/announce.js`; the help skill's round terms, the README, CLAUDE.md; `tests/packet_check.js` (169 checks), `tests/announce_check.js` (34), `tests/state_check.js` (50); cw 0.8.17. Not here: a voice per model on the board's read-aloud (the founder's second ask of the same message: Anthropic keeps the voice it has, the two Groq seats get the next best two; its own issue and PR after this one merges), the cap lever, the `source:` keyword, the honest free-tier line in the help.
 
 Status: delivered — 2026-10-27 — pull request 100 open as a draft; every check and the three strict validations pass locally; the live pass is the founder's SN round after the update: the forming line and the board's round line read SN2 if an SN came before, and round 03 reads SFQ2.
+
+## Part 72 — A voice per seat on the board's read-aloud (issue 101, cw 0.8.18)
+
+The founder's words, 2026-10-27: "i want each model to have a different voice for TTS, the first one for anthropic is the one it has now but gptoss and qwen3 have to have different ones you pick the next best two. I understand a user on a different computer may have different voices thats ok." And after pull request 100: "im ready to have them each have different voices so build that in too."
+
+Measured: `render-board.js` built every seat's utterance with no voice set, so the three seats read in the browser's one default voice.
+
+Ruled and built: the board's script picks a voice per seat in the browser, `seatVoice`: seat-1 keeps the default; every later seat gets one from the browser's own list, the page's language first, the machine's own voices first, then by name, seat-2 the first of them and seat-3 the second (wrapping when the list is short), cached per seat for the page's life so a seat sounds the same every time on one machine; the status line names the voice. A list the browser has not loaded yet falls back to the default and is asked again on the next click. The canon's reader is unchanged. No model is called and nothing is sent anywhere.
+
+Delivers: `scripts/render-board.js`; the README, the help skill, CLAUDE.md; `tests/board_check.js` (120 checks); cw 0.8.18. Not here: the rewrite-round shape (a seat told to rewrite still opens with a verdict line because the Contract asks for one; its design is before the founder), the cap lever, the `source:` keyword, the honest free-tier line in the help.
+
+Status: in progress — 2026-10-27 — built on branch `claude/101-voice-per-seat`; every check and the three strict validations pass locally; the live pass is the founder's next board: Read aloud on seat-2 and seat-3 in two voices that are not seat-1's, the status line naming each.
