@@ -156,7 +156,8 @@ function registerSeats(runDir){
 // cap stated as a number (ruled 2026-10-09), so an outside seat is told the cap before it writes.
 function systemPromptFor(read,seat,rules){
   var who='You are one seat on a Combat Writing crew, '+seat.model+' served by '+seat.served_by+', reading one packet. You have no memory of the person\'s conversation. The packet below is everything. ';
-  var contract=read==='sn'?'Your first line must be exactly S/N RATIO: XX% with XX from 0 to 100 and nothing else on that line. Then your reasoning with evidence quoted from the draft.'
+  var contract=read==='crew'?'This is the round\'s second pass: the packet carries the other seats\' answers to the same round. Write only your reply to them: where you agree or disagree, each named by its model as the packet labels it, never by seat number alone, quoted word for word, or a question to them. No rating line, no new critique of the draft.'
+    :read==='sn'?'Your first line must be exactly S/N RATIO: XX% with XX from 0 to 100 and nothing else on that line. Then your reasoning with evidence quoted from the draft.'
     :read==='redflag'?'Your first line must be exactly NO RED FLAGS or RED FLAGS FOUND: X with X a whole number of 1 or more, nothing else on that line. Then each flag with its citation from the text.'
     :rules.contract==='critique'?'This round asks for no rating: do not write a RATING line. Open with your answer to the task in the packet, as it asks (a rewrite asked for is written in full), with evidence quoted from the draft.'
     :'Your first line must be exactly RATING: X/10, uppercase, X a whole number from 1 to 10, never 7, nothing else on that line. Then your reasoning with evidence quoted from the draft.';
@@ -224,7 +225,7 @@ function answer(args){
   var note=args.note!==undefined&&args.note!==null&&String(args.note).trim()?String(args.note).trim():'';
   if(!fs.existsSync(path.join(runDir,'seats.json')))throw new Error('run folder not found or not a Combat Writing run: '+runDir);
   if(!/^\d\d-[a-z][a-z0-9-]*$/.test(round))throw new Error('round must look like 02-battle');
-  if(['rating','sn','redflag'].indexOf(read)<0)throw new Error('read must be rating, sn or redflag');
+  if(['rating','sn','redflag','crew'].indexOf(read)<0)throw new Error('read must be rating, sn, redflag or crew');
   var seatsFile=lib.readSeats(runDir);
   var seat=seatsFile.seats.filter(function(s){return s.id===seatId;})[0];
   if(!seat)throw new Error('seat '+seatId+' is not in seats.json');
@@ -314,7 +315,7 @@ var TOOLS=[
   {name:'crew_register',description:'Add every available outside seat to a Combat Writing run: appends them to the run\'s seats.json (named by the model id and its maker, served by the provider) and logs it. Run it once per run after new-run.js and before building packets. Returns the seats added and the ones unavailable with the reason.',
     inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder, combat-writing/runs/<run-id>'}},required:['run'],additionalProperties:false}},
   {name:'crew_answer',description:'Send one outside seat\'s packet for one round to its provider on the person\'s own key and write the answer file beside the packet. Checks the packet against the provider\'s call budget first (refuses with "Too long to send"), waits out the per-minute window, lowers max_tokens and resends once when the provider names a per-request output cap, and records the model id the API returned. Returns the answer path and the id, never the text. A failed call leaves the seat missing for the round.',
-    inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder'},round:{type:'string',description:'the round, such as 02-battle'},seat:{type:'string',description:'the seat id, such as seat-4'},read:{type:'string',enum:['rating','sn','redflag'],description:'rating (default), or sn / redflag for the final reads'},note:{type:'string',description:'on a retry only: the failed check\'s reasons, appended after the packet so the seat knows what to fix'}},required:['run','round','seat'],additionalProperties:false}}
+    inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder'},round:{type:'string',description:'the round, such as 02-battle'},seat:{type:'string',description:'the seat id, such as seat-4'},read:{type:'string',enum:['rating','sn','redflag','crew'],description:'rating (default), sn / redflag for the final reads, or crew for the second pass of a first round (the <seat>.crew packet, issue 88)'},note:{type:'string',description:'on a retry only: the failed check\'s reasons, appended after the packet so the seat knows what to fix'}},required:['run','round','seat'],additionalProperties:false}}
 ];
 
 function textResult(obj,isError){ return {content:[{type:'text',text:JSON.stringify(obj,null,2)}],isError:!!isError}; }

@@ -28,6 +28,15 @@ var RUNS_DIR=path.join('combat-writing','runs');
 var DEFAULT_WORD_CAP=500;            // a read with no other seats' answers
 var DEFAULT_SYNTHESIS_WORD_CAP=600;  // a read that quotes other seats
 var DEFAULT_FINAL_WORD_CAP=250;      // the S/N and red-flag reads (the app's S/N prompt says under 250)
+var DEFAULT_CREW_WORD_CAP=300;       // the second pass of a first-round SN or SFQ: To the crew alone (issue 88)
+// The second pass of a first round (issue 88, 2026-10-27, the founder's words: "if a user was to use sn
+// on round 1 it ought to not be denied the double run to include what the ai crew has to say about each
+// other"): after every seat has answered on the draft alone, each gets one more packet carrying the
+// others' answers to the same round and writes To the crew alone, into <seat>.crew.answer.md. The
+// record prints it under the answer, the board shows it under the read, and the next round's packets
+// carry it with the answer it belongs to (roundAnswers appends it), so a quote from it counts.
+var CREW_PASS_LINE='This is the second pass of this round. Every seat answered on the draft alone first; those answers are below. Write To the crew alone: where you agree or disagree with the other seats, each named by its model as the packet labels it (never by seat number alone), quoted word for word, or put a question to them. No new critique of the draft and no rating.';
+var CREW_PASS_HEADING='To the crew (second pass)';
 var DEFAULT_COMPANY='Anthropic';
 var MODEL_UNREPORTED='model unreported';
 
@@ -459,7 +468,7 @@ function previousRound(runDir,beforeRound){
 // The packet.built log line for one answer file, if any: the round's line for that packet.
 function packetLine(runDir,round,answerFile,log){
   var packetName=path.basename(answerFile).replace(/\.answer\.md$/,'.packet.md');
-  var seatId=path.basename(answerFile).replace(/(\.sn|\.redflag)?\.answer\.md$/,'');
+  var seatId=path.basename(answerFile).replace(/(\.sn|\.redflag|\.crew)?\.answer\.md$/,'');
   log=log||readLog(runDir);
   for(var i=log.length-1;i>=0;i--){
     var e=log[i];
@@ -589,8 +598,22 @@ function roundAnswers(runDir,round,seats){
     var cap=logged?logged.word_cap:capSent(runDir,round,p,log);
     var check=checkAnswer(text,cap,contract);
     if(!check.ok)return {seat:seat,round:round,file:p,missing:true,failed:true,reasons:check.reasons,contract:contract};
-    return {seat:seat,round:round,file:p,text:text,contract:contract,rating:check.rating};
+    // The second pass rides with the answer it belongs to (issue 88), so a later packet carries it and a quote from it counts.
+    var crew=crewPassOf(runDir,round,seat.id,log);
+    return {seat:seat,round:round,file:p,text:crew?text.replace(/\s+$/,'')+'\n\n'+CREW_PASS_HEADING+'\n\n'+crew.text:text,answer_text:text,crew_pass:crew?crew.text:null,contract:contract,rating:check.rating};
   });
+}
+// A seat's second pass in a round (issue 88): {text, words} when <seat>.crew.answer.md is there and sound, else null.
+function crewPassOf(runDir,round,seatId,log){
+  var p=path.join(runDir,'rounds',round,seatId+'.crew.answer.md');
+  if(!fs.existsSync(p))return null;
+  var text=readText(p);
+  log=log||readLog(runDir);
+  var logged=null;
+  for(var i=log.length-1;i>=0;i--){var e=log[i];if(e.event==='answer.checked'&&e.round===round&&e.seat===seatId&&e.contract==='crew'){logged=e;break;}}
+  var check=checkAnswer(text,logged?logged.word_cap:null,'crew');
+  if(!check.ok)return null;
+  return {text:text.replace(/\s+$/,''),words:wordCount(text),file:path.join('rounds',round,seatId+'.crew.answer.md')};
 }
 
 // The seat's own latest sound answer in any earlier non-final round, rated or not: its earlier turn.
@@ -728,7 +751,7 @@ var SENTENCE_CUT_WINDOW=60;
 function truncateAnswer(text,cap,read,contract){
   if(!cap||wordCount(text)<=cap)return null;
   var returned=wordCount(text);
-  var re=read==='sn'?/^S\/N RATIO: \d{1,3}%$/:read==='redflag'?/^(NO RED FLAGS|RED FLAGS FOUND: \d+)$/:contract==='critique'?null:/^RATING: \d{1,2}\/10$/;
+  var re=read==='sn'?/^S\/N RATIO: \d{1,3}%$/:read==='redflag'?/^(NO RED FLAGS|RED FLAGS FOUND: \d+)$/:(contract==='critique'||contract==='crew'||read==='crew')?null:/^RATING: \d{1,2}\/10$/;
   var lines=text.split('\n'), head=null, moved=false;
   if(re){
     for(var i=0;i<lines.length;i++){
@@ -851,6 +874,7 @@ function contractOf(file){
   var b=path.basename(file);
   if(/\.sn\.answer\.md$/.test(b))return 'sn';
   if(/\.redflag\.answer\.md$/.test(b))return 'redflag';
+  if(/\.crew\.answer\.md$/.test(b))return 'crew';
   return 'rating';
 }
 
@@ -872,15 +896,15 @@ function checkAnswer(text,wordCap,contract,opts){
   contract=contract||'rating';
   opts=opts||{};
   var reasons=[];
-  var cap=wordCap||(contract==='rating'||contract==='critique'?DEFAULT_WORD_CAP:DEFAULT_FINAL_WORD_CAP);
+  var cap=wordCap||(contract==='rating'||contract==='critique'?DEFAULT_WORD_CAP:contract==='crew'?DEFAULT_CREW_WORD_CAP:DEFAULT_FINAL_WORD_CAP);
   var lines=text.replace(/^﻿/,'').split(/\r?\n/);
   // Trailing spaces or tabs on the first line are tolerated; trailing text is not.
   var first=(lines[0]||'').replace(/[ \t]+$/,'');
   var rating=null, value=null, m;
   if(first.trim()===''){
-    reasons.push(contract==='critique'?'first line is empty; open with your critique':'first line is empty; the '+(contract==='rating'?'rating':contract==='sn'?'S/N RATIO':'red-flag')+' line must come first');
-  }else if(contract==='critique'){
-    if(/^\s*rating\s*:/i.test(first))reasons.push('this round asked for no rating; remove the RATING line and open with your critique');
+    reasons.push(contract==='critique'?'first line is empty; open with your critique':contract==='crew'?'first line is empty; open with your reply to the other seats':'first line is empty; the '+(contract==='rating'?'rating':contract==='sn'?'S/N RATIO':'red-flag')+' line must come first');
+  }else if(contract==='critique'||contract==='crew'){
+    if(/^\s*rating\s*:/i.test(first))reasons.push(contract==='crew'?'the second pass asks for no rating; remove the RATING line and open with your reply to the other seats':'this round asked for no rating; remove the RATING line and open with your critique');
   }else if(contract==='rating'){
     m=/^RATING: (\d{1,2})\/10$/.exec(first);
     if(!m){
@@ -905,8 +929,8 @@ function checkAnswer(text,wordCap,contract,opts){
     else if((m=/^RED FLAGS FOUND: (\d+)$/.exec(first))){value=parseInt(m[1],10);if(value<1)reasons.push('RED FLAGS FOUND: 0 is not a count; say NO RED FLAGS');}
     else reasons.push('first line is "'+first.slice(0,80)+'", must be exactly "NO RED FLAGS" or "RED FLAGS FOUND: X"');
   }else die('unknown contract '+contract);
-  var body=lines.slice(contract==='critique'?0:1).join('\n');
-  if(body.trim()==='')reasons.push(contract==='critique'?'no critique':'no reasoning after the first line');
+  var body=lines.slice(contract==='critique'||contract==='crew'?0:1).join('\n');
+  if(body.trim()==='')reasons.push(contract==='critique'?'no critique':contract==='crew'?'no reply to the other seats':'no reasoning after the first line');
   var words=wordCount(text);
   // The cap reason names the retry target (ruled 2026-10-15); it reaches a fresh reader in its retry
   // task and an outside seat in its retry note, so both get the same number from this one line.
@@ -1137,7 +1161,7 @@ function runState(runDir){
 
 module.exports={
   RUNS_DIR:RUNS_DIR,DEFAULT_WORD_CAP:DEFAULT_WORD_CAP,DEFAULT_SYNTHESIS_WORD_CAP:DEFAULT_SYNTHESIS_WORD_CAP,
-  DEFAULT_FINAL_WORD_CAP:DEFAULT_FINAL_WORD_CAP,DEFAULT_COMPANY:DEFAULT_COMPANY,MODEL_UNREPORTED:MODEL_UNREPORTED,
+  DEFAULT_FINAL_WORD_CAP:DEFAULT_FINAL_WORD_CAP,DEFAULT_CREW_WORD_CAP:DEFAULT_CREW_WORD_CAP,CREW_PASS_LINE:CREW_PASS_LINE,CREW_PASS_HEADING:CREW_PASS_HEADING,crewPassOf:crewPassOf,DEFAULT_COMPANY:DEFAULT_COMPANY,MODEL_UNREPORTED:MODEL_UNREPORTED,
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
   DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,NO_RATING_LINE:NO_RATING_LINE,
   SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
