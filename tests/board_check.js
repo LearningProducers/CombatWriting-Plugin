@@ -314,6 +314,11 @@ check(node('render-board.js',['--run',bad]).status===2,'render-board: a folder w
 // frame to speech synthesis with pause, resume and stop; the page still has one href and no outside request.
 check(!!f1&&/<div class="read-controls"><button type="button" class="seat-speak" aria-label="Read this seat's critique aloud">🔊 Read aloud<\/button> <button type="button" class="seat-pause"[^>]*disabled>Pause<\/button> <button type="button" class="seat-stop"[^>]*disabled>Stop<\/button> <span class="meta seat-status" aria-live="polite"><\/span><\/div><div class="seat-text" hidden>The close is the problem, as seat-2 said\.<\/div><details>/.test(f1[1]),'board (read aloud): seat-1\'s frame should carry the controls and the plain text before its fold; got '+(f1?f1[1].slice(0,400):''));
 check(!!f2&&f2[1].indexOf('seat-speak')<0&&!!f3&&f3[1].indexOf('seat-speak')<0,'board (read aloud): a missing or failed frame carries no control');
+// A voice per seat (issue 101): the page picks a voice for every seat but seat-1, from the browser's list,
+// the page's language first, local voices first, then by name; seat-1 keeps the default; the canon's reader sets none.
+var vs=/var pick=\{\};function seatVoice\(f\)\{[^]*?if\(!\(k>1\)[^]*?return null;[^]*?pool\[\(k-2\)%pool\.length\][^]*?\}/.exec(html);
+check(!!vs&&/\.slice\(0,2\)\.toLowerCase\(\)===lang/.test(vs[0])&&/localService/.test(vs[0])&&/localeCompare/.test(vs[0]),'board (voices): seatVoice should pick by language, local first, then name, skipping seat-1; got '+(vs?vs[0].slice(0,120):'none'));
+check(/var v=seatVoice\(f\);if\(v\)u\.voice=v;/.test(html)&&html.split('u.voice=v').length===2,'board (voices): the seat utterance takes the picked voice once, the canon none');
 check(freshHtml.indexOf('class="seat-speak"')<0&&freshHtml.indexOf('class="seat-text"')<0,'board (read aloud): a run with no rounds carries no control and no spoken text');
 check((html.match(/class="seat-speak"/g)||[]).length===1&&/querySelectorAll\("\.frame"\)/.test(html)&&/new SpeechSynthesisUtterance\(t\.textContent\)/.test(html)&&/playing\.idle\(\)/.test(html)&&(html.match(/href="[^"]*"/g)||[]).length===1,'board (read aloud): one control on the page, the script reading the seat text, one seat at a time, still one href');
 var mdPlain=/<div class="seat-text" hidden>([^<]*)<\/div>/.exec(mdHtml);
