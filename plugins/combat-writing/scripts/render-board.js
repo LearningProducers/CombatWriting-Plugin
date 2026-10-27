@@ -93,13 +93,13 @@ function cell(seat,round){
   var trunc=truncationOf(seat,round,'rating');
   var words=lib.wordCount(text);
   if(!check.ok)return {kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,mark:withTrunc('',trunc),answer:text,words:words,contract:contract,reasons:check.reasons};
-  if(contract==='critique')return {kind:'critique',text:'critique',title:'this round asked for no rating',rating:null,mark:withTrunc('',trunc),answer:text,words:words,contract:contract};
+  if(contract==='critique')return {kind:'critique',text:'critique',title:'this round asked for no rating',rating:null,mark:withTrunc('',trunc),answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null};
   var flip=lastLog(function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
   if(!flip){var inputs=lib.flipInputs(runDir,seat,round,seats);flip=lib.checkFlip(text,seat,inputs.ownRated?inputs.ownRated.text:null,inputs.prevAnswers);}
   var kind={first:'first',stand:'stand',held:'held','flip-valid':'flip-valid','flip-invalid':'flip-invalid',unrated:'first'}[flip.status]||'first';
   var mark={first:'',stand:'Stand',held:'held, no Stand','flip-valid':'flip from '+flip.from+', valid','flip-invalid':'flip from '+flip.from+', INVALID'}[kind]||'';
   var title={'flip-valid':'quoted '+flip.cited,'flip-invalid':flip.reason||'quote not found'}[kind]||'';
-  return {kind:kind,rating:check.rating,text:check.rating+'/10',mark:withTrunc(mark,trunc),title:title,from:flip.from,answer:text,words:words,contract:contract};
+  return {kind:kind,rating:check.rating,text:check.rating+'/10',mark:withTrunc(mark,trunc),title:title,from:flip.from,answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null};
 }
 function finalCell(seat,round){
   return ['sn','redflag'].map(function(c){
@@ -263,8 +263,8 @@ if(tableRounds.length){
       fold='<details><summary>The failed read ('+c.words+' words)</summary><div class="read failed">'+read(c.answer)+'</div></details>';
     }else{
       badge=c.kind==='critique'
-        ?'<span class="badge critique">Critique · no rating asked'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>'
-        :'<span class="badge">Rating '+c.rating+'/10'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
+        ?'<span class="badge critique">'+(c.rewrite?'Rewrite · no rating asked':'Critique · no rating asked')+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>'
+        :'<span class="badge">Rating '+c.rating+'/10'+(c.rewrite?' · rewrite':'')+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
       quote=lib.verdictLine(c.answer,c.contract)||'(no words after the first line)';
       // The second pass of a first round (issue 88): under the read, in the fold and in the spoken text.
       var crew=t?lib.crewPassOf(runDir,t.round,s.id,log):null;
@@ -272,7 +272,9 @@ if(tableRounds.length){
       var spoken=plainText(c.answer)+(crew?'\n\n'+lib.CREW_PASS_HEADING+'.\n\n'+plainText(crew.text):'');
       // Read aloud (issue 82): the answer as plain text in the page, the controls on the frame; the
       // script below wires every frame to the browser's speech synthesis, one seat at a time.
-      fold='<div class="read-controls"><button type="button" class="seat-speak" aria-label="Read this seat\'s '+(c.kind==='critique'?'critique':'read')+' aloud">🔊 Read aloud</button> <button type="button" class="seat-pause" aria-label="Pause or resume the reading" disabled>Pause</button> <button type="button" class="seat-stop" aria-label="Stop the reading" disabled>Stop</button> <span class="meta seat-status" aria-live="polite"></span></div>'
+      // The rewrite (issue 103): the whole of it under the frame, open, before the fold; the quote above is its opening.
+      fold=(c.rewrite?'<div class="read rewrite"><p class="meta">The rewrite, in full:</p>'+read(c.rewrite)+'</div>':'')
+        +'<div class="read-controls"><button type="button" class="seat-speak" aria-label="Read this seat\'s '+(c.kind==='critique'?'critique':'read')+' aloud">🔊 Read aloud</button> <button type="button" class="seat-pause" aria-label="Pause or resume the reading" disabled>Pause</button> <button type="button" class="seat-stop" aria-label="Stop the reading" disabled>Stop</button> <span class="meta seat-status" aria-live="polite"></span></div>'
         +'<div class="seat-text" hidden>'+esc(spoken)+'</div>'
         +'<details><summary>Read the full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words'+(crew?', then '+crew.words+' to the crew':'')+')</summary><div class="read">'+read(c.answer)+crewHtml+'</div></details>';
     }

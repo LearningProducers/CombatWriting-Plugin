@@ -269,6 +269,43 @@ var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with 
 // into notes on the second check, so a read is never lost over a label; verdictLine frames the Answer.
 var SECTIONS_LINE='Two sections, each opened by a line holding only its label: `Answer`, your reply to the task, the verdict line first; then `To the crew`, where you agree or disagree with the other seats, each named by its model as the packet labels it (never by seat number alone), quoted word for word, or put a question to them. Nothing before the Answer label but the rating line when one is asked.';
 var SECTION_LABELS={answer:'Answer',crew:'To the crew'};
+// The Contract follows the prompt (issue 103, 2026-10-27, the founder's words: "it also ought to pay
+// attention to what the prompt is saying. If it asks: Who was queen elizabeth? it ought to respond to
+// the question and not begin with 'verdict', or 'not ready', or some other glitchy robotic response"):
+// on a round with the person's prompt and no rating, the packet asks for the answer as it asks and no
+// verdict on the draft; the verdict line stays where a number needs it (a rated round) and on a plain
+// round with no prompt. The sharing form of the sections line drops the verdict clause the same way.
+// A prompt that asks for a rewrite (asksRewrite) gets REWRITE_LINE: the rewrite first, in full, inside
+// a fence the checker holds the seat to (rewriteReasons, sent back once like a label, then noted); the
+// board frames the rewrite's opening and shows it whole under a Rewrite badge; the record prints it.
+var PROMPT_FIRST_LINE='Answer the task above as it asks, first and in its own shape: a question gets the answer, guidance gets what it asks for, a judgment gets the judgment. No verdict on the draft unless the task asks for one. Evidence from the draft where the task calls for it.';
+var SECTIONS_LINE_PROMPTED=SECTIONS_LINE.replace('your reply to the task, the verdict line first','your reply to the task as it asks, first');
+var REWRITE_BEGIN='=== REWRITE BEGIN ===', REWRITE_END='=== REWRITE END ===';
+var REWRITE_LINE='The task asks for a rewrite: write it in full between a line holding only `'+REWRITE_BEGIN+'` and a line holding only `'+REWRITE_END+'`, before anything else in your answer but the rating line and the verdict line when they are asked; then your rationale in a few lines.';
+var REWRITE_WORDS=/\b(re-?writes?|re-?written|re-?drafts?|re-?works?|revise|revised|reword|rewording|write (it|me|us|a|the|one|this)|draft (me|us|a|the|one))\b/i;
+function asksRewrite(text){ return REWRITE_WORDS.test(String(text||'')); }
+// The rewrite in an answer: the text between the fence lines (each line holding only its fence, markdown
+// marks around it dropped), or null when the answer carries none.
+function rewriteOf(text){
+  var lines=String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/);
+  var b=-1,e=-1;
+  for(var i=0;i<lines.length;i++){ var l=lines[i].trim().replace(/^[`*_]+|[`*_]+$/g,'').trim(); if(b<0&&l===REWRITE_BEGIN)b=i; else if(b>=0&&l===REWRITE_END){e=i;break;} }
+  if(b<0||e<0)return null;
+  return {text:lines.slice(b+1,e).join('\n').trim(),begin_at:b,end_at:e};
+}
+// The faults against REWRITE_LINE, as the checker's reasons, listed with the section faults so a second
+// check turns them into notes: no fence, an empty fence, text before it in the answer.
+function rewriteReasons(text,contract){
+  var r=rewriteOf(text), reasons=[];
+  if(!r){ reasons.push('no rewrite: the task asked for one; write it in full between a line holding only "'+REWRITE_BEGIN+'" and a line holding only "'+REWRITE_END+'", first, then your rationale'); return reasons; }
+  if(!r.text)reasons.push('the rewrite fence is empty');
+  var sec=answerSections(text);
+  var start=sec.answer_at>=0?sec.answer_at+1:0;
+  var before=String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/).slice(start,r.begin_at).filter(function(l){return l.trim();});
+  var allowed=contract==='rating'?(sec.answer_at>=0?1:2):0;
+  if(before.length>allowed)reasons.push('text before the rewrite: '+(contract==='rating'?'only the rating line and the verdict line go before it':'nothing goes before it; the rewrite opens the answer'));
+  return reasons;
+}
 // Links are unread (issue 90, 2026-10-27, the founder's question after a seat described a post it never
 // opened: "Are you guys actually able to even pull and read the millionaire warehouse post I alluded
 // to? Be honest if not."). No seat can open a link: a fresh reader has Read and Write inside its run
@@ -384,7 +421,7 @@ function budgetLines(runDir,log){
 // The faults against SECTIONS_LINE, as the checker's reasons: both labels, Answer first, the crew part after it.
 function sectionReasons(text,contract){
   var s=answerSections(text), reasons=[];
-  if(s.answer_at<0)reasons.push('no Answer section: open with a line holding only "Answer"'+(contract==='rating'?' after the rating line':'')+', then your reply to the task, the verdict line first');
+  if(s.answer_at<0)reasons.push('no Answer section: open with a line holding only "Answer"'+(contract==='rating'?' after the rating line':'')+', then your reply to the task');
   if(s.crew_at<0)reasons.push('no To the crew section: after your answer, a line holding only "To the crew", then where you agree or disagree with the other seats, each named by its model, quoted, or your question to them');
   if(s.answer_at>=0&&s.crew_at>=0&&s.crew_at<s.answer_at)reasons.push('the To the crew section comes before the Answer section; the Answer comes first');
   if(s.answer_at>=0){
@@ -608,7 +645,17 @@ function sectionsSent(runDir,round,answerFile,log){
   var e=packetLine(runDir,round,answerFile,log);
   if(e&&typeof e.sections==='boolean')return e.sections;
   var packetPath=packetPathOf(runDir,round,answerFile);
-  return fs.existsSync(packetPath)&&readText(packetPath).indexOf(SECTIONS_LINE)>=0;
+  if(!fs.existsSync(packetPath))return false;
+  var t=readText(packetPath);
+  return t.indexOf(SECTIONS_LINE)>=0||t.indexOf(SECTIONS_LINE_PROMPTED)>=0;
+}
+// Whether the packet asked for a rewrite (issue 103): the packet.built line's `rewrite`, else the
+// packet file carrying REWRITE_LINE; a packet built by hand, false.
+function rewriteSent(runDir,round,answerFile,log){
+  var e=packetLine(runDir,round,answerFile,log);
+  if(e&&typeof e.rewrite==='boolean')return e.rewrite;
+  var packetPath=packetPathOf(runDir,round,answerFile);
+  return fs.existsSync(packetPath)&&readText(packetPath).indexOf(REWRITE_LINE)>=0;
 }
 
 // What one round asked of its seats, from its packet.built lines: 'final', 'critique' or
@@ -975,7 +1022,10 @@ var VERDICT_MAX=200;
 function verdictLine(text,contract){
   var lines=String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/);
   var sec=answerSections(text);
-  var body=sec.answer!==null?sec.answer.split(/\r?\n/):lines.slice(contract==='critique'?0:1);
+  // A rewrite (issue 103) is framed by its own opening, the greeting line skipped.
+  var rw=rewriteOf(text);
+  var body=rw&&rw.text?rw.text.split(/\r?\n/):sec.answer!==null?sec.answer.split(/\r?\n/):lines.slice(contract==='critique'?0:1);
+  if(rw&&rw.text&&body.length>1&&body[0].trim().length<60&&/,\s*$/.test(body[0]))body=body.slice(1);
   var para='';
   for(var i=0;i<body.length;i++){
     var l=body[i].replace(/^[\s#>*\-]+/,'').trim();
@@ -1061,9 +1111,10 @@ function checkAnswer(text,wordCap,contract,opts){
   if(words>cap)reasons.push(words+' words, over the cap of '+cap+'; write it again under '+retryTarget(cap)+' words, counting them; a second answer over '+cap+' is cut at the last sentence before '+cap);
   // The two sections (issue 80), only when the packet asked for them; the reasons are listed apart so
   // check-answer.js can turn them into notes on a second check.
-  var sectionFaults=opts.sections&&(contract==='rating'||contract==='critique')?sectionReasons(text,contract):[];
+  var held=contract==='rating'||contract==='critique';
+  var sectionFaults=(opts.sections&&held?sectionReasons(text,contract):[]).concat(opts.rewrite&&held?rewriteReasons(text,contract):[]);
   reasons=reasons.concat(sectionFaults);
-  return {ok:reasons.length===0,contract:contract,rating:rating,value:value,words:words,reasons:reasons,sections:opts.sections?answerSections(text).labeled:null,section_reasons:sectionFaults};
+  return {ok:reasons.length===0,contract:contract,rating:rating,value:value,words:words,reasons:reasons,sections:opts.sections?answerSections(text).labeled:null,rewrite:opts.rewrite?!!rewriteOf(text):null,section_reasons:sectionFaults};
 }
 
 // The record's line for a cut read, for either cutter: the checker (a fresh reader, 2026-10-15)
@@ -1170,7 +1221,8 @@ function roundCell(runDir,seat,round,seats,log){
   var logged=lastLogWhere(log,function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract===contract);});
   var check=checkAnswer(text,logged?logged.word_cap:null,contract);
   var trunc=truncationOf(log,seat.id,round,'rating');
-  var base={file:rel,words:wordCount(text),word_cap:logged?logged.word_cap:null,contract:contract,answer:text,truncated:trunc,note:note,verdict_line:verdictLine(text,contract),from:null,cited:null,flip:null};
+  var rw=rewriteOf(text);
+  var base={file:rel,words:wordCount(text),word_cap:logged?logged.word_cap:null,contract:contract,answer:text,truncated:trunc,note:note,verdict_line:verdictLine(text,contract),rewrite:rw?rw.text:null,from:null,cited:null,flip:null};
   if(!check.ok)return Object.assign(base,{kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,wrote:check.rating,mark:withTrunc('',trunc),reasons:check.reasons});
   if(contract==='critique')return Object.assign(base,{kind:'critique',text:'critique',title:'this round asked for no rating',rating:null,mark:withTrunc('',trunc),reasons:[]});
   var flip=lastLogWhere(log,function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
@@ -1295,7 +1347,7 @@ module.exports={
   PROJECT_BRIEF_FILE:PROJECT_BRIEF_FILE,PROJECT_BRIEF_REL:PROJECT_BRIEF_REL,PROJECT_BRIEF_KEPT_LINE:PROJECT_BRIEF_KEPT_LINE,projectBriefPath:projectBriefPath,briefSourceOf:briefSourceOf,briefWords:briefWords,briefLine:briefLine,
   BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
-  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
   STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,roundCell:roundCell,finalCell:finalCell,finalText:finalText,bandOf:bandOf,runState:runState
 };
