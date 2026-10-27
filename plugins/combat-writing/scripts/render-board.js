@@ -15,8 +15,11 @@
 // then one framed quote per seat, the seat's one-line verdict in bold, cited to the model by
 // name and company (and the provider that served an outside seat) with the round it came
 // from, and the seat's own note when that seat was asked something different (a seat line),
-// the seat's rating or its state (critique, failed read, missing) on the frame, and the full
-// read folded under a click; then, folded, the scoreboard of every round (one row per seat,
+// the seat's rating or its state (critique, failed read, missing) on the frame, a read-aloud
+// control on every read frame (issue 82, 2026-10-26: the browser's own speech synthesis with
+// pause and stop, the answer spoken as plain text with its markdown marks dropped, one seat at
+// a time, none on a missing or failed read), and the full read folded under a click; then,
+// folded, the scoreboard of every round (one row per seat,
 // one column per round, every rating on its own, flips marked valid or invalid with the
 // earlier number kept, Stand, missing, not asked, failed reads, truncated reads) with the
 // round history under it (every round's task in one line), the final reads when a final
@@ -59,6 +62,13 @@ var hasBrief=fs.existsSync(path.join(runDir,'brief.md'));
 var esc=lib.escapeHtml;
 // A seat's read: lib.renderLite, the markdown subset after escaping (2026-10-15). The draft keeps paras(): the author's text as pasted.
 var read=lib.renderLite;
+// The answer as the words a voice should read (issue 82): markdown marks dropped (bold, italic,
+// code, headings, list bullets, quote marks), the two section labels left as words.
+function plainText(text){
+  return String(text||'').replace(/\r\n/g,'\n').replace(/^﻿/,'').split('\n').map(function(l){
+    return l.replace(/^\s*#{1,6}\s+/,'').replace(/^\s*>\s?/,'').replace(/^\s*(?:[*\-•]|\d+[.)])\s+/,'');
+  }).join('\n').replace(/\*\*|__|`/g,'').replace(/(^|[^*\w])\*(\S(?:[^*\n]*?\S)?)\*(?![\w*])/g,'$1$2').replace(/\n{3,}/g,'\n\n').trim();
+}
 function paras(text){
   return String(text).replace(/\r\n/g,'\n').replace(/^﻿/,'').trim().split(/\n\s*\n/).map(function(p){return '<p>'+esc(p).replace(/\n/g,'<br>')+'</p>';}).join('');
 }
@@ -164,6 +174,7 @@ html.push('.verdict{margin:28px 0 0;padding:34px 24px;border-radius:6px;text-ali
 html.push('.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:28px;margin-top:4px}.frame:has(details[open]){grid-column:1/-1}.frame{margin:0;background:var(--paper);border:10px solid var(--frame);outline:1px solid var(--rule);box-shadow:inset 0 0 0 1px var(--rule),inset 0 0 0 6px var(--paper),inset 0 0 0 7px var(--frame),0 10px 24px rgba(0,0,0,.12);padding:34px 28px 26px;display:flex;flex-direction:column;align-items:center;text-align:center}');
 html.push('.badge{font:700 12px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:7px 12px;border:1px solid var(--frame);border-radius:999px;color:var(--ink)}.badge.failed,.badge.missing{color:var(--bad);border-color:var(--bad)}.badge.critique{color:var(--ink-2);border-color:var(--ink-3)}.badge .mark{font-weight:400;letter-spacing:0;text-transform:none;margin-left:6px;color:var(--ink-2)}.flip-valid .badge .mark{color:var(--good)}.flip-invalid .badge .mark{color:var(--bad)}');
 html.push('.frame blockquote{margin:22px 0 14px;padding:0;font-weight:700;font-style:italic;font-size:22px;line-height:1.35;quotes:"\\201C" "\\201D";overflow-wrap:anywhere}.frame blockquote:before{content:open-quote;display:block;font-size:52px;line-height:.4;color:var(--ink-3);margin-bottom:14px;font-style:normal}.frame figcaption{font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.frame figcaption .seat{color:var(--ink-3)}.frame .final{font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);margin-top:10px}');
+html.push('.read-controls{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px;font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.read-controls button:disabled{opacity:.5;cursor:default}');
 html.push('details{margin-top:14px;width:100%}summary{cursor:pointer;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);text-align:center;list-style:none}summary::-webkit-details-marker{display:none}summary:before{content:"+ ";color:var(--ink-3)}details[open]>summary:before{content:"– "}.read{text-align:left;font-size:16px;line-height:1.6;margin:12px auto 0;padding-top:12px;border-top:1px solid var(--rule);max-width:70ch;overflow-wrap:anywhere}.read p{margin:0 0 .9em}.read ul,.read ol{margin:0 0 .9em 1.3em;padding:0}.read li{margin:0 0 .3em}.read code{font-size:14px;background:var(--surface-2);padding:0 4px;border-radius:3px}.read.failed{color:var(--ink-2)}');
 html.push('.fold{margin-top:28px;border-top:1px solid var(--rule);padding-top:10px}.fold>summary{text-align:left;font-weight:600;color:var(--ink)}.fold>summary:before{content:"+ "}.fold[open]>summary:before{content:"– "}');
 html.push('table{border-collapse:collapse;width:100%;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin-top:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top;overflow-wrap:anywhere}th{color:var(--ink-2);font-weight:600}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mark{color:var(--ink-2);font-size:12px}td.flip-valid .mark{color:var(--good)}td.flip-invalid .mark{color:var(--bad)}.missing,.failed{color:var(--ink-3);font-style:italic}.critique{color:var(--ink-2)}code{font-size:13px}.note{font:13px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}a{color:inherit}');
@@ -255,7 +266,11 @@ if(tableRounds.length){
         ?'<span class="badge critique">Critique · no rating asked'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>'
         :'<span class="badge">Rating '+c.rating+'/10'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
       quote=lib.verdictLine(c.answer,c.contract)||'(no words after the first line)';
-      fold='<details><summary>Read the full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words)</summary><div class="read">'+read(c.answer)+'</div></details>';
+      // Read aloud (issue 82): the answer as plain text in the page, the controls on the frame; the
+      // script below wires every frame to the browser's speech synthesis, one seat at a time.
+      fold='<div class="read-controls"><button type="button" class="seat-speak" aria-label="Read this seat\'s '+(c.kind==='critique'?'critique':'read')+' aloud">🔊 Read aloud</button> <button type="button" class="seat-pause" aria-label="Pause or resume the reading" disabled>Pause</button> <button type="button" class="seat-stop" aria-label="Stop the reading" disabled>Stop</button> <span class="meta seat-status" aria-live="polite"></span></div>'
+        +'<div class="seat-text" hidden>'+esc(plainText(c.answer))+'</div>'
+        +'<details><summary>Read the full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words)</summary><div class="read">'+read(c.answer)+'</div></details>';
     }
     var finalLine='';
     if(finalRounds.length){ var f=finalCell(s,finalRounds[finalRounds.length-1]); finalLine='<p class="final">'+esc(finalRounds[finalRounds.length-1])+': '+esc(finalText(f))+'</p>'; }
@@ -342,6 +357,11 @@ html.push('<p class="note">The full record, every answer in full and the log of 
 html.push('</details>');
 html.push('<script>');
 html.push('(function(){var b=document.getElementById("theme");var r=document.documentElement;b.addEventListener("click",function(){var dark=r.getAttribute("data-theme")==="dark"||(r.getAttribute("data-theme")!=="light"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches);r.setAttribute("data-theme",dark?"light":"dark");});})();');
+// Read aloud on every read frame (issue 82): the browser's own speech synthesis, the seat's answer as the
+// plain text in the page, one seat at a time (starting one cancels another). No request leaves the page.
+html.push('(function(){var synth=window.speechSynthesis;var frames=document.querySelectorAll(".frame");var playing=null;function wire(f){var t=f.querySelector(".seat-text"),speak=f.querySelector(".seat-speak"),pause=f.querySelector(".seat-pause"),stop=f.querySelector(".seat-stop"),st=f.querySelector(".seat-status");if(!t||!speak)return;var held=false;function say(m){st.textContent=m;}function idle(){held=false;pause.disabled=true;stop.disabled=true;pause.textContent="Pause";speak.disabled=false;if(playing===f)playing=null;}');
+html.push('speak.addEventListener("click",function(){if(!synth||!window.SpeechSynthesisUtterance){say("This browser has no speech synthesis.");return;}if(playing&&playing!==f&&playing.idle)playing.idle();synth.cancel();var u=new SpeechSynthesisUtterance(t.textContent);u.onstart=function(){say("Reading aloud.");pause.disabled=false;stop.disabled=false;speak.disabled=true;playing=f;};u.onend=function(){say("Finished reading.");idle();};u.onerror=function(e){var why=e&&e.error?e.error:"";if(why!=="interrupted"&&why!=="canceled")say("Reading stopped"+(why?": "+why:"")+".");idle();};synth.speak(u);});');
+html.push('pause.addEventListener("click",function(){if(!synth)return;if(held){held=false;synth.resume();pause.textContent="Pause";say("Resumed.");}else{held=true;synth.pause();pause.textContent="Resume";say("Paused.");}});stop.addEventListener("click",function(){if(!synth)return;synth.cancel();say("Stopped.");idle();});f.idle=idle;}for(var i=0;i<frames.length;i++)wire(frames[i]);})();');
 if(canonFile){
   // The canon controls: the browser's own speech synthesis (the system's voices), the clipboard,
   // and a download built from the text in the page. No request leaves the page.
