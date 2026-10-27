@@ -66,7 +66,7 @@ Ruled 2026-10-13: every result of the listed plugin names the reason and the exa
 
 ## Which models
 
-No model id is written in the add-on. For each provider, a seat names a family and a preference, and the server resolves the id from the provider's live catalog at the start of a run: for Groq, the largest live model in OpenAI's `gpt-oss` line and the newest live model in Alibaba's `qwen/` line, excluding speech, guard, compound and embedding models and anything with a small context window, the same filter the Combat Writing app uses. Every answer's log line and the record carry the id the API actually returned.
+No model id is written in the add-on. For each provider, a seat names a family and a preference, and the server resolves the id from the provider's live catalog at the start of a run: for Groq, the newest live model in Alibaba's `qwen/` line as the first outside seat (seat-2) and the largest live model in OpenAI's `gpt-oss` line as the second (seat-3), the Qwen seat first by the founder's reading of the rounds of 2026-10-26 (issue 86; a per-user order is not built), excluding speech, guard, compound and embedding models and anything with a small context window, the same filter the Combat Writing app uses. Every answer's log line and the record carry the id the API actually returned.
 
 | Seat | Provider | Family | Maker named in the record |
 |---|---|---|---|

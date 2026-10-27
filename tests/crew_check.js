@@ -243,9 +243,9 @@ fake.listen(0,'127.0.0.1',function(){
   }).then(function(r){
     check(!r.isError&&r.data.added&&r.data.added.length===2,'crew_register: expected 2 seats added, got '+JSON.stringify(r.data&&r.data.added));
     var seats=JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats;
-    check(seats.length===3&&seats[0].id==='seat-1'&&!seats[0].provider&&seats[1].id==='seat-2'&&seats[1].provider==='groq'&&seats[1].served_by==='Groq'&&seats[1].company==='OpenAI'&&seats[1].model==='openai/gpt-oss-120b'&&/API returns/.test(seats[1].source),'crew_register: with the Groq key alone the crew should be three, seat-1 the fresh reader; got '+JSON.stringify(seats.map(function(x){return x.id+' '+x.model;})));
+    check(seats.length===3&&seats[0].id==='seat-1'&&!seats[0].provider&&seats[1].id==='seat-2'&&seats[1].provider==='groq'&&seats[1].served_by==='Groq'&&seats[1].company==='Alibaba'&&seats[1].model==='qwen/qwen3.6-27b'&&/API returns/.test(seats[1].source),'crew_register: with the Groq key alone the crew should be three, seat-1 the fresh reader; got '+JSON.stringify(seats.map(function(x){return x.id+' '+x.model;})));
     console.log('crew with the Groq key alone: '+seats.map(function(x){return x.id+' = '+x.model+' ('+x.company+(x.served_by?', served by '+x.served_by:'')+')';}).join('; '));
-    check(seats[2].company==='Alibaba'&&seats[2].model==='qwen/qwen3.6-27b','crew_register: seat-3 wrong '+JSON.stringify(seats[2]));
+    check(seats[2].company==='OpenAI'&&seats[2].model==='openai/gpt-oss-120b','crew_register: seat-3 wrong '+JSON.stringify(seats[2]));
     check(logOf(run).some(function(e){return e.event==='crew.registered'&&!('credit' in e)&&e.added.length===2&&e.unavailable.length>=2;}),'crew_register: log line missing');
     return s1.call('crew_register',{run:run});
   }).then(function(r){
@@ -254,7 +254,7 @@ fake.listen(0,'127.0.0.1',function(){
     ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','01-sparring','--seat',s]); });
     fs.writeFileSync(path.join(run,'rounds','01-sparring','seat-1.answer.md'),'RATING: 6/10\nThe ask lands in the first line. The close is weak.\n');
     var p2=fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.packet.md'),'utf8');
-    check(/Packet for openai\/gpt-oss-120b \(OpenAI, served by Groq\), seat-2/.test(p2),'packet: the outside seat is not labeled by model, maker and provider');
+    check(/Packet for qwen\/qwen3\.6-27b \(Alibaba, served by Groq\), seat-2/.test(p2),'packet: the outside seat is not labeled by model, maker and provider');
     return s1.call('crew_answer',{run:run,round:'01-sparring',seat:'seat-2'});
   }).then(function(r){
     check(!r.isError&&r.data.ok===true,'crew_answer: '+JSON.stringify(r.data));
@@ -262,18 +262,18 @@ fake.listen(0,'127.0.0.1',function(){
     var ansText=fs.existsSync(ans)?fs.readFileSync(ans,'utf8'):'';
     check(r.data.file===ans&&/^RATING: 8\/10\n/.test(ansText),'crew_answer: answer file wrong or missing');
     check(!/[ \t]\n/.test(ansText)&&/\n$/.test(ansText)&&!/\n\n$/.test(ansText),'crew_answer: trailing whitespace must be stripped from every line, got '+JSON.stringify(ansText.slice(0,60)));
-    check(r.data.model_requested==='openai/gpt-oss-120b','crew_answer: the result should carry the id requested, got '+r.data.model_requested);
-    check(r.data.model_returned==='openai/gpt-oss-120b-0725'&&r.data.model_source==='API response model field'&&r.data.served_by==='Groq'&&r.data.company==='OpenAI','crew_answer: model id must come from the response '+JSON.stringify(r.data));
+    check(r.data.model_requested==='qwen/qwen3.6-27b','crew_answer: the result should carry the id requested, got '+r.data.model_requested);
+    check(r.data.model_returned==='qwen/qwen3.6-27b-0725'&&r.data.model_source==='API response model field'&&r.data.served_by==='Groq'&&r.data.company==='Alibaba','crew_answer: model id must come from the response '+JSON.stringify(r.data));
     check(!('text' in r.data)&&!/The ask lands\. seat-1/.test(JSON.stringify(r.data)),'crew_answer: must return the path, never the answer text');
     var seats=JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats;
-    check(seats[1].model==='openai/gpt-oss-120b-0725','crew_answer: seats.json should carry the returned id, got '+seats[1].model);
+    check(seats[1].model==='qwen/qwen3.6-27b-0725','crew_answer: seats.json should carry the returned id, got '+seats[1].model);
     var req=requests.filter(function(q){return q.url==='/v1/chat/completions';})[0];
-    check(!!req&&req.auth==='Bearer gsk_FROM_THE_PROMPT'&&req.body.model==='openai/gpt-oss-120b'&&req.body.messages.length===2&&req.body.messages[0].role==='system'&&/RATING: X\/10/.test(req.body.messages[0].content)&&req.body.messages[1].content.indexOf('=== DRAFT BEGIN ===')>=0&&req.body.max_tokens>=1200&&req.body.max_tokens<=2800&&req.body.reasoning_effort==='low','crew_answer: request wrong '+JSON.stringify(req&&{auth:req.auth,model:req.body.model,max:req.body.max_tokens,extras:req.body.reasoning_effort}));
+    check(!!req&&req.auth==='Bearer gsk_FROM_THE_PROMPT'&&req.body.model==='qwen/qwen3.6-27b'&&req.body.messages.length===2&&req.body.messages[0].role==='system'&&/RATING: X\/10/.test(req.body.messages[0].content)&&req.body.messages[1].content.indexOf('=== DRAFT BEGIN ===')>=0&&req.body.max_tokens>=1200&&req.body.max_tokens<=2800&&req.body.reasoning_effort==='none','crew_answer: request wrong (seat-2 is the Qwen seat, extras none) '+JSON.stringify(req&&{auth:req.auth,model:req.body.model,max:req.body.max_tokens,extras:req.body.reasoning_effort}));
     check(!!req&&/Under 500 words in all, the first line included/.test(req.body.messages[0].content)&&/An answer over the cap is sent back once with a lower target; a second overrun is cut at the last sentence before 500 words\./.test(req.body.messages[0].content)&&/The packet carries the draft's counts measured by code \(words, paragraphs, lines, sentences, dashes, where each link sits\): those are facts, and a count of yours that differs from them is wrong\./.test(req.body.messages[0].content),'system line: the cap must be stated as a number, got '+(req&&req.body.messages[0].content.slice(0,400)));
     console.log('system line (sparring, rating): '+(req?req.body.messages[0].content:''));
     check(req.body.messages[1].content===fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.packet.md'),'utf8'),'crew_answer: the user message must be the packet file, verbatim');
     var e=logOf(run).filter(function(x){return x.event==='crew.answered';})[0]||{};
-    check(e.ts&&e.round==='01-sparring'&&e.seat==='seat-2'&&e.provider==='groq'&&e.served_by==='Groq'&&e.company==='OpenAI'&&e.model_requested==='openai/gpt-oss-120b'&&e.model_returned==='openai/gpt-oss-120b-0725'&&e.model_changed===true&&e.retry_note===null&&e.model_source==='API response model field'&&e.file==='rounds/01-sparring/seat-2.answer.md'&&e.packet==='rounds/01-sparring/seat-2.packet.md'&&e.read==='rating'&&e.usage&&e.usage.total_tokens===361&&typeof e.waited_ms==='number'&&e.key_source==='prompt'&&typeof e.input_tokens_estimated==='number'&&typeof e.reservation==='number','crew_answer: log line incomplete '+JSON.stringify(e));
+    check(e.ts&&e.round==='01-sparring'&&e.seat==='seat-2'&&e.provider==='groq'&&e.served_by==='Groq'&&e.company==='Alibaba'&&e.model_requested==='qwen/qwen3.6-27b'&&e.model_returned==='qwen/qwen3.6-27b-0725'&&e.model_changed===true&&e.retry_note===null&&e.model_source==='API response model field'&&e.file==='rounds/01-sparring/seat-2.answer.md'&&e.packet==='rounds/01-sparring/seat-2.packet.md'&&e.read==='rating'&&e.usage&&e.usage.total_tokens===361&&typeof e.waited_ms==='number'&&e.key_source==='prompt'&&typeof e.input_tokens_estimated==='number'&&typeof e.reservation==='number','crew_answer: log line incomplete '+JSON.stringify(e));
     check(!/gsk_/.test(fs.readFileSync(path.join(run,'log.jsonl'),'utf8')),'log: a key value leaked into the log');
     // The listed plugin's checks read the outside seat's answer as any seat's.
     var ca=node('check-answer.js',[ans,'--run',run]);
@@ -285,9 +285,9 @@ fake.listen(0,'127.0.0.1',function(){
     var req=requests.filter(function(q){return q.url==='/v1/chat/completions';}).pop();
     var packetText=fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.packet.md'),'utf8');
     check(req.body.messages[1].content.indexOf(packetText.replace(/\s+$/,''))===0&&/## Note from the host on this retry\n\nYour previous answer failed the check: rating is 7; 7 is forbidden, commit to 6 or 8; 530 words, over the cap of 500\nWrite it again, meeting the contract above, under 400 words this time \(the cap is 500; a second overrun is cut at the last sentence before it\)\./.test(req.body.messages[1].content),'retry note: the note must ride after the packet in the user message, naming the cap');
-    check(req.body.model==='openai/gpt-oss-120b-0725','retry note: the retry should request the id the API returned last time, got '+req.body.model);
+    check(req.body.model==='qwen/qwen3.6-27b-0725','retry note: the retry should request the id the API returned last time, got '+req.body.model);
     var e2=logOf(run).filter(function(x){return x.event==='crew.answered';}).pop()||{};
-    check(e2.retry_note&&/7 is forbidden/.test(e2.retry_note)&&e2.model_requested==='openai/gpt-oss-120b-0725'&&e2.model_returned==='openai/gpt-oss-120b-0725'&&e2.model_changed===false,'retry note: log line wrong '+JSON.stringify(e2));
+    check(e2.retry_note&&/7 is forbidden/.test(e2.retry_note)&&e2.model_requested==='qwen/qwen3.6-27b-0725'&&e2.model_returned==='qwen/qwen3.6-27b-0725'&&e2.model_changed===false,'retry note: log line wrong '+JSON.stringify(e2));
     // A note with only whitespace is no note.
     return s1.call('crew_answer',{run:run,round:'01-sparring',seat:'seat-2',note:'   '});
   }).then(function(r){
@@ -295,21 +295,21 @@ fake.listen(0,'127.0.0.1',function(){
     check(!r.isError&&r.data.ok&&req.body.messages[1].content.indexOf('Note from the host')<0&&/^RATING: 8\/10/.test(fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.answer.md'),'utf8')),'blank note: should send the packet alone');
     return s1.call('crew_answer',{run:run,round:'01-sparring',seat:'seat-3'});
   }).then(function(r){
-    check(!r.isError&&r.data.ok&&r.data.model_returned==='qwen/qwen3.6-27b-0725'&&r.data.company==='Alibaba','crew_answer seat-3: '+JSON.stringify(r.data));
+    check(!r.isError&&r.data.ok&&r.data.model_returned==='openai/gpt-oss-120b-0725'&&r.data.company==='OpenAI','crew_answer seat-3: '+JSON.stringify(r.data));
     var req=requests.filter(function(q){return q.url==='/v1/chat/completions';}).pop();
-    check(req&&req.body.model==='qwen/qwen3.6-27b'&&req.body.reasoning_effort==='none','crew_answer: the qwen request extras were not applied');
+    check(req&&req.body.model==='openai/gpt-oss-120b'&&req.body.reasoning_effort==='low'&&req.body.reasoning_format==='hidden','crew_answer: the gpt-oss request extras were not applied');
     // Battle: packets carry the outside seats' answers; the flip check and the record read them.
     node('check-answer.js',[path.join(run,'rounds','01-sparring','seat-3.answer.md'),'--run',run]);
     ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','02-battle','--seat',s,'--rerate']); });
     var p1=fs.readFileSync(path.join(run,'rounds','02-battle','seat-1.packet.md'),'utf8');
-    check(/### openai\/gpt-oss-120b-0725 \(OpenAI, served by Groq\), seat-2\n\n=== ANSWER BEGIN ===\nRATING: 8\/10/.test(p1),'battle packet: the outside seat\'s answer is not carried under its returned id');
+    check(/### qwen\/qwen3\.6-27b-0725 \(Alibaba, served by Groq\), seat-2\n\n=== ANSWER BEGIN ===\nRATING: 8\/10/.test(p1),'battle packet: the outside seat\'s answer is not carried under its returned id');
     fs.writeFileSync(path.join(run,'rounds','02-battle','seat-1.answer.md'),'RATING: 8/10\nseat-2 wrote "The ask lands." and that moved me from 6 to 8.\n');
     var cf=node('check-flip.js',['--run',run,'--round','02-battle','--seat','seat-1']);
     check(cf.status===0&&/"status":"flip-valid"/.test(cf.stdout)&&/"cited":"seat-2"/.test(cf.stdout),'check-flip: a quote of the outside seat should validate, got '+cf.stdout.split('\n')[0]);
     var rr=node('render-record.js',['--run',run]);
     var rec=fs.readFileSync(path.join(run,'record.md'),'utf8');
-    check(rr.status===0&&/\*\*Crew:\*\*.*3 companies: Anthropic, OpenAI, Alibaba\. Fresh readers are named from the agent configuration; outside seats from the model field their provider's API returned\./.test(rec),'record: crew line should name three companies and both name sources');
-    check(/\| openai\/gpt-oss-120b-0725 \(OpenAI, served by Groq\), seat-2 \| 8\/10 \|/.test(rec),'record: outside seat row wrong');
+    check(rr.status===0&&/\*\*Crew:\*\*.*3 companies: Anthropic, Alibaba, OpenAI\. Fresh readers are named from the agent configuration; outside seats from the model field their provider's API returned\./.test(rec),'record: crew line should name three companies and both name sources');
+    check(/\| qwen\/qwen3\.6-27b-0725 \(Alibaba, served by Groq\), seat-2 \| 8\/10 \|/.test(rec),'record: outside seat row wrong');
     var rb=node('render-board.js',['--run',run]);
     check(rb.status===0&&/served by Groq/.test(fs.readFileSync(path.join(run,'board.html'),'utf8')),'board: outside seat not named with its provider');
     // The final reads through the add-on.
@@ -351,7 +351,7 @@ fake.listen(0,'127.0.0.1',function(){
     check(/\| 04-battle \|/.test(rec.split('\n').filter(function(l){return l.indexOf('| Seat |')===0;})[0]||'')&&/seat-2 \|[^\n]*\| 8\/10[^|]*truncated at 600 words/.test(rec),'record: the truncated read should be marked in the scoreboard with the rating shown');
     check(/\*Truncated at 600 words by the crew add-on on the seat's second overrun; the seat returned \d+ words; its first line was found lower in the reply and moved to the top\.\*/.test(rec),'record: the answer should carry the truncation note');
     check(/8\/10<br><span class="mark"[^>]*>[^<]*truncated at 600 words<\/span>/.test(html),'board: the truncated read should be marked with the rating shown');
-    var sc=(rec.match(/\| openai\/gpt-oss-120b-0725 \(OpenAI, served by Groq\), seat-2 \|[^\n]*/)||[''])[0];
+    var sc=(rec.match(/\| qwen\/qwen3\.6-27b-0725 \(Alibaba, served by Groq\), seat-2 \|[^\n]*/)||[''])[0];
     console.log('scoreboard row after the cut: '+sc);
     // A battle round without --rerate through the add-on: the system line says no rating, the reply has none,
     // and the listed plugin's checker holds the seat to the critique contract.

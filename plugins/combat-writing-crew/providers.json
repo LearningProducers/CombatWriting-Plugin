@@ -38,8 +38,8 @@
         "min_output": 4096
       },
       "seats": [
-        { "slot": "groq-a", "family": "OpenAI's open-weight line", "vendor": "openai", "match": "^openai/gpt-oss-\\d+b$", "prefer": "largest" },
-        { "slot": "groq-b", "family": "Alibaba's Qwen line", "vendor": "qwen", "match": "^qwen/", "prefer": "newest" }
+        { "slot": "groq-b", "family": "Alibaba's Qwen line", "vendor": "qwen", "match": "^qwen/", "prefer": "newest" },
+        { "slot": "groq-a", "family": "OpenAI's open-weight line", "vendor": "openai", "match": "^openai/gpt-oss-\\d+b$", "prefer": "largest" }
       ],
       "budget": { "tpm_ceiling": 7700, "hard_cap": 8000, "floor": 1200, "ceiling": 2800, "rpm": 30 },
       "request_extras": { "openai": { "reasoning_effort": "low", "reasoning_format": "hidden" }, "qwen": { "reasoning_effort": "none", "reasoning_format": "hidden" } }
