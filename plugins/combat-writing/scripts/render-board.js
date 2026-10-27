@@ -83,6 +83,12 @@ function truncationOf(seat,round,read){
 function withTrunc(mark,t){ return t?(mark?mark+' · ':'')+'truncated at '+t.at+' words':mark; }
 
 // One seat in one non-final round, from the files with the log's verdicts where it has them.
+// The fence lines (issue 108, the founder's words: "why the === separators? Not necessary.") stay in the
+// file for the checker and leave the page: the fold's full read and the spoken text drop them, and the
+// spoken text drops the bare Answer label too, so a reading opens on the seat's words.
+function isFence(l){ var s=String(l).trim().replace(/^[`*_]+|[`*_]+$/g,'').trim(); return s===lib.REWRITE_BEGIN||s===lib.REWRITE_END; }
+function foldText(t){ return String(t||'').split(/\r?\n/).filter(function(l){return !isFence(l);}).join('\n'); }
+function spokenText(t){ var seen=false; return String(t||'').split(/\r?\n/).filter(function(l){ if(isFence(l))return false; if(!seen&&lib.sectionLabelOf(l)==='answer'){seen=true;return false;} return true; }).join('\n'); }
 function cell(seat,round){
   var p=path.join(runDir,'rounds',round,seat.id+'.answer.md');
   if(!fs.existsSync(p))return lib.wasAsked(runDir,round,seat.id,log)?{kind:'missing',text:'missing',rating:null}:{kind:'not-asked',text:'not asked',rating:null};
@@ -270,7 +276,7 @@ if(tableRounds.length){
       // The second pass of a first round (issue 88): under the read, in the fold and in the spoken text.
       var crew=t?lib.crewPassOf(runDir,t.round,s.id,log):null;
       var crewHtml=crew?'<p><strong>'+esc(lib.CREW_PASS_HEADING)+'</strong></p>'+read(crew.text):'';
-      var spoken=plainText(c.answer)+(crew?'\n\n'+lib.CREW_PASS_HEADING+'.\n\n'+plainText(crew.text):'');
+      var spoken=plainText(spokenText(c.answer))+(crew?'\n\n'+lib.CREW_PASS_HEADING+'.\n\n'+plainText(crew.text):'');
       // Read aloud (issue 82): the answer as plain text in the page, the controls on the frame; the
       // script below wires every frame to the browser's speech synthesis, one seat at a time.
       // The rewrite (issue 103): the whole of it under the frame, open, before the fold; the quote above is its opening.
