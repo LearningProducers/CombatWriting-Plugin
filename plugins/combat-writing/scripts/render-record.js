@@ -83,7 +83,8 @@ function cell(seat,round){
   var check=lib.checkAnswer(text,logged?logged.word_cap:null,contract);
   var trunc=truncationOf(seat,round,'rating');
   if(!check.ok)return {text:'failed read ('+check.reasons[0]+')'+(check.rating!==null?' · wrote '+check.rating+'/10':'')+truncMark(trunc),rating:null,failed:true,reasons:check.reasons,truncated:trunc};
-  if(contract==='critique')return {text:'critique'+truncMark(trunc),rating:null,critique:true,truncated:trunc};
+  var copy=logged&&logged.copy?logged.copy:null;
+  if(contract==='critique')return {text:'critique'+(copy?' · copy of '+copy.model:'')+truncMark(trunc),rating:null,critique:true,truncated:trunc,copy:copy};
   var flip=lastLog(function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
   if(!flip){
     var inputs=lib.flipInputs(runDir,seat,round,seats);
@@ -93,7 +94,7 @@ function cell(seat,round){
   var mark={first:'',stand:' · Stand','held':' · held, no Stand',
     'flip-valid':' · flip from '+flip.from+', valid (quoted '+flip.cited+')',
     'flip-invalid':' · flip from '+flip.from+', INVALID ('+(flip.reason||'quote not found')+')',unrated:''}[flip.status]||'';
-  return {text:r+mark+truncMark(trunc),rating:check.rating,flip:flip,truncated:trunc};
+  return {text:r+mark+(copy?' · copy of '+copy.model:'')+truncMark(trunc),rating:check.rating,flip:flip,truncated:trunc,copy:copy};
 }
 
 var grid={}; seats.forEach(function(s){grid[s.id]={};rounds.forEach(function(r){grid[s.id][r]=cell(s,r);});});

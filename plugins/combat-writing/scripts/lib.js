@@ -281,7 +281,7 @@ var SECTION_LABELS={answer:'Answer',crew:'To the crew'};
 var PROMPT_FIRST_LINE='Answer the task above as it asks, first and in its own shape: a question gets the answer, guidance gets what it asks for, a judgment gets the judgment. No verdict on the draft unless the task asks for one. Evidence from the draft where the task calls for it.';
 var SECTIONS_LINE_PROMPTED=SECTIONS_LINE.replace('your reply to the task, the verdict line first','your reply to the task as it asks, first');
 var REWRITE_BEGIN='=== REWRITE BEGIN ===', REWRITE_END='=== REWRITE END ===';
-var REWRITE_LINE='The task asks for a rewrite: write it in full between a line holding only `'+REWRITE_BEGIN+'` and a line holding only `'+REWRITE_END+'`, before anything else in your answer but the rating line and the verdict line when they are asked; then your rationale, under 120 words.';
+var REWRITE_LINE='The task asks for a rewrite: write it in full between a line holding only `'+REWRITE_BEGIN+'` and a line holding only `'+REWRITE_END+'`, before anything else in your answer but the rating line and the verdict line when they are asked; then your rationale, under 120 words. Your rewrite is your own: one that repeats another seat\'s rewrite is recorded as a copy.';
 var REWRITE_WORDS=/\b(re-?writes?|re-?written|re-?drafts?|re-?works?|revise|revised|reword|rewording|write (it|me|us|a|the|one|this)|draft (me|us|a|the|one))\b/i;
 function asksRewrite(text){ return REWRITE_WORDS.test(String(text||'')); }
 // The rewrite in an answer: the text between the fence lines (each line holding only its fence, markdown
@@ -649,6 +649,43 @@ function sectionsSent(runDir,round,answerFile,log){
   var t=readText(packetPath);
   return t.indexOf(SECTIONS_LINE)>=0||t.indexOf(SECTIONS_LINE_PROMPTED)>=0;
 }
+// The copy check (issue 107, 2026-10-27, the founder's words: "Why did qwen3 have an identical response
+// to fable 5.1? Something went wrong there."): on a rewrite round the packet carries the other seats'
+// answers, rewrites included, and a seat may hand one back as its own. The checker measures each
+// rewrite against the rewrites carried in its packet (a carried answer's fenced rewrite, else its whole
+// text): the share of the rewrite's three-word runs found in the carried text. At 60 in 100 or more it
+// is a copy, named with the seat and model copied; the board's badge and the record say so. The seat's
+// own earlier turn is never a copy: holding one's own rewrite is Stand, not theft.
+var COPY_SHARE=0.6;
+function wordRuns(text,n){
+  var w=String(text||'').toLowerCase().replace(/[^a-z0-9$%']+/g,' ').trim().split(/\s+/).filter(Boolean);
+  var runs=[]; for(var i=0;i+n<=w.length;i++)runs.push(w.slice(i,i+n).join(' '));
+  return runs;
+}
+function copyShare(rewrite,source){
+  var runs=wordRuns(rewrite,3); if(!runs.length)return 0;
+  var have={}; wordRuns(source,3).forEach(function(r){have[r]=true;});
+  var n=0; runs.forEach(function(r){if(have[r])n++;});
+  return n/runs.length;
+}
+function rewriteCopy(runDir,round,seatId,text,seats,log){
+  log=log||readLog(runDir);
+  var rw=rewriteOf(text); if(!rw||!rw.text)return null;
+  var e=null; for(var i=log.length-1;i>=0;i--){ var x=log[i]; if(x.event==='packet.built'&&x.round===round&&x.seat===seatId&&!x.pass){e=x;break;} }
+  if(!e||!e.carried||!e.carried.length)return null;
+  var byId={}; (seats||[]).forEach(function(s){byId[s.id]=s;});
+  var best=null;
+  e.carried.forEach(function(c){
+    if(!c||!c.seat||c.seat===seatId)return;
+    var p=path.join(runDir,'rounds',c.round||e.reads_round||'',c.seat+'.answer.md');
+    if(!fs.existsSync(p))return;
+    var src=readText(p); var srw=rewriteOf(src); var source=srw&&srw.text?srw.text:src;
+    var share=copyShare(rw.text,source);
+    if(share>=COPY_SHARE&&(!best||share>best.share))best={seat:c.seat,model:byId[c.seat]?byId[c.seat].model:c.seat,round:c.round||e.reads_round||null,share:Math.round(share*100)/100};
+  });
+  return best;
+}
+function copyMark(copy){ return copy?'copy of '+copy.model:''; }
 // Whether the packet asked for a rewrite (issue 103): the packet.built line's `rewrite`, else the
 // packet file carrying REWRITE_LINE; a packet built by hand, false.
 function rewriteSent(runDir,round,answerFile,log){
@@ -1224,9 +1261,10 @@ function roundCell(runDir,seat,round,seats,log){
   var check=checkAnswer(text,logged?logged.word_cap:null,contract);
   var trunc=truncationOf(log,seat.id,round,'rating');
   var rw=rewriteOf(text);
-  var base={file:rel,words:wordCount(text),word_cap:logged?logged.word_cap:null,contract:contract,answer:text,truncated:trunc,note:note,verdict_line:verdictLine(text,contract),rewrite:rw?rw.text:null,from:null,cited:null,flip:null};
+  var copy=logged&&logged.copy?logged.copy:null;
+  var base={file:rel,words:wordCount(text),word_cap:logged?logged.word_cap:null,contract:contract,answer:text,truncated:trunc,note:note,verdict_line:verdictLine(text,contract),rewrite:rw?rw.text:null,copy:copy,from:null,cited:null,flip:null};
   if(!check.ok)return Object.assign(base,{kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,wrote:check.rating,mark:withTrunc('',trunc),reasons:check.reasons});
-  if(contract==='critique')return Object.assign(base,{kind:'critique',text:'critique',title:'this round asked for no rating',rating:null,mark:withTrunc('',trunc),reasons:[]});
+  if(contract==='critique')return Object.assign(base,{kind:'critique',text:'critique',title:copy?'the rewrite is a copy of '+copy.model+'\'s':'this round asked for no rating',rating:null,mark:withTrunc(copyMark(copy),trunc),reasons:[]});
   var flip=lastLogWhere(log,function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
   if(!flip){ var inputs=flipInputs(runDir,seat,round,seats); flip=checkFlip(text,seat,inputs.ownRated?inputs.ownRated.text:null,inputs.prevAnswers); }
   var kind={first:'first',stand:'stand',held:'held','flip-valid':'flip-valid','flip-invalid':'flip-invalid',unrated:'first'}[flip.status]||'first';
@@ -1349,7 +1387,7 @@ module.exports={
   PROJECT_BRIEF_FILE:PROJECT_BRIEF_FILE,PROJECT_BRIEF_REL:PROJECT_BRIEF_REL,PROJECT_BRIEF_KEPT_LINE:PROJECT_BRIEF_KEPT_LINE,projectBriefPath:projectBriefPath,briefSourceOf:briefSourceOf,briefWords:briefWords,briefLine:briefLine,
   BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
-  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,copyShare:copyShare,rewriteCopy:rewriteCopy,copyMark:copyMark,COPY_SHARE:COPY_SHARE,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
   STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,roundCell:roundCell,finalCell:finalCell,finalText:finalText,bandOf:bandOf,runState:runState
 };

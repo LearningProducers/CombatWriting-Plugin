@@ -93,13 +93,14 @@ function cell(seat,round){
   var trunc=truncationOf(seat,round,'rating');
   var words=lib.wordCount(text);
   if(!check.ok)return {kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,mark:withTrunc('',trunc),answer:text,words:words,contract:contract,reasons:check.reasons};
-  if(contract==='critique')return {kind:'critique',text:'critique',title:'this round asked for no rating',rating:null,mark:withTrunc('',trunc),answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null};
+  var copy=logged&&logged.copy?logged.copy:null;
+  if(contract==='critique')return {kind:'critique',text:'critique',title:copy?'the rewrite is a copy of '+copy.model+'\'s':'this round asked for no rating',rating:null,mark:withTrunc(lib.copyMark(copy),trunc),answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null,copy:copy};
   var flip=lastLog(function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
   if(!flip){var inputs=lib.flipInputs(runDir,seat,round,seats);flip=lib.checkFlip(text,seat,inputs.ownRated?inputs.ownRated.text:null,inputs.prevAnswers);}
   var kind={first:'first',stand:'stand',held:'held','flip-valid':'flip-valid','flip-invalid':'flip-invalid',unrated:'first'}[flip.status]||'first';
   var mark={first:'',stand:'Stand',held:'held, no Stand','flip-valid':'flip from '+flip.from+', valid','flip-invalid':'flip from '+flip.from+', INVALID'}[kind]||'';
   var title={'flip-valid':'quoted '+flip.cited,'flip-invalid':flip.reason||'quote not found'}[kind]||'';
-  return {kind:kind,rating:check.rating,text:check.rating+'/10',mark:withTrunc(mark,trunc),title:title,from:flip.from,answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null};
+  return {kind:kind,rating:check.rating,text:check.rating+'/10',mark:withTrunc(copy?(mark?mark+' · ':'')+lib.copyMark(copy):mark,trunc),title:title,from:flip.from,answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null,copy:copy};
 }
 function finalCell(seat,round){
   return ['sn','redflag'].map(function(c){
@@ -263,7 +264,7 @@ if(tableRounds.length){
       fold='<details><summary>The failed read ('+c.words+' words)</summary><div class="read failed">'+read(c.answer)+'</div></details>';
     }else{
       badge=c.kind==='critique'
-        ?'<span class="badge critique">'+(c.rewrite?'Rewrite · no rating asked':'Critique · no rating asked')+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>'
+        ?'<span class="badge critique">'+(c.rewrite?(c.copy?'Rewrite · a copy of '+esc(c.copy.model)+'\'s':'Rewrite · no rating asked'):'Critique · no rating asked')+(c.mark&&!c.copy?'<span class="mark">'+esc(c.mark)+'</span>':c.mark&&c.copy&&c.mark!==lib.copyMark(c.copy)?'<span class="mark">'+esc(c.mark.replace(lib.copyMark(c.copy),'').replace(/^ · | · $/g,''))+'</span>':'')+'</span>'
         :'<span class="badge">Rating '+c.rating+'/10'+(c.rewrite?' · rewrite':'')+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
       quote=lib.verdictLine(c.answer,c.contract)||'(no words after the first line)';
       // The second pass of a first round (issue 88): under the read, in the fold and in the spoken text.

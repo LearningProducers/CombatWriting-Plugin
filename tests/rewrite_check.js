@@ -141,6 +141,31 @@ check(t4.indexOf('Give a new critique of the structure and content of the draft.
 var t3=read(path.join(run,'rounds','03-battle','seat-1.packet.md')); t3=t3.slice(t3.indexOf('## Your task'),t3.indexOf('## Contract'));
 check(t3.indexOf('Give a new critique')<0&&t3.indexOf('Answer the synthesis focus question above on the draft below, then rate the draft.')>=0,'rated SFQ: the prompt then the rating, no default ask');
 
+// 8b. The copy check (issue 107): on a rewrite round that carries round 03's fenced rewrite, a seat handing
+// it back is a copy, named on the log line, the board and the record; a seat's own new rewrite is not.
+check(lib.copyShare('a b c d e f','x a b c d e f y')===1&&lib.copyShare('a b c d e f','a b x d e y')<0.5&&lib.copyShare('one two','anything')===0,'copyShare: three-word runs in common');
+write(path.join(proj,'rw2.md'),'Rewrite it once more, tighter.\n');
+['seat-1','seat-2'].forEach(function(s){ var r=node('packet.js',['--run',run,'--round','05-battle','--seat',s,'--sn','rw2.md']); check(r.status===0,'05-battle packet '+s+': '+r.stderr); });
+var l5=packetLine(run,'05-battle','seat-2');
+check(l5.reads_round==='03-battle'&&l5.carried.some(function(c){return c.seat==='seat-1';}),'05-battle carries seat-1\'s round 03 answer: '+JSON.stringify({reads:l5.reads_round,carried:l5.carried}));
+var a5b=path.join(run,'rounds','05-battle','seat-2.answer.md');
+write(a5b,'Answer\n=== REWRITE BEGIN ===\nJeff,\n\nVote yes before Friday: the deal dies at the quarter close.\n\nThe rest holds.\n=== REWRITE END ===\nIt was already right.\n\nTo the crew\n\nTest Model wrote "Vote yes before Friday"; I kept it.\n');
+var k7=node('check-answer.js',[a5b,'--run',run]);
+var c7=logOf(run).filter(function(e){return e.event==='answer.checked'&&e.round==='05-battle'&&e.seat==='seat-2';}).pop();
+check(k7.status===0&&/OK critique, no rating this round.*; the rewrite is a copy of Test Model's \(\d+ in 100 of its three-word runs\)/.test(k7.stdout)&&c7.copy&&c7.copy.seat==='seat-1'&&c7.copy.model==='Test Model'&&c7.copy.round==='03-battle'&&c7.copy.share>=0.6,'the copied rewrite is named on the terminal and the log line; got '+k7.stdout.split('\n')[0]+' / '+JSON.stringify(c7.copy));
+var a5a=path.join(run,'rounds','05-battle','seat-1.answer.md');
+write(a5a,'Answer\n=== REWRITE BEGIN ===\nJeff,\n\nThe quarter closes Friday and the offer closes with it. Say yes today and the company is ours Monday.\n=== REWRITE END ===\nShorter, and the date leads.\n\nTo the crew\n\nTest Model wrote "The rest holds"; it does not.\n');
+var k8=node('check-answer.js',[a5a,'--run',run]);
+var c8=logOf(run).filter(function(e){return e.event==='answer.checked'&&e.round==='05-battle'&&e.seat==='seat-1';}).pop();
+check(k8.status===0&&c8.copy===null&&k8.stdout.indexOf('copy of')<0,'a seat\'s own new rewrite is no copy; got '+JSON.stringify(c8.copy));
+node('render-board.js',['--run',run]); node('render-record.js',['--run',run]);
+var html5=read(path.join(run,'board.html'));
+var f5=/<figure class="frame[^"]*" data-seat="seat-2">([^]*?)<\/figure>/.exec(html5);
+check(!!f5&&/<span class="badge critique">Rewrite · a copy of Test Model's<\/span>/.test(f5[1]),'board: the copy is named on the badge; got '+(f5?(/<span class="badge[^]*?<\/span>/.exec(f5[1])||[''])[0]:'no frame'));
+check(/\| 05-battle \|/.test(read(path.join(run,'record.md')))===false||/critique · copy of Test Model/.test(read(path.join(run,'record.md'))),'record: the scoreboard cell names the copy');
+check(/critique · copy of Test Model/.test(read(path.join(run,'record.md'))),'record: the scoreboard carries "copy of Test Model"');
+check(lib.rewriteCopy(run,'05-battle','seat-9','=== REWRITE BEGIN ===\nx y z\n=== REWRITE END ===\n',[],null)===null,'rewriteCopy: no packet line, no copy');
+
 // 9. The add-on.
 check(crewLib.SECTIONS_LINE_PROMPTED===lib.SECTIONS_LINE_PROMPTED&&crewLib.REWRITE_LINE===lib.REWRITE_LINE,'the add-on\'s mirrored lines equal the plugin\'s');
 var r1=crewLib.packetRules(read(path.join(run,'rounds','01-battle','seat-1.packet.md')));
@@ -148,7 +173,7 @@ var r2=crewLib.packetRules(read(path.join(run,'rounds','02-battle','seat-1.packe
 var r3r=crewLib.packetRules(read(path.join(run,'rounds','03-battle','seat-1.packet.md')));
 check(r1.rewrite===true&&r1.sections===false&&r2.sections===true&&r2.verdict_first===false&&r2.rewrite===false&&r3r.sections===true&&r3r.verdict_first===true&&r3r.rewrite===true,'packetRules reads rewrite and verdict_first: '+JSON.stringify([r1,r2,r3r]));
 var server=read(path.join(root,'plugins','combat-writing-crew','server.js'));
-check(/var rewrite=rules\.rewrite\?' The task asks for a rewrite: write it in full between a line holding only === REWRITE BEGIN === and a line holding only === REWRITE END ===, before anything else in your answer but the rating line and the verdict line when they are asked; then your rationale, under 120 words\.':'';/.test(server)&&/\(rules\.verdict_first\?' with the verdict line first':' as it asks'\)/.test(server),'the server\'s system line says the fence and drops the verdict clause when the packet does');
+check(/var rewrite=rules\.rewrite\?' The task asks for a rewrite: write it in full between a line holding only === REWRITE BEGIN === and a line holding only === REWRITE END ===, before anything else in your answer but the rating line and the verdict line when they are asked; then your rationale, under 120 words\. Your rewrite is your own: one that repeats another seat\\'s rewrite is recorded as a copy\.':'';/.test(server)&&/\(rules\.verdict_first\?' with the verdict line first':' as it asks'\)/.test(server),'the server\'s system line says the fence and drops the verdict clause when the packet does');
 
 // 10. The text.
 var agent=read(path.join(plugin,'agents','seat.md')), battle=skill('battle'), rules_=skill('combat-writing'), help=skill('help'), claude=read(path.join(root,'CLAUDE.md')), readme=read(path.join(plugin,'README.md'));
