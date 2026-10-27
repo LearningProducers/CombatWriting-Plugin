@@ -269,6 +269,15 @@ var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with 
 // into notes on the second check, so a read is never lost over a label; verdictLine frames the Answer.
 var SECTIONS_LINE='Two sections, each opened by a line holding only its label: `Answer`, your reply to the task, the verdict line first; then `To the crew`, where you agree or disagree with the other seats, each named by its model as the packet labels it (never by seat number alone), quoted word for word, or put a question to them. Nothing before the Answer label but the rating line when one is asked.';
 var SECTION_LABELS={answer:'Answer',crew:'To the crew'};
+// Links are unread (issue 90, 2026-10-27, the founder's question after a seat described a post it never
+// opened: "Are you guys actually able to even pull and read the millionaire warehouse post I alluded
+// to? Be honest if not."). No seat can open a link: a fresh reader has Read and Write inside its run
+// folder, an outside seat is sent the packet text alone. A packet whose brief, draft or prompt carries
+// an address says so in its Contract (LINKS_UNREAD_LINE, mirrored word for word in the add-on's
+// crew-lib.js, which reads it to tell an outside seat the same); hasLink decides. A page reaches the
+// crew only as text pasted into the brief or the round's prompt, where it rides in the packet.
+var LINKS_UNREAD_LINE='No seat can open a link. Every address in the brief, the draft or the prompt is unread text: never state what its page says, and never charge the author with misreading a page you have not read. A claim about a page holds only when the page\'s text is in this packet; otherwise say the page is unread and ask for its text.';
+function hasLink(text){ return new RegExp(URL_RE.source,'i').test(String(text||'')); }
 function sectionLabelOf(line){
   var s=String(line||'').replace(/[#*_`>\s:.\-]+/g,' ').trim().toLowerCase();
   if(s==='answer')return 'answer';
@@ -1171,7 +1180,7 @@ module.exports={
   PROJECT_BRIEF_FILE:PROJECT_BRIEF_FILE,PROJECT_BRIEF_REL:PROJECT_BRIEF_REL,PROJECT_BRIEF_KEPT_LINE:PROJECT_BRIEF_KEPT_LINE,projectBriefPath:projectBriefPath,briefSourceOf:briefSourceOf,briefWords:briefWords,briefLine:briefLine,
   BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
-  capSent:capSent,contractSent:contractSent,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
   STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,roundCell:roundCell,finalCell:finalCell,finalText:finalText,bandOf:bandOf,runState:runState
 };

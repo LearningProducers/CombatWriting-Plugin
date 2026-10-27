@@ -484,6 +484,18 @@ fake.listen(0,'127.0.0.1',function(){
       check(s1.stderr().indexOf('TESTORG')<0&&s1.stderr().indexOf('LEAKEDKEY')<0,'scrub: the server\'s stderr carries the id or the key shape');
     });
   }).then(function(){
+    // Links are unread (issue 90): a packet carrying the listed plugin's line gets the sentence in the
+    // system line; a packet without it (the CAPME packet above) does not.
+    fs.mkdirSync(path.join(run,'rounds','12-battle'),{recursive:true});
+    fs.writeFileSync(path.join(run,'rounds','12-battle','seat-2.packet.md'),'# Packet for seat-2\n\n## Contract\n\nUnder 500 words.\n\n'+lib.LINKS_UNREAD_LINE+'\n\nPlease rate this: the post at https://blog.example.com/post/ is the reference.\n');
+    check(lib.packetRules(fs.readFileSync(path.join(run,'rounds','12-battle','seat-2.packet.md'),'utf8')).links===true,'packetRules: the links flag from the packet text');
+    return s1.call('crew_answer',{run:run,round:'12-battle',seat:'seat-2'}).then(function(r){
+      var req=requests.filter(function(q){return q.url==='/v1/chat/completions'&&/blog\.example\.com/.test(q.body.messages[1].content);}).pop();
+      check(!r.isError&&r.data.ok&&!!req&&/You cannot open a link: every address in the packet is unread text, never state what its page says, never charge the author with misreading a page you have not read, and a claim about a page holds only when the page's text is in the packet\./.test(req.body.messages[0].content),'links: the system line should say the seat cannot open a link, got '+(req?req.body.messages[0].content.slice(-400):'no request'));
+      var plain=requests.filter(function(q){return q.url==='/v1/chat/completions'&&/CAPME/.test(q.body.messages[1].content);}).pop();
+      check(!!plain&&!/cannot open a link/.test(plain.body.messages[0].content),'links: a packet without the line gets no such sentence');
+    });
+  }).then(function(){
     // Misuse.
     return s1.call('crew_answer',{run:run,round:'01-sparring',seat:'seat-1'}).then(function(r){
       check(r.isError&&/not an outside seat/.test(r.data.error||r.data.reason||''),'crew_answer on a fresh reader should refuse: '+JSON.stringify(r.data));
