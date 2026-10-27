@@ -658,4 +658,4 @@ Ruled and built: `lib.LINKS_UNREAD_LINE` and `lib.hasLink`; `packet.js` puts the
 
 Delivers: `scripts/lib.js`, `scripts/packet.js`, `agents/seat.md`; `crew-lib.js`, `server.js`; the four skills, both READMEs, CLAUDE.md; `tests/links_check.js` (new); `tests/crew_check.js` (the system line); cw 0.8.14, crew 0.5.6 (Part 36.3's number moves to 0.5.7). Not here: a `source:` keyword that carries a page's text as its own block (the prompt and the brief carry it today); a checker on a seat's claim about a page (departure 16 stands).
 
-Status: in progress — 2026-10-27.
+Status: delivered — 2026-10-27 — pull request 91 open as a draft; every check (30 files) and the three strict validations pass locally; the live pass is the founder's next round on the SlotCycle run, an `sfq:` asking the seats whether they read the post, where a seat says the page is unread instead of describing it.
