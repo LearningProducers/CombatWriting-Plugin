@@ -68,10 +68,11 @@
 //   - A per-request output cap (issue 56, measured 2026-10-24 on Groq's free tier) is not a window:
 //     a 429 reading "on output tokens per minute (OTPM): Limit 1000, Requested 1513" with
 //     Retry-After: 60 is answered by one resend at once (no Retry-After wait, no minute) with
-//     max_tokens lowered by the ratio and the margin, floor(2800*1000/1513*0.95) = 1758, which
-//     covers the 600-word cap's floor of 1,000 tokens; the answer lands, and the log line and the
-//     result carry max_tokens_lowered with the four numbers. With Limit 300 the lowered value (527)
-//     is under the floor: one request, no resend, no wait, the seat missing with a reason naming
+//     max_tokens lowered to the limit under the margin, floor(1000*0.95) = 950 (issue 78: never the
+//     ratio's 1758, because the provider's Requested count is not max_tokens scaled), which covers
+//     the 500-word cap's floor of 840 tokens; the answer lands, and the log line and the result
+//     carry max_tokens_lowered with the four numbers. With Limit 300 the lowered value (285) is
+//     under the floor: one request, no resend, no wait, the seat missing with a reason naming
 //     the provider's limit, the cap and what the reply needs, and crew.failed carrying output_cap.
 //     parseCapRefusal reads Groq's two shapes (OTPM, and TPM with its Used count) and nothing else.
 //   - The id scrub (issue 58, measured 2026-10-24): the fake's 500, its always-429 route and a failing
@@ -412,10 +413,10 @@ fake.listen(0,'127.0.0.1',function(){
     // A per-request output cap (issue 56): the refusal is answered by one resend at once with max_tokens
     // lowered by the ratio; the Retry-After of 60 is not waited. Under the floor: one request, missing.
     fs.mkdirSync(path.join(run,'rounds','10-battle'),{recursive:true});
-    fs.writeFileSync(path.join(run,'rounds','10-battle','seat-3.packet.md'),'# Packet for seat-3\n\nUnder 600 words.\n\nCAPME please rate this.\n');
+    fs.writeFileSync(path.join(run,'rounds','10-battle','seat-3.packet.md'),'# Packet for seat-3\n\nUnder 500 words.\n\nCAPME please rate this.\n');
     fs.writeFileSync(path.join(run,'rounds','10-battle','seat-2.packet.md'),'# Packet for seat-2\n\nUnder 600 words.\n\nCAPLOW please rate this.\n');
     check(lib.tokensForCap(600)===1000&&lib.tokensForCap(500)===840&&lib.tokensForCap(250)===440,'tokensForCap: 1.6 tokens a word plus 40, got '+[600,500,250].map(lib.tokensForCap).join(','));
-    check(lib.loweredMaxTokens(2800,1000,1513)===1758&&lib.loweredMaxTokens(2800,300,1513)===527,'loweredMaxTokens: the ratio with the 5% margin, floored, got '+lib.loweredMaxTokens(2800,1000,1513)+','+lib.loweredMaxTokens(2800,300,1513));
+    check(lib.loweredMaxTokens(2800,1000,1513)===950&&lib.loweredMaxTokens(2800,1000,2055)===950&&lib.loweredMaxTokens(2800,1000,1039)===950&&lib.loweredMaxTokens(2800,300,1513)===285&&lib.loweredMaxTokens(900,1000,1513)===565,'loweredMaxTokens: the smaller of the ratio and the limit, each under the 5% margin, floored (issue 78: the three measured Requested counts all land at 950), got '+[lib.loweredMaxTokens(2800,1000,1513),lib.loweredMaxTokens(2800,1000,2055),lib.loweredMaxTokens(2800,1000,1039),lib.loweredMaxTokens(2800,300,1513),lib.loweredMaxTokens(900,1000,1513)].join(','));
     var otpm=lib.parseCapRefusal(capMessage('qwen/x',1000));
     check(!!otpm&&otpm.kind==='output'&&otpm.limit===1000&&otpm.requested===1513,'parseCapRefusal: Groq\'s OTPM shape, got '+JSON.stringify(otpm));
     var tpm=lib.parseCapRefusal('Rate limit reached for model `x` in organization `y` service tier `on_demand` on tokens per minute (TPM): Limit 6000, Used 0, Requested 7117. Please try again in 11.17s.');
@@ -425,15 +426,15 @@ fake.listen(0,'127.0.0.1',function(){
     return s1.call('crew_answer',{run:run,round:'10-battle',seat:'seat-3'}).then(function(r){
       var calls=requests.filter(function(q){return q.url==='/v1/chat/completions'&&/CAPME/.test(q.body.messages[1].content);});
       check(!r.isError&&r.data.ok===true&&calls.length===2,'output cap: expected the refusal and one resend, got '+calls.length+' call(s) '+JSON.stringify(r.data));
-      check(calls.length===2&&calls[0].body.max_tokens===2800&&calls[1].body.max_tokens===1758,'output cap: the resend should carry max_tokens lowered to floor(2800*1000/1513*0.95)=1758, got '+JSON.stringify(calls.map(function(c){return c.body.max_tokens;})));
+      check(calls.length===2&&calls[0].body.max_tokens===2800&&calls[1].body.max_tokens===950,'output cap: the resend should carry max_tokens lowered to the limit under the margin, floor(1000*0.95)=950, never the ratio value 1758 (issue 78), got '+JSON.stringify(calls.map(function(c){return c.body.max_tokens;})));
       check(calls.length===2&&calls[1].t-calls[0].t<1000,'output cap: the resend must follow at once, not after Retry-After (60 s) or the minute; gap '+(calls.length===2?calls[1].t-calls[0].t:'?')+' ms');
       check(Date.now()-t0<5000,'output cap: the whole call should take seconds, took '+(Date.now()-t0)+' ms');
       var L=r.data.max_tokens_lowered||{};
-      check(L.from===2800&&L.to===1758&&L.limit===1000&&L.requested===1513,'output cap: the result should carry max_tokens_lowered, got '+JSON.stringify(r.data.max_tokens_lowered));
+      check(L.from===2800&&L.to===950&&L.limit===1000&&L.requested===1513,'output cap: the result should carry max_tokens_lowered, got '+JSON.stringify(r.data.max_tokens_lowered));
       var f=path.join(run,'rounds','10-battle','seat-3.answer.md');
       check(fs.existsSync(f)&&/^RATING: 8\/10/.test(fs.readFileSync(f,'utf8')),'output cap: the answer should land after the resend');
       var e=logOf(run).filter(function(x){return x.event==='crew.answered'&&x.round==='10-battle'&&x.seat==='seat-3';}).pop()||{};
-      check(!!e.max_tokens_lowered&&e.max_tokens_lowered.from===2800&&e.max_tokens_lowered.to===1758&&e.max_tokens_lowered.limit===1000&&e.max_tokens_lowered.requested===1513&&e.reservation===2800,'output cap: the log line should carry max_tokens_lowered beside the reservation, got '+JSON.stringify({lowered:e.max_tokens_lowered,reservation:e.reservation}));
+      check(!!e.max_tokens_lowered&&e.max_tokens_lowered.from===2800&&e.max_tokens_lowered.to===950&&e.max_tokens_lowered.limit===1000&&e.max_tokens_lowered.requested===1513&&e.reservation===2800,'output cap: the log line should carry max_tokens_lowered beside the reservation, got '+JSON.stringify({lowered:e.max_tokens_lowered,reservation:e.reservation}));
       if(calls.length===2)console.log('output cap: max_tokens '+calls[0].body.max_tokens+' -> '+calls[1].body.max_tokens+' (Limit 1000, Requested 1513), resend after '+(calls[1].t-calls[0].t)+' ms');
       return s1.call('crew_answer',{run:run,round:'10-battle',seat:'seat-2'});
     }).then(function(r){
@@ -444,7 +445,7 @@ fake.listen(0,'127.0.0.1',function(){
       check(calls.length===1&&done-calls[0].t<1000,'cap under the floor: the refusal must return at once, not after Retry-After; '+(calls.length===1?done-calls[0].t:'?')+' ms');
       check(!fs.existsSync(path.join(run,'rounds','10-battle','seat-2.answer.md')),'cap under the floor: an answer file appeared');
       var e=logOf(run).filter(function(x){return x.event==='crew.failed'&&x.round==='10-battle'&&x.seat==='seat-2';}).pop()||{};
-      check(e.status===429&&!!e.output_cap&&e.output_cap.limit===300&&e.output_cap.requested===1513&&e.output_cap.max_tokens===2800&&e.output_cap.lowered_to===527&&e.output_cap.needed===1000&&e.output_cap.cap_words===600&&/^Groq allows 300 output tokens/.test(e.reason),'cap under the floor: crew.failed should carry output_cap with the numbers, got '+JSON.stringify(e.output_cap)+' '+e.reason);
+      check(e.status===429&&!!e.output_cap&&e.output_cap.limit===300&&e.output_cap.requested===1513&&e.output_cap.max_tokens===2800&&e.output_cap.lowered_to===285&&e.output_cap.needed===1000&&e.output_cap.cap_words===600&&/^Groq allows 300 output tokens/.test(e.reason),'cap under the floor: crew.failed should carry output_cap with the numbers, got '+JSON.stringify(e.output_cap)+' '+e.reason);
       console.log('cap under the floor: '+(r.data&&r.data.reason));
     });
   }).then(function(){

@@ -23,10 +23,12 @@
 //                  last sentence end before it, with its first line kept, and the log line and
 //                  the result say so; the record and the board mark the read "truncated at N words".
 //                  A 429 naming a per-request output cap (Groq's OTPM, issue 56) is not waited
-//                  out: max_tokens is lowered by the limit-to-requested ratio and the packet
-//                  resent at once, once, when the lowered value still covers the packet's word
-//                  cap (the log line and the result carry max_tokens_lowered); else the seat is
-//                  missing with the provider's limit and what the reply needs named.
+//                  out: max_tokens is lowered to the limit under a 5% margin (or by the
+//                  limit-to-requested ratio when that is lower; issue 78: the provider's
+//                  Requested count is not max_tokens scaled) and the packet resent at once,
+//                  once, when the lowered value still covers the packet's word cap (the log
+//                  line and the result carry max_tokens_lowered); else the seat is missing
+//                  with the provider's limit and what the reply needs named.
 //
 // Keys: the masked prompt's value first (the manifest maps it to CW_CREW_<PROVIDER>_KEY), the
 // conventional environment variable only when the prompt is empty, then one NAME=value line in
@@ -187,9 +189,10 @@ function callProvider(provider,key,seat,systemPrompt,userText,budget,capWords){
       return lib.request('POST',endpoint,headers,body,180000);
     }).then(function(res){
       if(res.status===429&&n===0){
-        // A per-request output cap (issue 56): no wait helps. Lower max_tokens by the ratio and resend
-        // at once when that still covers the reply the packet asks for; else the seat is missing with
-        // the numbers named. Any other 429 is a window: wait Retry-After, or a minute, and resend once.
+        // A per-request output cap (issue 56): no wait helps. Lower max_tokens to the limit (or by the
+        // ratio when lower; issue 78) and resend at once when that still covers the reply the packet
+        // asks for; else the seat is missing with the numbers named. Any other 429 is a window: wait
+        // Retry-After, or a minute, and resend once.
         var cap=lib.parseCapRefusal(res.json&&res.json.error&&res.json.error.message?res.json.error.message:res.text);
         if(cap&&cap.kind==='output'&&cap.requested>cap.limit){
           var needed=capWords?lib.tokensForCap(capWords):b.floor;

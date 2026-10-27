@@ -311,14 +311,21 @@ function makeWindow(){
 
 // A per-request output cap is not a rate window (measured 2026-10-24 on Groq's free tier,
 // issue 56): a 429 reading "on output tokens per minute (OTPM): Limit 1000, Requested 1513"
-// caps one request's expected output, which the provider derives from max_tokens, so the
-// same body sent again after a minute draws the same refusal. parseCapRefusal reads such a
-// message: {kind:'output'|'total', limit, requested}, 'total' for the per-minute TPM shape
-// (Groq's "Used N," between the two counts tolerated), null for any other text. The cure is
-// a lower max_tokens: loweredMaxTokens scales it by limit/requested with a 5% margin, and
-// tokensForCap is the floor a reply under a word cap needs, 1.6 tokens a word plus 40 for
-// the first line; a lowered value under that floor means the seat is missing with the
-// numbers named (capRefusalReason), because no value that fits the cap could carry the reply.
+// caps one request's expected output, so the same body sent again after a minute draws the
+// same refusal. parseCapRefusal reads such a message: {kind:'output'|'total', limit,
+// requested}, 'total' for the per-minute TPM shape (Groq's "Used N," between the two counts
+// tolerated), null for any other text. The cure is a lower max_tokens, and the limit is the
+// number to lower it to (issue 78, measured 2026-10-27 on the qwen seat): the same packet
+// shape with max_tokens 2800 drew Requested 1513, 2055 and 1039 on three days, so Groq's
+// count is not max_tokens scaled, and a resend lowered by the ratio limit/requested landed
+// at 1294 and 2560, above the limit both times, refused both times. loweredMaxTokens returns
+// the smaller of that ratio and the limit itself, each under a 5% margin, so the resend never
+// asks for more than the cap allows; tokensForCap is the floor a reply under a word cap
+// needs, 1.6 tokens a word plus 40 for the first line; a lowered value under that floor means
+// the seat is missing with the numbers named (capRefusalReason), because no value that fits
+// the cap could carry the reply. A reasoning model that spends the lowered budget on thinking
+// returns a short or empty reply, which the checker marks as a failed read; that is the next
+// measurement, not a rule here.
 var CAP_REFUSAL=/on (output )?tokens per minute \((O?TPM)\): Limit (\d+),(?: Used \d+,)? Requested (\d+)/i;
 var TOKENS_PER_WORD=1.6, FIRST_LINE_TOKENS=40, CAP_MARGIN=0.95;
 function parseCapRefusal(message){
@@ -327,7 +334,7 @@ function parseCapRefusal(message){
   return {kind:/^o/i.test(m[2])?'output':'total',limit:parseInt(m[3],10),requested:parseInt(m[4],10)};
 }
 function tokensForCap(capWords){ return Math.ceil(capWords*TOKENS_PER_WORD)+FIRST_LINE_TOKENS; }
-function loweredMaxTokens(maxTokens,limit,requested){ return Math.floor(maxTokens*limit/requested*CAP_MARGIN); }
+function loweredMaxTokens(maxTokens,limit,requested){ return Math.min(Math.floor(maxTokens*limit/requested*CAP_MARGIN),Math.floor(limit*CAP_MARGIN)); }
 function capRefusalReason(providerName,limit,capWords,needed){
   return providerName+' allows '+limit.toLocaleString()+' output tokens per request on this model\'s tier; '+(capWords?'a '+capWords+'-word reply needs about '+needed.toLocaleString():'a reply needs at least '+needed.toLocaleString())+'; the seat is missing this round (a paid tier, or a smaller cap)';
 }
