@@ -624,3 +624,14 @@ Ruled and built: every sentence that tells a seat how to cite another says the m
 Delivers: the files above; `tests/packet_check.js` and `tests/sections_check.js` re-pinned on the new words; cw 0.8.12, crew 0.5.3 (Part 36.3's number moves to 0.5.4). Not here: the Groq seat order (qwen first) and the first-round `sn:` that runs two passes, the next two PRs.
 
 Status: delivered — 2026-10-26 — pull request 85 open as a draft; every check (28 files) and the three strict validations pass locally; the live pass is the founder's next sharing round, every To the crew naming models.
+## Part 65 — With one Groq key, the Qwen seat is seat-2 (issue 86, crew 0.5.4)
+
+The founder's words, 2026-10-26: "if a user uses a groq key, the default should go to qwen3 being seat 2 and gptoss being seat3, (of course the user can have the option to configure and customize afterward)". His reading of the day's rounds: the Qwen seat's reads were the sharper of the two outside seats.
+
+Measured: the add-on's Groq entry listed `groq-a` (OpenAI's open-weight line) before `groq-b` (Alibaba's Qwen line) and `crew_register` seated them in that order after the fresh reader, so seat-2 was gpt-oss and seat-3 qwen on every run.
+
+Ruled and built: the Groq entry lists the Qwen line first (`providers.json`), so a run with one Groq key seats qwen as seat-2 and gpt-oss as seat-3; nothing else about resolution changes (each slot still resolves from the live catalog by family and preference, the slot ids stand). The add-on README and CLAUDE.md say the order and why. Named limit: no per-user seat order yet; the customization the founder names is a later part.
+
+Delivers: `providers.json`, the add-on README, CLAUDE.md; `tests/crew_check.js` re-pinned on the new order (seat-2 Alibaba and the Qwen id with the returned-id suffix, seat-3 OpenAI and the gpt-oss id, the request extras per vendor, the companies' order on the crew line); crew 0.5.4 (Part 36.3's number moves to 0.5.5). Not here: the first-round `sn:` that runs two passes (the next PR), the picker after strategy, `brief:` on a run with rounds. The block itself reached the branch only with the merge of main (a chained command had stopped before the append, unnoticed; the status line below had landed alone).
+
+Status: delivered — 2026-10-26 — pull request 87 open as a draft, after pull request 85 in the merge order; every check (28 files) and the three strict validations pass locally; the live pass is the founder's next run after the update, the crew line reading qwen as seat-2.
