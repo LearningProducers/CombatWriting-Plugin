@@ -145,6 +145,11 @@ if(prev){
   lib.readLog(runDir).forEach(function(e){ if(e.event==='packet.built'&&e.round===prev&&e.draft)prevDraft=e.draft; });
 }
 
+// Links are unread (issue 90): when the brief, the draft or the round's text carries an address, the
+// Contract says no seat can open it, so a seat never describes a page it never read.
+var crewTask=crewPass?lib.roundTask(runDir,args.round):null;
+var linked=[brief,draft,sfq&&sfq.text,sn&&sn.text,nav&&nav.text,fq&&fq.text,question&&question.text,crewTask&&crewTask.text].some(lib.hasLink);
+
 var cap=args['word-cap']&&args['word-cap']!==true?parseInt(args['word-cap'],10)
   :finalMode?lib.DEFAULT_FINAL_WORD_CAP:crewPass?lib.DEFAULT_CREW_WORD_CAP:synthesis?lib.DEFAULT_SYNTHESIS_WORD_CAP:lib.DEFAULT_WORD_CAP;
 
@@ -215,6 +220,7 @@ else{
   out.push('Your first line must be exactly `RATING: X/10`, uppercase, X a whole number from 1 to 10, never 7, nothing else on that line. '+(sections?lib.SECTIONS_LINE+' In the Answer, your reasoning with specific evidence from the draft. Under '+cap+' words in all.':lib.VERDICT_SENTENCE_LINE+' Then your reasoning with specific evidence from the draft. Under '+cap+' words.')+' The number and the verdict must agree: 8 to 10 is a working document, 1 to 6 a problem document; an 8 or more that says the draft is not send-ready, or a 6 or less that says it ships as it is, is a failed read.');
   if(ownRated){var lastRating=lib.parseRating(ownRated.text);if(lastRating!==null)out.push('Your latest rating was '+lastRating+'/10, in round '+ownRated.round+'. A new number is held against it.');}
 }
+if(linked){out.push('');out.push(lib.LINKS_UNREAD_LINE);}
 out.push('');
 out.push(lib.SIGNAL_LINE);
 out.push('');
@@ -271,7 +277,7 @@ var packetPath=path.join(roundDir,seat.id+(finalMode?'.'+finalMode:crewPass?'.cr
 fs.writeFileSync(packetPath,out.join('\n'));
 lib.appendLog(runDir,{event:'packet.built',round:args.round,seat:seat.id,model:seat.model,company:seat.company,
   mode:finalMode?'final-'+finalMode:crewPass?'crew':cold?'cold':nav?'navigation':fq?'focus':seatAlone?'seat':(synthesis||synthesisTerm)?'synthesis':'read',
-  contract:contract,rerate:rerate,shares:shares,sections:sections,first_round:firstRound,pass:crewPass?'crew':null,
+  contract:contract,rerate:rerate,shares:shares,sections:sections,first_round:firstRound,pass:crewPass?'crew':null,links_unread:linked,
   file:path.relative(runDir,packetPath),draft:draftName,draft_facts:facts,brief_included:!!brief,
   question:question?path.basename(question.file):null,sfq:sfq?path.basename(sfq.file):null,sn:sn?path.basename(sn.file):null,n:nav?path.basename(nav.file):null,fq:fq?path.basename(fq.file):null,
   reads_round:shares?prev:null,own_previous:own?own.round:null,own_rating:ownRated?ownRated.round:null,

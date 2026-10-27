@@ -242,9 +242,12 @@ var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with 
 // The two sections of a battle answer that shares (issue 80): the listed plugin's SECTIONS_LINE,
 // mirrored word for word for the same reason, so the system line can say it when the packet asks.
 var SECTIONS_LINE='Two sections, each opened by a line holding only its label: `Answer`, your reply to the task, the verdict line first; then `To the crew`, where you agree or disagree with the other seats, each named by its model as the packet labels it (never by seat number alone), quoted word for word, or put a question to them. Nothing before the Answer label but the rating line when one is asked.';
+// Links are unread (issue 90): the listed plugin's LINKS_UNREAD_LINE, mirrored word for word for the
+// same reason, so the system line says it when the packet carries an address.
+var LINKS_UNREAD_LINE='No seat can open a link. Every address in the brief, the draft or the prompt is unread text: never state what its page says, and never charge the author with misreading a page you have not read. A claim about a page holds only when the page\'s text is in this packet; otherwise say the page is unread and ask for its text.';
 function packetRules(packetText){
   var m=/Under (\d+) words( in all)?\./.exec(packetText||'');
-  return {cap:m?parseInt(m[1],10):null,contract:(packetText||'').indexOf(NO_RATING_LINE)>=0?'critique':'rating',sections:(packetText||'').indexOf(SECTIONS_LINE)>=0};
+  return {cap:m?parseInt(m[1],10):null,contract:(packetText||'').indexOf(NO_RATING_LINE)>=0?'critique':'rating',sections:(packetText||'').indexOf(SECTIONS_LINE)>=0,links:(packetText||'').indexOf(LINKS_UNREAD_LINE)>=0};
 }
 function wordCount(text){ return String(text||'').split(/\s+/).filter(Boolean).length; }
 
@@ -364,4 +367,4 @@ module.exports={readText:readText,appendLog:appendLog,readLog:readLog,readSeats:
   loadProviders:loadProviders,keyFor:keyFor,keyShape:keyShape,keyHint:keyHint,keyNext:keyNext,keyField:keyField,keyFilePath:keyFilePath,keyFileShown:keyFileShown,readKeyFile:readKeyFile,KEY_FILE:KEY_FILE,CONFIGURE_COMMAND:CONFIGURE_COMMAND,CAUSES:CAUSES,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
   eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,
   parseCapRefusal:parseCapRefusal,tokensForCap:tokensForCap,loweredMaxTokens:loweredMaxTokens,capRefusalReason:capRefusalReason,TOKENS_PER_WORD:TOKENS_PER_WORD,FIRST_LINE_TOKENS:FIRST_LINE_TOKENS,CAP_MARGIN:CAP_MARGIN,scrubIds:scrubIds,
-  NO_RATING_LINE:NO_RATING_LINE,SECTIONS_LINE:SECTIONS_LINE,packetRules:packetRules,wordCount:wordCount,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer};
+  NO_RATING_LINE:NO_RATING_LINE,SECTIONS_LINE:SECTIONS_LINE,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,packetRules:packetRules,wordCount:wordCount,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer};
