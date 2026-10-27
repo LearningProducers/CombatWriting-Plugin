@@ -85,6 +85,8 @@
 //     and never the id or the string. scrubIds itself: the six underscore kinds, the hyphenated kinds
 //     with a digit in the tail, English compounds (user-friendly, org-wide) untouched, the four key
 //     prefixes, idempotent, and the cap refusal's numbers still parsed after the scrub.
+//   - crew_register writes on each outside seat the wall it spends from (issue 95): budget with
+//     per_minute, reply_floor and reply_ceiling, the provider's numbers; the fresh reader carries none.
 //   - The window arithmetic (crew-lib makeWindow) waits when the next call would cross the wall or
 //     the request limit, and not otherwise.
 //   - The listed plugin's checker, flip check and record then read the outside seat's answer as
@@ -249,6 +251,8 @@ fake.listen(0,'127.0.0.1',function(){
     check(seats.length===3&&seats[0].id==='seat-1'&&!seats[0].provider&&seats[1].id==='seat-2'&&seats[1].provider==='groq'&&seats[1].served_by==='Groq'&&seats[1].company==='Alibaba'&&seats[1].model==='qwen/qwen3.6-27b'&&/API returns/.test(seats[1].source),'crew_register: with the Groq key alone the crew should be three, seat-1 the fresh reader; got '+JSON.stringify(seats.map(function(x){return x.id+' '+x.model;})));
     console.log('crew with the Groq key alone: '+seats.map(function(x){return x.id+' = '+x.model+' ('+x.company+(x.served_by?', served by '+x.served_by:'')+')';}).join('; '));
     check(seats[2].company==='OpenAI'&&seats[2].model==='openai/gpt-oss-120b','crew_register: seat-3 wrong '+JSON.stringify(seats[2]));
+    // The wall each outside seat spends from (issue 95), the provider's budget as providers.json states it.
+    check(seats[1].budget&&seats[1].budget.per_minute===8000&&seats[1].budget.reply_floor===1200&&seats[1].budget.reply_ceiling===2800&&seats[2].budget&&seats[2].budget.per_minute===8000&&!seats[0].budget,'crew_register: each outside seat should carry its wall, the fresh reader none, got '+JSON.stringify(seats.map(function(x){return x.budget;})));
     check(logOf(run).some(function(e){return e.event==='crew.registered'&&!('credit' in e)&&e.added.length===2&&e.unavailable.length>=2;}),'crew_register: log line missing');
     return s1.call('crew_register',{run:run});
   }).then(function(r){

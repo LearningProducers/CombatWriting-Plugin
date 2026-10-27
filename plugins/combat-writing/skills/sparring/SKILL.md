@@ -65,7 +65,15 @@ Then, for each seat in `seats.json` (a seat's question file from step 1 goes in 
 node ${CLAUDE_PLUGIN_ROOT}/scripts/packet.js --run <folder> --round <round> --seat <seat id> [--question rounds/<round>/<seat>.question.md] [--cold]
 ```
 
-Every sparring packet asks for a rating. Then start all seats in one go. Each fresh reader (a seat in `seats.json` with no `provider` field) starts as the `seat` agent from this plugin, with this and only this as its task; each outside seat (a seat with a `provider` field) goes through the add-on instead: call `crew_answer` with `run`, `round` and `seat`, which reads the same packet and writes the same answer file.
+Every sparring packet asks for a rating. Then, with every packet built and before any seat starts, print the budget line (issue 95, 2026-10-27: the price of the round, before it runs):
+
+```
+node ${CLAUDE_PLUGIN_ROOT}/scripts/budget.js --run <folder> --round <round>
+```
+
+It prints one line, "Round 02 packets: up to about 5,700 tokens (seat-2): the prompt 1,850, the other seats' answers 1,750, the seat's earlier turn 1,000, the brief 300, the draft 100, the contract 700. Groq allows 8,000 a minute per model with 1,200 kept for the reply (seat-2, seat-3): about 1,100 of room left." (with no outside seat, the sizes and "The fresh reader has no per-minute wall."), and logs it; show that line as printed. When it says a seat's packet is over the room and the add-on will refuse it, still run the round as chosen: that seat comes back missing with the add-on's reason, the record shows it, and the line already told the person why and how much to cut.
+
+Then start all seats in one go. Each fresh reader (a seat in `seats.json` with no `provider` field) starts as the `seat` agent from this plugin, with this and only this as its task; each outside seat (a seat with a `provider` field) goes through the add-on instead: call `crew_answer` with `run`, `round` and `seat`, which reads the same packet and writes the same answer file.
 
 ```
 Packet: <absolute packet path>
