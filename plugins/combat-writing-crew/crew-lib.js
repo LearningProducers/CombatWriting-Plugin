@@ -241,7 +241,7 @@ function budgetFor(provider,systemPrompt,userText){
 var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your answer to the task.';
 // The two sections of a battle answer that shares (issue 80): the listed plugin's SECTIONS_LINE,
 // mirrored word for word for the same reason, so the system line can say it when the packet asks.
-var SECTIONS_LINE='Two sections, each opened by a line holding only its label: `Answer`, your reply to the task, the verdict line first; then `To the crew`, where you agree or disagree with the other seats by name, quoted word for word, or put a question to them. Nothing before the Answer label but the rating line when one is asked.';
+var SECTIONS_LINE='Two sections, each opened by a line holding only its label: `Answer`, your reply to the task, the verdict line first; then `To the crew`, where you agree or disagree with the other seats, each named by its model as the packet labels it (never by seat number alone), quoted word for word, or put a question to them. Nothing before the Answer label but the rating line when one is asked.';
 function packetRules(packetText){
   var m=/Under (\d+) words( in all)?\./.exec(packetText||'');
   return {cap:m?parseInt(m[1],10):null,contract:(packetText||'').indexOf(NO_RATING_LINE)>=0?'critique':'rating',sections:(packetText||'').indexOf(SECTIONS_LINE)>=0};

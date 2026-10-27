@@ -6,13 +6,13 @@
   },
   "metadata": {
     "description": "Learning Producers' own marketplace: the Combat Writing plugin and its local add-on.",
-    "version": "0.8.11"
+    "version": "0.8.12"
   },
   "plugins": [
     {
       "name": "cw",
       "source": "./plugins/combat-writing",
-      "version": "0.8.11",
+      "version": "0.8.12",
       "description": "Combat Writing (/cw): a crew of AI model seats attacks your draft, rates it 1 to 10 with 7 forbidden, then reads each other in battle and rates again when you ask. Strategy, sparring and battle in the order you choose; every result ends with a picker for the next round; champion freezes the shipped draft as canon and records each result and insight. The rating leads every result."
     },
     {

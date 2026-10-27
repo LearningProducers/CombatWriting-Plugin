@@ -178,7 +178,7 @@ else{
   else out.push(rated?lib.DEFAULT_READ_PROMPT:lib.DEFAULT_FIRST_CRITIQUE_PROMPT);
   if(synthesis){
     out.push('');
-    out.push('Read your own earlier turn and the other seats\' answers below before you write. Quote the other seats by name, in double quotes, word for word, where you agree or disagree.'
+    out.push('Read your own earlier turn and the other seats\' answers below before you write. Quote the other seats by model name as the packet labels them (never by seat number alone), in double quotes, word for word, where you agree or disagree.'
       +(rated?' If your new rating differs from your latest one, quote the line that moved you, name the seat it came from, and say why. If you hold your rating, say Stand and why.':''));
     if(prevDraft&&prevDraft!==draftName)out.push('The draft below is '+draftName+'. The answers below were written about '+prevDraft+'. '+(rated?'Rate':'Read')+' the draft below.');
   }else if((nav||fq||seatAlone||!shares)&&own){
