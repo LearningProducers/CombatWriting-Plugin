@@ -718,4 +718,4 @@ Ruled and built: the board's script picks a voice per seat in the browser, `seat
 
 Delivers: `scripts/render-board.js`; the README, the help skill, CLAUDE.md; `tests/board_check.js` (120 checks); cw 0.8.18. Not here: the rewrite-round shape (a seat told to rewrite still opens with a verdict line because the Contract asks for one; its design is before the founder), the cap lever, the `source:` keyword, the honest free-tier line in the help.
 
-Status: in progress — 2026-10-27 — built on branch `claude/101-voice-per-seat`; every check and the three strict validations pass locally; the live pass is the founder's next board: Read aloud on seat-2 and seat-3 in two voices that are not seat-1's, the status line naming each.
+Status: delivered — 2026-10-27 — pull request 102 open as a draft; every check and the three strict validations pass locally; the live pass is the founder's next board: Read aloud on seat-2 and seat-3 in two voices that are not seat-1's, the status line naming each.
