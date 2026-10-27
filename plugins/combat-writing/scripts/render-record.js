@@ -192,11 +192,15 @@ rounds.forEach(function(r){
 out.push('');
 out.push('## What was sent');
 out.push('');
-out.push('| When (UTC) | Round | Seat | Packet | Draft | Mode | Carried | Missing | Cap |');
-out.push('|---|---|---|---|---|---|---|---|---|');
+out.push('| When (UTC) | Round | Seat | Packet | Draft | Mode | Carried | Missing | Cap | Tokens |');
+out.push('|---|---|---|---|---|---|---|---|---|---|');
 log.filter(function(e){return e.event==='packet.built';}).forEach(function(e){
-  out.push('| '+e.ts+' | '+e.round+' | '+e.seat+' | '+e.file+' | '+e.draft+' | '+e.mode+(e.contract==='critique'?' (no rating)':e.rerate?' + rerate':'')+(e.question&&e.mode!=='seat'?' + question':'')+' | '+((e.carried||[]).map(function(c){return c.seat;}).join(', ')||'—')+' | '+((e.missing||[]).join(', ')||'—')+' | '+e.word_cap+' |');
+  out.push('| '+e.ts+' | '+e.round+' | '+e.seat+' | '+e.file+' | '+e.draft+' | '+e.mode+(e.contract==='critique'?' (no rating)':e.rerate?' + rerate':'')+(e.question&&e.mode!=='seat'?' + question':'')+' | '+((e.carried||[]).map(function(c){return c.seat;}).join(', ')||'—')+' | '+((e.missing||[]).join(', ')||'—')+' | '+e.word_cap+' | '+(e.size?e.size.tokens:'—')+' |');
 });
+// The price of every round (issue 95): the largest packet by part, the wall and the room, one line per
+// round, from the packets' sizes and the seats' walls; nothing a seat reads.
+var budgetLines=lib.budgetLines(runDir,log);
+if(budgetLines.length){ out.push(''); out.push('Tokens are estimated at four characters each, the add-on\'s rule. '+budgetLines.join(' ')); }
 out.push('');
 out.push('Full log: log.jsonl in this folder.');
 out.push('');

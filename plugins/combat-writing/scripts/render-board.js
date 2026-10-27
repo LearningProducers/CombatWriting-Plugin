@@ -356,6 +356,9 @@ lib.crewStateLines(runDir,seats,log).forEach(function(l){ html.push('<p class="m
 html.push('<p class="meta"><strong>Seat key:</strong> '+esc(lib.seatKey(seats))+'</p>');
 html.push('<p class="meta"><strong>Drafts:</strong> '+(drafts.length?esc(drafts.map(function(d){return d+' ('+lib.draftFactsLine(lib.draftFacts(lib.readText(path.join(runDir,d))))+')';}).join(', '))+'.':'none yet; the draft joins the run when sparring or battle brings it.')+(hasBrief?' <strong>Brief:</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
 html.push('<p class="meta"><strong>Started at:</strong> '+esc(lib.startedAtLine(runDir,log,rounds))+'</p>');
+// The price of every round (issue 95), here and not on the terminal: the founder's ruling, accessible, not presented.
+var budgetLines=lib.budgetLines(runDir,log);
+if(budgetLines.length)html.push('<p class="meta"><strong>Packets:</strong> '+esc('Tokens are estimated at four characters each, the add-on\'s rule. '+budgetLines.join(' '))+'</p>');
 if(!rounds.length)html.push('<p class="note">'+esc(noRoundsLine)+'</p>');
 html.push('<p class="note">The full record, every answer in full and the log of what was sent, is <a href="record.md">record.md</a> in this folder.</p>');
 html.push('</details>');
