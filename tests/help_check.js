@@ -42,10 +42,10 @@ check(bullets.length===4,'card: four stage bullets, got '+bullets.length);
   check(l.indexOf('- **'+p[0]+'** `/cw:'+p[1]+'` ')===0,'card: bullet '+(i+1)+' is '+p[0]+' naming /cw:'+p[1]+' first; got '+l.slice(0,60));
 });
 check(/7 forbidden/.test(bullets[1])&&/`rerate`/.test(bullets[2])&&/`shipped`, `result:`, `insight:`/.test(bullets[3])&&/the brief you type is the project's from then on/.test(bullets[0]),'card: the stage bullets carry the rating rule, rerate, the three champion keywords and the brief rule');
-var begin=lines.indexOf('Begin with any one, in any order; a pasted draft starts the run. Pick a stage below, or type one:');
+var begin=lines.indexOf('Begin with any one, in any order; the pieces of a paste go in any order too, each by its word. Pick a stage below, or type one:');
 check(begin>0,'card: the Begin line must stand, verbatim');
 var typed=lines.slice(begin+1);
-check(typed.length===5&&typed[0]==='`/cw:strategy brief: <who you are, what you want, the stakes>`'&&typed[1]==='`/cw:sparring <your draft> question: <one focus question>`'&&typed[2]==='`/cw:battle <your draft> sn: <your prompt to the crew>`'&&typed[3]==='`/cw:champion shipped email to <whom>`'&&typed[4]==='`/cw:help all` is the full guide; `/cw:help <topic>` one section.','card: the five typed lines after Begin, verbatim; got '+JSON.stringify(typed));
+check(typed.length===5&&typed[0]==='`/cw:strategy brief: <who you are, what you want, the stakes>`'&&typed[1]==='`/cw:sparring brief: <your brief> sparring: <your draft> question: <one focus question>`'&&typed[2]==='`/cw:battle brief: <your brief> battle: <your draft> sn: <your prompt to the crew>`'&&typed[3]==='`/cw:champion shipped email to <whom>`'&&typed[4]==='`/cw:help all` is the full guide; `/cw:help <topic>` one section.','card: the five typed lines after Begin, verbatim (brief first, the stage word on the draft, issue 76); got '+JSON.stringify(typed));
 check(lines.length===15,'card: fifteen lines (the motto, a blank, the one-liner, a blank, four bullets, a blank, Begin, five typed lines); got '+lines.length);
 check(!/http/.test(card)&&!/Learning Producers/.test(card),'card: no address and no credit line');
 
