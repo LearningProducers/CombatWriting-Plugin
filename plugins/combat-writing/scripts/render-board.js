@@ -283,7 +283,7 @@ if(tableRounds.length){
       fold=(c.rewrite?'<div class="read rewrite"><p class="meta">The rewrite, in full:</p>'+read(c.rewrite)+'</div>':'')
         +'<div class="read-controls"><button type="button" class="seat-speak" aria-label="Read this seat\'s '+(c.kind==='critique'?'critique':'read')+' aloud">🔊 Read aloud</button> <button type="button" class="seat-pause" aria-label="Pause or resume the reading" disabled>Pause</button> <button type="button" class="seat-stop" aria-label="Stop the reading" disabled>Stop</button> <span class="meta seat-status" aria-live="polite"></span></div>'
         +'<div class="seat-text" hidden>'+esc(spoken)+'</div>'
-        +'<details><summary>Read the full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words'+(crew?', then '+crew.words+' to the crew':'')+')</summary><div class="read">'+read(c.answer)+crewHtml+'</div></details>';
+        +'<details><summary>Read the full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words'+(crew?', then '+crew.words+' to the crew':'')+')</summary><div class="read">'+read(foldText(c.answer))+crewHtml+'</div></details>';
     }
     var finalLine='';
     if(finalRounds.length){ var f=finalCell(s,finalRounds[finalRounds.length-1]); finalLine='<p class="final">'+esc(finalRounds[finalRounds.length-1])+': '+esc(finalText(f))+'</p>'; }

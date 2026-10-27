@@ -102,6 +102,13 @@ check(!!fr2&&/<blockquote>Vote yes before Friday: the deal dies at the quarter c
 check(!!fr2&&/<div class="read rewrite"><p class="meta">The rewrite, in full:<\/p>[^]*?Vote yes before Friday[^]*?The rest holds\.[^]*?<\/div>/.test(fr2[1]),'board: the whole rewrite sits under the frame');
 var fr1=/<figure class="frame[^"]*" data-seat="seat-1">([^]*?)<\/figure>/.exec(html);
 check(!!fr1&&/Critique · no rating asked/.test(fr1[1])&&fr1[1].indexOf('read rewrite')<0,'board: a seat that gave no rewrite keeps the critique badge and no rewrite block');
+// The fence lines leave the page (issue 108): not in the fold, not in the spoken text; the spoken text opens on the seat's words.
+var fold2=(/<details><summary>Read the full[^]*?<\/details>/.exec(fr2[1])||[''])[0];
+check(fold2.length>0&&fold2.indexOf('REWRITE BEGIN')<0&&fold2.indexOf('REWRITE END')<0&&/Vote yes before Friday/.test(fold2),'board: the fold carries the rewrite without its fence lines');
+var spoken2=(/<div class="seat-text" hidden>([^]*?)<\/div>/.exec(fr2[1])||['',''])[1];
+check(spoken2.indexOf('REWRITE')<0&&/^Jeff,/.test(spoken2.trim()),'board: the spoken text drops the fence lines and opens on the rewrite; got '+JSON.stringify(spoken2.slice(0,60)));
+var fa=read(path.join(run,'rounds','01-battle','seat-2.answer.md'));
+check(fa.indexOf(lib.REWRITE_BEGIN)>=0&&fa.indexOf(lib.REWRITE_END)>=0,'the file keeps the fence lines for the checker');
 
 // 6. A sharing SFQ with a question: the prompted sections line and the prompt-first line, no verdict clause.
 write(path.join(run,'rounds','01-battle','seat-3.answer.md'),fenced);
