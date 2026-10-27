@@ -449,6 +449,7 @@ check(tk9.kind==='SFQ'&&tk9.n===2&&lib.kindLabel(tk9)==='SFQ2'&&lib.taskLine(tk9
 check(lib.roundTask(run,'03-battle').n===1,'roundTask: a later SFQ never renumbers the first');
 check(lib.announcedOrdinal([{event:'round.announced',round:'01-battle',kind:'SN'},{event:'round.announced',round:'02-battle',kind:'SFQ'},{event:'round.announced',round:'02-battle',kind:'SN'},{event:'round.announced',round:'03-battle',kind:'SFQ'}],'SFQ','04-battle')===2,'announcedOrdinal: counts the last announcement per earlier round');
 check(lib.announcedOrdinal([{event:'round.announced',round:'01-battle',kind:'SN'}],'SN','01-battle')===1&&lib.announcedOrdinal([],'seat','02-battle')===0,'announcedOrdinal: the round itself is not counted; seat lines have no count');
+check(lib.announcedOrdinal([{event:'round.announced',round:'01-battle',kind:'SN'},{event:'round.announced',round:'01-battle',kind:'crew'},{event:'round.announced',round:'04-battle',kind:'SN'}],'SN','05-battle')===3,'announcedOrdinal: the crew pass does not hide the round\'s kind (issue 105)');
 fs.rmSync(path.join(run,'rounds','09-battle'),{recursive:true,force:true});
 var tk1=lib.roundTask(run,'01-sparring');
 check(tk1.kind==='plain'&&tk1.text===lib.DEFAULT_READ_PROMPT&&lib.taskLine(tk1).indexOf('the default prompt: “')===0&&lib.ratingLine(tk1,'01-sparring')==='a rating asked','roundTask: 01-sparring should be plain with the default read prompt: '+JSON.stringify(tk1));

@@ -699,11 +699,13 @@ function roundTask(runDir,round,log){
 function kindLabel(task){ return task.kind+(task.n>1?String(task.n):''); }
 // The same count before any packet exists, for the forming line (announce.js): one more than the
 // rounds before this one whose last announcement was of this kind. A round announced and never
-// built counts here and not in roundTask; the two agree on every round that ran.
+// built counts here and not in roundTask; the two agree on every round that ran. The second pass of
+// a first round announces kind `crew` on the same round (issue 105: it hid round 01's SN, so the
+// forming line said SN2 where the board said SN3); it is not a kind of round and is skipped.
 function announcedOrdinal(log,kind,round){
   if(TASK_KINDS.indexOf(kind)<0)return 0;
   var last={};
-  log.forEach(function(e){ if(e.event==='round.announced'&&e.round&&e.round<round)last[e.round]=e.kind; });
+  log.forEach(function(e){ if(e.event==='round.announced'&&e.round&&e.round<round&&e.kind!=='crew')last[e.round]=e.kind; });
   var n=1; Object.keys(last).forEach(function(r){ if(last[r]===kind)n++; });
   return n;
 }

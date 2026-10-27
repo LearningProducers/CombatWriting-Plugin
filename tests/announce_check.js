@@ -66,9 +66,14 @@ var a7=node('announce.js',['--run',run,'--round','08-battle','--kind','SFQ','--t
 check(a7.status===0&&a7.stdout.indexOf('Round 08 forming: SFQ2 to 3 seats (')===0,'second SFQ forms as SFQ2: got '+JSON.stringify(a7.stdout));
 var a8=node('announce.js',['--run',run,'--round','09-battle','--kind','seat','--to','seat-2']);
 check(a8.status===0&&/forming: a seat line to 1 seat/.test(a8.stdout)&&!/seat line2/.test(a8.stdout),'seat lines carry no count: got '+JSON.stringify(a8.stdout));
+// The second pass (issue 105): a round announced SN and then crew still counts as an SN.
+var a9=node('announce.js',['--run',run,'--round','10-battle','--kind','SN','--to','seat-1,seat-2,seat-3']);
+var a10=node('announce.js',['--run',run,'--round','10-battle','--kind','crew','--to','seat-1,seat-2,seat-3']);
+var a11=node('announce.js',['--run',run,'--round','11-battle','--kind','sn','--to','seat-1,seat-2,seat-3']);
+check(a9.status===0&&a10.status===0&&/^Round 10, second pass: to the crew/.test(a10.stdout)&&a11.status===0&&a11.stdout.indexOf('Round 11 forming: SN2 to 3 seats (')===0,'a crew pass does not hide the SN before it: got '+JSON.stringify(a11.stdout));
 var a5=node('announce.js',['--run',run,'--round','06-final','--kind','final','--to','seat-1,seat-2,seat-3','--rerate']);
 check(a5.status===0&&a5.stdout==='Round 06 forming: the final reads to 3 seats (seat-1 Test Model, seat-2 gpt-oss, seat-3 qwen)\n','final reads never say rerate, got '+JSON.stringify(a5.stdout));
-check(logOf(run).filter(function(e){return e.event==='round.announced';}).length===14,'every accepted announce logs one line');
+check(logOf(run).filter(function(e){return e.event==='round.announced';}).length===17,'every accepted announce logs one line');
 
 // Refusals: exit 2, nothing logged.
 var count=logOf(run).length;
