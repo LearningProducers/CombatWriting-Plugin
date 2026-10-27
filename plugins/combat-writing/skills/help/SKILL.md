@@ -76,7 +76,7 @@ Every sparring and battle result ends with a picker instead of a line to retype 
 - **SFQ, synthesis focus question** (`sfq:`): the crew's answers are shared plus a new question.
 - **Seat line** (`seat-2:`): a note or question to one seat only, alone or with any round term. A round of seat lines alone goes to the named seats; the record marks the others "not asked".
 - **rerate**: the round asks for a rating, the rating line first. Without it a battle round carries no rating and the record shows it as a critique.
-- **Two sections** in a round that shares (SN, SFQ, or a plain round after the first): each seat writes **Answer**, its reply to your prompt with its verdict first, then **To the crew**, where it agrees or disagrees with the named seats, quoted, or asks them something. The board frames the Answer; the crew part is under it.
+- **Two sections** in a round that shares (SN, SFQ, or a plain round after the first): each seat writes **Answer**, its reply to your prompt with its verdict first, then **To the crew**, where it agrees or disagrees with the other seats, each named by its model, quoted word for word, or asks them something. The board frames the Answer; the crew part is under it.
 - **final**: the S/N ratio and red-flag reads on the draft alone, with their own first lines; not ratings.
 
 ## Champion: after it goes out

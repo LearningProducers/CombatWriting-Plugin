@@ -185,13 +185,13 @@ var othersSection=t3.slice(t3.indexOf('## The other seats\' answers'));
 check(othersSection.indexOf('Seat one, round one')<0,'battle packet: the seat\'s own answer appears among the others');
 check((t3.match(/=== ANSWER BEGIN ===/g)||[]).length===1,'battle packet: expected one fenced other answer');
 check(t3.indexOf('Synthesis focus question (SFQ): Where do you overlap and where do you split?')>=0,'battle packet: SFQ missing or unlabeled');
-check(/Quote the other seats by name, in double quotes, word for word/.test(t3)&&/say Stand and why/.test(t3),'battle packet: synthesis instructions missing');
+check(/Quote the other seats by model name as the packet labels them \(never by seat number alone\), in double quotes, word for word/.test(t3)&&/say Stand and why/.test(t3),'battle packet: synthesis instructions missing');
 check(/Under 600 words/.test(t3),'battle packet: cap is not 600');
 check(/RATING: X\/10/.test(t3)&&/Your latest rating was 8\/10, in round 01-sparring/.test(t3)&&t3.indexOf('No rating this round')<0,'rerate packet: rating contract or latest rating missing');
 // Without --rerate a battle packet asks for no rating: the no-rating line, no rating contract, no flip instruction.
 var p3n=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2']);
 var t3n=p3n.status===0?read(p3n.stdout.trim()):'';
-check(p3n.status===0&&t3n.indexOf('No rating this round: do not write a RATING line. Open with your answer to the task.')>=0&&t3n.indexOf('RATING: X/10')<0&&!/say Stand and why/.test(t3n)&&/Give a new critique of the structure and content of the draft\./.test(t3n)&&/Quote the other seats by name/.test(t3n),'critique packet: should ask for no rating, got '+t3n.slice(0,400));
+check(p3n.status===0&&t3n.indexOf('No rating this round: do not write a RATING line. Open with your answer to the task.')>=0&&t3n.indexOf('RATING: X/10')<0&&!/say Stand and why/.test(t3n)&&/Give a new critique of the structure and content of the draft\./.test(t3n)&&/Quote the other seats by model name as the packet labels them/.test(t3n),'critique packet: should ask for no rating, got '+t3n.slice(0,400));
 var l3n=logOf(run).filter(function(e){return e.event==='packet.built'&&e.round==='03-battle'&&e.seat==='seat-2';}).pop()||{};
 check(l3n.contract==='critique'&&l3n.rerate===false&&l3n.shares===true&&l3n.word_cap===600,'critique packet: log line wrong '+JSON.stringify(l3n));
 check(/=== DRAFT BEGIN ===/.test(t3)&&/untrusted content/.test(t3),'battle packet: draft not fenced as untrusted');
