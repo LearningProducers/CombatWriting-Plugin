@@ -195,9 +195,11 @@ else{
   if(fq){out.push('Focus question (FQ): '+fq.text);out.push('');}
   if(question){out.push(question.text);}
   else if(fq){out.push('Answer the focus question above on the draft below'+(rated?', then rate the draft again.':'.'));}
-  else if(synthesis){out.push(rated?lib.DEFAULT_SYNTHESIS_RERATE_PROMPT:lib.DEFAULT_SYNTHESIS_PROMPT);}
   else if(nav){out.push('Answer the navigation above on the draft below'+(rated?', then rate the draft again.':'.'));}
+  // The person's prompt is the task (issue 106): the plugin's default critique ask rode under every sn:
+  // and sfq: and asked for a critique the person never asked for; it stays for a plain sharing round alone.
   else if(synthesisTerm){out.push('Answer the '+(sn?'synthesis navigation':'synthesis focus question')+' above on the draft below'+(rated?', then rate the draft.':'.'));}
+  else if(synthesis){out.push(rated?lib.DEFAULT_SYNTHESIS_RERATE_PROMPT:lib.DEFAULT_SYNTHESIS_PROMPT);}
   else out.push(rated?lib.DEFAULT_READ_PROMPT:lib.DEFAULT_FIRST_CRITIQUE_PROMPT);
   if(synthesis){
     out.push('');

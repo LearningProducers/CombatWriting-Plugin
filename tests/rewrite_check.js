@@ -110,6 +110,9 @@ write(path.join(proj,'q.md'),'Who was Queen Elizabeth?\n');
 var p2=contractOf(path.join(run,'rounds','02-battle','seat-1.packet.md')), l2=packetLine(run,'02-battle','seat-1');
 check(p2.indexOf(lib.SECTIONS_LINE_PROMPTED+' '+lib.PROMPT_FIRST_LINE+' Under 600 words in all.')>=0&&p2.indexOf(lib.SECTIONS_LINE)<0&&!/verdict line first/.test(p2)&&!/your verdict on the draft/.test(p2)&&p2.indexOf(lib.REWRITE_LINE)<0,'question SFQ: the prompted sections line and the prompt-first line, no verdict; got '+p2.slice(0,400));
 check(l2.prompted===true&&l2.rewrite===false&&l2.sections===true,'question SFQ: prompted, no rewrite, sections on the packet line');
+// The person's prompt is the task (issue 106): no default critique ask under it; the read-and-quote line stays.
+var t2=read(path.join(run,'rounds','02-battle','seat-1.packet.md')); t2=t2.slice(t2.indexOf('## Your task'),t2.indexOf('## Contract'));
+check(t2.indexOf('Give a new critique')<0&&t2.indexOf('overlap and where do they diverge')<0&&t2.indexOf('Answer the synthesis focus question above on the draft below.')>=0&&/Read your own earlier turn and the other seats' answers below before you write\./.test(t2),'question SFQ: the task carries the prompt and no default critique ask; got '+t2.slice(0,400));
 check(lib.sectionsSent(run,'02-battle',path.join(run,'rounds','02-battle','seat-1.answer.md'))===true,'sectionsSent reads the prompted form');
 var a2=path.join(run,'rounds','02-battle','seat-1.answer.md');
 write(a2,'Answer\n\nShe was the queen of England from 1558 to 1603, the last Tudor.\n\nTo the crew\n\nopenai/gpt-oss-120b wrote "Vote yes before Friday"; I agree the ask leads.\n');
@@ -133,6 +136,10 @@ var r4=node('packet.js',['--run',run,'--round','04-battle','--seat','seat-1']);
 check(r4.status===0,'04-battle packet: '+r4.stderr);
 var p4=contractOf(path.join(run,'rounds','04-battle','seat-1.packet.md')), l4=packetLine(run,'04-battle','seat-1');
 check(p4.indexOf(lib.SECTIONS_LINE+' In the Answer, your critique of the structure and content of the draft, with specific evidence from it. Under 600 words in all.')>=0&&p4.indexOf(lib.PROMPT_FIRST_LINE)<0&&l4.prompted===false&&l4.rewrite===false,'plain sharing round: the verdict-first form stays; got '+p4.slice(0,300));
+var t4=read(path.join(run,'rounds','04-battle','seat-1.packet.md')); t4=t4.slice(t4.indexOf('## Your task'),t4.indexOf('## Contract'));
+check(t4.indexOf('Give a new critique of the structure and content of the draft.')>=0,'plain sharing round: the default ask stays when no prompt came');
+var t3=read(path.join(run,'rounds','03-battle','seat-1.packet.md')); t3=t3.slice(t3.indexOf('## Your task'),t3.indexOf('## Contract'));
+check(t3.indexOf('Give a new critique')<0&&t3.indexOf('Answer the synthesis focus question above on the draft below, then rate the draft.')>=0,'rated SFQ: the prompt then the rating, no default ask');
 
 // 9. The add-on.
 check(crewLib.SECTIONS_LINE_PROMPTED===lib.SECTIONS_LINE_PROMPTED&&crewLib.REWRITE_LINE===lib.REWRITE_LINE,'the add-on\'s mirrored lines equal the plugin\'s');
@@ -141,12 +148,12 @@ var r2=crewLib.packetRules(read(path.join(run,'rounds','02-battle','seat-1.packe
 var r3r=crewLib.packetRules(read(path.join(run,'rounds','03-battle','seat-1.packet.md')));
 check(r1.rewrite===true&&r1.sections===false&&r2.sections===true&&r2.verdict_first===false&&r2.rewrite===false&&r3r.sections===true&&r3r.verdict_first===true&&r3r.rewrite===true,'packetRules reads rewrite and verdict_first: '+JSON.stringify([r1,r2,r3r]));
 var server=read(path.join(root,'plugins','combat-writing-crew','server.js'));
-check(/var rewrite=rules\.rewrite\?' The task asks for a rewrite: write it in full between a line holding only === REWRITE BEGIN === and a line holding only === REWRITE END ===, before anything else in your answer but the rating line and the verdict line when they are asked; then your rationale in a few lines\.':'';/.test(server)&&/\(rules\.verdict_first\?' with the verdict line first':' as it asks'\)/.test(server),'the server\'s system line says the fence and drops the verdict clause when the packet does');
+check(/var rewrite=rules\.rewrite\?' The task asks for a rewrite: write it in full between a line holding only === REWRITE BEGIN === and a line holding only === REWRITE END ===, before anything else in your answer but the rating line and the verdict line when they are asked; then your rationale, under 120 words\.':'';/.test(server)&&/\(rules\.verdict_first\?' with the verdict line first':' as it asks'\)/.test(server),'the server\'s system line says the fence and drops the verdict clause when the packet does');
 
 // 10. The text.
 var agent=read(path.join(plugin,'agents','seat.md')), battle=skill('battle'), rules_=skill('combat-writing'), help=skill('help'), claude=read(path.join(root,'CLAUDE.md')), readme=read(path.join(plugin,'README.md'));
 check(/On a round with the author's prompt and no rating \(issue 103\), open with the answer to the prompt as it asks/.test(agent)&&/A rewrite asked for goes first, in full, between the fence lines the Contract names/.test(agent),'seat.md says the prompt rules the shape');
-check(/The Contract follows the prompt \(issue 103, 2026-10-27\)/.test(battle)&&/The Contract follows the prompt \(issue 103, 2026-10-27, the founder's words/.test(rules_)&&/\*\*Your prompt rules the shape\*\*/.test(help)&&/The Contract follows the prompt \(issue 103/.test(claude)&&/a prompt that asks for a rewrite gets the rewrite first, in full, framed on the board under a Rewrite badge/.test(readme),'the skills, CLAUDE.md and the README say it');
+check(/The Contract follows the prompt \(issue 103, 2026-10-27/.test(battle)&&/The Contract follows the prompt \(issue 103, 2026-10-27, the founder's words/.test(rules_)&&/\*\*Your prompt rules the shape\*\*/.test(help)&&/The Contract follows the prompt \(issue 103/.test(claude)&&/a prompt that asks for a rewrite gets the rewrite first, in full, framed on the board under a Rewrite badge/.test(readme),'the skills, CLAUDE.md and the README say it');
 
 fs.rmSync(proj,{recursive:true,force:true});
 if(failures.length){ console.log('rewrite_check: '+failures.length+' failure(s), '+(passes+failures.length)+' checks'); failures.forEach(function(f){console.log('FAIL '+f);}); process.exit(1); }

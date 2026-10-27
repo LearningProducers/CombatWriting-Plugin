@@ -281,7 +281,7 @@ var SECTION_LABELS={answer:'Answer',crew:'To the crew'};
 var PROMPT_FIRST_LINE='Answer the task above as it asks, first and in its own shape: a question gets the answer, guidance gets what it asks for, a judgment gets the judgment. No verdict on the draft unless the task asks for one. Evidence from the draft where the task calls for it.';
 var SECTIONS_LINE_PROMPTED=SECTIONS_LINE.replace('your reply to the task, the verdict line first','your reply to the task as it asks, first');
 var REWRITE_BEGIN='=== REWRITE BEGIN ===', REWRITE_END='=== REWRITE END ===';
-var REWRITE_LINE='The task asks for a rewrite: write it in full between a line holding only `'+REWRITE_BEGIN+'` and a line holding only `'+REWRITE_END+'`, before anything else in your answer but the rating line and the verdict line when they are asked; then your rationale in a few lines.';
+var REWRITE_LINE='The task asks for a rewrite: write it in full between a line holding only `'+REWRITE_BEGIN+'` and a line holding only `'+REWRITE_END+'`, before anything else in your answer but the rating line and the verdict line when they are asked; then your rationale, under 120 words.';
 var REWRITE_WORDS=/\b(re-?writes?|re-?written|re-?drafts?|re-?works?|revise|revised|reword|rewording|write (it|me|us|a|the|one|this)|draft (me|us|a|the|one))\b/i;
 function asksRewrite(text){ return REWRITE_WORDS.test(String(text||'')); }
 // The rewrite in an answer: the text between the fence lines (each line holding only its fence, markdown
