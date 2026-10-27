@@ -319,6 +319,9 @@ check(!!f2&&f2[1].indexOf('seat-speak')<0&&!!f3&&f3[1].indexOf('seat-speak')<0,'
 var vs=/var pick=\{\};function seatVoice\(f\)\{[^]*?if\(!\(k>1\)[^]*?return null;[^]*?pool\[\(k-2\)%pool\.length\][^]*?\}/.exec(html);
 check(!!vs&&/\.slice\(0,2\)\.toLowerCase\(\)===lang/.test(vs[0])&&/localService/.test(vs[0])&&/localeCompare/.test(vs[0]),'board (voices): seatVoice should pick by language, local first, then name, skipping seat-1; got '+(vs?vs[0].slice(0,120):'none'));
 check(/var v=seatVoice\(f\);if\(v\)u\.voice=v;/.test(html)&&html.split('u.voice=v').length===2,'board (voices): the seat utterance takes the picked voice once, the canon none');
+// The standard voices first, the novelty set skipped, the list primed (issue 109).
+check(/var PREFERRED=\["Daniel","Karen","Alex","Moira","Tessa","Rishi","Fiona","Samantha"/.test(html)&&/var NOVELTY=\{"albert":1,"bad news":1,/.test(html)&&/return rank\(a\)-rank\(b\)\|\|/.test(html)&&/!NOVELTY\[plainName\(v\)\.toLowerCase\(\)\]/.test(html),'board (voices): the preferred names rank first and the novelty voices are skipped');
+check(/synth\.getVoices\(\);if\("onvoiceschanged" in synth\)synth\.onvoiceschanged=function\(\)\{pick=\{\};\};/.test(html),'board (voices): the list is primed at open and the picks cleared when it arrives');
 check(freshHtml.indexOf('class="seat-speak"')<0&&freshHtml.indexOf('class="seat-text"')<0,'board (read aloud): a run with no rounds carries no control and no spoken text');
 check((html.match(/class="seat-speak"/g)||[]).length===1&&/querySelectorAll\("\.frame"\)/.test(html)&&/new SpeechSynthesisUtterance\(t\.textContent\)/.test(html)&&/playing\.idle\(\)/.test(html)&&(html.match(/href="[^"]*"/g)||[]).length===1,'board (read aloud): one control on the page, the script reading the seat text, one seat at a time, still one href');
 var mdPlain=/<div class="seat-text" hidden>([^<]*)<\/div>/.exec(mdHtml);
