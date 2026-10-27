@@ -9,7 +9,10 @@
 //                  provider, the family it draws from, the model id resolved from the live
 //                  catalog, and for a seat with no key, what to set (names, never values).
 //   crew_register  adds the available outside seats to a run's seats.json and logs it; the
-//                  listed plugin's packet.js then builds their packets like any seat's.
+//                  listed plugin's packet.js then builds their packets like any seat's. Each
+//                  seat record carries the wall it spends from (`budget`: per_minute, reply_floor,
+//                  reply_ceiling, the provider's numbers; issue 95), which the listed plugin's
+//                  budget line reads.
 //   crew_answer    takes a run folder, a round and a seat id (and `read`: rating, sn or
 //                  redflag; and on a retry `note`, the failed check's reasons, appended after
 //                  the packet); reads the packet file; checks it against the provider's call
@@ -146,6 +149,10 @@ function registerSeats(runDir){
       existing.push(id);
       var seat={id:id,model:s.model,company:s.maker,served_by:s.served_by,provider:s.provider,slot:s.slot,family:s.family,
         source:'the model field the provider\'s API returns ('+s.served_by+'); resolved from the live catalog by family ('+s.family+'), never a pinned id; the record carries the id each answer came back with'};
+      // The wall this seat spends from (issue 95), the provider's budget as providers.json states it, so the
+      // listed plugin's budget line can say the room a packet leaves before any seat starts.
+      var prov=providersTable().providers.filter(function(p){return p.id===s.provider;})[0];
+      if(prov&&prov.budget)seat.budget={per_minute:prov.budget.hard_cap,reply_floor:prov.budget.floor,reply_ceiling:prov.budget.ceiling};
       seatsFile.seats.push(seat);
       added.push(seat);
     });

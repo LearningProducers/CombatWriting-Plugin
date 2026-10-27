@@ -294,6 +294,77 @@ function answerSections(text){
   var crew=c>=0?lines.slice(c+1,a>c?a:lines.length).join('\n').trim():null;
   return {answer:answer,crew:crew,labeled:a>=0&&c>=0,answer_at:a,crew_at:c};
 }
+// The packet's size (issue 95, 2026-10-27): characters and estimated tokens, whole and by part, so
+// the budget line can say what a round costs before any seat starts. Tokens are estimated at four
+// characters each, the add-on's own rule (crew-lib.js estimateTokens, pinned equal by crew_check.js),
+// so the number on the screen is the number the add-on will count. packetSize reads the packet's
+// lines and the index each part starts at (packet.js marks them: head, task, contract, brief, draft,
+// own, carried); a part not in the packet is absent from the result.
+function estimateTokens(s){ return s?Math.ceil(String(s).length/4):0; }
+var PACKET_PARTS=['head','task','contract','brief','draft','own','carried'];
+function packetSize(lines,marks){
+  var text=lines.join('\n');
+  var starts=PACKET_PARTS.filter(function(k){return typeof marks[k]==='number';}).map(function(k){return {name:k,at:marks[k]};}).sort(function(a,b){return a.at-b.at;});
+  var parts={};
+  starts.forEach(function(st,i){
+    var end=i+1<starts.length?starts[i+1].at:lines.length;
+    var t=lines.slice(st.at,end).join('\n');
+    parts[st.name]={chars:t.length,tokens:estimateTokens(t)};
+  });
+  return {chars:text.length,tokens:estimateTokens(text),parts:parts};
+}
+// The budget of a round (issue 95): every packet built for it (the latest per seat and mode; the
+// second pass with pass 'crew'), the largest, and the wall each outside seat spends from, read from
+// the budget crew_register wrote on its seat record (per_minute, reply_floor, reply_ceiling, the
+// provider's numbers). A seat's room is the wall minus the floor minus its packet; under zero the
+// add-on will refuse the packet before it is sent, and the line says by how much. The add-on's own
+// system line rides on top of the packet, so the room is a ceiling, said as "about".
+function roundBudget(runDir,round,opts){
+  opts=opts||{};
+  var log=readLog(runDir);
+  var seats=readSeats(runDir).seats||[];
+  var byKey={};
+  log.forEach(function(e){
+    if(e.event!=='packet.built'||e.round!==round||!e.size)return;
+    if(opts.pass==='crew'?e.pass!=='crew':e.pass==='crew')return;
+    byKey[e.seat+'|'+(e.mode||'')]=e;
+  });
+  var packets=Object.keys(byKey).map(function(k){var e=byKey[k];return {seat:e.seat,mode:e.mode,file:e.file,size:e.size};});
+  packets.sort(function(a,b){return b.size.tokens-a.size.tokens||(a.seat<b.seat?-1:1);});
+  var largest=packets[0]||null;
+  var walls={};
+  seats.forEach(function(s){
+    if(!s.budget||!s.provider)return;
+    var mine=packets.filter(function(p){return p.seat===s.id;});
+    var biggest=mine.length?mine[0].size.tokens:null;
+    var w=walls[s.provider]||(walls[s.provider]={provider:s.provider,provider_name:s.served_by||s.provider,per_minute:s.budget.per_minute,reply_floor:s.budget.reply_floor,reply_ceiling:s.budget.reply_ceiling,seats:[],room:null,over:[]});
+    w.seats.push(s.id);
+    if(biggest===null)return;
+    var room=w.per_minute-w.reply_floor-biggest;
+    if(room<0)w.over.push({seat:s.id,tokens:biggest,over_by:-room});
+    else if(w.room===null||room<w.room)w.room=room;
+  });
+  return {round:round,pass:opts.pass||null,packets:packets,largest:largest,walls:Object.keys(walls).map(function(k){return walls[k];})};
+}
+var PART_WORDS={task:'the prompt',carried:'the other seats\' answers',own:'the seat\'s earlier turn',brief:'the brief',draft:'the draft',contract:'the contract',head:'the heading'};
+function thousands(n){ return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function budgetLine(b){
+  var who='Round '+String(b.round).slice(0,2)+(b.pass==='crew'?', second pass,':isFinalRound(b.round)?' final-read':'')+' packets: ';
+  if(!b.largest)return who+'none built.';
+  var p=b.largest.size.parts;
+  var order=['task','carried','own','brief','draft','contract'];
+  var parts=order.filter(function(k){return p[k];}).map(function(k){return PART_WORDS[k]+' '+thousands(p[k].tokens);});
+  var line=who+'up to about '+thousands(b.largest.size.tokens)+' tokens ('+b.largest.seat+'): '+parts.join(', ')+'.';
+  if(!b.walls.length)return line+' The fresh reader has no per-minute wall.';
+  b.walls.forEach(function(w){
+    line+=' '+w.provider_name+' allows '+thousands(w.per_minute)+' a minute per model with '+thousands(w.reply_floor)+' kept for the reply ('+w.seats.join(', ')+'): ';
+    if(w.over.length){
+      line+=w.over.map(function(o){return o.seat+'\'s packet, about '+thousands(o.tokens)+', is over the room by about '+thousands(o.over_by)+' tokens ('+thousands(o.over_by*4)+' characters)';}).join('; ')+'; the add-on will refuse it before it is sent. Cut that much from the prompt or the brief, or run the round with less carried.';
+    }else line+='about '+thousands(w.room===null?w.per_minute-w.reply_floor:w.room)+' of room left.';
+  });
+  return line;
+}
+
 // The faults against SECTIONS_LINE, as the checker's reasons: both labels, Answer first, the crew part after it.
 function sectionReasons(text,contract){
   var s=answerSections(text), reasons=[];
@@ -1180,7 +1251,7 @@ module.exports={
   PROJECT_BRIEF_FILE:PROJECT_BRIEF_FILE,PROJECT_BRIEF_REL:PROJECT_BRIEF_REL,PROJECT_BRIEF_KEPT_LINE:PROJECT_BRIEF_KEPT_LINE,projectBriefPath:projectBriefPath,briefSourceOf:briefSourceOf,briefWords:briefWords,briefLine:briefLine,
   BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
-  capSent:capSent,contractSent:contractSent,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
   STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,roundCell:roundCell,finalCell:finalCell,finalText:finalText,bandOf:bandOf,runState:runState
 };
