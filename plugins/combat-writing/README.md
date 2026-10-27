@@ -19,7 +19,7 @@ The plugin was named `combat-writing` until 2026-10-14, and the marketplace carr
 
 One command per stage: strategy, sparring, battle, champion. The order of the first three is yours: strategy stores, sparring reads and rates, battle discusses, and any of the three may come first or be skipped; champion comes after the piece goes out. A draft pasted into sparring or battle starts the run; a battle on a draft nothing has read is round `01-battle`, with no other seat's answer to carry; the record says which stage the run started at.
 
-- `/cw:help` explains the plugin in plain words.
+- `/cw:help` bare is the card: what Combat Writing is in one line, the four stages with their commands, the lines to begin with, then one keypress picks a stage and your next message is its text (typing `/cw` alone completes to it). `/cw:help all` is the full guide in plain words; `/cw:help <topic>` one section.
 - `/cw:strategy` takes your draft and your context brief, pasted together (`brief:` marks the brief) or in two messages, writes them into a new run folder and ends with the next move. A brief alone is kept too; the draft joins the run when you paste it anywhere. A brief you type is the project's from then on, carried by every later run that brings none; `brief update:` adds a dated line to it, so the prospect of the day goes in without retyping the rest. It reads nothing. A bare command asks for the draft; it never errors.
 - `/cw:sparring` sends your draft to every seat for its own read, the rating line first. Bare after strategy, it sends the stored draft and brief with no repaste; with a draft pasted, it starts the run. `question:` puts a focus question to every seat, `seat-1:` to one seat; `cold` reads with no brief; `debate` shows the seats each other's answers and asks for a rating again.
 - `/cw:battle` runs one round of the discussion. `fq:` puts the same question to every seat, nothing shared (FQ, focus question); `n:` puts the same guidance to every seat individually (N, navigation); `sn:` shares each seat's synthesis with the others plus your new prompt, everyone answers and everyone reads each other (SN, synthesis navigation); `sfq:` shares the crew's answers plus a new question (SFQ, synthesis focus question); `seat-2:` puts a note or question to one seat only, alone or with any of them. `rerate` asks for a new rating; without it no seat rates. `draft:` adds a revised draft, or the first draft when there is no run yet. `final` runs the two final reads of step 14, the S/N ratio and the red-flag check, on the draft alone.
@@ -34,16 +34,24 @@ The strategy prompt below was run on 2026-10-13 and the other three on 2026-10-0
 /cw:help
 ```
 
-Example output, October 2026:
+The card, as the skill holds it (cw 0.8.8, 2026-10-26; a picker follows it in the terminal):
 
 ```
 Reading is Peace. Writing is War.
 
-A crew of seats attacks your draft. Each seat is one model judging it. In sparring every seat rates first, then explains with evidence. In battle the seats discuss the structure and content of the draft, read each other when you share them, and rate again when you ask. The record shows what was caught.
+Combat Writing: a crew of AI models attacks your draft before it ships. The rating leads every result.
 
-The four stages
-- Strategy. You write the draft yourself, then a context brief: who you are, your purpose, the stakes.
-- Sparring. Every seat reads the draft alone and gives its rating and critique, the rating line first. Seats may then read each other and debate the scores (debate).
+- Strategy /cw:strategy stores your draft and your brief (who you are, what you want, the stakes); the brief you type is the project's from then on.
+- Sparring /cw:sparring every seat reads the draft alone and rates it 1 to 10, 7 forbidden, with its critique.
+- Battle /cw:battle the seats discuss structure and content, read each other when you share them, and rate again on rerate.
+- Champion /cw:champion the piece went out: shipped, result:, insight:.
+
+Begin with any one, in any order; a pasted draft starts the run. Pick a stage below, or type one:
+/cw:strategy brief: <who you are, what you want, the stakes>
+/cw:sparring <your draft> question: <one focus question>
+/cw:battle <your draft> sn: <your prompt to the crew>
+/cw:champion shipped email to <whom>
+/cw:help all is the full guide; /cw:help <topic> one section.
 ```
 
 ```
