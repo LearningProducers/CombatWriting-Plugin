@@ -612,3 +612,13 @@ Ruled and built: every read frame on the board carries the canon's control, read
 Delivers: `scripts/render-board.js` (the controls, the hidden text, the CSS, one script for every frame); `tests/board_check.js` (a control and the plain text on the critique frame, none on the missing and failed frames and on a fresh run, the script's shape, one seat at a time, one href still, the marks dropped); CLAUDE.md, the plugin README, the help; cw 0.8.11. Not here: the picker after strategy (the next PR); a voice choice.
 
 Status: delivered — 2026-10-26 — pull request 83 open as a draft; every check (28 files) and the three strict validations pass locally; the live pass is the founder's next board after the update: the speaker on each card, one voice at a time.
+
+## Part 64 — A seat names the other seats by model (issue 84, cw 0.8.12, crew 0.5.3)
+
+The founder's words, 2026-10-26, on the first round with the two sections: "fable 5.1 was not specific when alluding to the crew all crew members must be specific who they are talking about no seat 2 said or seat 3 said, give the model name and cite specifically (surprisingly qwen3 and gptoss did better than fable on this)."
+
+Measured on the SlotCycle run's round 02: seat-1 wrote "Seat-2:" and "Seat-3:" before every quote in its To the crew section; seat-2 wrote the model names; seat-3 the model names with the companies. The packet's instruction read "Quote the other seats by name" and the sections line "with the other seats by name": a seat id is a name too, so the instruction allowed what the founder does not want.
+
+Ruled and built: every sentence that tells a seat how to cite another says the model name as the packet labels it, never the seat number alone: the packet's synthesis instruction (`packet.js`), `lib.SECTIONS_LINE` and the checker's To-the-crew reason (`lib.js`), the add-on's mirror (`crew-lib.js`) and the server's system sentence, the seat agent (with the two names as examples, and "say which line you mean"), the help and CLAUDE.md. The flip check keeps accepting a seat id, because a quote credited to the right seat is still a valid flip. An instruction, not a check: by the standing rule, if it fails to hold twice it becomes one.
+
+Delivers: the files above; `tests/packet_check.js` and `tests/sections_check.js` re-pinned on the new words; cw 0.8.12, crew 0.5.3 (Part 36.3's number moves to 0.5.4). Not here: the Groq seat order (qwen first) and the first-round `sn:` that runs two passes, the next two PRs.

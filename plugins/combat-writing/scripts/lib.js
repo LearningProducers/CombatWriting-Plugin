@@ -258,7 +258,7 @@ var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with 
 // with or without markdown marks or a colon (sectionLabelOf); answerSections cuts the answer by them;
 // checkAnswer holds a seat to both when asked (opts.sections), and check-answer.js turns the faults
 // into notes on the second check, so a read is never lost over a label; verdictLine frames the Answer.
-var SECTIONS_LINE='Two sections, each opened by a line holding only its label: `Answer`, your reply to the task, the verdict line first; then `To the crew`, where you agree or disagree with the other seats by name, quoted word for word, or put a question to them. Nothing before the Answer label but the rating line when one is asked.';
+var SECTIONS_LINE='Two sections, each opened by a line holding only its label: `Answer`, your reply to the task, the verdict line first; then `To the crew`, where you agree or disagree with the other seats, each named by its model as the packet labels it (never by seat number alone), quoted word for word, or put a question to them. Nothing before the Answer label but the rating line when one is asked.';
 var SECTION_LABELS={answer:'Answer',crew:'To the crew'};
 function sectionLabelOf(line){
   var s=String(line||'').replace(/[#*_`>\s:.\-]+/g,' ').trim().toLowerCase();
@@ -280,7 +280,7 @@ function answerSections(text){
 function sectionReasons(text,contract){
   var s=answerSections(text), reasons=[];
   if(s.answer_at<0)reasons.push('no Answer section: open with a line holding only "Answer"'+(contract==='rating'?' after the rating line':'')+', then your reply to the task, the verdict line first');
-  if(s.crew_at<0)reasons.push('no To the crew section: after your answer, a line holding only "To the crew", then where you agree or disagree with the other seats by name, quoted, or your question to them');
+  if(s.crew_at<0)reasons.push('no To the crew section: after your answer, a line holding only "To the crew", then where you agree or disagree with the other seats, each named by its model, quoted, or your question to them');
   if(s.answer_at>=0&&s.crew_at>=0&&s.crew_at<s.answer_at)reasons.push('the To the crew section comes before the Answer section; the Answer comes first');
   if(s.answer_at>=0){
     var lines=String(text||'').replace(/^﻿/,'').split(/\r?\n/).slice(0,s.answer_at).filter(function(l){return l.trim();});
