@@ -174,7 +174,7 @@ write(path.join(proj,'sn.md'),'Is this ready to go to the board?\n');
 write(path.join(nr,'rounds','01-battle','seat-1.answer.md'),'Not ready: the ask is buried.\n');
 node('check-answer.js',[path.join(nr,'rounds','01-battle','seat-1.answer.md'),'--run',nr]);
 var ns=JSON.parse(node('render-state.js',['--run',nr]).stdout);
-check(ns.band.verdict===null&&ns.rounds[0].task.kind==='SN'&&ns.rounds[0].task_line==='SN: “Is this ready to go to the board?”'&&ns.rounds[0].cells['seat-1'].kind==='critique'&&ns.rounds[0].task.first_round===true&&ns.run.stage_started==='battle'&&ns.brief.present===false,'state (no rating): wrong: '+JSON.stringify({band:ns.band,task:ns.rounds[0]&&ns.rounds[0].task_line}));
+check(ns.band.verdict===null&&ns.rounds[0].task.kind==='SN'&&ns.rounds[0].task.n===1&&ns.rounds[0].task_line==='SN: “Is this ready to go to the board?”'&&ns.rounds[0].cells['seat-1'].kind==='critique'&&ns.rounds[0].task.first_round===true&&ns.run.stage_started==='battle'&&ns.brief.present===false,'state (no rating): wrong: '+JSON.stringify({band:ns.band,task:ns.rounds[0]&&ns.rounds[0].task_line}));
 ['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',nr,'--round','02-final','--seat',s,'--final','sn']); node('packet.js',['--run',nr,'--round','02-final','--seat',s,'--final','redflag']); });
 write(path.join(nr,'rounds','02-final','seat-1.sn.answer.md'),'S/N RATIO: 60%\nSome.\n');
 write(path.join(nr,'rounds','02-final','seat-1.redflag.answer.md'),'NO RED FLAGS\nNone.\n');
