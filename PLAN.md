@@ -612,3 +612,5 @@ Ruled and built: every read frame on the board carries the canon's control, read
 Delivers: `scripts/render-board.js` (the controls, the hidden text, the CSS, one script for every frame); `tests/board_check.js` (a control and the plain text on the critique frame, none on the missing and failed frames and on a fresh run, the script's shape, one seat at a time, one href still, the marks dropped); CLAUDE.md, the plugin README, the help; cw 0.8.11. Not here: the picker after strategy (the next PR); a voice choice.
 
 Status: delivered — 2026-10-26 — pull request 83 open as a draft; every check (28 files) and the three strict validations pass locally; the live pass is the founder's next board after the update: the speaker on each card, one voice at a time.
+
+Status: delivered — 2026-10-26 — pull request 87 open as a draft, after pull request 85 in the merge order; every check (28 files) and the three strict validations pass locally; the live pass is the founder's next run after the update, the crew line reading qwen as seat-2.
