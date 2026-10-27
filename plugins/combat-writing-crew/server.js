@@ -13,7 +13,8 @@
 //   crew_answer    takes a run folder, a round and a seat id (and `read`: rating, sn or
 //                  redflag; and on a retry `note`, the failed check's reasons, appended after
 //                  the packet); reads the packet file; checks it against the provider's call
-//                  budget and reply floor; waits out the per-minute window; sends, with the
+//                  budget and reply floor; waits out the per-minute window of that model at
+//                  that provider (issue 93: Groq's limits are per model); sends, with the
 //                  packet's word cap and contract stated in the system line; writes the
 //                  answer file and a log line with the timestamp and the model id the API
 //                  returned; returns the path and the id. The answer text is never the thing
@@ -55,8 +56,13 @@ var lib=require('./crew-lib.js');
 
 var SERVER_INFO={name:'combat-writing-crew',version:'0.2.0'};
 var SUPPORTED_PROTOCOLS=['2025-11-25','2025-06-18','2025-03-26','2024-11-05'];
-var windows={};  // per provider id
-var queues={};   // per provider id: a promise chain so calls to one provider go one at a time
+// The window and the queue are keyed per MODEL at a provider (issue 93, measured 2026-10-27): Groq's
+// refusal text names the model it refuses for, so each model has its own per-minute wall, and two
+// seats on two models at one provider go side by side instead of the second waiting the first's
+// minute out (seat-3 waited 59, 57 and 50 seconds behind seat-2 on the SlotCycle run's three
+// sharing packets). Calls to ONE model still go one at a time.
+var windows={};  // per provider id + model id
+var queues={};   // per provider id + model id: a promise chain so calls to one model go one at a time
 var catalogs={}; // per provider id: {at, list}
 
 function log(msg){ process.stderr.write('[combat-writing-crew] '+lib.scrubIds(msg)+'\n'); }
@@ -180,7 +186,8 @@ function callProvider(provider,key,seat,systemPrompt,userText,budget,capWords){
   var headers={};
   if(key)headers['Authorization']='Bearer '+key;
   var endpoint=provider.base_url.replace(/\/$/,'')+'/chat/completions';
-  var win=windows[provider.id]||(windows[provider.id]=lib.makeWindow());
+  var wk=lib.windowKey(provider,seat);
+  var win=windows[wk]||(windows[wk]=lib.makeWindow());
   var tokens=budget.input+budget.reservation;
   var waited=0, lowered=null;
   // atOnce: the resend after a per-request cap refusal. The refused attempt's reservation already sits
@@ -252,7 +259,8 @@ function answer(args){
     lib.appendLog(runDir,{event:'crew.refused',round:round,seat:seatId,provider:provider.id,model:seat.model,file:path.relative(runDir,packetPath),input_tokens:budget.input,reason:budget.message});
     return Promise.resolve({ok:false,seat:seatId,missing:true,reason:budget.message});
   }
-  var q=queues[provider.id]||Promise.resolve();
+  var qk=lib.windowKey(provider,seat);
+  var q=queues[qk]||Promise.resolve();
   var run=q.then(function(){
     return callProvider(provider,k.key,seat,systemPrompt,packet,budget,rules.cap).then(function(out){
       var res=out.res;
@@ -302,7 +310,7 @@ function answer(args){
         next:(truncated?'the reply was over the cap again and was cut at '+truncated.at+' words'+(truncated.cut_at==='sentence'?', at the last sentence end before the cap,':'')+' with its first line kept; the record marks it truncated. ':'')+'run the listed plugin\'s check-answer.js on the file, then check-flip.js for a rerate round'};
     });
   });
-  queues[provider.id]=run.catch(function(){});
+  queues[qk]=run.catch(function(){});
   return run.catch(function(err){
     var why=lib.scrubIds(err.message);
     lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,model_requested:seat.model,reason:why});

@@ -62,7 +62,10 @@
 //     logged as crew.refused, and the seat is missing.
 //   - The per-minute window is honored: the fake Groq keeps the real 8,000-token wall with a
 //     1.5-second window, and the third call inside it (which would cross the wall) waits for the
-//     window to age out before it is sent; the wait is in the result and the log. A 429 with
+//     window to age out before it is sent; the wait is in the result and the log. The window is
+//     the model's, not the provider's (issue 93): a call on the other Groq model inside seat-2's
+//     full window goes at once, waited_ms 0 in the result and the log; lib.windowKey names the
+//     window by provider id and slot. A 429 with
 //     Retry-After: 1 is waited out and retried once (waited_ms >= 1000). A 500 and an empty
 //     reply are recorded as crew.failed and the seat is missing, with no answer file.
 //   - A per-request output cap (issue 56, measured 2026-10-24 on Groq's free tier) is not a window:
@@ -312,6 +315,11 @@ fake.listen(0,'127.0.0.1',function(){
     check(/\| qwen\/qwen3\.6-27b-0725 \(Alibaba, served by Groq\), seat-2 \| 8\/10 \|/.test(rec),'record: outside seat row wrong');
     var rb=node('render-board.js',['--run',run]);
     check(rb.status===0&&/served by Groq/.test(fs.readFileSync(path.join(run,'board.html'),'utf8')),'board: outside seat not named with its provider');
+    // The wall is the model's (issue 93), so seat-2's window must hold two seat-2 calls for the next one to
+    // cross it: the battle call once more, the packet alone, the same reply.
+    return s1.call('crew_answer',{run:run,round:'02-battle',seat:'seat-2'});
+  }).then(function(r){
+    check(!r.isError&&r.data.ok&&r.data.waited_ms===0,'window: the second seat-2 call inside its window should go at once, got '+JSON.stringify(r.data).slice(0,200));
     // The final reads through the add-on.
     node('packet.js',['--run',run,'--round','03-final','--seat','seat-2','--final','sn']);
     node('packet.js',['--run',run,'--round','03-final','--seat','seat-2','--final','redflag']);
@@ -319,8 +327,8 @@ fake.listen(0,'127.0.0.1',function(){
   }).then(function(r){
     var f=path.join(run,'rounds','03-final','seat-2.sn.answer.md');
     check(!r.isError&&r.data.ok&&r.data.file===f&&/^S\/N RATIO: 70%/.test(fs.readFileSync(f,'utf8')),'final sn through the add-on: '+JSON.stringify(r.data));
-    // Two calls already sit in the window (about 3,600 tokens each, input plus reservation); this third
-    // call would cross the 8,000 wall, so the server waited for the window to age out before sending.
+    // Two seat-2 calls already sit in its window (about 3,600 tokens each, input plus reservation); this
+    // third call would cross the 8,000 wall, so the server waited for the window to age out before sending.
     check(r.data.waited_ms>0&&r.data.waited_ms<=1800,'window: the third call in the window should have waited for it to age out, waited_ms '+r.data.waited_ms);
     var req=requests.filter(function(q){return q.url==='/v1/chat/completions';}).pop();
     check(/S\/N RATIO: XX%/.test(req.body.messages[0].content)&&req.body.messages[1].content.indexOf('Evaluate the signal-to-noise ratio')>=0,'final sn: the system line or packet is not the S/N read');
@@ -328,6 +336,16 @@ fake.listen(0,'127.0.0.1',function(){
     return s1.call('crew_answer',{run:run,round:'03-final',seat:'seat-2',read:'redflag'});
   }).then(function(r){
     check(!r.isError&&r.data.ok&&/^NO RED FLAGS/.test(fs.readFileSync(path.join(run,'rounds','03-final','seat-2.redflag.answer.md'),'utf8')),'final redflag through the add-on: '+JSON.stringify(r.data));
+    // Two windows for two models at one provider (issue 93): seat-2's window holds its two final calls
+    // (about 7,600 of the 8,000 wall), and a seat-3 call inside that same window goes at once, waited_ms 0,
+    // where one window per provider made it wait the window out (59, 57 and 50 seconds on the SlotCycle run).
+    node('packet.js',['--run',run,'--round','03-final','--seat','seat-3','--final','sn']);
+    return s1.call('crew_answer',{run:run,round:'03-final',seat:'seat-3',read:'sn'});
+  }).then(function(r){
+    check(!r.isError&&r.data.ok&&r.data.waited_ms===0&&/^S\/N RATIO: 70%/.test(fs.readFileSync(path.join(run,'rounds','03-final','seat-3.sn.answer.md'),'utf8')),'two windows: a seat on the other Groq model inside seat-2\'s full window should go at once, got '+JSON.stringify(r.data).slice(0,240));
+    var e3=logOf(run).filter(function(x){return x.event==='crew.answered'&&x.round==='03-final'&&x.seat==='seat-3';}).pop()||{};
+    check(e3.waited_ms===0&&e3.model_requested==='openai/gpt-oss-120b-0725','two windows: the log line for seat-3 should carry waited_ms 0 on its own model, got '+JSON.stringify(e3).slice(0,200));
+    check(lib.windowKey({id:'groq'},{slot:'groq-b',model:'qwen/x-0725'})==='groq/groq-b'&&lib.windowKey({id:'groq'},{model:'qwen/x'})==='groq/qwen/x','windowKey: the provider id and the slot, the model id when there is no slot');
     // The second overrun (ruled 2026-10-09): a rerate packet, a retry note, and a reply over the cap with the
     // rating line placed last. The add-on cuts it at the cap, keeps the rating first, and says so.
     node('packet.js',['--run',run,'--round','04-battle','--seat','seat-2','--rerate']);

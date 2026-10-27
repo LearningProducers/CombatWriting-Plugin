@@ -292,10 +292,17 @@ function truncateAnswer(text,cap,read,contract){
   return {text:out,truncated:{at:cap,words_returned:returned,words_kept:wordCount(out),first_line_moved:moved,cut_at:cutAt}};
 }
 
-// The per-minute window, per provider: tokens spent in the window (input plus the reservation,
-// which is what Groq counts) and the number of requests. Before a call that would cross the
-// wall or the request limit, wait until the oldest entry has aged out. The window is sixty
-// seconds unless the provider's budget sets window_ms (the tests set a short one).
+// The per-minute window, one per model at a provider (issue 93, measured 2026-10-27: Groq's
+// refusal names the model, "Rate limit reached for model `x` ... (TPM)", so the wall is the
+// model's; one window per provider made the second Groq seat wait the first's minute out on
+// every sharing round): tokens spent in the window (input plus the reservation, which is what
+// Groq counts) and the number of requests. Before a call that would cross the wall or the
+// request limit, wait until the oldest entry has aged out. The window is sixty seconds unless
+// the provider's budget sets window_ms (the tests set a short one). windowKey names the window
+// and the one-at-a-time queue a call belongs to: the provider id and the seat's slot (one slot per
+// model family at a provider, stable across a run, where the model id moves to the one the API
+// returned after the first answer), the model id when a seat has no slot.
+function windowKey(provider,seat){ return provider.id+'/'+String(seat&&(seat.slot||seat.model)||''); }
 function makeWindow(){
   var spent=[];  // {t, tokens}
   return {
@@ -365,6 +372,6 @@ function scrubIds(text){
 
 module.exports={readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
   loadProviders:loadProviders,keyFor:keyFor,keyShape:keyShape,keyHint:keyHint,keyNext:keyNext,keyField:keyField,keyFilePath:keyFilePath,keyFileShown:keyFileShown,readKeyFile:readKeyFile,KEY_FILE:KEY_FILE,CONFIGURE_COMMAND:CONFIGURE_COMMAND,CAUSES:CAUSES,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
-  eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,
+  eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,windowKey:windowKey,
   parseCapRefusal:parseCapRefusal,tokensForCap:tokensForCap,loweredMaxTokens:loweredMaxTokens,capRefusalReason:capRefusalReason,TOKENS_PER_WORD:TOKENS_PER_WORD,FIRST_LINE_TOKENS:FIRST_LINE_TOKENS,CAP_MARGIN:CAP_MARGIN,scrubIds:scrubIds,
   NO_RATING_LINE:NO_RATING_LINE,SECTIONS_LINE:SECTIONS_LINE,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,packetRules:packetRules,wordCount:wordCount,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer};
