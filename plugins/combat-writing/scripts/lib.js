@@ -99,17 +99,39 @@ function writeGitignore(root){
   fs.writeFileSync(p,GITIGNORE_LINES.join('\n')+'\n');
   return {state:'written',file:p};
 }
-// The project brief (issue 65, 2026-10-26): <project>/combat-writing/brief.md, beside the vault,
-// the brief every new run in the project carries when none comes with it, written by
-// new-run.js --keep alone (the person wrote `keep` on a brief line) and never otherwise; it
-// rides with the project in git as the vault does. A run's brief has a measured source, read
-// from the path new-run.js was handed: 'project' (that file), 'last' (another run's brief.md
-// under combat-writing/runs/, the run id kept), 'pasted' (a file in combat-writing/inbox/),
-// 'given' (any other path); none means no brief (--no-brief, or nothing and no project brief).
+// The project brief (issue 65, 2026-10-26; issue 72, the same day): <project>/combat-writing/
+// brief.md, beside the vault, the one brief of the project. A brief given to new-run.js
+// (--brief <file>, any path but that file itself) is the run's brief AND the project's: the file
+// is overwritten, so the brief typed last is the brief every new run that brings none carries
+// (the founder's rule, 2026-10-26: "anytime I type in brief: it overrides the previous brief").
+// brief.js --update appends one dated paragraph, "Update YYYY-MM-DD: <text>", to the project's
+// brief and to a run's, so the prospect of the day lives in the brief where the seats read
+// ("brief update: followed by a line just adds to the brief"); the newest such line is named on
+// the short form's Brief line. It rides with the project in git as the vault does. A run's brief
+// has a measured source, read from the path new-run.js was handed: 'project' (that file), 'last'
+// (another run's brief.md under combat-writing/runs/, the run id kept), 'pasted' (a file in
+// combat-writing/inbox/), 'given' (any other path); none means no brief (--no-brief, or nothing
+// and no project brief).
 var PROJECT_BRIEF_FILE='brief.md';
 var PROJECT_BRIEF_REL=path.join('combat-writing',PROJECT_BRIEF_FILE);
-var PROJECT_BRIEF_KEPT_LINE='Kept the brief as the project\'s: combat-writing/brief.md now serves every new run in this project that brings no brief of its own (a brief: on a run is that run\'s; cold leaves it out of a read). It rides with the project in git, as the vault does; add brief.md to combat-writing/.gitignore if it must not.';
+var PROJECT_BRIEF_KEPT_LINE='This brief is now the project\'s: combat-writing/brief.md serves every new run in this project that brings none, until the next brief: replaces it or brief update: adds to it (cold leaves it out of a read). It rides with the project in git, as the vault does; add brief.md to combat-writing/.gitignore if it must not.';
+var BRIEF_UPDATE_RE=/^Update (\d{4}-\d{2}-\d{2}): (.*)$/;
+var BRIEF_UPDATE_SHOWN=120;
 function projectBriefPath(root){ return path.join(path.resolve(root),'combat-writing',PROJECT_BRIEF_FILE); }
+// The dated update paragraph brief.js appends: the first line carries the date, a multi-line update keeps its lines.
+function briefUpdateParagraph(text,date){ return 'Update '+date+': '+String(text||'').replace(/\r\n/g,'\n').trim(); }
+// The newest dated update in a brief's text, read from the text itself (one source, however the file got there), or null.
+function newestBriefUpdate(text){
+  var found=null;
+  String(text||'').replace(/\r\n/g,'\n').split('\n').forEach(function(l){ var m=BRIEF_UPDATE_RE.exec(l); if(m)found={date:m[1],text:m[2].trim()}; });
+  return found;
+}
+function briefUpdateWords(text){
+  var u=newestBriefUpdate(text);
+  if(!u)return '';
+  var t=u.text.length>BRIEF_UPDATE_SHOWN?u.text.slice(0,BRIEF_UPDATE_SHOWN).replace(/\s+\S*$/,'')+'…':u.text;
+  return '; newest update '+u.date+': '+t;
+}
 function under(p,dir){ var rel=path.relative(dir,p); return rel&&!rel.startsWith('..')&&!path.isAbsolute(rel)?rel:null; }
 // Real paths on both sides, so a project reached through a symlink (macOS's /var is one) still measures.
 function realOr(p){ p=path.resolve(p); try{ return fs.realpathSync(p); }catch(e){ var d=path.dirname(p); return d===p?p:path.join(realOr(d),path.basename(p)); } }
@@ -130,13 +152,18 @@ function briefWords(created,dflt){
   if(b.source==='pasted')return 'the brief pasted';
   return dflt;
 }
-function briefLine(created){
+// The short form's Brief line, printed on every short form (issue 72: a round's too, so the hook's
+// message names the brief): the source from run.created, then the newest dated update read from
+// the run's brief text when one is given.
+function briefLine(created,text){
   var b=created&&created.brief;
   if(!b)return 'Brief: none.';
-  if(b.source==='project')return 'Brief: the project\'s (combat-writing/brief.md).';
-  if(b.source==='last')return 'Brief: from run '+(b.from||'?')+'.';
-  if(b.source==='pasted')return 'Brief: stored, pasted with the draft.';
-  return 'Brief: brief.md, stored.';
+  var s;
+  if(b.source==='project')s='Brief: the project\'s (combat-writing/brief.md)';
+  else if(b.source==='last')s='Brief: from run '+(b.from||'?');
+  else if(b.source==='pasted')s='Brief: stored, pasted with the draft';
+  else s='Brief: brief.md, stored';
+  return s+briefUpdateWords(text)+'.';
 }
 // The host name of an address, by string cut: the scheme and a leading www. dropped, cut at the
 // first slash, query or fragment. stripScheme drops the scheme and the // only, for the board,
@@ -1062,6 +1089,7 @@ module.exports={
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   GITIGNORE_FILE:GITIGNORE_FILE,GITIGNORE_LINES:GITIGNORE_LINES,GITIGNORE_LINE:GITIGNORE_LINE,inGitRepo:inGitRepo,writeGitignore:writeGitignore,
   PROJECT_BRIEF_FILE:PROJECT_BRIEF_FILE,PROJECT_BRIEF_REL:PROJECT_BRIEF_REL,PROJECT_BRIEF_KEPT_LINE:PROJECT_BRIEF_KEPT_LINE,projectBriefPath:projectBriefPath,briefSourceOf:briefSourceOf,briefWords:briefWords,briefLine:briefLine,
+  BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
   capSent:capSent,contractSent:contractSent,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,

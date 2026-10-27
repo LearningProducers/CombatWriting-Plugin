@@ -145,8 +145,8 @@ check(/No rounds yet\. The draft and the brief are stored; no seat has read it\.
 check(/<strong>Started at:<\/strong> strategy: the draft and the brief stored first\. No round yet\./.test(board),'board.html: must say the run started at strategy');
 check(!/https?:\/\//.test(board),'board.html: makes an outside request');
 
-// A run with no brief says so.
-var r2=node('new-run.js',['--draft','inbox-draft.md','--stage','strategy','--name','no brief','--model','Test Model 1.0']);
+// A run with no brief says so (--no-brief: the first run's brief is the project's since issue 72, and the person said there is none).
+var r2=node('new-run.js',['--draft','inbox-draft.md','--stage','strategy','--name','no brief','--no-brief','--model','Test Model 1.0']);
 check(r2.status===0,'new-run (no brief): exit '+r2.status);
 var s2=node('render-record.js',['--run',r2.stdout.trim(),'--short']);
 check(/^No rounds yet\. The draft is stored; no seat has read it\. Next: \/cw:sparring for the first reads and ratings, or \/cw:battle to start with the discussion\.$/m.test(s2.stdout),'short form (no brief): must say the draft is stored, without a brief');

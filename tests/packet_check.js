@@ -111,20 +111,21 @@ check(seats.seats.length===3,'fixture crew: expected 3 seats, got '+seats.seats.
 check(seats.seats[0].model==='Test Model 1.0'&&seats.seats[0].company==='Anthropic'&&/agent configuration/.test(seats.seats[0].source)&&/not read from an API field/.test(seats.seats[0].source),'new-run: seat fields wrong: '+JSON.stringify(seats.seats[0]));
 check(seats.seats.map(function(s){return s.id;}).join(',')==='seat-1,seat-2,seat-3','new-run: seat ids wrong');
 var log=logOf(run);
-check(log.length===1&&log[0].event==='run.created','new-run: expected one run.created log line');
+// Two lines since issue 72: run.created, then brief.kept (the brief given became the project's).
+check(log.length===2&&log[0].event==='run.created'&&log[1].event==='brief.kept','new-run: expected run.created then brief.kept, got '+log.map(function(e){return e.event;}).join(','));
 check(Object.keys(log[0])[0]==='ts'&&!('credit' in log[0]),'new-run: the first log line should open with its timestamp and carry no credit line');
 check(log[0].draft&&log[0].draft.sha256===require('crypto').createHash('sha256').update(draftText).digest('hex'),'new-run: draft sha256 missing or wrong');
 check(log[0].brief&&log[0].brief.file==='brief.md','new-run: brief not logged');
 
 // Same name again in the same minute: a different folder. No model: unreported, rendered from the company.
-var r2=node('new-run.js',['--draft','draft.md','--name','Board letter']);
+var r2=node('new-run.js',['--draft','draft.md','--name','Board letter','--no-brief']);
 check(r2.status===0,'new-run (2): exit '+r2.status);
 var run2=r2.stdout.trim();
 seatMore(run2,2,'model unreported');
 check(run2!==run&&fs.existsSync(run2),'new-run (2): did not get a distinct folder');
 var seats2=JSON.parse(read(path.join(run2,'seats.json')));
 check(seats2.seats.length===2&&seats2.seats[0].model==='model unreported','new-run (2): expected 2 seats with model unreported, got '+JSON.stringify(seats2.seats));
-check(!fs.existsSync(path.join(run2,'brief.md')),'new-run (2): brief.md should not exist without --brief');
+check(!fs.existsSync(path.join(run2,'brief.md')),'new-run (2): brief.md should not exist with --no-brief (the project brief the first run kept is left out)');
 var pu=node('packet.js',['--run',run2,'--round','01-sparring','--seat','seat-1']);
 var tu=pu.status===0?read(pu.stdout.trim()):'';
 check(tu.indexOf('# Packet for Anthropic model, name not reported, seat-1')>=0,'unreported: label not rendered from the company');
