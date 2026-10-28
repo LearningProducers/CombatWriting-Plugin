@@ -103,10 +103,12 @@ check(!exists('plugins/combat-writing/.mcp.json'),'listed plugin: must have no .
 check(exists('tests/hook_check.js'),'listed plugin: hooks/ is pinned by tests/hook_check.js, which is missing');
 var listedScripts=fs.readdirSync(path.join(root,'plugins/combat-writing/scripts')).map(function(f){return read('plugins/combat-writing/scripts/'+f);}).join('\n');
 check(!/require\(['"](https?|net|dgram)['"]\)/.test(listedScripts)&&!/\bfetch\(/.test(listedScripts),'listed plugin: a script requires a network module or calls fetch');
-// child_process is allowed in open-board.js alone, which starts the system's opener on the local
-// board.html (2026-10-14); tests/open_board_check.js pins that no other script requires it.
-var scriptsButOpener=fs.readdirSync(path.join(root,'plugins/combat-writing/scripts')).filter(function(f){return f!=='open-board.js';}).map(function(f){return read('plugins/combat-writing/scripts/'+f);}).join('\n');
-check(!/require\(['"]child_process['"]\)/.test(scriptsButOpener),'listed plugin: a script other than open-board.js requires child_process');
+// child_process is allowed in two scripts: open-board.js, which starts the system's opener on the
+// local board.html (2026-10-14), and speak.js, which runs the Mac's speech engine on each seat's
+// answer (Part 81, issue 121); tests/open_board_check.js pins that no other script requires it and
+// that neither makes a network call.
+var scriptsButRuled=fs.readdirSync(path.join(root,'plugins/combat-writing/scripts')).filter(function(f){return f!=='open-board.js'&&f!=='speak.js';}).map(function(f){return read('plugins/combat-writing/scripts/'+f);}).join('\n');
+check(!/require\(['"]child_process['"]\)/.test(scriptsButRuled),'listed plugin: a script other than open-board.js or speak.js requires child_process');
 check(!/https?:\/\//.test(listedScripts.replace(/\/\/[^\n]*/g,'')),'listed plugin: a script holds a URL outside a comment');
 
 // claude plugin validate --strict, when the CLI is here.
