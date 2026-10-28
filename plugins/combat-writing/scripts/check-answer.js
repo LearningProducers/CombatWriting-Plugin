@@ -66,6 +66,8 @@ if(runDir&&round){
   }
 }
 var result=lib.checkAnswer(text,cap,contract,{sections:sections,rewrite:rewrite});
+// The copy check (issue 107): a rewrite measured against the rewrites carried in the seat's packet.
+var copy=(rewrite&&runDir&&round&&result.rewrite)?lib.rewriteCopy(runDir,round,seatId,text,lib.readSeats(runDir).seats||[],lib.readLog(runDir)):null;
 // On the second check a section fault is a note, not a failure (issue 80): the seat was sent back once
 // for it, as for an overrun, and a read is never lost over a label.
 var sectionNotes=[];
@@ -75,12 +77,12 @@ if(second&&result.section_reasons.length){
   result.ok=result.reasons.length===0;
 }
 var summary={file:path.basename(file),contract:contract,ok:result.ok,rating:result.rating,value:result.value,words:result.words,
-  word_cap:capInForce,word_cap_source:capSource,reasons:result.reasons,truncated:truncated,sections:result.sections,rewrite:result.rewrite,section_notes:sectionNotes};
+  word_cap:capInForce,word_cap_source:capSource,reasons:result.reasons,truncated:truncated,sections:result.sections,rewrite:result.rewrite,copy:copy,section_notes:sectionNotes};
 if(runDir&&fs.existsSync(path.join(runDir,'log.jsonl'))){
   lib.appendLog(runDir,Object.assign({event:'answer.checked',round:round,seat:seatId},summary,{file:rel.join('/')}));
 }
 var headline=result.ok
-  ?('OK '+(contract==='rating'?'rating '+result.rating+'/10':contract==='critique'?'critique, no rating this round':contract==='crew'?'to the crew, second pass':contract==='sn'?'S/N '+result.value+'%':(result.value===0?'no red flags':result.value+' red flag(s)'))+', '+result.words+' words'+(truncated?', truncated at '+truncated.at+' words on the second overrun (cut at '+(truncated.cut_at==='sentence'?'the last sentence end':'the word')+'; the seat returned '+truncated.words_returned+')':'')+(sectionNotes.length?', accepted without its two sections on the second check ('+sectionNotes.join('; ')+')':''))
+  ?('OK '+(contract==='rating'?'rating '+result.rating+'/10':contract==='critique'?'critique, no rating this round':contract==='crew'?'to the crew, second pass':contract==='sn'?'S/N '+result.value+'%':(result.value===0?'no red flags':result.value+' red flag(s)'))+', '+result.words+' words'+(truncated?', truncated at '+truncated.at+' words on the second overrun (cut at '+(truncated.cut_at==='sentence'?'the last sentence end':'the word')+'; the seat returned '+truncated.words_returned+')':'')+(sectionNotes.length?', accepted without its two sections on the second check ('+sectionNotes.join('; ')+')':'')+(copy?'; the rewrite is a copy of '+copy.model+'\'s ('+Math.round(copy.share*100)+' in 100 of its three-word runs)':''))
   :('FAIL '+result.reasons.join('; ')+(truncated?' (cut at '+truncated.at+' words on the second overrun first)':''));
 var who='';
 if(runDir&&round){

@@ -245,7 +245,7 @@ var SECTIONS_LINE='Two sections, each opened by a line holding only its label: `
 var SECTIONS_LINE_PROMPTED=SECTIONS_LINE.replace('your reply to the task, the verdict line first','your reply to the task as it asks, first');
 // The rewrite (issue 103): the listed plugin's REWRITE_LINE, mirrored word for word for the same reason,
 // so the system line says the fence when the packet asks for a rewrite.
-var REWRITE_LINE='The task asks for a rewrite: write it in full between a line holding only `=== REWRITE BEGIN ===` and a line holding only `=== REWRITE END ===`, before anything else in your answer but the rating line and the verdict line when they are asked; then your rationale in a few lines.';
+var REWRITE_LINE='The task asks for a rewrite: write it in full between a line holding only `=== REWRITE BEGIN ===` and a line holding only `=== REWRITE END ===`, before anything else in your answer but the rating line and the verdict line when they are asked; then your rationale, under 120 words. Your rewrite is your own: one that repeats another seat\'s rewrite is recorded as a copy.';
 // Links are unread (issue 90): the listed plugin's LINKS_UNREAD_LINE, mirrored word for word for the
 // same reason, so the system line says it when the packet carries an address.
 var LINKS_UNREAD_LINE='No seat can open a link. Every address in the brief, the draft or the prompt is unread text: never state what its page says, and never charge the author with misreading a page you have not read. A claim about a page holds only when the page\'s text is in this packet; otherwise say the page is unread and ask for its text.';

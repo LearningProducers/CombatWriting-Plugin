@@ -83,6 +83,12 @@ function truncationOf(seat,round,read){
 function withTrunc(mark,t){ return t?(mark?mark+' · ':'')+'truncated at '+t.at+' words':mark; }
 
 // One seat in one non-final round, from the files with the log's verdicts where it has them.
+// The fence lines (issue 108, the founder's words: "why the === separators? Not necessary.") stay in the
+// file for the checker and leave the page: the fold's full read and the spoken text drop them, and the
+// spoken text drops the bare Answer label too, so a reading opens on the seat's words.
+function isFence(l){ var s=String(l).trim().replace(/^[`*_]+|[`*_]+$/g,'').trim(); return s===lib.REWRITE_BEGIN||s===lib.REWRITE_END; }
+function foldText(t){ return String(t||'').split(/\r?\n/).filter(function(l){return !isFence(l);}).join('\n'); }
+function spokenText(t){ var seen=false; return String(t||'').split(/\r?\n/).filter(function(l){ if(isFence(l))return false; if(!seen&&lib.sectionLabelOf(l)==='answer'){seen=true;return false;} return true; }).join('\n'); }
 function cell(seat,round){
   var p=path.join(runDir,'rounds',round,seat.id+'.answer.md');
   if(!fs.existsSync(p))return lib.wasAsked(runDir,round,seat.id,log)?{kind:'missing',text:'missing',rating:null}:{kind:'not-asked',text:'not asked',rating:null};
@@ -93,13 +99,14 @@ function cell(seat,round){
   var trunc=truncationOf(seat,round,'rating');
   var words=lib.wordCount(text);
   if(!check.ok)return {kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,mark:withTrunc('',trunc),answer:text,words:words,contract:contract,reasons:check.reasons};
-  if(contract==='critique')return {kind:'critique',text:'critique',title:'this round asked for no rating',rating:null,mark:withTrunc('',trunc),answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null};
+  var copy=logged&&logged.copy?logged.copy:null;
+  if(contract==='critique')return {kind:'critique',text:'critique',title:copy?'the rewrite is a copy of '+copy.model+'\'s':'this round asked for no rating',rating:null,mark:withTrunc(lib.copyMark(copy),trunc),answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null,copy:copy};
   var flip=lastLog(function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
   if(!flip){var inputs=lib.flipInputs(runDir,seat,round,seats);flip=lib.checkFlip(text,seat,inputs.ownRated?inputs.ownRated.text:null,inputs.prevAnswers);}
   var kind={first:'first',stand:'stand',held:'held','flip-valid':'flip-valid','flip-invalid':'flip-invalid',unrated:'first'}[flip.status]||'first';
   var mark={first:'',stand:'Stand',held:'held, no Stand','flip-valid':'flip from '+flip.from+', valid','flip-invalid':'flip from '+flip.from+', INVALID'}[kind]||'';
   var title={'flip-valid':'quoted '+flip.cited,'flip-invalid':flip.reason||'quote not found'}[kind]||'';
-  return {kind:kind,rating:check.rating,text:check.rating+'/10',mark:withTrunc(mark,trunc),title:title,from:flip.from,answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null};
+  return {kind:kind,rating:check.rating,text:check.rating+'/10',mark:withTrunc(copy?(mark?mark+' · ':'')+lib.copyMark(copy):mark,trunc),title:title,from:flip.from,answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null,copy:copy};
 }
 function finalCell(seat,round){
   return ['sn','redflag'].map(function(c){
@@ -263,20 +270,20 @@ if(tableRounds.length){
       fold='<details><summary>The failed read ('+c.words+' words)</summary><div class="read failed">'+read(c.answer)+'</div></details>';
     }else{
       badge=c.kind==='critique'
-        ?'<span class="badge critique">'+(c.rewrite?'Rewrite · no rating asked':'Critique · no rating asked')+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>'
+        ?'<span class="badge critique">'+(c.rewrite?(c.copy?'Rewrite · a copy of '+esc(c.copy.model)+'\'s':'Rewrite · no rating asked'):'Critique · no rating asked')+(c.mark&&!c.copy?'<span class="mark">'+esc(c.mark)+'</span>':c.mark&&c.copy&&c.mark!==lib.copyMark(c.copy)?'<span class="mark">'+esc(c.mark.replace(lib.copyMark(c.copy),'').replace(/^ · | · $/g,''))+'</span>':'')+'</span>'
         :'<span class="badge">Rating '+c.rating+'/10'+(c.rewrite?' · rewrite':'')+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
       quote=lib.verdictLine(c.answer,c.contract)||'(no words after the first line)';
       // The second pass of a first round (issue 88): under the read, in the fold and in the spoken text.
       var crew=t?lib.crewPassOf(runDir,t.round,s.id,log):null;
       var crewHtml=crew?'<p><strong>'+esc(lib.CREW_PASS_HEADING)+'</strong></p>'+read(crew.text):'';
-      var spoken=plainText(c.answer)+(crew?'\n\n'+lib.CREW_PASS_HEADING+'.\n\n'+plainText(crew.text):'');
+      var spoken=plainText(spokenText(c.answer))+(crew?'\n\n'+lib.CREW_PASS_HEADING+'.\n\n'+plainText(crew.text):'');
       // Read aloud (issue 82): the answer as plain text in the page, the controls on the frame; the
       // script below wires every frame to the browser's speech synthesis, one seat at a time.
       // The rewrite (issue 103): the whole of it under the frame, open, before the fold; the quote above is its opening.
       fold=(c.rewrite?'<div class="read rewrite"><p class="meta">The rewrite, in full:</p>'+read(c.rewrite)+'</div>':'')
         +'<div class="read-controls"><button type="button" class="seat-speak" aria-label="Read this seat\'s '+(c.kind==='critique'?'critique':'read')+' aloud">🔊 Read aloud</button> <button type="button" class="seat-pause" aria-label="Pause or resume the reading" disabled>Pause</button> <button type="button" class="seat-stop" aria-label="Stop the reading" disabled>Stop</button> <span class="meta seat-status" aria-live="polite"></span></div>'
         +'<div class="seat-text" hidden>'+esc(spoken)+'</div>'
-        +'<details><summary>Read the full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words'+(crew?', then '+crew.words+' to the crew':'')+')</summary><div class="read">'+read(c.answer)+crewHtml+'</div></details>';
+        +'<details><summary>Read the full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words'+(crew?', then '+crew.words+' to the crew':'')+')</summary><div class="read">'+read(foldText(c.answer))+crewHtml+'</div></details>';
     }
     var finalLine='';
     if(finalRounds.length){ var f=finalCell(s,finalRounds[finalRounds.length-1]); finalLine='<p class="final">'+esc(finalRounds[finalRounds.length-1])+': '+esc(finalText(f))+'</p>'; }
@@ -371,10 +378,14 @@ html.push('(function(){var b=document.getElementById("theme");var r=document.doc
 // A voice per seat (issue 101, 2026-10-27, the founder's words: "the first one for anthropic is the one it
 // has now but gptoss and qwen3 have to have different ones you pick the next best two"): seat-1 reads in
 // the browser's default voice as before; every later seat gets its own from the browser's list, the
-// page's language first, the machine's own voices first, then by name, seat-2 the first of them and
-// seat-3 the second, so a seat sounds the same every time on one machine. Another machine has other
+// page's language first, the standard voices by name first (issue 109: sorted by name alone the picker
+// landed on macOS's novelty voices, Albert and Bad News, measured in Chromium), the novelty set
+// skipped, the machine's own voices next, then by name, seat-2 the first of them and seat-3 the
+// second, so a seat sounds the same every time on one machine. The list is asked for at page open and
+// the picks are cleared when the browser's list arrives, so a first click never lands every seat on the
+// default. Another machine has other
 // voices, which the founder accepted. The canon's reader is unchanged. Nothing is sent anywhere.
-html.push('(function(){var synth=window.speechSynthesis;var frames=document.querySelectorAll(".frame");var playing=null;var pick={};function seatVoice(f){var k=parseInt(String(f.getAttribute("data-seat")||"").replace(/^seat-/,""),10);if(!(k>1)||!synth||!synth.getVoices)return null;if(pick[k]!==undefined)return pick[k];var all=synth.getVoices()||[];var lang=(document.documentElement.lang||"en").slice(0,2).toLowerCase();var pool=all.filter(function(v){return !v.default&&String(v.lang||"").slice(0,2).toLowerCase()===lang;});if(!pool.length)pool=all.filter(function(v){return !v.default;});if(!pool.length)return null;pool.sort(function(a,b){return (b.localService?1:0)-(a.localService?1:0)||String(a.name).localeCompare(String(b.name));});var v=pool[(k-2)%pool.length];pick[k]=v;return v;}function wire(f){var t=f.querySelector(".seat-text"),speak=f.querySelector(".seat-speak"),pause=f.querySelector(".seat-pause"),stop=f.querySelector(".seat-stop"),st=f.querySelector(".seat-status");if(!t||!speak)return;var held=false;function say(m){st.textContent=m;}function idle(){held=false;pause.disabled=true;stop.disabled=true;pause.textContent="Pause";speak.disabled=false;if(playing===f)playing=null;}');
+html.push('(function(){var synth=window.speechSynthesis;var frames=document.querySelectorAll(".frame");var playing=null;var PREFERRED=["Daniel","Karen","Alex","Moira","Tessa","Rishi","Fiona","Samantha","Aaron","Nicky","Ava","Allison","Susan","Tom","Oliver","Serena","Kate","Arthur","Martha","Gordon","Catherine","Matilda","Lee"];var NOVELTY={"albert":1,"bad news":1,"bahh":1,"bells":1,"boing":1,"bubbles":1,"cellos":1,"deranged":1,"good news":1,"hysterical":1,"jester":1,"organ":1,"pipe organ":1,"superstar":1,"trinoids":1,"whisper":1,"wobble":1,"zarvox":1,"eddy":1,"flo":1,"grandma":1,"grandpa":1,"reed":1,"rocko":1,"sandy":1,"shelley":1,"junior":1,"ralph":1,"kathy":1,"fred":1};function plainName(v){var n=String(v.name||"");var p=n.indexOf(" (");return (p>0?n.slice(0,p):n).trim();}function rank(v){var i=PREFERRED.indexOf(plainName(v));return i<0?PREFERRED.length:i;}var pick={};function seatVoice(f){var k=parseInt(String(f.getAttribute("data-seat")||"").replace(/^seat-/,""),10);if(!(k>1)||!synth||!synth.getVoices)return null;if(pick[k]!==undefined)return pick[k];var all=synth.getVoices()||[];var lang=(document.documentElement.lang||"en").slice(0,2).toLowerCase();var dflt=all.filter(function(v){return v.default;})[0]||null;var pool=all.filter(function(v){return !v.default&&String(v.lang||"").slice(0,2).toLowerCase()===lang&&!NOVELTY[plainName(v).toLowerCase()];});if(!pool.length)pool=all.filter(function(v){return !v.default&&!NOVELTY[plainName(v).toLowerCase()];});if(!pool.length)pool=all.filter(function(v){return !v.default;});if(!pool.length)return null;pool.sort(function(a,b){return rank(a)-rank(b)||(b.localService?1:0)-(a.localService?1:0)||String(a.name).localeCompare(String(b.name));});if(dflt){var p2=pool.filter(function(v){return plainName(v)!==plainName(dflt);});if(p2.length)pool=p2;}var v=pool[(k-2)%pool.length];pick[k]=v;return v;}if(synth&&synth.getVoices){synth.getVoices();if("onvoiceschanged" in synth)synth.onvoiceschanged=function(){pick={};};}function wire(f){var t=f.querySelector(".seat-text"),speak=f.querySelector(".seat-speak"),pause=f.querySelector(".seat-pause"),stop=f.querySelector(".seat-stop"),st=f.querySelector(".seat-status");if(!t||!speak)return;var held=false;function say(m){st.textContent=m;}function idle(){held=false;pause.disabled=true;stop.disabled=true;pause.textContent="Pause";speak.disabled=false;if(playing===f)playing=null;}');
 html.push('speak.addEventListener("click",function(){if(!synth||!window.SpeechSynthesisUtterance){say("This browser has no speech synthesis.");return;}if(playing&&playing!==f&&playing.idle)playing.idle();synth.cancel();var u=new SpeechSynthesisUtterance(t.textContent);var v=seatVoice(f);if(v)u.voice=v;u.onstart=function(){say("Reading aloud"+(v?" in the voice "+v.name:"")+".");pause.disabled=false;stop.disabled=false;speak.disabled=true;playing=f;};u.onend=function(){say("Finished reading.");idle();};u.onerror=function(e){var why=e&&e.error?e.error:"";if(why!=="interrupted"&&why!=="canceled")say("Reading stopped"+(why?": "+why:"")+".");idle();};synth.speak(u);});');
 html.push('pause.addEventListener("click",function(){if(!synth)return;if(held){held=false;synth.resume();pause.textContent="Pause";say("Resumed.");}else{held=true;synth.pause();pause.textContent="Resume";say("Paused.");}});stop.addEventListener("click",function(){if(!synth)return;synth.cancel();say("Stopped.");idle();});f.idle=idle;}for(var i=0;i<frames.length;i++)wire(frames[i]);})();');
 if(canonFile){
