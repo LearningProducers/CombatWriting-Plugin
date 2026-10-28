@@ -934,6 +934,30 @@ function draftFactsFull(f){
 }
 var FACTS_HEADING='Measured by code (facts, not a judgment)';
 
+// THE VOICE FLOOR, shared (Part 76, 76.1, 81): a voice is good when its name or identifier carries
+// Premium or Enhanced; Premium ranks above Enhanced, then the founder's order, then the name. The
+// board's page and speak.js (the Mac's own engine writing files) read the same rule.
+var VOICE_ORDER=["Ava","Nathan","Allison","Zoe","Samantha","Evan","Joelle","Noelle","Tom","Susan","Nicky","Aaron"];
+function voiceTier(nameOrId){ var n=String(nameOrId||''); return /\(Premium\)|\.premium\./i.test(n)?2:(/\(Enhanced\)|\.enhanced\./i.test(n)?1:0); }
+function voiceBase(name){ var n=String(name||''); var p=n.indexOf(' ('); return (p>0?n.slice(0,p):n).trim(); }
+function voiceRank(name){ var i=VOICE_ORDER.indexOf(voiceBase(name)); return i<0?VOICE_ORDER.length:i; }
+// The answer as the words a voice should read (issue 82; Part 81 moved it here from the board):
+// the rewrite fence lines and the bare Answer label dropped, then the markdown marks (bold, italic,
+// code, headings, list bullets, quote marks); the second pass appended under its heading.
+function isFenceLine(l){ var s=String(l).trim().replace(/^[`*_]+|[`*_]+$/g,'').trim(); return s===REWRITE_BEGIN||s===REWRITE_END; }
+function plainSpoken(text){
+  return String(text||'').replace(/\r\n/g,'\n').replace(/^﻿/,'').split('\n').map(function(l){
+    return l.replace(/^\s*#{1,6}\s+/,'').replace(/^\s*>\s?/,'').replace(/^\s*(?:[*\-•]|\d+[.)])\s+/,'');
+  }).join('\n').replace(/\*\*|__|`/g,'').replace(/(^|[^*\w])\*(\S(?:[^*\n]*?\S)?)\*(?![\w*])/g,'$1$2').replace(/\n{3,}/g,'\n\n').trim();
+}
+function spokenPlain(answer,crewText){
+  var seen=false;
+  var body=String(answer||'').split(/\r?\n/).filter(function(l){ if(isFenceLine(l))return false; if(!seen&&sectionLabelOf(l)==='answer'){seen=true;return false;} return true; }).join('\n');
+  var out=plainSpoken(body);
+  if(crewText)out+='\n\n'+CREW_PASS_HEADING+'.\n\n'+plainSpoken(crewText);
+  return out;
+}
+
 // THE LABELED DRAFT (Part 79, issue 116, 2026-10-28). The founder's shape: greeting, opening
 // sentence, body, closer (the signature is the mail client's, never in the draft). On the run of
 // 2026-10-28 one seat rewrote the greeting, one the whole email and one the first body sentence
@@ -1472,7 +1496,7 @@ module.exports={
   PROJECT_BRIEF_FILE:PROJECT_BRIEF_FILE,PROJECT_BRIEF_REL:PROJECT_BRIEF_REL,PROJECT_BRIEF_KEPT_LINE:PROJECT_BRIEF_KEPT_LINE,projectBriefPath:projectBriefPath,briefSourceOf:briefSourceOf,briefWords:briefWords,briefLine:briefLine,
   BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
-  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,copyShare:copyShare,rewriteCopy:rewriteCopy,copyMark:copyMark,COPY_SHARE:COPY_SHARE,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,draftParts:draftParts,draftPartsLines:draftPartsLines,PARTS_HEADING:PARTS_HEADING,PARTS_LINE:PARTS_LINE,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,copyShare:copyShare,rewriteCopy:rewriteCopy,copyMark:copyMark,COPY_SHARE:COPY_SHARE,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,VOICE_ORDER:VOICE_ORDER,voiceTier:voiceTier,voiceBase:voiceBase,voiceRank:voiceRank,isFenceLine:isFenceLine,plainSpoken:plainSpoken,spokenPlain:spokenPlain,draftParts:draftParts,draftPartsLines:draftPartsLines,PARTS_HEADING:PARTS_HEADING,PARTS_LINE:PARTS_LINE,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
   STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,roundCell:roundCell,finalCell:finalCell,finalText:finalText,bandOf:bandOf,runState:runState
 };

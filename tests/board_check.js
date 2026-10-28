@@ -338,6 +338,22 @@ check((html.match(/class="seat-speak"/g)||[]).length===1&&/querySelectorAll\("\.
 var mdPlain=/<div class="seat-text" hidden>([^<]*)<\/div>/.exec(mdHtml);
 check(!!mdPlain&&mdPlain[1].indexOf('**')<0&&mdPlain[1].indexOf('#')<0&&/Not ready: the close is soft and the ask is late\./.test(mdPlain[1]),'board (read aloud): the spoken text drops the markdown marks; got '+(mdPlain?mdPlain[1].slice(0,200):'none'));
 
+
+// THE MAC SPEAKS THE FILES (Part 81, issue 121): with no voices.json a frame carries no file and the
+// page keeps the browser path; the page's script carries the recording branch; with a round's
+// voices.json and a file for one seat, that seat's frame carries the file, the voice and the Mac's
+// installed list, and a seat without a file carries none.
+var h0=fs.readFileSync(path.join(run,'board.html'),'utf8');
+check(h0.indexOf('data-audio=')<0,'board (files): no voices.json, no frame carries a file');
+check(/var audioSrc=f\.getAttribute\("data-audio"\),au=audioSrc\?new Audio\(audioSrc\):null;/.test(h0)&&/a file the Mac rendered\./.test(h0)&&/from the next round<\/option>/.test(h0)&&/Tell the host: voice for seat "\+seatNo\(f\)\+" is "\+sel\.value/.test(h0)&&/could not be played; reading with the browser instead/.test(h0),'board (files): the page plays a recording when a frame carries one, the menu lists the Mac voices for the next round, a failure falls back to the browser');
+var roundsDir=path.join(run,'rounds'), rnd=fs.readdirSync(roundsDir).sort().filter(function(r){return fs.existsSync(path.join(roundsDir,r,'seat-1.answer.md'));}).pop();
+fs.writeFileSync(path.join(roundsDir,rnd,'voices.json'),JSON.stringify({engine:'macOS say',installed:['Ava (Premium)','Nathan (Enhanced)'],assigned:{'seat-1':'Ava (Premium)','seat-2':'Nathan (Enhanced)'},files:{'seat-1':'seat-1.m4a','seat-2':'seat-2.m4a'},failed:{}}));
+fs.writeFileSync(path.join(roundsDir,rnd,'seat-1.m4a'),'not audio, a stand-in');
+node('render-board.js',['--run',run]);
+var h1=fs.readFileSync(path.join(run,'board.html'),'utf8');
+var seat1Frame=/<figure class="frame [^"]*" data-seat="seat-1" data-audio="([^"]*)" data-voice="([^"]*)" data-voices="([^"]*)">/.exec(h1);
+check(!!seat1Frame&&seat1Frame[1]==='rounds/'+rnd+'/seat-1.m4a'&&seat1Frame[2]==='Ava (Premium)'&&seat1Frame[3]==='Ava (Premium)|Nathan (Enhanced)','board (files): seat-1 carries its file, voice and the installed list: '+(seat1Frame?seat1Frame.slice(1).join(' | '):'none'));
+check((h1.match(/data-audio=/g)||[]).length===1,'board (files): a seat whose file is listed but missing on disk carries none');
 fs.rmSync(proj,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'board_check: '+failures.length+' failure(s), ':'board_check: all passed, ')+passes+' checks');

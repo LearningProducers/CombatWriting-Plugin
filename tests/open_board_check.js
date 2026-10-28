@@ -24,7 +24,8 @@
 //     exit 0 within the deadline plus a margin, and the log's reason says it was released.
 //   - The opener gets the local path and nothing else: no URL, no publish, no network.
 //   - A run with no board.html exits 2 and names render-board.js; a missing --run exits 2.
-//   - The listed plugin's scripts require child_process in open-board.js only, and it spawns
+//   - The listed plugin's scripts require child_process in open-board.js and speak.js only (the
+//     speech engine, Part 81), and open-board.js spawns
 //     no command but the three openers or the --opener given.
 //
 // Run from the repo root:   node tests/open_board_check.js
@@ -107,9 +108,14 @@ check(e5&&e5.ok===true&&/still running after 3000 ms; released/.test(String(e5.r
 var src=fs.readFileSync(path.join(scripts,'open-board.js'),'utf8');
 check(!/\b(https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(src)&&!/require\(['"](https?|net|dgram)['"]\)/.test(src)&&!/\bfetch\(/.test(src),'open-board.js: must make no network call');
 check(/cmd='open'/.test(src)&&/cmd='xdg-open'/.test(src)&&/cmd='cmd'/.test(src),'open-board.js: the three openers must be named');
-fs.readdirSync(scripts).filter(function(n){return /\.js$/.test(n)&&n!=='open-board.js';}).forEach(function(n){
-  check(!/require\(['"]child_process['"]\)/.test(fs.readFileSync(path.join(scripts,n),'utf8')),n+': only open-board.js may require child_process');
+// Part 81 (issue 121): speak.js is the second ruled exception, for the Mac's speech engine alone; it
+// too makes no network call and names no address.
+fs.readdirSync(scripts).filter(function(n){return /\.js$/.test(n)&&n!=='open-board.js'&&n!=='speak.js';}).forEach(function(n){
+  check(!/require\(['"]child_process['"]\)/.test(fs.readFileSync(path.join(scripts,n),'utf8')),n+': only open-board.js and speak.js may require child_process');
 });
+var speakSrc=fs.readFileSync(path.join(scripts,'speak.js'),'utf8');
+check(!/\b(https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(speakSrc)&&!/require\(['"](https?|net|dgram)['"]\)/.test(speakSrc)&&!/\bfetch\(/.test(speakSrc),'speak.js: must make no network call');
+check(/\['say'\]/.test(speakSrc)&&/spawnSync\(a\[0\]/.test(speakSrc),'speak.js: runs the speech engine (say) or the command the tests give, nothing else');
 
 failures.forEach(function(f){ process.stdout.write('FAIL '+f+'\n'); });
 process.stdout.write('open_board_check: '+(failures.length?failures.length+' failure(s), ':'all passed, ')+(passes+failures.length)+' checks\n');
