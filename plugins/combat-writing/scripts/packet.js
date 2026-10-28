@@ -232,6 +232,8 @@ else{
 }
 if(linked){out.push('');out.push(lib.LINKS_UNREAD_LINE);}
 out.push('');
+out.push(lib.PARTS_LINE);
+out.push('');
 out.push(lib.SIGNAL_LINE);
 out.push('');
 if(brief){
@@ -250,6 +252,10 @@ out.push('');
 // judgment. A count of the seat's own that differs from these is wrong. No draft text rides here.
 var facts=lib.draftFacts(draft);
 out.push(lib.FACTS_HEADING+': '+lib.draftFactsFull(facts)+'.');
+out.push('');
+// THE LABELED DRAFT (Part 79, issue 116): greeting, opening sentence, body, closer, by position and
+// first words, so "opening line" in a task lands on one sentence for every seat.
+lib.draftPartsLines(lib.draftParts(draft)).forEach(function(l){out.push(l);});
 out.push('');
 out.push('=== DRAFT BEGIN ===');
 out.push(draft.replace(/\s+$/,''));

@@ -933,6 +933,91 @@ function draftFactsFull(f){
   return parts.join(' · ');
 }
 var FACTS_HEADING='Measured by code (facts, not a judgment)';
+
+// THE LABELED DRAFT (Part 79, issue 116, 2026-10-28). The founder's shape: greeting, opening
+// sentence, body, closer (the signature is the mail client's, never in the draft). On the run of
+// 2026-10-28 one seat rewrote the greeting, one the whole email and one the first body sentence
+// under the same guidance ("rewrite the opening line"), because the draft's literal first line is
+// the greeting and the packet named no parts. draftParts measures them by position:
+//   greeting: the first block when it is one line of at most six words ending in a comma or a
+//     colon and no question or exclamation mark ("Amer,", "Hi Amer,", "Dear Dr. Smith:"); else none.
+//   opening: the first sentence of the first block after the greeting, by the facts' sentence rule
+//     (an end mark followed by a space or the line end, addresses skipped); a block with no end
+//     mark is one sentence.
+//   closer: the last block after the greeting when two or more remain, a block that is only an
+//     address folded into the block before it when three or more remain; with two remaining and
+//     the last a bare address, the first block's last sentence (the call to action) with the
+//     address; in a one-block draft, its last sentence when it has two or more; else none.
+//   body: what lies between the opening and the closer; none when nothing does.
+// Each part is given by paragraph and sentence number and its first eight words at most, so the
+// packet names the parts without carrying the draft outside its fence. draftPartsLines renders
+// them; PARTS_LINE is the Contract's sentence: "opening line" means the opening sentence.
+var GREETING_RE=/^[^!?\n]{1,60}[,:]$/;
+function sentenceSpans(block){
+  var spans=[], urls=[], m, re=new RegExp(URL_RE.source,'gi');
+  while((m=re.exec(block)))urls.push([m.index,m.index+m[0].length]);
+  var inUrl=function(i){return urls.some(function(u){return i>=u[0]&&i<u[1];});};
+  var endRe=/[.!?]+["”’')\]]*(?=\s|$)/g, start=0;
+  while((m=endRe.exec(block))){
+    if(inUrl(m.index))continue;
+    var end=m.index+m[0].length;
+    spans.push([start,end]); start=end;
+    while(start<block.length&&/\s/.test(block[start]))start++;
+  }
+  if(start<block.length&&block.slice(start).trim())spans.push([start,block.length]);
+  if(!spans.length&&block.trim())spans.push([0,block.length]);
+  return spans;
+}
+function openingWords(text,n){
+  var w=String(text||'').replace(/\s+/g,' ').trim().split(' ').filter(Boolean);
+  return w.slice(0,n||8).join(' ')+(w.length>(n||8)?' …':'');
+}
+function draftParts(text){
+  var src=String(text||'').replace(/\r\n/g,'\n').replace(/^﻿/,'').replace(/\s+$/,'');
+  var blocks=src?src.split(/\n\s*\n/).map(function(b){return b.replace(/^\s+|\s+$/g,'');}).filter(Boolean):[];
+  var out={greeting:null,opening:null,body:null,closer:null};
+  if(!blocks.length)return out;
+  var at=0;
+  if(blocks[0].indexOf('\n')<0&&wordCount(blocks[0])<=6&&GREETING_RE.test(blocks[0])){out.greeting={paragraph:1,text:blocks[0]};at=1;}
+  var rest=blocks.slice(at); if(!rest.length)return out;
+  var para=function(i){return at+i+1;};
+  var isLink=function(b){return b.replace(new RegExp(URL_RE.source,'gi'),'').replace(/[\s.,;:!?()]+/g,'')==='';};
+  var closerFrom=-1;
+  if(rest.length>=3&&isLink(rest[rest.length-1]))closerFrom=rest.length-2;
+  else if(rest.length>=2)closerFrom=rest.length-1;
+  var firstSpans=sentenceSpans(rest[0]);
+  out.opening={paragraph:para(0),sentence:1,words:openingWords(rest[0].slice(firstSpans[0][0],firstSpans[0][1]))};
+  if(rest.length===2&&isLink(rest[1])&&firstSpans.length>=2){
+    // The run of 2026-10-28: a greeting, one paragraph of three sentences, a bare link. The closer
+    // is the paragraph's last sentence (the call to action) with the link; the body the sentences
+    // between it and the opening.
+    var cta=firstSpans[firstSpans.length-1];
+    out.closer={paragraph_from:para(0),sentence:firstSpans.length,paragraph_to:para(1),words:openingWords(rest[0].slice(cta[0],cta[1]))};
+    if(firstSpans.length>=3)out.body={paragraph_from:para(0),sentence_from:2,paragraph_to:para(0),sentence_to:firstSpans.length-1};
+    return out;
+  }
+  if(closerFrom>=0){
+    out.closer={paragraph_from:para(closerFrom),paragraph_to:para(rest.length-1),words:openingWords(rest[closerFrom])};
+    var bodyStart=firstSpans.length>1?{paragraph:para(0),sentence:2}:(closerFrom>1?{paragraph:para(1),sentence:1}:null);
+    if(bodyStart)out.body={paragraph_from:bodyStart.paragraph,sentence_from:bodyStart.sentence,paragraph_to:para(closerFrom-1)};
+  } else if(firstSpans.length>=2){
+    var last=firstSpans[firstSpans.length-1];
+    out.closer={paragraph_from:para(0),paragraph_to:para(0),sentence:firstSpans.length,words:openingWords(rest[0].slice(last[0],last[1]))};
+    if(firstSpans.length>=3)out.body={paragraph_from:para(0),sentence_from:2,paragraph_to:para(0),sentence_to:firstSpans.length-1};
+  }
+  return out;
+}
+var PARTS_HEADING='The draft\'s parts (measured by code, by position; the first words only)';
+var PARTS_LINE='Where the task says "opening line", "opening sentence", "first line" or "first sentence", it means the OPENING SENTENCE named under the draft heading, never the greeting; "body" and "closer" mean the parts named there.';
+function draftPartsLines(p){
+  var q=function(s){return '"'+String(s).replace(/"/g,'”')+'"';};
+  var lines=[PARTS_HEADING+':'];
+  lines.push('- GREETING: '+(p.greeting?'paragraph '+p.greeting.paragraph+', '+q(p.greeting.text):'none'));
+  lines.push('- OPENING SENTENCE: '+(p.opening?'paragraph '+p.opening.paragraph+', sentence '+p.opening.sentence+', beginning '+q(p.opening.words):'none'));
+  lines.push('- BODY: '+(p.body?('paragraph '+p.body.paragraph_from+(p.body.sentence_from?' from sentence '+p.body.sentence_from:'')+' through paragraph '+p.body.paragraph_to+(p.body.sentence_to?' sentence '+p.body.sentence_to:'')):'none (the opening sentence runs straight into the closer)'));
+  lines.push('- CLOSER: '+(p.closer?((p.closer.paragraph_from===p.closer.paragraph_to?'paragraph '+p.closer.paragraph_from+(p.closer.sentence?', sentence '+p.closer.sentence:''):(p.closer.sentence?'paragraph '+p.closer.paragraph_from+' from sentence '+p.closer.sentence+' through paragraph '+p.closer.paragraph_to:'paragraphs '+p.closer.paragraph_from+' to '+p.closer.paragraph_to))+', beginning '+q(p.closer.words)):'none'));
+  return lines;
+}
 function draftFactsLine(f){
   return f.words+' word'+(f.words===1?'':'s')+' · '+f.paragraphs+' paragraph'+(f.paragraphs===1?'':'s')+' · '+f.lines+' line'+(f.lines===1?'':'s');
 }
@@ -1387,7 +1472,7 @@ module.exports={
   PROJECT_BRIEF_FILE:PROJECT_BRIEF_FILE,PROJECT_BRIEF_REL:PROJECT_BRIEF_REL,PROJECT_BRIEF_KEPT_LINE:PROJECT_BRIEF_KEPT_LINE,projectBriefPath:projectBriefPath,briefSourceOf:briefSourceOf,briefWords:briefWords,briefLine:briefLine,
   BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
-  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,copyShare:copyShare,rewriteCopy:rewriteCopy,copyMark:copyMark,COPY_SHARE:COPY_SHARE,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,copyShare:copyShare,rewriteCopy:rewriteCopy,copyMark:copyMark,COPY_SHARE:COPY_SHARE,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,draftParts:draftParts,draftPartsLines:draftPartsLines,PARTS_HEADING:PARTS_HEADING,PARTS_LINE:PARTS_LINE,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
   STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,roundCell:roundCell,finalCell:finalCell,finalText:finalText,bandOf:bandOf,runState:runState
 };
