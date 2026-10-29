@@ -964,7 +964,7 @@ function spokenPlain(answer,crewText){
 // under the same guidance ("rewrite the opening line"), because the draft's literal first line is
 // the greeting and the packet named no parts. draftParts measures them by position:
 //   greeting: the first block when it is one line of at most six words ending in a comma or a
-//     colon and no question or exclamation mark ("Amer,", "Hi Amer,", "Dear Dr. Smith:"); else none.
+//     colon and no question or exclamation mark ("Dana,", "Hi Dana,", "Dear Dr. Smith:"); else none.
 //   opening: the first sentence of the first block after the greeting, by the facts' sentence rule
 //     (an end mark followed by a space or the line end, addresses skipped); a block with no end
 //     mark is one sentence.

@@ -75,10 +75,10 @@ fs.chmodSync(fakeM4a,0o755);
 // A fixture run under <project>/combat-writing/runs/ with three seats and a round of answers.
 var proj=path.join(tmp,'proj'), run=path.join(proj,'combat-writing','runs','2026-10-28-1200-fixture');
 write(path.join(run,'seats.json'),JSON.stringify({seats:[{id:'seat-1',model:'Test Model 1.0',company:'Anthropic'},{id:'seat-2',model:'maker/model-a',company:'Alibaba'},{id:'seat-3',model:'maker/model-b',company:'OpenAI'}]},null,2));
-write(path.join(run,'draft.md'),'Amer,\n\nOne line.\n');
+write(path.join(run,'draft.md'),'Dana,\n\nOne line.\n');
 write(path.join(run,'log.jsonl'),JSON.stringify({ts:'2026-10-28T12:00:00.000Z',event:'run.created'})+'\n');
 var rd=path.join(run,'rounds','01-battle');
-write(path.join(rd,'seat-1.answer.md'),'=== REWRITE BEGIN ===\nAmer,\n\nThe **rewrite** line.\n=== REWRITE END ===\n\nAnswer\n\n- The *opener* quotes his page back to him.\n## Why\nIt skims.\n');
+write(path.join(rd,'seat-1.answer.md'),'=== REWRITE BEGIN ===\nDana,\n\nThe **rewrite** line.\n=== REWRITE END ===\n\nAnswer\n\n- The *opener* quotes his page back to him.\n## Why\nIt skims.\n');
 write(path.join(rd,'seat-1.crew.answer.md'),'I agree with `maker/model-a` on the opener.\n');
 write(path.join(rd,'seat-2.answer.md'),'RATING: 6/10\nNot send-ready: the opener is a compliment.\n');
 // seat-3 has no answer this round

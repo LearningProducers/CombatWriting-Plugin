@@ -42,7 +42,7 @@ check(lib.hasLink('read https://blog.example.com/post/ first')&&lib.hasLink('htt
 check(!lib.hasLink('no address here, only words')&&!lib.hasLink('')&&!lib.hasLink(null)&&!lib.hasLink('a colon: and a slash / and dots.'),'hasLink: no address is false');
 
 // 2. A run whose brief carries the address and whose draft does not.
-fs.writeFileSync(path.join(proj,'draft.md'),'Jeff,\n\nYour post routes machines through five paths. Want to battle-test one?\n');
+fs.writeFileSync(path.join(proj,'draft.md'),'Dana,\n\nYour post routes machines through five paths. Want to battle-test one?\n');
 fs.writeFileSync(path.join(proj,'brief.md'),'Founder, cold email. The prospect\'s post is the reference: https://blog.example.com/the-warehouse/\n');
 fs.writeFileSync(path.join(proj,'sn.md'),'is this ready to send?\n');
 fs.writeFileSync(path.join(proj,'fq-link.md'),'does the ask match https://example.com/page ?\n');
@@ -79,7 +79,7 @@ var p5=path.join(run,'rounds','05-sparring','seat-1.packet.md');
 check(!carries(p5)&&read(p5).indexOf(lib.LINKS_UNREAD_LINE)<0&&packetLine(run,'05-sparring','seat-1').links_unread===false,'a cold read with no address in the draft carries no line, links_unread false');
 
 // 3. A run with no address anywhere; then the address in the question alone.
-fs.writeFileSync(path.join(proj,'draft-plain.md'),'Jeff,\n\nYour post routes machines through five paths. Want to battle-test one?\n');
+fs.writeFileSync(path.join(proj,'draft-plain.md'),'Dana,\n\nYour post routes machines through five paths. Want to battle-test one?\n');
 fs.writeFileSync(path.join(proj,'brief-plain.md'),'Founder, cold email. The prospect wrote a post on his warehouse.\n');
 var run2=node('new-run.js',['--draft','draft-plain.md','--brief','brief-plain.md','--stage','battle','--name','nolinks','--model','Test Model']).stdout.trim();
 node('packet.js',['--run',run2,'--round','01-battle','--seat','seat-1','--fq','fq-plain.md']);
@@ -90,7 +90,7 @@ check(carries(path.join(run2,'rounds','02-battle','seat-1.packet.md'))&&packetLi
 node('packet.js',['--run',run2,'--round','03-battle','--seat','seat-1','--question','q-link.md']);
 check(carries(path.join(run2,'rounds','03-battle','seat-1.packet.md')),'a seat line carrying the address alone: the line');
 // A cold read with the address in the draft.
-fs.writeFileSync(path.join(proj,'draft-link.md'),'Jeff,\n\nWant to battle-test one path?\nhttps://combat.example.com\n');
+fs.writeFileSync(path.join(proj,'draft-link.md'),'Dana,\n\nWant to battle-test one path?\nhttps://combat.example.com\n');
 var run3=node('new-run.js',['--draft','draft-link.md','--brief','brief-plain.md','--stage','sparring','--name','draftlink','--model','Test Model']).stdout.trim();
 node('packet.js',['--run',run3,'--round','01-sparring','--seat','seat-1','--cold']);
 check(carries(path.join(run3,'rounds','01-sparring','seat-1.packet.md')),'a cold read with the address in the draft carries the line');

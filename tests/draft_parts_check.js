@@ -8,7 +8,7 @@
 //   - A four-block email with a bare link last: greeting paragraph 1; opening paragraph 2
 //     sentence 1; body paragraph 2 from sentence 2; closer paragraphs 3 to 4 (the link folded
 //     into the block before it).
-//   - "Hi Amer," and "Dear Dr. Smith:" are greetings; a first line that is a sentence is not.
+//   - "Hi Dana," and "Dear Dr. Smith:" are greetings; a first line that is a sentence is not.
 //   - A one-paragraph email of three sentences: no greeting; opening sentence 1; body sentence 2;
 //     closer sentence 3 of paragraph 1.
 //   - A draft of one sentence: opening only, no body, no closer.
@@ -28,16 +28,16 @@ var failures=[], passes=0;
 function check(cond,msg){ if(cond)passes++; else failures.push(msg); }
 function J(x){ return JSON.stringify(x); }
 
-var email='Amer,\n\nYour Story Builder page says AI assistance, human direction: faster with AI in the loop. With no rep on the line, the page carries every objection alone.\n\nCombat Writing runs a draft through rival AI models. Put the next launch post through it:\n\nhttps://example.invalid/cw\n';
+var email='Dana,\n\nYour Draft Studio page says AI assistance, human direction: faster with AI in the loop. With no rep on the line, the page carries every objection alone.\n\nCombat Writing runs a draft through rival AI models. Put the next launch post through it:\n\nhttps://example.invalid/cw\n';
 var p=lib.draftParts(email);
-check(p.greeting&&p.greeting.paragraph===1&&p.greeting.text==='Amer,','email: greeting: '+J(p.greeting));
-check(p.opening&&p.opening.paragraph===2&&p.opening.sentence===1&&p.opening.words==='Your Story Builder page says AI assistance, human …','email: opening: '+J(p.opening));
+check(p.greeting&&p.greeting.paragraph===1&&p.greeting.text==='Dana,','email: greeting: '+J(p.greeting));
+check(p.opening&&p.opening.paragraph===2&&p.opening.sentence===1&&p.opening.words==='Your Draft Studio page says AI assistance, human …','email: opening: '+J(p.opening));
 check(p.body&&p.body.paragraph_from===2&&p.body.sentence_from===2&&p.body.paragraph_to===2,'email: body: '+J(p.body));
 check(p.closer&&p.closer.paragraph_from===3&&p.closer.paragraph_to===4&&p.closer.words==='Combat Writing runs a draft through rival AI …','email: closer folds the bare link into the block before it: '+J(p.closer));
 var lines=lib.draftPartsLines(p);
-check(lines[0]===lib.PARTS_HEADING+':'&&lines[1]==='- GREETING: paragraph 1, "Amer,"'&&lines[2]==='- OPENING SENTENCE: paragraph 2, sentence 1, beginning "Your Story Builder page says AI assistance, human …"'&&lines[3]==='- BODY: paragraph 2 from sentence 2 through paragraph 2'&&lines[4]==='- CLOSER: paragraphs 3 to 4, beginning "Combat Writing runs a draft through rival AI …"','email: rendered lines: '+J(lines));
+check(lines[0]===lib.PARTS_HEADING+':'&&lines[1]==='- GREETING: paragraph 1, "Dana,"'&&lines[2]==='- OPENING SENTENCE: paragraph 2, sentence 1, beginning "Your Draft Studio page says AI assistance, human …"'&&lines[3]==='- BODY: paragraph 2 from sentence 2 through paragraph 2'&&lines[4]==='- CLOSER: paragraphs 3 to 4, beginning "Combat Writing runs a draft through rival AI …"','email: rendered lines: '+J(lines));
 
-check(lib.draftParts('Hi Amer,\n\nOne line.\n\nTwo.\n').greeting.text==='Hi Amer,','"Hi Amer," is a greeting');
+check(lib.draftParts('Hi Dana,\n\nOne line.\n\nTwo.\n').greeting.text==='Hi Dana,','"Hi Dana," is a greeting');
 check(lib.draftParts('Dear Dr. Smith:\n\nOne line.\n\nTwo.\n').greeting.text==='Dear Dr. Smith:','"Dear Dr. Smith:" is a greeting');
 check(lib.draftParts('Your page says a lot.\n\nTwo.\n').greeting===null,'a first line that is a sentence is not a greeting');
 check(lib.draftParts('This is a long first line that goes on and on,\n\nTwo.\n').greeting===null,'a long first line ending in a comma is not a greeting');
@@ -59,16 +59,16 @@ check(blog.greeting===null&&blog.opening.paragraph===1&&blog.closer.paragraph_fr
 var linked=lib.draftParts('See https://example.invalid/a.b for the page that says it. Then the rest.\n\nClose.\n');
 check(linked.opening.words==='See https://example.invalid/a.b for the page that says it.','an address inside the opening sentence does not end it: '+J(linked.opening));
 
-var real='Amer,\n\nYour Story Builder page says AI assistance, human direction. Combat Writing runs a draft through rival AI models and a judge. Put the next launch post through it:\n\nhttps://example.invalid/cw\n';
+var real='Dana,\n\nYour Draft Studio page says AI assistance, human direction. Combat Writing runs a draft through rival AI models and a judge. Put the next launch post through it:\n\nhttps://example.invalid/cw\n';
 var rp=lib.draftParts(real);
-check(rp.greeting&&rp.greeting.text==='Amer,'&&rp.opening.paragraph===2&&rp.opening.sentence===1,'the run of 2026-10-28: greeting and opening: '+J(rp));
+check(rp.greeting&&rp.greeting.text==='Dana,'&&rp.opening.paragraph===2&&rp.opening.sentence===1,'the run of 2026-10-28: greeting and opening: '+J(rp));
 check(rp.body&&rp.body.paragraph_from===2&&rp.body.sentence_from===2&&rp.body.sentence_to===2,'the run of 2026-10-28: body is the middle sentence: '+J(rp.body));
 check(rp.closer&&rp.closer.paragraph_from===2&&rp.closer.sentence===3&&rp.closer.paragraph_to===3&&rp.closer.words==='Put the next launch post through it:','the run of 2026-10-28: closer is the call to action with the link: '+J(rp.closer));
 check(lib.draftPartsLines(rp)[4]==='- CLOSER: paragraph 2 from sentence 3 through paragraph 3, beginning "Put the next launch post through it:"','the run of 2026-10-28: rendered closer: '+lib.draftPartsLines(rp)[4]);
 var empty=lib.draftParts('');
 check(empty.greeting===null&&empty.opening===null&&empty.body===null&&empty.closer===null,'empty: every part null');
 check(lib.draftPartsLines(empty).slice(1).every(function(l){return /: none/.test(l);}),'empty: every rendered part none');
-check(lib.draftParts('Amer,\n').opening===null&&lib.draftParts('Amer,\n').greeting.text==='Amer,','greeting only: greeting found, no opening');
+check(lib.draftParts('Dana,\n').opening===null&&lib.draftParts('Dana,\n').greeting.text==='Dana,','greeting only: greeting found, no opening');
 check(typeof lib.PARTS_LINE==='string'&&/OPENING SENTENCE/.test(lib.PARTS_LINE)&&/never the greeting/.test(lib.PARTS_LINE),'PARTS_LINE names the opening sentence and bars the greeting');
 
 if(failures.length){ console.log('draft_parts_check: '+failures.length+' failure(s), '+(passes+failures.length)+' checks'); failures.forEach(function(f){console.log('  FAIL '+f);}); }
