@@ -30,6 +30,17 @@
 // with the reason named, so the person knows what to download. A `say` that cannot start (ENOENT):
 // the same.
 //
+// WHERE THE SHELL SILENCES IT (Part 81.1, issue 123, measured 2026-10-28 on the Percidian run):
+// inside the Claude Code sandbox `say -o` exits 0 and writes a 520-byte MPEG-4 container with no
+// sound (`ftyp` and `moov`, duration 0, no `mdat`), and the first build counted that as rendered.
+// A rendered file now counts only when its container holds sound (soundIn: a non-empty `mdat`
+// and a movie duration above zero; a file that is no MPEG-4 container, a test's fake, is taken as
+// given). Silent files are removed, the seats are listed as `silenced` in voices.json, the log
+// gets voices.silenced, and one line goes to stdout naming the seats owed and the round, which
+// hooks/show-result.js reads and answers by running this same script outside the sandbox with
+// `--by hook`; `by` rides on the log lines. voices.json carries `seconds` per file, read from the
+// container, so the board's record and the hook's line can say how long each recording is.
+//
 // WHAT IT NEVER DOES. No network, no key, nothing outside the run folder and the project's
 // voices.json; `child_process` runs the speech engine and nothing else (the one ruled exception
 // beside the opener, CLAUDE.md). The spoken text is the seat's answer, untrusted content read
@@ -95,6 +106,30 @@ function assign(seats,ranked,prefs){
   return out;
 }
 function seatNo(id){ return parseInt(String(id).replace(/^seat-/,''),10)||0; }
+// The sound in a rendered file: an MPEG-4 container (`ftyp` first) holds sound only when it carries
+// a non-empty `mdat` atom and a movie header (`mvhd`, version 0 or 1) with a duration above zero.
+// A file that is no MPEG-4 container is taken as given (seconds null).
+function soundIn(file){
+  var b; try{ b=fs.readFileSync(file); }catch(e){ return {ok:false,seconds:null}; }
+  if(b.length<8||b.toString('latin1',4,8)!=='ftyp')return {ok:b.length>0,seconds:null};
+  var off=0, mdat=0, seconds=0;
+  while(off+8<=b.length){
+    var size=b.readUInt32BE(off), type=b.toString('latin1',off+4,off+8);
+    if(size===1&&off+16<=b.length)size=Number(b.readBigUInt64BE(off+8)); else if(size===0)size=b.length-off;
+    if(size<8)break;
+    if(type==='mdat')mdat+=size-8;
+    if(type==='moov'){
+      var i=b.indexOf('mvhd',off,'latin1');
+      if(i>0&&i<off+size){
+        if(b[i+4]===0&&i+24<=b.length){ var ts=b.readUInt32BE(i+16), du=b.readUInt32BE(i+20); seconds=ts?du/ts:0; }
+        else if(i+36<=b.length){ var ts1=b.readUInt32BE(i+24), du1=Number(b.readBigUInt64BE(i+28)); seconds=ts1?du1/ts1:0; }
+      }
+    }
+    off+=size;
+  }
+  return {ok:mdat>0&&seconds>0,seconds:Math.round(seconds*10)/10};
+}
+var SILENCED_LINE='Voices: the speech engine wrote no sound in this shell (a sandbox); ';
 
 if(args.list){
   var e0=engineHere(); if(!e0.ok){process.stdout.write(e0.reason+'\n');process.exit(0);}
@@ -141,7 +176,8 @@ if(!ranked.length){ lib.appendLog(runDir,{event:'voices.skipped',round:round,rea
 var seats=lib.readSeats(runDir).seats;
 var answered=seats.filter(function(s){return fs.existsSync(path.join(roundDir,s.id+'.answer.md'));});
 var assigned=assign(seats,ranked,readPrefs(runDir));
-var files={}, failed={};
+var by=args.by&&args.by!==true?String(args.by):'host';
+var files={}, seconds={}, failed={}, silenced=[];
 answered.forEach(function(s){
   var text=lib.readText(path.join(roundDir,s.id+'.answer.md'));
   var crewPath=path.join(roundDir,s.id+'.crew.answer.md');
@@ -150,15 +186,22 @@ answered.forEach(function(s){
   if(!spoken.trim())return;
   var tmp=path.join(os.tmpdir(),'cw-speak-'+process.pid+'-'+s.id+'.txt');
   fs.writeFileSync(tmp,spoken+'\n');
-  var out=s.id+'.m4a';
-  var r=runSay(['-v',assigned[s.id],'-o',path.join(roundDir,out),'-f',tmp]);
+  var out=s.id+'.m4a', outPath=path.join(roundDir,out);
+  var r=runSay(['-v',assigned[s.id],'-o',outPath,'-f',tmp]);
   try{ fs.unlinkSync(tmp); }catch(err){}
-  var ok=!r.error&&r.status===0&&fs.existsSync(path.join(roundDir,out))&&fs.statSync(path.join(roundDir,out)).size>0;
-  if(ok)files[s.id]=out;
-  else { failed[s.id]=r.error?(r.error.code||r.error.message):String(r.stderr||'').trim().split('\n')[0]||('exit '+r.status); try{ fs.unlinkSync(path.join(roundDir,out)); }catch(err){} }
+  var ran=!r.error&&r.status===0&&fs.existsSync(outPath);
+  var snd=ran?soundIn(outPath):null;
+  if(ran&&snd.ok){ files[s.id]=out; if(snd.seconds!==null)seconds[s.id]=snd.seconds; return; }
+  try{ fs.unlinkSync(outPath); }catch(err){}
+  if(ran)silenced.push(s.id);
+  else failed[s.id]=r.error?(r.error.code||r.error.message):String(r.stderr||'').trim().split('\n')[0]||('exit '+r.status);
 });
-var record={engine:sayCmd?'speech command (given)':'macOS say',installed:ranked,assigned:assigned,files:files,failed:failed};
+var record={engine:sayCmd?'speech command (given)':'macOS say',installed:ranked,assigned:assigned,files:files,seconds:seconds,failed:failed,silenced:silenced};
 fs.writeFileSync(path.join(roundDir,VOICES_FILE),JSON.stringify(record,null,2)+'\n');
-lib.appendLog(runDir,{event:'voices.rendered',round:round,engine:record.engine,assigned:assigned,files:files,failed:failed,ms:Date.now()-t0});
+if(silenced.length){
+  lib.appendLog(runDir,{event:'voices.silenced',round:round,engine:record.engine,seats:silenced,files:files,by:by,ms:Date.now()-t0});
+  process.stdout.write(SILENCED_LINE+silenced.join(', ')+' owed for round '+round+'.\n');
+}
+if(Object.keys(files).length||Object.keys(failed).length)lib.appendLog(runDir,{event:'voices.rendered',round:round,engine:record.engine,assigned:assigned,files:files,seconds:seconds,failed:failed,silenced:silenced,by:by,ms:Date.now()-t0});
 Object.keys(failed).forEach(function(id){ process.stderr.write('voice file for '+id+' not rendered: '+failed[id]+'; the board reads that seat with the browser\n'); });
 process.exit(0);
