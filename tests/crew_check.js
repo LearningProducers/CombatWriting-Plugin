@@ -342,7 +342,7 @@ fake.listen(0,'127.0.0.1',function(){
     check(!r.isError&&r.data.ok&&/^NO RED FLAGS/.test(fs.readFileSync(path.join(run,'rounds','03-final','seat-2.redflag.answer.md'),'utf8')),'final redflag through the add-on: '+JSON.stringify(r.data));
     // Two windows for two models at one provider (issue 93): seat-2's window holds its two final calls
     // (about 7,600 of the 8,000 wall), and a seat-3 call inside that same window goes at once, waited_ms 0,
-    // where one window per provider made it wait the window out (59, 57 and 50 seconds on the SlotCycle run).
+    // where one window per provider made it wait the window out (59, 57 and 50 seconds on the prospect run of 2026-10-27).
     node('packet.js',['--run',run,'--round','03-final','--seat','seat-3','--final','sn']);
     return s1.call('crew_answer',{run:run,round:'03-final',seat:'seat-3',read:'sn'});
   }).then(function(r){
