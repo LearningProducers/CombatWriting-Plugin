@@ -62,7 +62,7 @@ var SUPPORTED_PROTOCOLS=['2025-11-25','2025-06-18','2025-03-26','2024-11-05'];
 // The window and the queue are keyed per MODEL at a provider (issue 93, measured 2026-10-27): Groq's
 // refusal text names the model it refuses for, so each model has its own per-minute wall, and two
 // seats on two models at one provider go side by side instead of the second waiting the first's
-// minute out (seat-3 waited 59, 57 and 50 seconds behind seat-2 on the SlotCycle run's three
+// minute out (seat-3 waited 59, 57 and 50 seconds behind seat-2 on the prospect run's three
 // sharing packets). Calls to ONE model still go one at a time.
 var windows={};  // per provider id + model id
 var queues={};   // per provider id + model id: a promise chain so calls to one model go one at a time

@@ -30,7 +30,7 @@
 // with the reason named, so the person knows what to download. A `say` that cannot start (ENOENT):
 // the same.
 //
-// WHERE THE SHELL SILENCES IT (Part 81.1, issue 123, measured 2026-10-28 on the Percidian run):
+// WHERE THE SHELL SILENCES IT (Part 81.1, issue 123, measured 2026-10-28 on the prospect run of that day):
 // inside the Claude Code sandbox `say -o` exits 0 and writes a 520-byte MPEG-4 container with no
 // sound (`ftyp` and `moov`, duration 0, no `mdat`), and the first build counted that as rendered.
 // A rendered file now counts only when its container holds sound (soundIn: a non-empty `mdat`

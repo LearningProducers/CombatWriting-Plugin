@@ -55,8 +55,8 @@ function sha(s){ return require('crypto').createHash('sha256').update(s).digest(
 
 // The founder's paste of 2026-10-26, the Jeff round, as the fixture.
 var draftText='Hi,\n\nYour June post on the million-dollar warehouse says that on paper the inventory still looked like it might be worth something. Combat Writing sends a draft past more than one AI model in turn and lists the misses, the reviewer\'s objections first. Run the next post through it before it goes up:\n\nhttps://combatwriting.learningproducers.com\n';
-var briefText='I am Israel Hernandez, founder of Learning Producers Inc., sending cold emails to prospects about Combat Writing.\n\nRules. A greeting, then at most five sentences, then one ask. The ask may end in a colon with the link alone on the next line; that link is inside the ask.\n\nCurrent prospect is SlotCycle, with this article as the main reference: https://blog.slotcycle.com/the-million-dollar-warehouse/\n';
-var updateText='new prospect is Lucihub, main reference https://lucihub.com/products/story-builder/\n';
+var briefText='I am Israel Hernandez, founder of Learning Producers Inc., sending cold emails to prospects about Combat Writing.\n\nRules. A greeting, then at most five sentences, then one ask. The ask may end in a colon with the link alone on the next line; that link is inside the ask.\n\nCurrent prospect is Examplecorp, with this article as the main reference: https://blog.example.com/the-post/\n';
+var updateText='new prospect is Examplehub, main reference https://example.com/products/story-builder/\n';
 var oldBrief='I am the CEO. Purpose: a yes on the LOI this week. Stakes: the deal.\n';
 var jeffText='Jeff,\n\nYour June post says the inventory still looked like it might be worth something.\n';
 fs.writeFileSync(path.join(proj,'old-brief.md'),oldBrief);
@@ -64,7 +64,7 @@ fs.writeFileSync(path.join(proj,'draft.md'),draftText);
 fs.writeFileSync(path.join(proj,'jeff.md'),jeffText);
 fs.mkdirSync(path.join(proj,'combat-writing','inbox'),{recursive:true});
 fs.writeFileSync(path.join(proj,'combat-writing','inbox','hi-your-june-post.brief.md'),briefText);
-fs.writeFileSync(path.join(proj,'combat-writing','inbox','lucihub.brief-update.md'),updateText);
+fs.writeFileSync(path.join(proj,'combat-writing','inbox','examplehub.brief-update.md'),updateText);
 fs.writeFileSync(path.join(proj,'sn.md'),'is this email ready to send?\n');
 
 // 1. A brief given as a path elsewhere: source given, today's wording kept; it is the project's from now on.
@@ -108,18 +108,18 @@ var briefAt=sB2.findIndex(function(l){return /^Brief: /.test(l);}), boardAt=sB2.
 check(briefAt>0&&boardAt>briefAt&&tableAt>0&&tableAt<briefAt&&sB2[briefAt]==='Brief: stored, pasted with the draft.','run B with a round: the short form must print the Brief line after the scoreboard and before the Board line, got\n'+sB2.join('\n'));
 
 // 3. brief update: appended to the project's brief and to run B's, dated; the next packet carries it; the Brief line names it.
-var rU=node('brief.js',['--update',path.join('combat-writing','inbox','lucihub.brief-update.md'),'--run',runB,'--at','2026-10-27T09:00:00Z']);
-check(rU.status===0&&rU.stdout==='Brief updated 2026-10-27 in combat-writing/brief.md and the run\'s: new prospect is Lucihub, main reference https://lucihub.com/products/story-builder/\n','brief update: exit '+rU.status+' '+rU.stderr+' stdout '+JSON.stringify(rU.stdout));
-var expected=briefText+'\nUpdate 2026-10-27: new prospect is Lucihub, main reference https://lucihub.com/products/story-builder/\n';
+var rU=node('brief.js',['--update',path.join('combat-writing','inbox','examplehub.brief-update.md'),'--run',runB,'--at','2026-10-27T09:00:00Z']);
+check(rU.status===0&&rU.stdout==='Brief updated 2026-10-27 in combat-writing/brief.md and the run\'s: new prospect is Examplehub, main reference https://example.com/products/story-builder/\n','brief update: exit '+rU.status+' '+rU.stderr+' stdout '+JSON.stringify(rU.stdout));
+var expected=briefText+'\nUpdate 2026-10-27: new prospect is Examplehub, main reference https://example.com/products/story-builder/\n';
 check(read(lib.projectBriefPath(proj))===expected,'brief update: the project brief must be the brief plus a blank line and the dated paragraph, got '+JSON.stringify(read(lib.projectBriefPath(proj))));
 check(read(path.join(runB,'brief.md'))===expected,'brief update: the run\'s brief.md must carry the same paragraph');
 var upd=logOf(runB).filter(function(e){return e.event==='brief.updated';});
 check(upd.length===1&&upd[0].date==='2026-10-27'&&upd[0].words===7&&upd[0].project.file==='combat-writing/brief.md'&&upd[0].project.sha256===sha(expected)&&upd[0].project.created===false&&upd[0].run.file==='brief.md'&&upd[0].run.sha256===sha(expected)&&upd[0].run.created===false,'brief update: one brief.updated line with the date, the words and both files\' sha256, got '+JSON.stringify(upd));
 var pB2=node('packet.js',['--run',runB,'--round','02-battle','--seat','seat-1','--sn','sn.md']);
 var packetB2=pB2.status===0?read(pB2.stdout.trim()):'';
-check(pB2.status===0&&packetB2.indexOf('## Context brief')>=0&&packetB2.indexOf('Update 2026-10-27: new prospect is Lucihub')>packetB2.indexOf('## Context brief')&&packetB2.indexOf('Update 2026-10-27: new prospect is Lucihub')<packetB2.indexOf('## The draft'),'brief update: the next packet must carry the update inside the Context brief, got exit '+pB2.status+' '+pB2.stderr);
+check(pB2.status===0&&packetB2.indexOf('## Context brief')>=0&&packetB2.indexOf('Update 2026-10-27: new prospect is Examplehub')>packetB2.indexOf('## Context brief')&&packetB2.indexOf('Update 2026-10-27: new prospect is Examplehub')<packetB2.indexOf('## The draft'),'brief update: the next packet must carry the update inside the Context brief, got exit '+pB2.status+' '+pB2.stderr);
 var sB3=short(runB).stdout;
-check(/^Brief: stored, pasted with the draft; newest update 2026-10-27: new prospect is Lucihub, main reference https:\/\/lucihub\.com\/products\/story-builder\/\.$/m.test(sB3),'brief update: the Brief line must name the newest update, got '+sB3);
+check(/^Brief: stored, pasted with the draft; newest update 2026-10-27: new prospect is Examplehub, main reference https:\/\/example\.com\/products\/story-builder\/\.$/m.test(sB3),'brief update: the Brief line must name the newest update, got '+sB3);
 check(lib.newestBriefUpdate(expected).date==='2026-10-27'&&lib.newestBriefUpdate(briefText)===null&&lib.briefUpdateWords(briefText)===''&&/^; newest update 2026-10-27: /.test(lib.briefUpdateWords(expected)),'newestBriefUpdate and briefUpdateWords on a brief with and without an update');
 var long=lib.briefUpdateWords('Update 2026-10-27: '+new Array(30).join('word ')+'end');
 check(long.length<=('; newest update 2026-10-27: ').length+lib.BRIEF_UPDATE_SHOWN+1&&/…$/.test(long),'a long update is cut at '+lib.BRIEF_UPDATE_SHOWN+' characters with an ellipsis, got '+long);
@@ -132,7 +132,7 @@ var cD=created(runD);
 check(cD.brief&&cD.brief.source==='project'&&cD.brief.from===null&&read(path.join(runD,'brief.md'))===expected,'run D: with no --brief the project brief must serve, source project, got '+JSON.stringify(cD.brief));
 check(!logOf(runD).some(function(e){return e.event==='brief.kept';}),'run D: the project\'s own brief logs no brief.kept');
 var sD=short(runD).stdout;
-check(/^Started at: battle: the run was made from a pasted draft, with no strategy stage \(the project's brief came with it\)\. No round yet\.$/m.test(sD)&&/^Brief: the project's \(combat-writing\/brief\.md\); newest update 2026-10-27: new prospect is Lucihub, main reference https:\/\/lucihub\.com\/products\/story-builder\/\.$/m.test(sD)&&sD.indexOf(lib.PROJECT_BRIEF_KEPT_LINE)<0,'run D: the Started-at and Brief lines for the project brief, no kept line, got '+sD);
+check(/^Started at: battle: the run was made from a pasted draft, with no strategy stage \(the project's brief came with it\)\. No round yet\.$/m.test(sD)&&/^Brief: the project's \(combat-writing\/brief\.md\); newest update 2026-10-27: new prospect is Examplehub, main reference https:\/\/example\.com\/products\/story-builder\/\.$/m.test(sD)&&sD.indexOf(lib.PROJECT_BRIEF_KEPT_LINE)<0,'run D: the Started-at and Brief lines for the project brief, no kept line, got '+sD);
 var pD=node('packet.js',['--run',runD,'--round','01-battle','--seat','seat-1','--sn','sn.md']);
 check(pD.status===0&&read(pD.stdout.trim()).indexOf(expected.trim())>=0,'run D: the first SN packet must carry the project brief with its update');
 // The project's own path as --brief: source project, nothing written, nothing logged.
@@ -167,8 +167,8 @@ check(node('brief.js',[]).status===2&&/--update <file> is required/.test(node('b
 check(node('brief.js',['--update','missing.md']).status===2&&/update file not found/.test(node('brief.js',['--update','missing.md']).stderr),'brief.js with a missing file must refuse');
 fs.writeFileSync(path.join(proj,'empty.md'),'  \n');
 check(node('brief.js',['--update','empty.md']).status===2&&/empty/.test(node('brief.js',['--update','empty.md']).stderr),'brief.js with an empty file must refuse');
-check(node('brief.js',['--update','combat-writing/inbox/lucihub.brief-update.md','--run','no-such-run']).status===2&&/run folder not found/.test(node('brief.js',['--update','combat-writing/inbox/lucihub.brief-update.md','--run','no-such-run']).stderr),'brief.js with a missing run must refuse');
-check(node('brief.js',['--update','combat-writing/inbox/lucihub.brief-update.md','--at','yesterday-ish']).status===2,'brief.js with a bad --at must refuse');
+check(node('brief.js',['--update','combat-writing/inbox/examplehub.brief-update.md','--run','no-such-run']).status===2&&/run folder not found/.test(node('brief.js',['--update','combat-writing/inbox/examplehub.brief-update.md','--run','no-such-run']).stderr),'brief.js with a missing run must refuse');
+check(node('brief.js',['--update','combat-writing/inbox/examplehub.brief-update.md','--at','yesterday-ish']).status===2,'brief.js with a bad --at must refuse');
 var fresh=fs.mkdtempSync(path.join(os.tmpdir(),'cw-brief-fresh-'));
 fs.writeFileSync(path.join(fresh,'u.md'),'first prospect is Acme\n');
 var rX=node('brief.js',['--update','u.md','--at','2026-10-28T00:00:00Z'],fresh);
