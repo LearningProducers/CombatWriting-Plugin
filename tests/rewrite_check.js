@@ -41,7 +41,7 @@ function packetLine(run,round,seat){ return logOf(run).filter(function(e){return
 function contractOf(packetPath){ var t=read(packetPath); return t.slice(t.indexOf('## Contract'),t.indexOf('## The draft')>0?t.indexOf('## The draft'):undefined); }
 function write(p,t){ fs.writeFileSync(p,t); }
 
-fs.writeFileSync(path.join(proj,'draft.md'),'Jeff,\n\nBuy the company before the quarter closes.\n');
+fs.writeFileSync(path.join(proj,'draft.md'),'Dana,\n\nBuy the company before the quarter closes.\n');
 var mk=node('new-run.js',['--draft','draft.md','--name','rewrite','--stage','battle','--no-brief','--model','Test Model']);
 check(mk.status===0,'new-run: '+mk.stderr);
 var run=mk.stdout.trim();
@@ -64,9 +64,9 @@ check(l1.prompted===true&&l1.rewrite===true&&l1.sections===false,'rewrite N: pro
 check(lib.rewriteSent(run,'01-battle',path.join(run,'rounds','01-battle','seat-1.answer.md'))===true,'rewriteSent reads the packet line');
 
 // 3. The fence: rewriteOf, rewriteReasons, verdictLine.
-var fenced='=== REWRITE BEGIN ===\nJeff,\n\nVote yes before Friday: the deal dies at the quarter close.\n\nThe rest holds.\n=== REWRITE END ===\n\nThe old close never asked for the vote; this one does in its first line.\n';
+var fenced='=== REWRITE BEGIN ===\nDana,\n\nVote yes before Friday: the deal dies at the quarter close.\n\nThe rest holds.\n=== REWRITE END ===\n\nThe old close never asked for the vote; this one does in its first line.\n';
 var rw=lib.rewriteOf(fenced);
-check(!!rw&&rw.text==='Jeff,\n\nVote yes before Friday: the deal dies at the quarter close.\n\nThe rest holds.'&&rw.begin_at===0&&rw.end_at===6,'rewriteOf cuts the fence: '+JSON.stringify(rw));
+check(!!rw&&rw.text==='Dana,\n\nVote yes before Friday: the deal dies at the quarter close.\n\nThe rest holds.'&&rw.begin_at===0&&rw.end_at===6,'rewriteOf cuts the fence: '+JSON.stringify(rw));
 check(lib.rewriteOf('No fence here.\n')===null&&!!lib.rewriteOf('**=== REWRITE BEGIN ===**\nx\n`=== REWRITE END ===`\n'),'rewriteOf: none without the fence; markdown marks around a fence line are dropped');
 check(lib.rewriteReasons(fenced,'critique').length===0,'rewriteReasons: a fenced answer has none');
 check(/^no rewrite: the task asked for one/.test(lib.rewriteReasons('Not ready. Here is my view.\n','critique')[0]),'rewriteReasons: no fence');
@@ -106,7 +106,7 @@ check(!!fr1&&/Critique · no rating asked/.test(fr1[1])&&fr1[1].indexOf('read re
 var fold2=(/<details><summary>Read the full[^]*?<\/details>/.exec(fr2[1])||[''])[0];
 check(fold2.length>0&&fold2.indexOf('REWRITE BEGIN')<0&&fold2.indexOf('REWRITE END')<0&&/Vote yes before Friday/.test(fold2),'board: the fold carries the rewrite without its fence lines');
 var spoken2=(/<div class="seat-text" hidden>([^]*?)<\/div>/.exec(fr2[1])||['',''])[1];
-check(spoken2.indexOf('REWRITE')<0&&/^Jeff,/.test(spoken2.trim()),'board: the spoken text drops the fence lines and opens on the rewrite; got '+JSON.stringify(spoken2.slice(0,60)));
+check(spoken2.indexOf('REWRITE')<0&&/^Dana,/.test(spoken2.trim()),'board: the spoken text drops the fence lines and opens on the rewrite; got '+JSON.stringify(spoken2.slice(0,60)));
 var fa=read(path.join(run,'rounds','01-battle','seat-2.answer.md'));
 check(fa.indexOf(lib.REWRITE_BEGIN)>=0&&fa.indexOf(lib.REWRITE_END)>=0,'the file keeps the fence lines for the checker');
 
@@ -156,12 +156,12 @@ write(path.join(proj,'rw2.md'),'Rewrite it once more, tighter.\n');
 var l5=packetLine(run,'05-battle','seat-2');
 check(l5.reads_round==='03-battle'&&l5.carried.some(function(c){return c.seat==='seat-1';}),'05-battle carries seat-1\'s round 03 answer: '+JSON.stringify({reads:l5.reads_round,carried:l5.carried}));
 var a5b=path.join(run,'rounds','05-battle','seat-2.answer.md');
-write(a5b,'Answer\n=== REWRITE BEGIN ===\nJeff,\n\nVote yes before Friday: the deal dies at the quarter close.\n\nThe rest holds.\n=== REWRITE END ===\nIt was already right.\n\nTo the crew\n\nTest Model wrote "Vote yes before Friday"; I kept it.\n');
+write(a5b,'Answer\n=== REWRITE BEGIN ===\nDana,\n\nVote yes before Friday: the deal dies at the quarter close.\n\nThe rest holds.\n=== REWRITE END ===\nIt was already right.\n\nTo the crew\n\nTest Model wrote "Vote yes before Friday"; I kept it.\n');
 var k7=node('check-answer.js',[a5b,'--run',run]);
 var c7=logOf(run).filter(function(e){return e.event==='answer.checked'&&e.round==='05-battle'&&e.seat==='seat-2';}).pop();
 check(k7.status===0&&/OK critique, no rating this round.*; the rewrite is a copy of Test Model's \(\d+ in 100 of its three-word runs\)/.test(k7.stdout)&&c7.copy&&c7.copy.seat==='seat-1'&&c7.copy.model==='Test Model'&&c7.copy.round==='03-battle'&&c7.copy.share>=0.6,'the copied rewrite is named on the terminal and the log line; got '+k7.stdout.split('\n')[0]+' / '+JSON.stringify(c7.copy));
 var a5a=path.join(run,'rounds','05-battle','seat-1.answer.md');
-write(a5a,'Answer\n=== REWRITE BEGIN ===\nJeff,\n\nThe quarter closes Friday and the offer closes with it. Say yes today and the company is ours Monday.\n=== REWRITE END ===\nShorter, and the date leads.\n\nTo the crew\n\nTest Model wrote "The rest holds"; it does not.\n');
+write(a5a,'Answer\n=== REWRITE BEGIN ===\nDana,\n\nThe quarter closes Friday and the offer closes with it. Say yes today and the company is ours Monday.\n=== REWRITE END ===\nShorter, and the date leads.\n\nTo the crew\n\nTest Model wrote "The rest holds"; it does not.\n');
 var k8=node('check-answer.js',[a5a,'--run',run]);
 var c8=logOf(run).filter(function(e){return e.event==='answer.checked'&&e.round==='05-battle'&&e.seat==='seat-1';}).pop();
 check(k8.status===0&&c8.copy===null&&k8.stdout.indexOf('copy of')<0,'a seat\'s own new rewrite is no copy; got '+JSON.stringify(c8.copy));

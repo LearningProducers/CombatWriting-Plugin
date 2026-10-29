@@ -43,7 +43,7 @@ var BUDGET={per_minute:8000,reply_floor:1200,reply_ceiling:2800};
 check(lib.estimateTokens.toString()===crewLib.estimateTokens.toString()&&lib.estimateTokens('abcd')===1&&lib.estimateTokens('abcde')===2&&lib.estimateTokens('')===0&&lib.estimateTokens(null)===0,'estimateTokens: must equal the add-on\'s and count four characters a token');
 
 // 2. A run with two outside seats carrying a budget.
-fs.writeFileSync(path.join(proj,'draft.md'),'Jeff,\n\nYour post routes machines through five paths. Want to battle-test one?\n');
+fs.writeFileSync(path.join(proj,'draft.md'),'Dana,\n\nYour post routes machines through five paths. Want to battle-test one?\n');
 fs.writeFileSync(path.join(proj,'brief.md'),'Founder, cold email. The brief sets the rules the seats judge by.\n');
 fs.writeFileSync(path.join(proj,'sn.md'),'is this ready to send?\n');
 var run=node('new-run.js',['--draft','draft.md','--brief','brief.md','--stage','battle','--name','budget','--model','Test Model']).stdout.trim();

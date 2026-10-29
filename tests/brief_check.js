@@ -53,15 +53,15 @@ function created(run){ return logOf(run).filter(function(e){return e.event==='ru
 function short(run,cwd){ return node('render-record.js',['--run',run,'--short'],cwd); }
 function sha(s){ return require('crypto').createHash('sha256').update(s).digest('hex'); }
 
-// The founder's paste of 2026-10-26, the Jeff round, as the fixture.
+// The founder's paste of 2026-10-26, the prospect round, as the fixture (the names invented).
 var draftText='Hi,\n\nYour June post on the million-dollar warehouse says that on paper the inventory still looked like it might be worth something. Combat Writing sends a draft past more than one AI model in turn and lists the misses, the reviewer\'s objections first. Run the next post through it before it goes up:\n\nhttps://combatwriting.learningproducers.com\n';
 var briefText='I am Israel Hernandez, founder of Learning Producers Inc., sending cold emails to prospects about Combat Writing.\n\nRules. A greeting, then at most five sentences, then one ask. The ask may end in a colon with the link alone on the next line; that link is inside the ask.\n\nCurrent prospect is Examplecorp, with this article as the main reference: https://blog.example.com/the-post/\n';
-var updateText='new prospect is Examplehub, main reference https://example.com/products/story-builder/\n';
+var updateText='new prospect is Examplehub, main reference https://example.com/products/draft-studio/\n';
 var oldBrief='I am the CEO. Purpose: a yes on the LOI this week. Stakes: the deal.\n';
-var jeffText='Jeff,\n\nYour June post says the inventory still looked like it might be worth something.\n';
+var shortText='Dana,\n\nYour June post says the inventory still looked like it might be worth something.\n';
 fs.writeFileSync(path.join(proj,'old-brief.md'),oldBrief);
 fs.writeFileSync(path.join(proj,'draft.md'),draftText);
-fs.writeFileSync(path.join(proj,'jeff.md'),jeffText);
+fs.writeFileSync(path.join(proj,'short.md'),shortText);
 fs.mkdirSync(path.join(proj,'combat-writing','inbox'),{recursive:true});
 fs.writeFileSync(path.join(proj,'combat-writing','inbox','hi-your-june-post.brief.md'),briefText);
 fs.writeFileSync(path.join(proj,'combat-writing','inbox','examplehub.brief-update.md'),updateText);
@@ -69,7 +69,7 @@ fs.writeFileSync(path.join(proj,'sn.md'),'is this email ready to send?\n');
 
 // 1. A brief given as a path elsewhere: source given, today's wording kept; it is the project's from now on.
 check(!fs.existsSync(lib.projectBriefPath(proj)),'no project brief before the first run');
-var rA=node('new-run.js',['--draft','jeff.md','--brief','old-brief.md','--stage','battle','--name','mav','--model','Test Model']);
+var rA=node('new-run.js',['--draft','short.md','--brief','old-brief.md','--stage','battle','--name','first','--model','Test Model']);
 check(rA.status===0,'run A: exit '+rA.status+' '+rA.stderr);
 var runA=rA.stdout.trim();
 var cA=created(runA);
@@ -109,8 +109,8 @@ check(briefAt>0&&boardAt>briefAt&&tableAt>0&&tableAt<briefAt&&sB2[briefAt]==='Br
 
 // 3. brief update: appended to the project's brief and to run B's, dated; the next packet carries it; the Brief line names it.
 var rU=node('brief.js',['--update',path.join('combat-writing','inbox','examplehub.brief-update.md'),'--run',runB,'--at','2026-10-27T09:00:00Z']);
-check(rU.status===0&&rU.stdout==='Brief updated 2026-10-27 in combat-writing/brief.md and the run\'s: new prospect is Examplehub, main reference https://example.com/products/story-builder/\n','brief update: exit '+rU.status+' '+rU.stderr+' stdout '+JSON.stringify(rU.stdout));
-var expected=briefText+'\nUpdate 2026-10-27: new prospect is Examplehub, main reference https://example.com/products/story-builder/\n';
+check(rU.status===0&&rU.stdout==='Brief updated 2026-10-27 in combat-writing/brief.md and the run\'s: new prospect is Examplehub, main reference https://example.com/products/draft-studio/\n','brief update: exit '+rU.status+' '+rU.stderr+' stdout '+JSON.stringify(rU.stdout));
+var expected=briefText+'\nUpdate 2026-10-27: new prospect is Examplehub, main reference https://example.com/products/draft-studio/\n';
 check(read(lib.projectBriefPath(proj))===expected,'brief update: the project brief must be the brief plus a blank line and the dated paragraph, got '+JSON.stringify(read(lib.projectBriefPath(proj))));
 check(read(path.join(runB,'brief.md'))===expected,'brief update: the run\'s brief.md must carry the same paragraph');
 var upd=logOf(runB).filter(function(e){return e.event==='brief.updated';});
@@ -119,46 +119,46 @@ var pB2=node('packet.js',['--run',runB,'--round','02-battle','--seat','seat-1','
 var packetB2=pB2.status===0?read(pB2.stdout.trim()):'';
 check(pB2.status===0&&packetB2.indexOf('## Context brief')>=0&&packetB2.indexOf('Update 2026-10-27: new prospect is Examplehub')>packetB2.indexOf('## Context brief')&&packetB2.indexOf('Update 2026-10-27: new prospect is Examplehub')<packetB2.indexOf('## The draft'),'brief update: the next packet must carry the update inside the Context brief, got exit '+pB2.status+' '+pB2.stderr);
 var sB3=short(runB).stdout;
-check(/^Brief: stored, pasted with the draft; newest update 2026-10-27: new prospect is Examplehub, main reference https:\/\/example\.com\/products\/story-builder\/\.$/m.test(sB3),'brief update: the Brief line must name the newest update, got '+sB3);
+check(/^Brief: stored, pasted with the draft; newest update 2026-10-27: new prospect is Examplehub, main reference https:\/\/example\.com\/products\/draft-studio\/\.$/m.test(sB3),'brief update: the Brief line must name the newest update, got '+sB3);
 check(lib.newestBriefUpdate(expected).date==='2026-10-27'&&lib.newestBriefUpdate(briefText)===null&&lib.briefUpdateWords(briefText)===''&&/^; newest update 2026-10-27: /.test(lib.briefUpdateWords(expected)),'newestBriefUpdate and briefUpdateWords on a brief with and without an update');
 var long=lib.briefUpdateWords('Update 2026-10-27: '+new Array(30).join('word ')+'end');
 check(long.length<=('; newest update 2026-10-27: ').length+lib.BRIEF_UPDATE_SHOWN+1&&/…$/.test(long),'a long update is cut at '+lib.BRIEF_UPDATE_SHOWN+' characters with an ellipsis, got '+long);
 
 // 4. The next piece with no brief at all: the project's brief, update included, serves; its packet carries the text.
-var rD=node('new-run.js',['--draft','jeff.md','--stage','battle','--name','next','--model','Test Model']);
+var rD=node('new-run.js',['--draft','short.md','--stage','battle','--name','next','--model','Test Model']);
 check(rD.status===0,'run D: exit '+rD.status+' '+rD.stderr);
 var runD=rD.stdout.trim();
 var cD=created(runD);
 check(cD.brief&&cD.brief.source==='project'&&cD.brief.from===null&&read(path.join(runD,'brief.md'))===expected,'run D: with no --brief the project brief must serve, source project, got '+JSON.stringify(cD.brief));
 check(!logOf(runD).some(function(e){return e.event==='brief.kept';}),'run D: the project\'s own brief logs no brief.kept');
 var sD=short(runD).stdout;
-check(/^Started at: battle: the run was made from a pasted draft, with no strategy stage \(the project's brief came with it\)\. No round yet\.$/m.test(sD)&&/^Brief: the project's \(combat-writing\/brief\.md\); newest update 2026-10-27: new prospect is Examplehub, main reference https:\/\/example\.com\/products\/story-builder\/\.$/m.test(sD)&&sD.indexOf(lib.PROJECT_BRIEF_KEPT_LINE)<0,'run D: the Started-at and Brief lines for the project brief, no kept line, got '+sD);
+check(/^Started at: battle: the run was made from a pasted draft, with no strategy stage \(the project's brief came with it\)\. No round yet\.$/m.test(sD)&&/^Brief: the project's \(combat-writing\/brief\.md\); newest update 2026-10-27: new prospect is Examplehub, main reference https:\/\/example\.com\/products\/draft-studio\/\.$/m.test(sD)&&sD.indexOf(lib.PROJECT_BRIEF_KEPT_LINE)<0,'run D: the Started-at and Brief lines for the project brief, no kept line, got '+sD);
 var pD=node('packet.js',['--run',runD,'--round','01-battle','--seat','seat-1','--sn','sn.md']);
 check(pD.status===0&&read(pD.stdout.trim()).indexOf(expected.trim())>=0,'run D: the first SN packet must carry the project brief with its update');
 // The project's own path as --brief: source project, nothing written, nothing logged.
-var rP=node('new-run.js',['--draft','jeff.md','--brief',path.join('combat-writing','brief.md'),'--stage','sparring','--name','own-path','--model','Test Model']);
+var rP=node('new-run.js',['--draft','short.md','--brief',path.join('combat-writing','brief.md'),'--stage','sparring','--name','own-path','--model','Test Model']);
 check(rP.status===0&&created(rP.stdout.trim()).brief.source==='project'&&!logOf(rP.stdout.trim()).some(function(e){return e.event==='brief.kept';})&&read(lib.projectBriefPath(proj))===expected,'the project brief\'s own path as --brief: source project, no brief.kept, file untouched');
 // The same bytes from elsewhere: the project brief rewritten equal, nothing logged.
 fs.writeFileSync(path.join(proj,'copy.md'),expected);
-var rQ=node('new-run.js',['--draft','jeff.md','--brief','copy.md','--stage','sparring','--name','same-bytes','--model','Test Model']);
+var rQ=node('new-run.js',['--draft','short.md','--brief','copy.md','--stage','sparring','--name','same-bytes','--model','Test Model']);
 check(rQ.status===0&&!logOf(rQ.stdout.trim()).some(function(e){return e.event==='brief.kept';})&&short(rQ.stdout.trim()).stdout.indexOf(lib.PROJECT_BRIEF_KEPT_LINE)<0,'a brief equal to the project\'s logs no brief.kept and prints no kept line');
 // brief: same from the old wording, resolved by a host to a run's brief.md: source last still measures.
-var rL=node('new-run.js',['--draft','jeff.md','--brief',path.join(runA,'brief.md'),'--stage','battle','--name','last','--model','Test Model']);
+var rL=node('new-run.js',['--draft','short.md','--brief',path.join(runA,'brief.md'),'--stage','battle','--name','last','--model','Test Model']);
 var cL=created(rL.stdout.trim());
 check(rL.status===0&&cL.brief.source==='last'&&cL.brief.from===path.basename(runA)&&read(lib.projectBriefPath(proj))===oldBrief,'a run\'s brief.md given as --brief: source last with the run id, and it is the project\'s now');
 fs.writeFileSync(lib.projectBriefPath(proj),expected);
 
 // 5. --no-brief: none, the project's left alone. Neither flag with a project brief: a brief-only run from it. The refusals.
-var rE=node('new-run.js',['--draft','jeff.md','--no-brief','--stage','sparring','--name','cold','--model','Test Model']);
+var rE=node('new-run.js',['--draft','short.md','--no-brief','--stage','sparring','--name','cold','--model','Test Model']);
 check(rE.status===0&&!fs.existsSync(path.join(rE.stdout.trim(),'brief.md'))&&created(rE.stdout.trim()).brief===null&&read(lib.projectBriefPath(proj))===expected,'run E: --no-brief must store no brief and leave the project\'s, got '+rE.status+' '+rE.stderr);
 check(/^Brief: none\.$/m.test(short(rE.stdout.trim()).stdout),'run E: the Brief line must read none');
 var rN=node('new-run.js',['--stage','strategy','--name','update-alone','--model','Test Model']);
 var runN=rN.status===0?rN.stdout.trim():'';
 check(rN.status===0&&runN&&fs.existsSync(path.join(runN,'brief.md'))&&!fs.existsSync(path.join(runN,'draft.md'))&&created(runN).brief.source==='project'&&created(runN).draft===null,'neither --draft nor --brief with a project brief: a brief-only run from it, got '+rN.status+' '+rN.stderr);
 check(/^Started at: strategy: the project's brief stored first, the draft brought later by sparring or battle\. No round yet\.$/m.test(short(runN).stdout),'the brief-only run from the project brief: the Started-at line, got '+short(runN).stdout);
-var rF=node('new-run.js',['--draft','jeff.md','--brief','old-brief.md','--keep','--stage','sparring','--model','Test Model']);
+var rF=node('new-run.js',['--draft','short.md','--brief','old-brief.md','--keep','--stage','sparring','--model','Test Model']);
 check(rF.status===2&&/--keep is gone \(issue 72\)/.test(rF.stderr),'--keep must refuse by name, got '+rF.status+' '+rF.stderr);
-var rG=node('new-run.js',['--draft','jeff.md','--brief','old-brief.md','--no-brief','--stage','sparring','--model','Test Model']);
+var rG=node('new-run.js',['--draft','short.md','--brief','old-brief.md','--no-brief','--stage','sparring','--model','Test Model']);
 check(rG.status===2&&/--no-brief and --brief together/.test(rG.stderr),'--no-brief with --brief must refuse, got '+rG.status+' '+rG.stderr);
 var rH=node('new-run.js',['--name','nothing','--no-brief','--model','Test Model']);
 check(rH.status===2&&/--draft <file> or --brief <file> is required/.test(rH.stderr),'neither a draft nor a brief, with --no-brief, still refuses');
@@ -177,7 +177,7 @@ fs.writeFileSync(path.join(fresh,'u2.md'),'second prospect is Beta\n');
 node('brief.js',['--update','u2.md','--at','2026-10-29T00:00:00Z'],fresh);
 check(read(lib.projectBriefPath(fresh))==='Update 2026-10-28: first prospect is Acme\n\nUpdate 2026-10-29: second prospect is Beta\n'&&lib.newestBriefUpdate(read(lib.projectBriefPath(fresh))).text==='second prospect is Beta','a second update stays below the first, dated, and is the newest');
 // A run with no brief.md gets the project's, update included, on --run.
-var rY=node('new-run.js',['--draft',path.join(proj,'jeff.md'),'--no-brief','--stage','battle','--name','nobrief','--model','Test Model'],fresh);
+var rY=node('new-run.js',['--draft',path.join(proj,'short.md'),'--no-brief','--stage','battle','--name','nobrief','--model','Test Model'],fresh);
 fs.writeFileSync(path.join(fresh,'u3.md'),'third\n');
 var rZ=node('brief.js',['--update','u3.md','--run',rY.stdout.trim(),'--at','2026-10-30T00:00:00Z'],fresh);
 check(rZ.status===0&&read(path.join(rY.stdout.trim(),'brief.md'))===read(lib.projectBriefPath(fresh))&&/Update 2026-10-30: third\n$/.test(read(path.join(rY.stdout.trim(),'brief.md')))&&logOf(rY.stdout.trim()).filter(function(e){return e.event==='brief.updated';})[0].run.created===true,'an update on a run with no brief.md gives it the project\'s brief, update included, logged created');
