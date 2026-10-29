@@ -10,6 +10,12 @@
 // the board itself with the system opener, outside the sandbox (hooks run with the session's
 // full access, the Claude Code docs' word), appends `board.opened {ok, by: "hook"}` to the run's
 // log, and says "Board opened by the plugin" or why not. One command may carry both scripts.
+// When the command ran `speak.js` and its line says the speech engine wrote no sound in that
+// shell (Part 81.1, issue 123, measured 2026-10-28: inside the sandbox `say -o` writes a container
+// with no sound), the hook runs the same script outside the sandbox with `--by hook`, rebuilds the
+// board when the command had built it, and says "Voices rendered by the plugin" naming each seat's
+// voice and its length in seconds as read from the file, or why not; the script writes the files,
+// voices.json and the log lines, the hook writes nothing.
 //
 // Measured before this hook (2026-10-26, three rounds on cw 0.8.1 to 0.8.5): the host folded
 // the scripts' output into collapsed shell lines and narrated, and a hook that refused the Next
@@ -18,8 +24,9 @@
 //
 // Silent (no output, exit 0) on any other event, tool or command, and on input it cannot read.
 // It reads the hook input and the run's log file's existence; it writes one log line to the run
-// when it opened the board; it spawns the opener and nothing else; it reads one environment
-// variable, CW_OPENER, which the tests set to a fake opener and no one else sets. The version
+// when it opened the board; it spawns the opener and the plugin's own speak.js and render-board.js
+// and nothing else; it reads one environment variable, CW_OPENER, which the tests set to a fake
+// opener and no one else sets (speak.js reads its own, CW_SAY, from the inherited environment). The version
 // in PROVED_ON is the Claude Code version the hook's input shape and the message's display were
 // measured on; the checklist row records the live pass.
 
@@ -27,6 +34,9 @@ var fs=require('fs'), path=require('path'), cp=require('child_process');
 
 var PROVED_ON='2.1.310';
 var SHORT_RE=/render-record\.js\b.*--short\b/, OPENER_RE=/open-board\.js\b/;
+var SPEAK_RE=/speak\.js\b.*--run\b/, BOARD_RE=/render-board\.js\b/;
+var SILENCED=/^Voices: the speech engine wrote no sound in this shell[^;]*; .* owed for round (\S+)\.$/m;
+var RENDER_WAIT_MS=30000, BOARD_WAIT_MS=15000;
 var OPENER_FAILED=/^Board: (.+?) \((?:the opener failed|no browser opener here): /;
 var OPENER_LINE=/^Board(?: opened in your browser)?: /;
 var EXIT_WAIT_MS=3000, REASON_MAX=200;
@@ -51,6 +61,26 @@ function openerLineOf(text){
   var lines=text.split('\n').map(function(l){return l.replace(/\r$/,'');}), found=null;
   lines.forEach(function(l){ if(OPENER_LINE.test(l))found=l; });
   return found;
+}
+// The --run value in the command's segment that ran the script named by re, resolved from the cwd.
+function runDirOf(command,re,cwd){
+  var seg=String(command||'').split(/;|&&|\|\||\||\n/).filter(function(x){return re.test(x);})[0]||'';
+  var m=/--run\s+(?:"([^"]+)"|'([^']+)'|(\S+))/.exec(seg);
+  return m?path.resolve(cwd||process.cwd(),m[1]||m[2]||m[3]):null;
+}
+// The voices rendered outside the sandbox: the same speak.js, then the board when the command built it.
+function renderVoices(runDir,round,rebuild,opened){
+  var scripts=path.join(__dirname,'..','scripts');
+  var r=cp.spawnSync(process.execPath,[path.join(scripts,'speak.js'),'--run',runDir,'--round',round,'--by','hook'],{encoding:'utf8',timeout:RENDER_WAIT_MS});
+  if(r.error&&r.error.code==='ETIMEDOUT')return 'Voices: the plugin\'s render ran past '+(RENDER_WAIT_MS/1000)+' seconds and was stopped; the board reads with the browser this round.';
+  if(r.error)return 'Voices: the plugin could not start the render: '+(r.error.code||r.error.message)+'; the board reads with the browser.';
+  if(SILENCED.test(String(r.stdout||'')))return 'Voices: the speech engine wrote no sound outside the sandbox either; the board reads with the browser.';
+  var vj=null; try{ vj=JSON.parse(fs.readFileSync(path.join(runDir,'rounds',round,'voices.json'),'utf8')); }catch(e){}
+  var ids=vj&&vj.files?Object.keys(vj.files).sort():[];
+  if(!ids.length)return 'Voices: nothing rendered by the plugin'+(r.stderr&&String(r.stderr).trim()?': '+String(r.stderr).trim().split('\n')[0].slice(0,REASON_MAX):'')+'; the board reads with the browser.';
+  if(rebuild)cp.spawnSync(process.execPath,[path.join(scripts,'render-board.js'),'--run',runDir],{encoding:'utf8',timeout:BOARD_WAIT_MS});
+  var named=ids.map(function(id){ var sec=vj.seconds&&vj.seconds[id]; return vj.assigned[id]+' for '+id+(typeof sec==='number'?' ('+sec+' s)':''); });
+  return 'Voices rendered by the plugin: '+named.join(', ')+'.'+(rebuild?(opened?' The board was rebuilt after it opened: reload it to hear them.':' The board carries them.'):'');
 }
 function finish(obj){ process.stdout.write(JSON.stringify(obj)+'\n'); process.exit(0); }
 function silent(){ process.exit(0); }
@@ -89,13 +119,18 @@ process.stdin.on('end',function(){
   try{ input=JSON.parse(raw); }catch(e){ return silent(); }
   if(!input||input.hook_event_name!=='PostToolUse'||input.tool_name!=='Bash')return silent();
   var command=input.tool_input&&input.tool_input.command;
-  var wantShort=hasSegment(command,SHORT_RE), wantOpener=hasSegment(command,OPENER_RE);
-  if(!wantShort&&!wantOpener)return silent();
+  var wantShort=hasSegment(command,SHORT_RE), wantOpener=hasSegment(command,OPENER_RE), wantSpeak=hasSegment(command,SPEAK_RE);
+  if(!wantShort&&!wantOpener&&!wantSpeak)return silent();
   var text=textOf(input.tool_response);
   var parts=[];
   var shortForm=wantShort?shortFormOf(text):null;
   if(shortForm)parts.push(shortForm);
   var openerLine=wantOpener?openerLineOf(text):null;
+  var silencedLine=wantSpeak?SILENCED.exec(text):null;
+  if(silencedLine){
+    var runDir=runDirOf(command,SPEAK_RE,input.cwd);
+    if(runDir)parts.push(renderVoices(runDir,silencedLine[1],hasSegment(command,BOARD_RE),!!openerLine));
+  }
   var failed=openerLine&&OPENER_FAILED.exec(openerLine);
   if(!failed){
     if(openerLine)parts.push(openerLine);

@@ -22,6 +22,14 @@
 //     as printed and no opener is run.
 //   - One combined command (the three scripts in one Bash call, the 2026-10-26 shape) yields the
 //     short form and the opener's result in one message.
+//   - The voices (Part 81.1, issue 123): when the command ran speak.js and its line says the engine
+//     wrote no sound in that shell, the hook runs speak.js itself (here with a fake command through
+//     CW_SAY that writes an MPEG-4 container with sound) and says "Voices rendered by the plugin"
+//     naming the voice, the seat and the length in seconds, the file on disk with voices.json and the
+//     log line by hook; with render-board.js in the same command the board is rebuilt and carries
+//     the file, and with the opener too the message says to reload; a render still silent says so;
+//     a speak.js that printed nothing is silent; the short form rides first and the voices line
+//     after it.
 //   - additionalContext tells the host the lines are on the screen and to print the round line
 //     and the picker only. The output is one JSON line, exit 0, nothing on stderr.
 //   - hooks.json carries the PostToolUse entry on Bash with a timeout under 15; the source has
@@ -63,8 +71,8 @@ var badOpener=path.join(tmp,'bad.js'); fs.writeFileSync(badOpener,'process.stder
 function logOf(){ return fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);}); }
 function opens(){ return fs.existsSync(marker)?fs.readFileSync(marker,'utf8').trim().split('\n').filter(Boolean):[]; }
 
-function call(input,opener){
-  var env=Object.assign({},process.env); delete env.CW_OPENER; if(opener)env.CW_OPENER=process.execPath+' '+opener;
+function call(input,opener,extra){
+  var env=Object.assign({},process.env,extra||{}); delete env.CW_OPENER; if(opener)env.CW_OPENER=process.execPath+' '+opener;
   var raw=typeof input==='string'?input:JSON.stringify(input);
   var r=cp.spawnSync(process.execPath,[hook],{input:raw,encoding:'utf8',cwd:proj,env:env});
   var out=r.stdout.trim(), json=null; try{json=out?JSON.parse(out):null;}catch(e){}
@@ -114,13 +122,50 @@ check(m9===expected+'\n\nBoard opened by the plugin: '+board&&opens().length===3
 var m10=shown('a missing opener program',call(post(O,failedLine+'\n'),path.join(tmp,'nope.js')));
 check(/^Board: .*\(the plugin could not open it either: /.test(m10),'a missing opener program: named, not thrown, got '+JSON.stringify(m10));
 
+// The voices: a fake speech command that lists one quality voice and writes an MPEG-4 container
+// with FAKE_M4A_SECONDS of sound (0: a silent one, the sandbox's output).
+var fakeSay=path.join(tmp,'fakesay.js');
+fs.writeFileSync(fakeSay,'var fs=require("fs");var a=process.argv.slice(2);\n'
+ +'if(a[0]==="-v"&&a[1]==="?"){process.stdout.write("Samantha            en_US    # Hello! My name is Samantha.\\nAva (Premium)       en_US    # Hello! My name is Ava.\\n");process.exit(0);}\n'
+ +'var out=a[a.indexOf("-o")+1],sec=parseFloat(process.env.FAKE_M4A_SECONDS||"0");\n'
+ +'function atom(t,b){var h=Buffer.alloc(8);h.writeUInt32BE(8+b.length,0);h.write(t,4,"latin1");return Buffer.concat([h,b]);}\n'
+ +'var mv=Buffer.alloc(100);mv.writeUInt32BE(1000,12);mv.writeUInt32BE(Math.round(sec*1000),16);\n'
+ +'var parts=[atom("ftyp",Buffer.from("M4A \\0\\0\\0\\0M4A mp42isom","latin1")),atom("moov",atom("mvhd",mv))];\n'
+ +'if(sec>0)parts.push(atom("mdat",Buffer.alloc(256,1)));\n'
+ +'fs.writeFileSync(out,Buffer.concat(parts));\n');
+var sayEnv={CW_SAY:process.execPath+' '+fakeSay,FAKE_M4A_SECONDS:'12.5'};
+var speakCmd='node '+path.join(scripts,'speak.js')+' --run '+run+' --round 01-sparring';
+var silencedLine='Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1 owed for round 01-sparring.';
+var voiceFile=path.join(run,'rounds','01-sparring','seat-1.m4a');
+var v1=shown('the voices: silenced in the shell',call(post(speakCmd,silencedLine+'\n'),null,sayEnv));
+check(v1==='Voices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).','the voices: the message names the voice, the seat and the seconds, got '+JSON.stringify(v1));
+check(fs.existsSync(voiceFile)&&fs.statSync(voiceFile).size>300,'the voices: the file is on disk with sound');
+var vjson=JSON.parse(fs.readFileSync(path.join(run,'rounds','01-sparring','voices.json'),'utf8'));
+check(vjson.files['seat-1']==='seat-1.m4a'&&vjson.seconds['seat-1']===12.5&&vjson.silenced.length===0,'the voices: voices.json carries the file and the seconds, got '+JSON.stringify(vjson));
+var vlog=logOf().filter(function(e){return e.event==='voices.rendered';});
+check(vlog.length===1&&vlog[0].by==='hook'&&vlog[0].files['seat-1']==='seat-1.m4a','the voices: one voices.rendered line by hook, got '+JSON.stringify(vlog));
+fs.unlinkSync(voiceFile);
+var combined=speakCmd+' && node '+path.join(scripts,'render-board.js')+' --run '+run+' && node '+path.join(scripts,'open-board.js')+' --run '+run;
+var v2=shown('the voices with the board and the opener',call(post(combined,silencedLine+'\n'+openedLine+'\n'),null,sayEnv));
+check(v2==='Voices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s). The board was rebuilt after it opened: reload it to hear them.\n\n'+openedLine,'the voices with the board and the opener: the message, got '+JSON.stringify(v2));
+check(/data-audio="[^"]*seat-1\.m4a"/.test(fs.readFileSync(board,'utf8')),'the voices with the board: the rebuilt board carries the file');
+var v3=shown('the voices with the board alone',call(post(speakCmd+' && node '+path.join(scripts,'render-board.js')+' --run '+run,silencedLine+'\n'),null,sayEnv));
+check(v3==='Voices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s). The board carries them.','the voices with the board alone: the message, got '+JSON.stringify(v3));
+var v4=shown('the voices still silent outside',call(post(speakCmd,silencedLine+'\n'),null,{CW_SAY:sayEnv.CW_SAY,FAKE_M4A_SECONDS:'0'}));
+check(v4==='Voices: the speech engine wrote no sound outside the sandbox either; the board reads with the browser.','the voices still silent outside: the message, got '+JSON.stringify(v4));
+check(!fs.existsSync(voiceFile),'the voices still silent outside: no silent file left on disk');
+silent('speak.js that printed nothing',call(post(speakCmd,''),null,sayEnv));
+var v5=shown('the short form then the voices',call(post('node '+path.join(scripts,'render-record.js')+' --run '+run+' --short; '+speakCmd,shortForm+silencedLine+'\n'),null,sayEnv));
+check(v5===expected+'\n\nVoices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).','the short form then the voices: the order, got '+JSON.stringify(v5.slice(-120)));
+fs.unlinkSync(voiceFile);
+
 // The hook wrote nothing but the log lines; the run folder is as the scripts left it.
 check(fs.readdirSync(run).sort().join(',')==='board.html,brief.md,draft.md,log.jsonl,record.md,rounds,seats.json','run folder changed by the hook: '+fs.readdirSync(run).sort().join(','));
 
 // hooks.json and the source.
 var hooks=JSON.parse(fs.readFileSync(path.join(plugin,'hooks','hooks.json'),'utf8'));
 var postEntries=hooks.hooks.PostToolUse||[];
-check(postEntries.length===1&&postEntries[0].matcher==='Bash'&&postEntries[0].hooks.length===1&&postEntries[0].hooks[0].type==='command'&&postEntries[0].hooks[0].command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js"'&&typeof postEntries[0].hooks[0].timeout==='number'&&postEntries[0].hooks[0].timeout<=15,'hooks.json: one PostToolUse entry on Bash running show-result.js with a short timeout: '+JSON.stringify(postEntries));
+check(postEntries.length===1&&postEntries[0].matcher==='Bash'&&postEntries[0].hooks.length===1&&postEntries[0].hooks[0].type==='command'&&postEntries[0].hooks[0].command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js"'&&typeof postEntries[0].hooks[0].timeout==='number'&&postEntries[0].hooks[0].timeout<=45,'hooks.json: one PostToolUse entry on Bash running show-result.js with a timeout that holds a three-file render: '+JSON.stringify(postEntries));
 check(!(hooks.hooks.PreToolUse||[]).some(function(e){return e.matcher==='AskUserQuestion';}),'hooks.json: the refusing hook on AskUserQuestion must be gone');
 var src=fs.readFileSync(hook,'utf8');
 check(src.split('\n')[0]==='// SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0','show-result.js: no Shield header on line 1');

@@ -24,6 +24,12 @@
 //   - Off macOS with no command given: voices.skipped naming the platform (forced through
 //     CW_PLATFORM, read only by this harness's wrapper), exit 0.
 //   - The log line voices.rendered carries the round, the assignment and the files.
+//   - A silenced shell (Part 81.1, issue 123): a command that exits 0 and writes an MPEG-4 container
+//     with no sound (ftyp and moov, duration 0, no mdat, the sandbox's output measured 2026-10-28)
+//     is not a render: the files are removed, voices.json lists the seats as silenced with no
+//     files, the log gets voices.silenced, and one stdout line names the seats owed and the round.
+//   - A container with sound: counted, its length in seconds carried in voices.json and on the log
+//     line; `--by hook` rides on the log line.
 //
 // Run from the repo root:   node tests/speak_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -49,6 +55,22 @@ write(fake,'#!/bin/bash\n'
  +'if [ -n "$FAKE_SAY_FAIL_VOICE" ] && [ "$voice" = "$FAKE_SAY_FAIL_VOICE" ]; then echo "fake say: refused $voice" >&2; exit 1; fi\n'
  +'{ echo "VOICE: $voice"; cat "$in"; } > "$out"\n');
 fs.chmodSync(fake,0o755);
+// A fake that writes MPEG-4 containers: FAKE_M4A_SECONDS=0 a silent one (ftyp, moov with duration
+// 0, no mdat), above 0 one with sound (an mdat atom and that duration).
+var m4a=path.join(tmp,'m4a.js');
+write(m4a,'var fs=require("fs");var out=process.argv[2],sec=parseFloat(process.argv[3]||"0");\n'
+ +'function atom(t,b){var h=Buffer.alloc(8);h.writeUInt32BE(8+b.length,0);h.write(t,4,"latin1");return Buffer.concat([h,b]);}\n'
+ +'var mv=Buffer.alloc(100);mv.writeUInt32BE(1000,12);mv.writeUInt32BE(Math.round(sec*1000),16);\n'
+ +'var parts=[atom("ftyp",Buffer.from("M4A \\0\\0\\0\\0M4A mp42isom","latin1")),atom("moov",atom("mvhd",mv))];\n'
+ +'if(sec>0)parts.push(atom("mdat",Buffer.alloc(256,1)));\n'
+ +'fs.writeFileSync(out,Buffer.concat(parts));\n');
+var fakeM4a=path.join(tmp,'fakesay-m4a.sh');
+write(fakeM4a,'#!/bin/bash\n'
+ +'if [ "$1" = "-v" ] && [ "$2" = "?" ]; then exec "'+fake+'" -v "?"; fi\n'
+ +'out=""\n'
+ +'while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2;; -v|-f) shift 2;; *) shift;; esac; done\n'
+ +'exec '+JSON.stringify(process.execPath)+' "'+m4a+'" "$out" "${FAKE_M4A_SECONDS:-0}"\n');
+fs.chmodSync(fakeM4a,0o755);
 
 // A fixture run under <project>/combat-writing/runs/ with three seats and a round of answers.
 var proj=path.join(tmp,'proj'), run=path.join(proj,'combat-writing','runs','2026-10-28-1200-fixture');
@@ -120,6 +142,25 @@ var r7=speak(['--round','01-battle','--say',fake]);
 check(r7.status===2&&/--run is required/.test(r7.stderr),'usage: --run required');
 var r8=speak(['--run',run,'--say',fake]);
 check(r8.status===2&&/--round is required/.test(r8.stderr),'usage: --round required');
+
+// 8. A silenced shell: the container has no sound
+write(path.join(rd,'seat-2.answer.md'),'RATING: 6/10\nNot send-ready: the opener is a compliment.\n');
+var r9=speak(['--run',run,'--round','01-battle','--say',fakeM4a],{FAKE_M4A_SECONDS:'0'});
+var vj9=JSON.parse(read(path.join(rd,'voices.json')));
+check(r9.status===0&&r9.stdout==='Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1, seat-2, seat-3 owed for round 01-battle.\n'&&r9.stderr==='','silenced: one stdout line naming the seats owed and the round: '+J([r9.status,r9.stdout,r9.stderr]));
+check(J(vj9.files)==='{}'&&J(vj9.silenced)===J(['seat-1','seat-2','seat-3'])&&J(vj9.failed)==='{}'&&vj9.assigned['seat-1']==='Allison (Enhanced)','silenced: voices.json lists the seats as silenced with no files, the assignment kept: '+J(vj9));
+check(!fs.existsSync(path.join(rd,'seat-1.m4a'))&&!fs.existsSync(path.join(rd,'seat-2.m4a'))&&!fs.existsSync(path.join(rd,'seat-3.m4a')),'silenced: the silent files are removed');
+var ls9=logOf(run).filter(function(e){return e.event==='voices.silenced';});
+check(ls9.length===1&&ls9[0].round==='01-battle'&&J(ls9[0].seats)===J(['seat-1','seat-2','seat-3'])&&ls9[0].by==='host'&&typeof ls9[0].ms==='number','silenced: the log line voices.silenced with the seats and by host: '+J(ls9));
+check(logOf(run).filter(function(e){return e.event==='voices.rendered';}).length===3,'silenced: no voices.rendered line for a round nothing rendered');
+
+// 9. A container with sound, rendered by the hook
+var r10=speak(['--run',run,'--round','01-battle','--say',fakeM4a,'--by','hook'],{FAKE_M4A_SECONDS:'38.25'});
+var vj10=JSON.parse(read(path.join(rd,'voices.json')));
+check(r10.status===0&&r10.stdout===''&&r10.stderr===''&&J(vj10.files)===J({'seat-1':'seat-1.m4a','seat-2':'seat-2.m4a','seat-3':'seat-3.m4a'})&&J(vj10.silenced)==='[]','with sound: every seat has a file, silent and quiet: '+J([r10.status,r10.stdout,r10.stderr,vj10.files,vj10.silenced]));
+check(vj10.seconds['seat-1']===38.3&&vj10.seconds['seat-3']===38.3,'with sound: the length in seconds read from the container, one decimal: '+J(vj10.seconds));
+var lr10=logOf(run).filter(function(e){return e.event==='voices.rendered';}).pop();
+check(lr10.by==='hook'&&lr10.seconds['seat-2']===38.3&&lr10.files['seat-2']==='seat-2.m4a','with sound: the log line carries by hook and the seconds: '+J(lr10));
 
 fs.rmSync(tmp,{recursive:true,force:true});
 if(failures.length){ console.log('speak_check: '+failures.length+' failure(s), '+(passes+failures.length)+' checks'); failures.forEach(function(f){console.log('  FAIL '+f);}); }
