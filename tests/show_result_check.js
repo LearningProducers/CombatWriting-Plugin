@@ -30,6 +30,11 @@
 //     the file, and with the opener too the message says to reload; a render still silent says so;
 //     a speak.js that printed nothing is silent; the short form rides first and the voices line
 //     after it.
+//   - The run folder (Part 81.2, measured 2026-10-31): the hook reads the run from the script's own
+//     line (" owed for round <round> of <run folder>."), so a command written with a shell variable
+//     (`--run $R`) still renders; a line without the folder (an older speak.js) falls back to the
+//     command's literal --run path; a variable in the command and no folder on the line puts a line
+//     naming the miss on the screen, renders nothing, exit 0.
 //   - additionalContext tells the host the lines are on the screen and to print the round line
 //     and the picker only. The output is one JSON line, exit 0, nothing on stderr.
 //   - hooks.json carries the PostToolUse entry on Bash with a timeout under 15; the source has
@@ -135,8 +140,11 @@ fs.writeFileSync(fakeSay,'var fs=require("fs");var a=process.argv.slice(2);\n'
  +'fs.writeFileSync(out,Buffer.concat(parts));\n');
 var sayEnv={CW_SAY:process.execPath+' '+fakeSay,FAKE_M4A_SECONDS:'12.5'};
 var speakCmd='node '+path.join(scripts,'speak.js')+' --run '+run+' --round 01-sparring';
-var silencedLine='Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1 owed for round 01-sparring.';
+var silencedLineOld='Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1 owed for round 01-sparring.';
+var silencedLine=silencedLineOld.replace(/\.$/,' of '+run+'.');
 var voiceFile=path.join(run,'rounds','01-sparring','seat-1.m4a');
+var realSilenced=node('speak.js',['--run',run,'--round','01-sparring','--say',sayEnv.CW_SAY]).stdout;
+check(realSilenced===silencedLine+'\n','the real speak.js prints the silenced line with the run folder: '+JSON.stringify(realSilenced));
 var v1=shown('the voices: silenced in the shell',call(post(speakCmd,silencedLine+'\n'),null,sayEnv));
 check(v1==='Voices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).','the voices: the message names the voice, the seat and the seconds, got '+JSON.stringify(v1));
 check(fs.existsSync(voiceFile)&&fs.statSync(voiceFile).size>300,'the voices: the file is on disk with sound');
@@ -157,6 +165,22 @@ check(!fs.existsSync(voiceFile),'the voices still silent outside: no silent file
 silent('speak.js that printed nothing',call(post(speakCmd,''),null,sayEnv));
 var v5=shown('the short form then the voices',call(post('node '+path.join(scripts,'render-record.js')+' --run '+run+' --short; '+speakCmd,shortForm+silencedLine+'\n'),null,sayEnv));
 check(v5===expected+'\n\nVoices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).','the short form then the voices: the order, got '+JSON.stringify(v5.slice(-120)));
+fs.unlinkSync(voiceFile);
+// The run folder (Part 81.2): a command written with a shell variable, the line naming the run.
+var speakVar='R='+run+'; node '+path.join(scripts,'speak.js')+' --run $R --round 01-sparring';
+var renderedBefore=logOf().filter(function(e){return e.event==='voices.rendered';}).length;
+var v6=shown('a shell variable in the command, the run on the line',call(post(speakVar,silencedLine+'\n'),null,sayEnv));
+check(v6==='Voices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).'&&fs.existsSync(voiceFile),'a shell variable in the command: rendered from the line\'s run folder, got '+JSON.stringify(v6));
+check(logOf().filter(function(e){return e.event==='voices.rendered';}).length===renderedBefore+1&&logOf().slice(-1)[0].by==='hook','a shell variable in the command: one voices.rendered line by hook');
+fs.unlinkSync(voiceFile);
+var v7=shown('a shell variable in the command, no run on the line',call(post(speakVar,silencedLineOld+'\n'),null,sayEnv));
+check(v7==='Voices: the plugin could not tell which run the speech command ran on (the line named none and the command carried no literal --run path); nothing rendered. Rerun speak.js with the run folder spelled out.','a shell variable and no run on the line: the miss named, got '+JSON.stringify(v7));
+check(!fs.existsSync(voiceFile)&&logOf().filter(function(e){return e.event==='voices.rendered';}).length===renderedBefore+1,'a shell variable and no run on the line: nothing rendered, no log line');
+var v8=shown('the literal path in the command, no run on the line',call(post(speakCmd,silencedLineOld+'\n'),null,sayEnv));
+check(v8==='Voices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).'&&fs.existsSync(voiceFile),'the literal path and the old line: rendered from the command, got '+JSON.stringify(v8));
+fs.unlinkSync(voiceFile);
+var v9=shown('the short form, a shell variable and the run on the line',call(post('R='+run+'; node '+path.join(scripts,'render-record.js')+' --run $R --short; '+speakVar,shortForm+silencedLine+'\n'),null,sayEnv));
+check(v9===expected+'\n\nVoices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).','the short form then the voices with a shell variable: the order, got '+JSON.stringify(v9.slice(-120)));
 fs.unlinkSync(voiceFile);
 
 // The hook wrote nothing but the log lines; the run folder is as the scripts left it.

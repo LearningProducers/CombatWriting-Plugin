@@ -15,7 +15,13 @@
 // with no sound), the hook runs the same script outside the sandbox with `--by hook`, rebuilds the
 // board when the command had built it, and says "Voices rendered by the plugin" naming each seat's
 // voice and its length in seconds as read from the file, or why not; the script writes the files,
-// voices.json and the log lines, the hook writes nothing.
+// voices.json and the log lines, the hook writes nothing. The run folder comes from the script's
+// own line (Part 81.2, measured 2026-10-31: the host wrote `--run $R`, the hook read the run from
+// the command text, took `$R` for a path, and said "nothing rendered: not a run folder: .../$R"
+// for a folder that existed, so the round's voices were never rendered until a rerun with the
+// literal path); the command's literal `--run` path is the fallback for a line that carries none,
+// a token holding `$` or a backtick is no path, and when neither resolves the hook names the miss
+// on the screen instead of a wrong cause.
 //
 // Measured before this hook (2026-10-26, three rounds on cw 0.8.1 to 0.8.5): the host folded
 // the scripts' output into collapsed shell lines and narrated, and a hook that refused the Next
@@ -35,7 +41,8 @@ var fs=require('fs'), path=require('path'), cp=require('child_process');
 var PROVED_ON='2.1.310';
 var SHORT_RE=/render-record\.js\b.*--short\b/, OPENER_RE=/open-board\.js\b/;
 var SPEAK_RE=/speak\.js\b.*--run\b/, BOARD_RE=/render-board\.js\b/;
-var SILENCED=/^Voices: the speech engine wrote no sound in this shell[^;]*; .* owed for round (\S+)\.$/m;
+var SILENCED=/^Voices: the speech engine wrote no sound in this shell[^;]*; .* owed for round (\S+?)(?: of (.+?))?\.$/m;
+var RUN_UNKNOWN='Voices: the plugin could not tell which run the speech command ran on (the line named none and the command carried no literal --run path); nothing rendered. Rerun speak.js with the run folder spelled out.';
 var RENDER_WAIT_MS=30000, BOARD_WAIT_MS=15000;
 var OPENER_FAILED=/^Board: (.+?) \((?:the opener failed|no browser opener here): /;
 var OPENER_LINE=/^Board(?: opened in your browser)?: /;
@@ -62,11 +69,14 @@ function openerLineOf(text){
   lines.forEach(function(l){ if(OPENER_LINE.test(l))found=l; });
   return found;
 }
-// The --run value in the command's segment that ran the script named by re, resolved from the cwd.
+// The --run value in the command's segment that ran the script named by re, resolved from the cwd:
+// the fallback for a silenced line that names no run folder (a speak.js older than Part 81.2).
 function runDirOf(command,re,cwd){
   var seg=String(command||'').split(/;|&&|\|\||\||\n/).filter(function(x){return re.test(x);})[0]||'';
   var m=/--run\s+(?:"([^"]+)"|'([^']+)'|(\S+))/.exec(seg);
-  return m?path.resolve(cwd||process.cwd(),m[1]||m[2]||m[3]):null;
+  var token=m?(m[1]||m[2]||m[3]):'';
+  if(!token||/[$`]/.test(token))return null; // a shell variable or a substitution is no path: the shell expanded it, the hook cannot
+  return path.resolve(cwd||process.cwd(),token);
 }
 // The voices rendered outside the sandbox: the same speak.js, then the board when the command built it.
 function renderVoices(runDir,round,rebuild,opened){
@@ -128,8 +138,8 @@ process.stdin.on('end',function(){
   var openerLine=wantOpener?openerLineOf(text):null;
   var silencedLine=wantSpeak?SILENCED.exec(text):null;
   if(silencedLine){
-    var runDir=runDirOf(command,SPEAK_RE,input.cwd);
-    if(runDir)parts.push(renderVoices(runDir,silencedLine[1],hasSegment(command,BOARD_RE),!!openerLine));
+    var runDir=silencedLine[2]?path.resolve(input.cwd||process.cwd(),silencedLine[2]):runDirOf(command,SPEAK_RE,input.cwd);
+    parts.push(runDir?renderVoices(runDir,silencedLine[1],hasSegment(command,BOARD_RE),!!openerLine):RUN_UNKNOWN);
   }
   var failed=openerLine&&OPENER_FAILED.exec(openerLine);
   if(!failed){

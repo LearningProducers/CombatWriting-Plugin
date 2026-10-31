@@ -36,10 +36,14 @@
 // A rendered file now counts only when its container holds sound (soundIn: a non-empty `mdat`
 // and a movie duration above zero; a file that is no MPEG-4 container, a test's fake, is taken as
 // given). Silent files are removed, the seats are listed as `silenced` in voices.json, the log
-// gets voices.silenced, and one line goes to stdout naming the seats owed and the round, which
-// hooks/show-result.js reads and answers by running this same script outside the sandbox with
-// `--by hook`; `by` rides on the log lines. voices.json carries `seconds` per file, read from the
-// container, so the board's record and the hook's line can say how long each recording is.
+// gets voices.silenced, and one line goes to stdout naming the seats owed, the round and the run
+// folder in full, which hooks/show-result.js reads and answers by running this same script outside
+// the sandbox with `--by hook`; `by` rides on the log lines. voices.json carries `seconds` per
+// file, read from the container, so the board's record and the hook's line can say how long each
+// recording is. The run folder rides on the line since Part 81.2 (measured 2026-10-31: the host
+// ran this script with `--run $R`, the hook read the run from the command text, took `$R` for a
+// path and reported "not a run folder" for a folder that existed), so the hook never depends on
+// the shape of the host's command.
 //
 // WHAT IT NEVER DOES. No network, no key, nothing outside the run folder and the project's
 // voices.json; `child_process` runs the speech engine and nothing else (the one ruled exception
@@ -200,7 +204,7 @@ var record={engine:sayCmd?'speech command (given)':'macOS say',installed:ranked,
 fs.writeFileSync(path.join(roundDir,VOICES_FILE),JSON.stringify(record,null,2)+'\n');
 if(silenced.length){
   lib.appendLog(runDir,{event:'voices.silenced',round:round,engine:record.engine,seats:silenced,files:files,by:by,ms:Date.now()-t0});
-  process.stdout.write(SILENCED_LINE+silenced.join(', ')+' owed for round '+round+'.\n');
+  process.stdout.write(SILENCED_LINE+silenced.join(', ')+' owed for round '+round+' of '+runDir+'.\n');
 }
 if(Object.keys(files).length||Object.keys(failed).length)lib.appendLog(runDir,{event:'voices.rendered',round:round,engine:record.engine,assigned:assigned,files:files,seconds:seconds,failed:failed,silenced:silenced,by:by,ms:Date.now()-t0});
 Object.keys(failed).forEach(function(id){ process.stderr.write('voice file for '+id+' not rendered: '+failed[id]+'; the board reads that seat with the browser\n'); });
