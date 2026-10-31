@@ -27,7 +27,9 @@
 //   - A silenced shell (Part 81.1, issue 123): a command that exits 0 and writes an MPEG-4 container
 //     with no sound (ftyp and moov, duration 0, no mdat, the sandbox's output measured 2026-10-28)
 //     is not a render: the files are removed, voices.json lists the seats as silenced with no
-//     files, the log gets voices.silenced, and one stdout line names the seats owed and the round.
+//     files, the log gets voices.silenced, and one stdout line names the seats owed, the round and
+//     the run folder in full (Part 81.2: the hook reads the run from that line, never from the
+//     shape of the host's command).
 //   - A container with sound: counted, its length in seconds carried in voices.json and on the log
 //     line; `--by hook` rides on the log line.
 //
@@ -147,7 +149,7 @@ check(r8.status===2&&/--round is required/.test(r8.stderr),'usage: --round requi
 write(path.join(rd,'seat-2.answer.md'),'RATING: 6/10\nNot send-ready: the opener is a compliment.\n');
 var r9=speak(['--run',run,'--round','01-battle','--say',fakeM4a],{FAKE_M4A_SECONDS:'0'});
 var vj9=JSON.parse(read(path.join(rd,'voices.json')));
-check(r9.status===0&&r9.stdout==='Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1, seat-2, seat-3 owed for round 01-battle.\n'&&r9.stderr==='','silenced: one stdout line naming the seats owed and the round: '+J([r9.status,r9.stdout,r9.stderr]));
+check(r9.status===0&&r9.stdout==='Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1, seat-2, seat-3 owed for round 01-battle of '+run+'.\n'&&r9.stderr==='','silenced: one stdout line naming the seats owed, the round and the run folder: '+J([r9.status,r9.stdout,r9.stderr]));
 check(J(vj9.files)==='{}'&&J(vj9.silenced)===J(['seat-1','seat-2','seat-3'])&&J(vj9.failed)==='{}'&&vj9.assigned['seat-1']==='Allison (Enhanced)','silenced: voices.json lists the seats as silenced with no files, the assignment kept: '+J(vj9));
 check(!fs.existsSync(path.join(rd,'seat-1.m4a'))&&!fs.existsSync(path.join(rd,'seat-2.m4a'))&&!fs.existsSync(path.join(rd,'seat-3.m4a')),'silenced: the silent files are removed');
 var ls9=logOf(run).filter(function(e){return e.event==='voices.silenced';});
