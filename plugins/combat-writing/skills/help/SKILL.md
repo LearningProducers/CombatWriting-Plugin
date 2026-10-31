@@ -26,7 +26,7 @@ Begin with any one, in any order; the pieces of a paste go in any order too, eac
 `/cw:help all` is the full guide; `/cw:help <topic>` one section.
 <!-- THE CARD END -->
 
-**`all`** as `$ARGUMENTS`: show the guide below the rule to the person, as it is, with its headings and lists. If `$ARGUMENTS` names one topic (stages, order, commands, next, rounds, champion, briefs, runs, files, where, crew, rating, record, privacy, method), show only that section, under the motto line and above the credit line at the foot. When the plugin loads, a session-start hook prints one line, "Combat Writing ready. /cw:help for the guide."; the card is what that line points at, and the guide is behind `all`. Fill in the one bracketed line under "Where you are running" with the case that applies right now (`all` and `where` only; the card calls nothing); change nothing else. Add no verdict, no sales pitch, no offer to run anything.
+**`all`** as `$ARGUMENTS`: show the guide below the rule to the person, as it is, with its headings and lists. If `$ARGUMENTS` names one topic (stages, order, commands, next, rounds, champion, briefs, runs, voices, files, where, crew, rating, record, privacy, method), show only that section, under the motto line and above the credit line at the foot. When the plugin loads, a session-start hook prints one line, "Combat Writing ready. /cw:help for the guide." (and, on the first session alone, a line per thing one install still lacks: the crew add-on, the Mac's voices); the card is what that line points at, and the guide is behind `all`. Fill in the one bracketed line under "Where you are running" with the case that applies right now (`all` and `where` only; the card calls nothing); change nothing else. Add no verdict, no sales pitch, no offer to run anything.
 
 ---
 
@@ -115,6 +115,10 @@ Any number of runs stay open at once. `/cw:runs` lists them newest first, one li
 - `combat-writing/briefs/<name>.md` in your project: the briefs saved by name (`brief <name>: <text>`), one file each, picked by `brief: <name>`, added to by `brief update <name>:`; they ride with the project in git as the vault does.
 - `combat-writing/brief.md` in your project: the project's brief, the last one you typed (`brief: <text>` in any command replaces it), plus every `brief update:` as a dated line under it; carried by every new run that brings no brief of its own, so the next piece is pasted alone, and named on every result's Brief line with its newest update. It rides with the project in git, as the vault does; add `brief.md` to `combat-writing/.gitignore` if it must not.
 - Nothing is written anywhere else. Nothing is fetched but the one link you give `shipped`, which the host opens once; the plugin's scripts call nothing and hold no keys.
+
+## Voices
+
+On a Mac, every seat's answer is read aloud on the board in its own voice, recorded by the Mac's own speech engine in the premium or enhanced voices installed, up to four a seat, and the menu on each seat lets you pick one, kept in that browser for every later run. Three voices give three seats three voices. The voices are downloads, not the plugin's to fetch: System Settings, Accessibility, Read & Speak (Spoken Content before macOS 26), the ⓘ beside System voice, then the arrow beside Ava (Premium), Nathan (Enhanced) and Allison (Enhanced), or any voice marked Premium or Enhanced; each is a few hundred megabytes. The first session after the install counts them and says so when fewer than three are there; nothing is downloaded by the plugin. With none installed, the board reads in the browser's own voices with the same rule, and with none of those every seat reads in the browser default. `help voices` shows this section.
 
 ## Where you are running
 
