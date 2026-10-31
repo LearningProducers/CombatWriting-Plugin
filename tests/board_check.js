@@ -321,7 +321,7 @@ check(!!vs,'board (voices): autoVoice should pick every seat, seat-1 included, f
 // THE VOICE FLOOR (issue 114): only Premium or Enhanced voices, Premium first, then the founder's order, then name; none installed means the browser default for every seat and no menu.
 var qp=/function qualityPool\(all\)\{[^]*?tier\(v\)>0&&String\(v\.lang[^]*?\.slice\(0,2\)\.toLowerCase\(\)===lang[^]*?tier\(b\)-tier\(a\)\|\|rank\(a\)-rank\(b\)\|\|String\(a\.name\)\.localeCompare[^]*?return pool;\}/.exec(html);
 check(!!qp&&/function tier\(v\)\{var n=String\(v\.name\|\|""\)\+" "\+String\(v\.voiceURI\|\|""\);return \/\\\(Premium\\\)\|\\\.premium\\\.\/i\.test\(n\)\?2:\(\/\\\(Enhanced\\\)\|\\\.enhanced\\\.\/i\.test\(n\)\?1:0\);\}/.test(html)&&/var ORDER=\["Ava","Nathan","Allison",/.test(html),'board (voices): the quality pool is Premium then Enhanced by name or identifier (Safari names them plainly, issue 119), Ava, Nathan, Allison first, the page language first');
-check(/function chosenVoice\(f,all\)\{[^]*?var pool=qualityPool\(all\);for\(var i=0;i<pool\.length;i\+\+\)if\(voiceId\(pool\[i\]\)===id\)return pool\[i\];store\(k,""\);/.test(html),'board (voices): a remembered pick outside the quality pool is ignored and cleared (issue 119)');
+check(/function chosenVoice\(f,all\)\{[^]*?var pool=qualityPool\(all\);for\(var i=0;i<pool\.length;i\+\+\)if\(voiceId\(pool\[i\]\)===id\|\|pool\[i\]\.name===id\|\|plainName\(pool\[i\]\)===plainName\(\{name:id\}\)\)return pool\[i\];if\(id\.indexOf\("\|"\)>=0\)\{store\(k,""\);/.test(html),'board (voices): a remembered browser id outside the quality pool is ignored and cleared (issue 119); a remembered voice name (a rendered voice, Part 82) is matched by name and never cleared');
 check(html.indexOf('PREFERRED')<0&&html.indexOf('NOVELTY')<0&&html.indexOf('"Daniel"')<0&&html.indexOf('"Karen"')<0,'board (voices): no stock voice list survives; nothing stock is ever picked');
 check(/function fillMenu\(f,all\)\{[^]*?if\(!pool\.length\)\{sel\.hidden=true;[^]*?return;\}sel\.hidden=false;/.test(html),'board (voices): the menu hides when no quality voice is installed and shows only the pool');
 check(/var v=chosenVoice\(f,all\);if\(v\)\{u\.voice=v;u\.lang=v\.lang\|\|u\.lang;\}/.test(html)&&html.split('u.voice=v').length===2,'board (voices): the seat utterance takes the chosen voice and its language once, the canon none');
@@ -341,18 +341,25 @@ check(!!mdPlain&&mdPlain[1].indexOf('**')<0&&mdPlain[1].indexOf('#')<0&&/Not rea
 
 // THE MAC SPEAKS THE FILES (Part 81, issue 121): with no voices.json a frame carries no file and the
 // page keeps the browser path; the page's script carries the recording branch; with a round's
-// voices.json and a file for one seat, that seat's frame carries the file, the voice and the Mac's
-// installed list, and a seat without a file carries none.
+// voices.json and a file for one seat, that seat's frame carries the file, the voice and the rendered
+// voices on disk (`data-renders`, Part 82; the installed list of Part 81 is gone), and a seat without a
+// file carries none.
 var h0=fs.readFileSync(path.join(run,'board.html'),'utf8');
 check(h0.indexOf('data-audio=')<0,'board (files): no voices.json, no frame carries a file');
-check(/var audioSrc=f\.getAttribute\("data-audio"\),au=audioSrc\?new Audio\(audioSrc\):null;/.test(h0)&&/a file the Mac rendered\./.test(h0)&&/from the next round<\/option>/.test(h0)&&/Tell the host: voice for seat "\+seatNo\(f\)\+" is "\+sel\.value/.test(h0)&&/could not be played; reading with the browser instead/.test(h0),'board (files): the page plays a recording when a frame carries one, the menu lists the Mac voices for the next round, a failure falls back to the browser');
+// Part 82 (issue 129): the menu on a frame with recordings lists the rendered voices, the default
+// marked, a change swaps the recording and keeps the pick in the browser by seat id as the voice
+// name, read back before the default on load; the "Tell the host" sentence is gone.
+check(/var audioSrc=f\.getAttribute\("data-audio"\),renders=audioSrc\?rendersOf\(f\):\{\},current=f\.getAttribute\("data-voice"\)\|\|"";var kept=audioSrc\?stored\(seatNo\(f\)\):"";if\(kept&&renders\[kept\]\)\{current=kept;audioSrc=renders\[kept\]\.src;\}var au=audioSrc\?new Audio\(audioSrc\):null;/.test(h0)&&/a file the Mac rendered\./.test(h0)&&/\(n===dflt\?" \(default\)":""\)/.test(h0)&&/if\(renders\[sel\.value\]\)\{setRender\(sel\.value\);store\(seatNo\(f\),sel\.value\);say\(sel\.value\+" for this seat, kept in this browser for every run\."\);return;\}/.test(h0)&&/say\("Playing "\+\(current\|\|"the file"\)\+", a file the Mac rendered\."\)/.test(h0)&&/could not be played; reading with the browser instead/.test(h0),'board (files): the page plays the kept or default recording, the menu lists the rendered voices with the default marked, a change swaps the file and keeps the pick by seat, a failure falls back to the browser');
+check(h0.indexOf('Tell the host')<0&&h0.indexOf('from the next round')<0&&h0.indexOf('data-voices')<0,'board (files): the host line and the next-round menu are gone (Part 82)');
 var roundsDir=path.join(run,'rounds'), rnd=fs.readdirSync(roundsDir).sort().filter(function(r){return fs.existsSync(path.join(roundsDir,r,'seat-1.answer.md'));}).pop();
-fs.writeFileSync(path.join(roundsDir,rnd,'voices.json'),JSON.stringify({engine:'macOS say',installed:['Ava (Premium)','Nathan (Enhanced)'],assigned:{'seat-1':'Ava (Premium)','seat-2':'Nathan (Enhanced)'},files:{'seat-1':'seat-1.m4a','seat-2':'seat-2.m4a'},failed:{}}));
+fs.writeFileSync(path.join(roundsDir,rnd,'voices.json'),JSON.stringify({engine:'macOS say',installed:['Ava (Premium)','Nathan (Enhanced)','Zoe (Premium)'],assigned:{'seat-1':'Ava (Premium)','seat-2':'Nathan (Enhanced)'},files:{'seat-1':'seat-1.m4a','seat-2':'seat-2.m4a'},seconds:{'seat-1':38.2},renders:{'seat-1':{'Ava (Premium)':{file:'seat-1.m4a',seconds:38.2},'Nathan (Enhanced)':{file:'seat-1.nathan-enhanced.m4a',seconds:40.1},'Zoe (Premium)':{file:'seat-1.zoe-premium.m4a',seconds:39}},'seat-2':{'Nathan (Enhanced)':{file:'seat-2.m4a',seconds:30}}},failed:{}}));
 fs.writeFileSync(path.join(roundsDir,rnd,'seat-1.m4a'),'not audio, a stand-in');
+fs.writeFileSync(path.join(roundsDir,rnd,'seat-1.nathan-enhanced.m4a'),'not audio, a stand-in');
 node('render-board.js',['--run',run]);
 var h1=fs.readFileSync(path.join(run,'board.html'),'utf8');
-var seat1Frame=/<figure class="frame [^"]*" data-seat="seat-1" data-audio="([^"]*)" data-voice="([^"]*)" data-voices="([^"]*)">/.exec(h1);
-check(!!seat1Frame&&seat1Frame[1]==='rounds/'+rnd+'/seat-1.m4a'&&seat1Frame[2]==='Ava (Premium)'&&seat1Frame[3]==='Ava (Premium)|Nathan (Enhanced)','board (files): seat-1 carries its file, voice and the installed list: '+(seat1Frame?seat1Frame.slice(1).join(' | '):'none'));
+var seat1Frame=/<figure class="frame [^"]*" data-seat="seat-1" data-audio="([^"]*)" data-voice="([^"]*)" data-renders="([^"]*)">/.exec(h1);
+var renders1=null; try{ renders1=JSON.parse(seat1Frame[3].replace(/&quot;/g,'"').replace(/&amp;/g,'&')); }catch(e){}
+check(!!seat1Frame&&seat1Frame[1]==='rounds/'+rnd+'/seat-1.m4a'&&seat1Frame[2]==='Ava (Premium)'&&!!renders1&&JSON.stringify(renders1)===JSON.stringify({'Ava (Premium)':{src:'rounds/'+rnd+'/seat-1.m4a',seconds:38.2},'Nathan (Enhanced)':{src:'rounds/'+rnd+'/seat-1.nathan-enhanced.m4a',seconds:40.1}}),'board (files): seat-1 carries its file, its voice and the rendered voices on disk, its own first, a listed render missing on disk left out: '+(seat1Frame?seat1Frame.slice(1).join(' | '):'none'));
 check((h1.match(/data-audio=/g)||[]).length===1,'board (files): a seat whose file is listed but missing on disk carries none');
 fs.rmSync(proj,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});

@@ -25,6 +25,21 @@
 // render fails is logged (voices.failed, the first stderr line) and skipped; the board falls back to
 // the browser for that seat.
 //
+// THE VOICE IS THE READER'S TO PICK (Part 82, issue 129, 2026-10-31; the founder: "after the next
+// run, i can choose the voice for each model response without telling you, i want this for plugin
+// users too"). The board cannot write a file and the host is not to be told, so the recordings a
+// pick could choose from exist before the pick is made: after every seat's own voice, the script
+// renders the other quality voices for each seat, the ranked pool in order, up to
+// MAX_VOICES_PER_SEAT files a seat, as rounds/<round>/<seat>.<voice slug>.m4a ("nathan-enhanced");
+// <seat>.m4a stays the seat's own voice, so the record and an older board keep working. voices.json
+// gains `renders` {seat: {voice name: {file, seconds, bytes, format}}}, `bytes`, `format` and
+// `renders_failed`; `files`, `seconds`, `assigned`, `failed` and `silenced` keep their meaning for
+// the seat's own voice; a failed or silent extra voice is recorded and skipped and never fails the
+// seat; the seats whose own voice was silenced get no extra voices (the sandbox would only write
+// more silent containers). The board's menu lists the rendered voices and keeps the pick in the
+// browser by seat id; `--set` still seeds the voice rendered first. The disk cost is the person's
+// project's: with three quality voices and three seats, nine files a round.
+//
 // WHERE IT DOES NOTHING. Off macOS with no --say command: logs voices.skipped {reason} and exits 0
 // silently; the board keeps the browser path and says so. No quality voice installed: the same,
 // with the reason named, so the person knows what to download. A `say` that cannot start (ENOENT):
@@ -134,6 +149,19 @@ function soundIn(file){
   return {ok:mdat>0&&seconds>0,seconds:Math.round(seconds*10)/10};
 }
 var SILENCED_LINE='Voices: the speech engine wrote no sound in this shell (a sandbox); ';
+// Part 82: every quality voice per seat, up to this many files a seat (the seat's own voice first).
+var MAX_VOICES_PER_SEAT=4;
+function slugOf(name){ return String(name).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+// AAC at 48 kbps when the engine lists `aac` among its MPEG-4 data formats; else the engine's
+// default, linear PCM at 352.8 kbps (measured 2026-10-31 on a hook-rendered file: 1 channel,
+// 22050 Hz, 16-bit, 3.3 MB for 76 s). Inside the Claude Code sandbox the list reads `lpcm` alone
+// and `--data-format=aac` is "unknown" (measured the same day), so the probe runs once per call.
+var AAC_BIT_RATE=48000, AAC_ARGS=['--data-format=aac','--bit-rate='+AAC_BIT_RATE], AAC_FORMAT='aac '+(AAC_BIT_RATE/1000)+' kbps';
+function aacHere(){
+  var r=runSay(['--file-format=m4af','--data-format=?']);
+  if(r.error)return false;
+  return /^\s*aac\b/m.test(String(r.stdout||'')+'\n'+String(r.stderr||''));
+}
 
 if(args.list){
   var e0=engineHere(); if(!e0.ok){process.stdout.write(e0.reason+'\n');process.exit(0);}
@@ -181,31 +209,70 @@ var seats=lib.readSeats(runDir).seats;
 var answered=seats.filter(function(s){return fs.existsSync(path.join(roundDir,s.id+'.answer.md'));});
 var assigned=assign(seats,ranked,readPrefs(runDir));
 var by=args.by&&args.by!==true?String(args.by):'host';
-var files={}, seconds={}, failed={}, silenced=[];
+var aac=aacHere(), aacRefused=null;
+var files={}, seconds={}, bytes={}, failed={}, silenced=[], renders={}, rendersFailed={};
+var engine=sayCmd?'speech command (given)':'macOS say';
+function writeRecord(){
+  var record={engine:engine,format:aac?AAC_FORMAT:'lpcm',installed:ranked,assigned:assigned,files:files,seconds:seconds,bytes:bytes,renders:renders,renders_failed:rendersFailed,failed:failed,silenced:silenced};
+  if(aacRefused)record.aac_refused=aacRefused;
+  fs.writeFileSync(path.join(roundDir,VOICES_FILE),JSON.stringify(record,null,2)+'\n');
+  return record;
+}
+// One render: the voice, the output, the spoken text. AAC first when the engine lists it; a refusal
+// of the AAC flags (a non-zero exit) is retried once in the engine's default format and recorded.
+function renderOne(voice,outPath,tmp){
+  var format=aac?AAC_FORMAT:'lpcm';
+  var r=runSay(['-v',voice,'-o',outPath,'-f',tmp].concat(aac?AAC_ARGS:[]));
+  if(aac&&(r.error||r.status!==0)){
+    if(!aacRefused)aacRefused=r.error?(r.error.code||r.error.message):String(r.stderr||'').trim().split('\n')[0]||('exit '+r.status);
+    try{ fs.unlinkSync(outPath); }catch(err){}
+    r=runSay(['-v',voice,'-o',outPath,'-f',tmp]); format='lpcm';
+  }
+  var ran=!r.error&&r.status===0&&fs.existsSync(outPath);
+  var snd=ran?soundIn(outPath):null;
+  if(ran&&snd.ok)return {ok:true,seconds:snd.seconds,bytes:fs.statSync(outPath).size,format:format};
+  try{ fs.unlinkSync(outPath); }catch(err){}
+  return {ok:false,silenced:ran,reason:ran?'no sound':(r.error?(r.error.code||r.error.message):String(r.stderr||'').trim().split('\n')[0]||('exit '+r.status))};
+}
+var tmps={};
 answered.forEach(function(s){
   var text=lib.readText(path.join(roundDir,s.id+'.answer.md'));
   var crewPath=path.join(roundDir,s.id+'.crew.answer.md');
   var crew=fs.existsSync(crewPath)?lib.readText(crewPath):null;
   var spoken=lib.spokenPlain(text,crew);
   if(!spoken.trim())return;
-  var tmp=path.join(os.tmpdir(),'cw-speak-'+process.pid+'-'+s.id+'.txt');
-  fs.writeFileSync(tmp,spoken+'\n');
-  var out=s.id+'.m4a', outPath=path.join(roundDir,out);
-  var r=runSay(['-v',assigned[s.id],'-o',outPath,'-f',tmp]);
-  try{ fs.unlinkSync(tmp); }catch(err){}
-  var ran=!r.error&&r.status===0&&fs.existsSync(outPath);
-  var snd=ran?soundIn(outPath):null;
-  if(ran&&snd.ok){ files[s.id]=out; if(snd.seconds!==null)seconds[s.id]=snd.seconds; return; }
-  try{ fs.unlinkSync(outPath); }catch(err){}
-  if(ran)silenced.push(s.id);
-  else failed[s.id]=r.error?(r.error.code||r.error.message):String(r.stderr||'').trim().split('\n')[0]||('exit '+r.status);
+  tmps[s.id]=path.join(os.tmpdir(),'cw-speak-'+process.pid+'-'+s.id+'.txt');
+  fs.writeFileSync(tmps[s.id],spoken+'\n');
 });
-var record={engine:sayCmd?'speech command (given)':'macOS say',installed:ranked,assigned:assigned,files:files,seconds:seconds,failed:failed,silenced:silenced};
-fs.writeFileSync(path.join(roundDir,VOICES_FILE),JSON.stringify(record,null,2)+'\n');
+// Pass 1: every seat's own voice, so a render stopped early still leaves one file per seat.
+answered.forEach(function(s){
+  if(!tmps[s.id])return;
+  var voice=assigned[s.id], out=s.id+'.m4a';
+  var r=renderOne(voice,path.join(roundDir,out),tmps[s.id]);
+  if(r.ok){ files[s.id]=out; if(r.seconds!==null)seconds[s.id]=r.seconds; bytes[s.id]=r.bytes; renders[s.id]={}; renders[s.id][voice]={file:out,seconds:r.seconds,bytes:r.bytes,format:r.format}; writeRecord(); return; }
+  if(r.silenced)silenced.push(s.id); else failed[s.id]=r.reason;
+});
+// Pass 2 (Part 82): the other quality voices for every seat whose own voice rendered, the ranked
+// pool in order, voice by voice across the seats so a stopped render leaves every seat its second
+// voice before any seat gets its third; up to MAX_VOICES_PER_SEAT in all; a voice that fails or
+// comes back silent is recorded and skipped, never failing the seat.
+for(var k=0;k<MAX_VOICES_PER_SEAT-1;k++){
+  answered.forEach(function(s){
+    if(!files[s.id])return;
+    var others=ranked.filter(function(v){return v!==assigned[s.id];});
+    var voice=others[k]; if(!voice)return;
+    var out=s.id+'.'+slugOf(voice)+'.m4a';
+    var r=renderOne(voice,path.join(roundDir,out),tmps[s.id]);
+    if(r.ok){ renders[s.id][voice]={file:out,seconds:r.seconds,bytes:r.bytes,format:r.format}; writeRecord(); return; }
+    rendersFailed[s.id]=rendersFailed[s.id]||{}; rendersFailed[s.id][voice]=r.reason;
+  });
+}
+Object.keys(tmps).forEach(function(id){ try{ fs.unlinkSync(tmps[id]); }catch(err){} });
+var record=writeRecord();
 if(silenced.length){
   lib.appendLog(runDir,{event:'voices.silenced',round:round,engine:record.engine,seats:silenced,files:files,by:by,ms:Date.now()-t0});
   process.stdout.write(SILENCED_LINE+silenced.join(', ')+' owed for round '+round+' of '+runDir+'.\n');
 }
-if(Object.keys(files).length||Object.keys(failed).length)lib.appendLog(runDir,{event:'voices.rendered',round:round,engine:record.engine,assigned:assigned,files:files,seconds:seconds,failed:failed,silenced:silenced,by:by,ms:Date.now()-t0});
+if(Object.keys(files).length||Object.keys(failed).length)lib.appendLog(runDir,{event:'voices.rendered',round:round,engine:record.engine,format:record.format,aac_refused:aacRefused,assigned:assigned,files:files,seconds:seconds,bytes:bytes,renders:renders,renders_failed:rendersFailed,failed:failed,silenced:silenced,by:by,ms:Date.now()-t0});
 Object.keys(failed).forEach(function(id){ process.stderr.write('voice file for '+id+' not rendered: '+failed[id]+'; the board reads that seat with the browser\n'); });
 process.exit(0);

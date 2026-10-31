@@ -32,6 +32,15 @@
 //     shape of the host's command).
 //   - A container with sound: counted, its length in seconds carried in voices.json and on the log
 //     line; `--by hook` rides on the log line.
+//   - Every quality voice per seat (Part 82, issue 129): after the seat's own voice, the other voices
+//     of the ranked pool as <seat>.<voice slug>.m4a, four a seat at most (a fifth never rendered),
+//     voices.json's `renders` naming each voice's file, seconds, bytes and format, <seat>.m4a still
+//     the seat's own voice; a failed extra voice recorded in `renders_failed` and skipped with the
+//     seat's other voices kept; a seat whose own voice failed or was silenced gets no extras.
+//   - The format: AAC at 48 kbps when the engine lists `aac` among its MPEG-4 data formats (the
+//     render carries --data-format=aac --bit-rate=48000 and `format` says so); a refusal of the
+//     flags renders the file again without them, records the refusal once (`aac_refused`), and
+//     fails no seat; an engine that lists lpcm alone renders with no flags.
 //
 // Run from the repo root:   node tests/speak_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -52,10 +61,12 @@ write(fake,'#!/bin/bash\n'
  +'if [ "$1" = "-v" ] && [ "$2" = "?" ]; then\n'
  +'  if [ -n "$FAKE_SAY_NONE" ]; then printf "Samantha            en_US    # Hello! My name is Samantha.\\nDaniel              en_GB    # Hello! My name is Daniel.\\n"; exit 0; fi\n'
  +'  printf "Samantha            en_US    # Hello! My name is Samantha.\\nAllison (Enhanced)  en_US    # Hello! My name is Allison.\\nDaniel              en_GB    # Hello! My name is Daniel.\\nAva (Premium)       en_US    # Hello! My name is Ava.\\nNathan (Enhanced)   en_US    # Hello! My name is Nathan.\\nZoe (Premium)       en_US    # Hello! My name is Zoe.\\nAmelie (Premium)    fr_CA    # Bonjour! Je m\'appelle Amelie.\\n"; exit 0; fi\n'
- +'voice=""; out=""; in=""\n'
- +'while [ $# -gt 0 ]; do case "$1" in -v) voice="$2"; shift 2;; -o) out="$2"; shift 2;; -f) in="$2"; shift 2;; *) shift;; esac; done\n'
+ +'if [ "$1" = "--file-format=m4af" ]; then if [ -n "$FAKE_SAY_AAC" ]; then printf "aac   AAC\\nlpcm  Linear PCM\\n"; else printf "lpcm  Linear PCM\\n"; fi; exit 0; fi\n'
+ +'voice=""; out=""; in=""; fmt=""; br=""\n'
+ +'while [ $# -gt 0 ]; do case "$1" in -v) voice="$2"; shift 2;; -o) out="$2"; shift 2;; -f) in="$2"; shift 2;; --data-format=*) fmt="$1"; shift;; --bit-rate=*) br="$1"; shift;; *) shift;; esac; done\n'
  +'if [ -n "$FAKE_SAY_FAIL_VOICE" ] && [ "$voice" = "$FAKE_SAY_FAIL_VOICE" ]; then echo "fake say: refused $voice" >&2; exit 1; fi\n'
- +'{ echo "VOICE: $voice"; cat "$in"; } > "$out"\n');
+ +'if [ -n "$FAKE_SAY_AAC_REFUSE" ] && [ -n "$fmt" ]; then echo "fake say: aac refused" >&2; exit 1; fi\n'
+ +'{ echo "VOICE: $voice"; if [ -n "$fmt" ]; then echo "ARGS: $fmt $br"; fi; cat "$in"; } > "$out"\n');
 fs.chmodSync(fake,0o755);
 // A fake that writes MPEG-4 containers: FAKE_M4A_SECONDS=0 a silent one (ftyp, moov with duration
 // 0, no mdat), above 0 one with sound (an mdat atom and that duration).
@@ -98,6 +109,30 @@ check(f1.indexOf('REWRITE BEGIN')<0&&f1.indexOf('REWRITE END')<0&&!/\nAnswer\n/.
 check(/To the crew \(second pass\)\.\n\nI agree with maker\/model-a on the opener\./.test(f1),'render: the second pass rides under its heading, marks dropped: '+J(f1));
 var lr=logOf(run).filter(function(e){return e.event==='voices.rendered';});
 check(lr.length===1&&lr[0].round==='01-battle'&&lr[0].assigned['seat-1']==='Ava (Premium)'&&lr[0].files['seat-2']==='seat-2.m4a'&&typeof lr[0].ms==='number','render: the log line carries the round, the assignment and the files: '+J(lr));
+// Part 82: every quality voice for every answered seat, the seat's own first, as <seat>.<slug>.m4a.
+var r1a=vj.renders&&vj.renders['seat-1']||{}, r1b=vj.renders&&vj.renders['seat-2']||{};
+check(J(Object.keys(r1a))===J(['Ava (Premium)','Zoe (Premium)','Nathan (Enhanced)','Allison (Enhanced)'])&&r1a['Ava (Premium)'].file==='seat-1.m4a'&&r1a['Zoe (Premium)'].file==='seat-1.zoe-premium.m4a'&&r1a['Nathan (Enhanced)'].file==='seat-1.nathan-enhanced.m4a'&&r1a['Allison (Enhanced)'].file==='seat-1.allison-enhanced.m4a','renders: seat-1 has every quality voice, its own first, the files named by slug: '+J(r1a));
+check(J(Object.keys(r1b))===J(['Zoe (Premium)','Ava (Premium)','Nathan (Enhanced)','Allison (Enhanced)'])&&r1b['Zoe (Premium)'].file==='seat-2.m4a'&&r1b['Ava (Premium)'].file==='seat-2.ava-premium.m4a'&&!vj.renders['seat-3'],'renders: seat-2 has its own voice first and the rest in rank order; the unanswered seat none: '+J(r1b));
+check(/^VOICE: Zoe \(Premium\)\n/.test(read(path.join(rd,'seat-1.zoe-premium.m4a')))&&/^VOICE: Allison \(Enhanced\)\n/.test(read(path.join(rd,'seat-2.allison-enhanced.m4a'))),'renders: the extra files are rendered in their voices with the same text');
+check(vj.format==='lpcm'&&r1a['Zoe (Premium)'].format==='lpcm'&&typeof r1a['Zoe (Premium)'].bytes==='number'&&r1a['Zoe (Premium)'].bytes>0&&typeof vj.bytes['seat-1']==='number'&&J(vj.renders_failed)==='{}'&&!vj.aac_refused&&read(path.join(rd,'seat-1.m4a')).indexOf('ARGS:')<0,'renders: the engine lists no aac, so the format is lpcm with no flags, bytes recorded, nothing failed: '+J([vj.format,vj.bytes,vj.renders_failed]));
+check(lr[0].renders&&lr[0].renders['seat-1']&&lr[0].renders['seat-1']['Nathan (Enhanced)'].file==='seat-1.nathan-enhanced.m4a'&&lr[0].format==='lpcm'&&lr[0].aac_refused===null,'renders: the log line carries the renders and the format');
+// The cap: a fifth English quality voice is never rendered.
+var fiveFake=path.join(tmp,'fakesay-five.sh');
+write(fiveFake,'#!/bin/bash\nif [ "$1" = "-v" ] && [ "$2" = "?" ]; then "'+fake+'" -v "?"; printf "Evan (Enhanced)     en_US    # Hello! My name is Evan.\\n"; exit 0; fi\nexec "'+fake+'" "$@"\n');
+fs.chmodSync(fiveFake,0o755);
+var rcap=speak(['--run',run,'--round','01-battle','--say',fiveFake]);
+var vjcap=JSON.parse(read(path.join(rd,'voices.json')));
+check(rcap.status===0&&vjcap.installed.length===5&&Object.keys(vjcap.renders['seat-1']).length===4&&Object.keys(vjcap.renders['seat-2']).length===4&&!vjcap.renders['seat-1']['Evan (Enhanced)']&&!fs.existsSync(path.join(rd,'seat-1.evan-enhanced.m4a')),'the cap: four voices a seat at most, the fifth never rendered: '+J([vjcap.installed,Object.keys(vjcap.renders['seat-1'])]));
+// AAC: when the engine lists aac among its MPEG-4 data formats the render carries the flags and the
+// format says so; when the engine refuses the flags, the file is rendered again without them, the
+// refusal recorded once, and the format reads lpcm.
+var raac=speak(['--run',run,'--round','01-battle','--say',fake],{FAKE_SAY_AAC:'1'});
+var vjaac=JSON.parse(read(path.join(rd,'voices.json')));
+check(raac.status===0&&vjaac.format==='aac 48 kbps'&&vjaac.renders['seat-1']['Ava (Premium)'].format==='aac 48 kbps'&&/\nARGS: --data-format=aac --bit-rate=48000\n/.test(read(path.join(rd,'seat-1.m4a')))&&/\nARGS: --data-format=aac --bit-rate=48000\n/.test(read(path.join(rd,'seat-2.nathan-enhanced.m4a')))&&!vjaac.aac_refused,'aac: listed by the engine, so every render carries the flags and the format says aac: '+J([vjaac.format,vjaac.aac_refused]));
+var rref=speak(['--run',run,'--round','01-battle','--say',fake],{FAKE_SAY_AAC:'1',FAKE_SAY_AAC_REFUSE:'1'});
+var vjref=JSON.parse(read(path.join(rd,'voices.json')));
+check(rref.status===0&&rref.stderr===''&&vjref.aac_refused==='fake say: aac refused'&&vjref.renders['seat-1']['Ava (Premium)'].format==='lpcm'&&vjref.renders['seat-2']['Nathan (Enhanced)'].format==='lpcm'&&vjref.files['seat-1']==='seat-1.m4a'&&read(path.join(rd,'seat-1.m4a')).indexOf('ARGS:')<0&&J(vjref.failed)==='{}','aac refused: rendered again without the flags, the refusal recorded, no seat failed: '+J([vjref.aac_refused,vjref.failed,rref.stderr]));
+check(logOf(run).filter(function(e){return e.event==='voices.rendered';}).pop().aac_refused==='fake say: aac refused','aac refused: on the log line');
 
 // 2. --list and --set
 var rl=speak(['--list','--say',fake]);
@@ -120,6 +155,7 @@ var r3=speak(['--run',run,'--round','01-battle','--say',fake],{FAKE_SAY_FAIL_VOI
 var vj3=JSON.parse(read(path.join(rd,'voices.json')));
 check(r3.status===0&&!vj3.files['seat-2']&&vj3.failed['seat-2']==='fake say: refused Ava (Premium)'&&vj3.files['seat-1']==='seat-1.m4a'&&vj3.files['seat-3']==='seat-3.m4a'&&!fs.existsSync(path.join(rd,'seat-2.m4a')),'a failed seat: no file, the reason recorded, the others rendered: '+J(vj3));
 check(/voice file for seat-2 not rendered: fake say: refused Ava \(Premium\); the board reads that seat with the browser/.test(r3.stderr),'a failed seat: named on stderr: '+J(r3.stderr));
+check(J(Object.keys(vj3.renders['seat-1']))===J(['Allison (Enhanced)','Zoe (Premium)','Nathan (Enhanced)'])&&vj3.renders_failed['seat-1']['Ava (Premium)']==='fake say: refused Ava (Premium)'&&!vj3.renders['seat-2']&&!fs.existsSync(path.join(rd,'seat-1.ava-premium.m4a')),'a failed extra voice: recorded in renders_failed and skipped, the seat keeps its other voices; a seat whose own voice failed gets no extras: '+J([vj3.renders['seat-1']&&Object.keys(vj3.renders['seat-1']),vj3.renders_failed]));
 check(logOf(run).some(function(e){return e.event==='voices.rendered'&&e.failed&&e.failed['seat-2'];}),'a failed seat: on the log line');
 
 // 4. No quality voice installed
@@ -147,14 +183,17 @@ check(r8.status===2&&/--round is required/.test(r8.stderr),'usage: --round requi
 
 // 8. A silenced shell: the container has no sound
 write(path.join(rd,'seat-2.answer.md'),'RATING: 6/10\nNot send-ready: the opener is a compliment.\n');
+fs.readdirSync(rd).filter(function(f){return /\.m4a$/.test(f);}).forEach(function(f){ fs.unlinkSync(path.join(rd,f)); }); // the earlier scenarios' files
+var renderedBefore9=logOf(run).filter(function(e){return e.event==='voices.rendered';}).length;
 var r9=speak(['--run',run,'--round','01-battle','--say',fakeM4a],{FAKE_M4A_SECONDS:'0'});
 var vj9=JSON.parse(read(path.join(rd,'voices.json')));
 check(r9.status===0&&r9.stdout==='Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1, seat-2, seat-3 owed for round 01-battle of '+run+'.\n'&&r9.stderr==='','silenced: one stdout line naming the seats owed, the round and the run folder: '+J([r9.status,r9.stdout,r9.stderr]));
 check(J(vj9.files)==='{}'&&J(vj9.silenced)===J(['seat-1','seat-2','seat-3'])&&J(vj9.failed)==='{}'&&vj9.assigned['seat-1']==='Allison (Enhanced)','silenced: voices.json lists the seats as silenced with no files, the assignment kept: '+J(vj9));
 check(!fs.existsSync(path.join(rd,'seat-1.m4a'))&&!fs.existsSync(path.join(rd,'seat-2.m4a'))&&!fs.existsSync(path.join(rd,'seat-3.m4a')),'silenced: the silent files are removed');
+check(J(vj9.renders)==='{}'&&fs.readdirSync(rd).filter(function(f){return /\.m4a$/.test(f);}).length===0,'silenced: no extra voice is tried for a seat whose own voice was silenced, no file left: '+J(fs.readdirSync(rd).filter(function(f){return /\.m4a$/.test(f);})));
 var ls9=logOf(run).filter(function(e){return e.event==='voices.silenced';});
 check(ls9.length===1&&ls9[0].round==='01-battle'&&J(ls9[0].seats)===J(['seat-1','seat-2','seat-3'])&&ls9[0].by==='host'&&typeof ls9[0].ms==='number','silenced: the log line voices.silenced with the seats and by host: '+J(ls9));
-check(logOf(run).filter(function(e){return e.event==='voices.rendered';}).length===3,'silenced: no voices.rendered line for a round nothing rendered');
+check(logOf(run).filter(function(e){return e.event==='voices.rendered';}).length===renderedBefore9,'silenced: no voices.rendered line for a round nothing rendered');
 
 // 9. A container with sound, rendered by the hook
 var r10=speak(['--run',run,'--round','01-battle','--say',fakeM4a,'--by','hook'],{FAKE_M4A_SECONDS:'38.25'});
@@ -163,6 +202,7 @@ check(r10.status===0&&r10.stdout===''&&r10.stderr===''&&J(vj10.files)===J({'seat
 check(vj10.seconds['seat-1']===38.3&&vj10.seconds['seat-3']===38.3,'with sound: the length in seconds read from the container, one decimal: '+J(vj10.seconds));
 var lr10=logOf(run).filter(function(e){return e.event==='voices.rendered';}).pop();
 check(lr10.by==='hook'&&lr10.seconds['seat-2']===38.3&&lr10.files['seat-2']==='seat-2.m4a','with sound: the log line carries by hook and the seconds: '+J(lr10));
+check(Object.keys(vj10.renders['seat-1']).length===4&&vj10.renders['seat-1']['Zoe (Premium)'].seconds===38.3&&fs.existsSync(path.join(rd,'seat-1.zoe-premium.m4a')),'with sound: the extra voices are rendered with their seconds: '+J(vj10.renders['seat-1']));
 
 fs.rmSync(tmp,{recursive:true,force:true});
 if(failures.length){ console.log('speak_check: '+failures.length+' failure(s), '+(passes+failures.length)+' checks'); failures.forEach(function(f){console.log('  FAIL '+f);}); }

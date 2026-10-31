@@ -21,7 +21,10 @@
 // for a folder that existed, so the round's voices were never rendered until a rerun with the
 // literal path); the command's literal `--run` path is the fallback for a line that carries none,
 // a token holding `$` or a backtick is no path, and when neither resolves the hook names the miss
-// on the screen instead of a wrong cause.
+// on the screen instead of a wrong cause. With Part 82 the script renders every quality voice per
+// seat (up to four files a seat), so the render window is 60 seconds, hooks.json's timeout 80 (five seconds past the two windows for the hook's own start and log line), the
+// line counts the voices per seat and names the default, and a render stopped at the window still
+// reports the files it finished, because the script writes voices.json after each one.
 //
 // Measured before this hook (2026-10-26, three rounds on cw 0.8.1 to 0.8.5): the host folded
 // the scripts' output into collapsed shell lines and narrated, and a hook that refused the Next
@@ -43,7 +46,11 @@ var SHORT_RE=/render-record\.js\b.*--short\b/, OPENER_RE=/open-board\.js\b/;
 var SPEAK_RE=/speak\.js\b.*--run\b/, BOARD_RE=/render-board\.js\b/;
 var SILENCED=/^Voices: the speech engine wrote no sound in this shell[^;]*; .* owed for round (\S+?)(?: of (.+?))?\.$/m;
 var RUN_UNKNOWN='Voices: the plugin could not tell which run the speech command ran on (the line named none and the command carried no literal --run path); nothing rendered. Rerun speak.js with the run folder spelled out.';
-var RENDER_WAIT_MS=30000, BOARD_WAIT_MS=15000;
+// The render window (Part 82): three files of 40 to 76 seconds of speech took 4,059 and 4,144 ms
+// through this hook on 2026-10-31 (the run's log), about 1.4 s a file; four voices for three seats
+// are twelve files, about 17 s; the window holds three times that and hooks.json's timeout covers
+// the window plus the board.
+var RENDER_WAIT_MS=60000, BOARD_WAIT_MS=15000;
 var OPENER_FAILED=/^Board: (.+?) \((?:the opener failed|no browser opener here): /;
 var OPENER_LINE=/^Board(?: opened in your browser)?: /;
 var EXIT_WAIT_MS=3000, REASON_MAX=200;
@@ -82,15 +89,25 @@ function runDirOf(command,re,cwd){
 function renderVoices(runDir,round,rebuild,opened){
   var scripts=path.join(__dirname,'..','scripts');
   var r=cp.spawnSync(process.execPath,[path.join(scripts,'speak.js'),'--run',runDir,'--round',round,'--by','hook'],{encoding:'utf8',timeout:RENDER_WAIT_MS});
-  if(r.error&&r.error.code==='ETIMEDOUT')return 'Voices: the plugin\'s render ran past '+(RENDER_WAIT_MS/1000)+' seconds and was stopped; the board reads with the browser this round.';
-  if(r.error)return 'Voices: the plugin could not start the render: '+(r.error.code||r.error.message)+'; the board reads with the browser.';
-  if(SILENCED.test(String(r.stdout||'')))return 'Voices: the speech engine wrote no sound outside the sandbox either; the board reads with the browser.';
+  var stopped=!!(r.error&&r.error.code==='ETIMEDOUT');
+  if(r.error&&!stopped)return 'Voices: the plugin could not start the render: '+(r.error.code||r.error.message)+'; the board reads with the browser.';
+  if(!stopped&&SILENCED.test(String(r.stdout||'')))return 'Voices: the speech engine wrote no sound outside the sandbox either; the board reads with the browser.';
+  // speak.js writes voices.json after every rendered file, so a render stopped at the window still
+  // leaves what it rendered on the record.
   var vj=null; try{ vj=JSON.parse(fs.readFileSync(path.join(runDir,'rounds',round,'voices.json'),'utf8')); }catch(e){}
   var ids=vj&&vj.files?Object.keys(vj.files).sort():[];
-  if(!ids.length)return 'Voices: nothing rendered by the plugin'+(r.stderr&&String(r.stderr).trim()?': '+String(r.stderr).trim().split('\n')[0].slice(0,REASON_MAX):'')+'; the board reads with the browser.';
+  if(!ids.length)return stopped?'Voices: the plugin\'s render ran past '+(RENDER_WAIT_MS/1000)+' seconds and was stopped before any file was done; the board reads with the browser this round.':'Voices: nothing rendered by the plugin'+(r.stderr&&String(r.stderr).trim()?': '+String(r.stderr).trim().split('\n')[0].slice(0,REASON_MAX):'')+'; the board reads with the browser.';
   if(rebuild)cp.spawnSync(process.execPath,[path.join(scripts,'render-board.js'),'--run',runDir],{encoding:'utf8',timeout:BOARD_WAIT_MS});
-  var named=ids.map(function(id){ var sec=vj.seconds&&vj.seconds[id]; return vj.assigned[id]+' for '+id+(typeof sec==='number'?' ('+sec+' s)':''); });
-  return 'Voices rendered by the plugin: '+named.join(', ')+'.'+(rebuild?(opened?' The board was rebuilt after it opened: reload it to hear them.':' The board carries them.'):'');
+  // Part 82: with more than one voice rendered for a seat, the line counts the voices per seat and
+  // names the default; with one voice a seat, the Part 81.1 shape.
+  var counts=ids.map(function(id){ return vj.renders&&vj.renders[id]?Math.max(1,Object.keys(vj.renders[id]).length):1; });
+  var multi=counts.some(function(c){return c>1;});
+  var named=ids.map(function(id,i){
+    var sec=vj.seconds&&vj.seconds[id], secs=typeof sec==='number'?sec+' s':'';
+    if(!multi)return vj.assigned[id]+' for '+id+(secs?' ('+secs+')':'');
+    return counts[i]+' voice'+(counts[i]===1?'':'s')+' for '+id+' ('+vj.assigned[id]+' the default'+(secs?', '+secs:'')+')';
+  });
+  return 'Voices rendered by the plugin: '+named.join(multi?'; ':', ')+'.'+(stopped?' The render was stopped at '+(RENDER_WAIT_MS/1000)+' seconds; the voices after that are missing.':'')+(rebuild?(opened?' The board was rebuilt after it opened: reload it to hear them.':' The board carries them.'):'');
 }
 function finish(obj){ process.stdout.write(JSON.stringify(obj)+'\n'); process.exit(0); }
 function silent(){ process.exit(0); }
