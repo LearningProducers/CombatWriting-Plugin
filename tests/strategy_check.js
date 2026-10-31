@@ -71,7 +71,7 @@ check(/^argument-hint: .*draft/m.test(fm)&&/brief:/.test(fm),'strategy.md: the a
 check(sLines[fmEnd+1]==='<!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->','strategy.md: the SPDX comment must be on the line after the front matter');
 check(/\.paste\.md/.test(strategy)&&/Parse only after that file exists/.test(strategy),'strategy.md: must write the whole paste to the inbox before parsing');
 check(/<slug>\.brief\.md/.test(strategy),'strategy.md: must cut the brief to <slug>.brief.md');
-check(/new-run\.js --draft <draft file> --brief <brief file> --stage strategy/.test(strategy),'strategy.md: must run new-run.js with --draft, --brief and --stage strategy');
+check(/new-run\.js --draft <draft file> --brief <brief file> \[--reader <reader file>\] --stage strategy/.test(strategy),'strategy.md: must run new-run.js with --draft, --brief and --stage strategy');
 check(/[Bb]uild no packet and start no seat/.test(strategy)&&/reads nothing/.test(strategy),'strategy.md: must say it builds no packet, starts no seat and reads nothing');
 check(/A bare command.*never errors/.test(fm)||/\*\*A bare command\*\*[^\n]*never refuse/.test(strategy),'strategy.md: a bare command must ask for the draft and never error');
 check(/Paste the draft, or give its path\. \/cw:help for the full guide\./.test(strategy),'strategy.md: the bare command must ask for the draft in one line ending with the help line');

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // new-run.js: creates the run folder for one Combat Writing session.
 //
-//   node new-run.js [--draft <file>] [--brief <file> | --no-brief] [--stage strategy|sparring|battle]
+//   node new-run.js [--draft <file>] [--brief <file> | --no-brief] [--reader <file>] [--stage strategy|sparring|battle]
 //                   [--name <slug>] [--model "<model name>"] [--company "<company>"] [--root <dir>]
 //
 // The brief (issue 65, 2026-10-26; issue 72 the same day): --brief <file> is the run's brief and
@@ -13,6 +13,11 @@
 // brief given is kept. run.created logs the brief's source, read from the path
 // (lib.briefSourceOf): project, last (another run's brief.md, the run id kept), pasted (an
 // inbox file) or given; the record's Started-at line names it.
+//
+// The reader (Part 84, 2026-10-31): --reader <file> is who this one piece is for, from the author
+// (the prospect of the day, the page the piece quotes), copied into the run as reader.md and
+// logged in run.created; it travels with the run and is never written to the project's brief,
+// which is the standing rules of the project. Every packet carries it after the brief.
 //
 // Copies the draft (and the brief, when given) into a new folder under
 // <root>/combat-writing/runs/<run-id>/, writes seats.json with one fresh reader, and
@@ -55,6 +60,9 @@ if(args.draft===true)lib.die('--draft takes a file path');
 if(args.brief===true)lib.die('--brief takes a file path');
 if(hasDraft&&!fs.existsSync(args.draft))lib.die('draft not found: '+args.draft);
 if(hasBrief&&!fs.existsSync(args.brief))lib.die('brief not found: '+args.brief);
+var hasReader=args.reader!==undefined;
+if(args.reader===true)lib.die('--reader takes a file path');
+if(hasReader&&!fs.existsSync(args.reader))lib.die('reader not found: '+args.reader);
 if(noBrief&&hasBrief)lib.die('--no-brief and --brief together: one or the other');
 if(args.keep!==undefined)lib.die('--keep is gone (issue 72): every brief given with --brief is the project\'s; pass --brief alone');
 var STAGES=['strategy','sparring','battle'];
@@ -104,6 +112,15 @@ if(briefFile){
   }
 }
 
+// The reader rides in the run alone (Part 84): reader.md, never the project's brief.
+var reader=null;
+if(hasReader){
+  var readerText=lib.readText(args.reader).replace(/\r\n/g,'\n').trim();
+  if(!readerText)lib.die('the reader file is empty: '+args.reader);
+  fs.writeFileSync(lib.readerPath(runDir),readerText+'\n');
+  reader={file:lib.READER_FILE,sha256:lib.sha256(fs.readFileSync(lib.readerPath(runDir))),words:lib.wordCount(readerText)};
+}
+
 var seats=[{id:'seat-1',model:model,company:company,
   source:'agent configuration (model: inherit); the model name was supplied by the host from what it knows about the agent it runs, not read from an API field'}];
 fs.writeFileSync(path.join(runDir,'seats.json'),JSON.stringify({seats:seats},null,2)+'\n');
@@ -111,6 +128,7 @@ fs.writeFileSync(path.join(runDir,'seats.json'),JSON.stringify({seats:seats},nul
 lib.appendLog(runDir,{event:'run.created',run:path.basename(runDir),stage:stage,
   draft:draft?Object.assign({file:'draft.md',sha256:lib.sha256(draft)},lib.draftFacts(draft.toString('utf8'))):null,
   brief:briefHash?{file:'brief.md',sha256:briefHash,source:briefSource.source,from:briefSource.from}:null,
+  reader:reader,
   seats:seats.map(function(s){return {id:s.id,model:s.model,company:s.company};}),
   crew_note:'one fresh reader, every seat is '+company+'\'s models until the crew add-on registers outside seats; the plugin never fakes a seat and never pads the crew'});
 if(ignore.state==='written')lib.appendLog(runDir,{event:'gitignore.written',file:path.join('combat-writing',lib.GITIGNORE_FILE).split(path.sep).join('/'),lines:lib.GITIGNORE_LINES});

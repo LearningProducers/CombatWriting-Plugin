@@ -121,6 +121,20 @@ function writeGitignore(root){
 // (another run's brief.md under combat-writing/runs/, the run id kept), 'pasted' (a file in
 // combat-writing/inbox/), 'given' (any other path); none means no brief (--no-brief, or nothing
 // and no project brief).
+// The reader (Part 84, 2026-10-31): who this one piece is for, from the author, as the brief is the
+// standing rules of the project. The two have two lifetimes: the brief is the project's and serves
+// every run; the reader is one run's and travels with it (reader.md in the run folder, written by
+// new-run.js --reader and add-draft.js --reader, the newest standing), never written to the project's
+// brief. Every packet carries it under its own heading after the brief, so every seat judges by it;
+// the record and the board show it under the brief. Origin: the prospect run of 2026-10-28, where
+// the per-prospect context was pasted into the brief and the next prospect's run inherited it.
+var READER_FILE='reader.md';
+var READER_HEADING='## The reader (who this piece is for, from the author)';
+var READER_SHOWN=120;
+function readerPath(runDir){ return path.join(path.resolve(runDir),READER_FILE); }
+function readReader(runDir){ var p=readerPath(runDir); return fs.existsSync(p)?readText(p).replace(/\r\n/g,'\n').trim():null; }
+// One line naming the reader, cut at READER_SHOWN characters on a word, for the record's and the board's Reader line.
+function readerWords(text){ var t=String(text||'').replace(/\s+/g,' ').trim(); if(!t)return null; return t.length>READER_SHOWN?t.slice(0,READER_SHOWN).replace(/\s+\S*$/,'')+'…':t; }
 var PROJECT_BRIEF_FILE='brief.md';
 var PROJECT_BRIEF_REL=path.join('combat-writing',PROJECT_BRIEF_FILE);
 var PROJECT_BRIEF_KEPT_LINE='This brief is now the project\'s: combat-writing/brief.md serves every new run in this project that brings none, until the next brief: replaces it or brief update: adds to it (cold leaves it out of a read). It rides with the project in git, as the vault does; add brief.md to combat-writing/.gitignore if it must not.';
@@ -338,7 +352,7 @@ function answerSections(text){
 // lines and the index each part starts at (packet.js marks them: head, task, contract, brief, draft,
 // own, carried); a part not in the packet is absent from the result.
 function estimateTokens(s){ return s?Math.ceil(String(s).length/4):0; }
-var PACKET_PARTS=['head','task','contract','brief','draft','own','carried'];
+var PACKET_PARTS=['head','task','contract','brief','reader','draft','own','carried'];
 function packetSize(lines,marks){
   var text=lines.join('\n');
   var starts=PACKET_PARTS.filter(function(k){return typeof marks[k]==='number';}).map(function(k){return {name:k,at:marks[k]};}).sort(function(a,b){return a.at-b.at;});
@@ -383,13 +397,13 @@ function roundBudget(runDir,round,opts){
   });
   return {round:round,pass:opts.pass||null,packets:packets,largest:largest,walls:Object.keys(walls).map(function(k){return walls[k];})};
 }
-var PART_WORDS={task:'the prompt',carried:'the other seats\' answers',own:'the seat\'s earlier turn',brief:'the brief',draft:'the draft',contract:'the contract',head:'the heading'};
+var PART_WORDS={task:'the prompt',carried:'the other seats\' answers',own:'the seat\'s earlier turn',brief:'the brief',reader:'the reader',draft:'the draft',contract:'the contract',head:'the heading'};
 function thousands(n){ return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
 function budgetLine(b){
   var who='Round '+String(b.round).slice(0,2)+(b.pass==='crew'?', second pass,':isFinalRound(b.round)?' final-read':'')+' packets: ';
   if(!b.largest)return who+'none built.';
   var p=b.largest.size.parts;
-  var order=['task','carried','own','brief','draft','contract'];
+  var order=['task','carried','own','brief','reader','draft','contract'];
   var parts=order.filter(function(k){return p[k];}).map(function(k){return PART_WORDS[k]+' '+thousands(p[k].tokens);});
   var line=who+'up to about '+thousands(b.largest.size.tokens)+' tokens ('+b.largest.seat+'): '+parts.join(', ')+'.';
   if(!b.walls.length)return line+' The fresh reader has no per-minute wall.';
@@ -1425,6 +1439,7 @@ function runState(runDir){
   var tableRounds=rounds.filter(function(r){return !isFinalRound(r);});
   var drafts=listDrafts(runDir), newestDraft=latestDraft(runDir);
   var hasBrief=fs.existsSync(path.join(runDir,'brief.md'));
+  var readerText=readReader(runDir);
   var created=null; log.forEach(function(e){ if(e.event==='run.created'&&!created)created=e; });
   var draftsOut=drafts.map(function(d){
     var e=lastLogWhere(log,function(x){return (x.event==='draft.added'&&x.file===d)||(x.event==='run.created'&&d==='draft.md');});
@@ -1474,6 +1489,7 @@ function runState(runDir){
     run:{id:path.basename(runDir),dir:runDir,stage_started:created&&created.stage?created.stage:null,first_round:rounds.length?rounds[0]:null,started_line:startedAtLine(runDir,log,rounds)},
     drafts:draftsOut,newest_draft:newestDraft,
     brief:{present:hasBrief,file:hasBrief?'brief.md':null,text:hasBrief?readText(path.join(runDir,'brief.md')).trim():null},
+    reader:{present:readerText!==null,file:readerText!==null?READER_FILE:null,text:readerText,line:readerWords(readerText)},
     canons:canons,newest_canon:latestCanon(runDir),
     seats:seatsOut,crew_line:crewLine,seats_lines:crewStateLines(runDir,seats,log),seat_key:seatKey(seats),name_sources:nameSources(seats),
     briefing:null,
@@ -1494,6 +1510,7 @@ module.exports={
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   GITIGNORE_FILE:GITIGNORE_FILE,GITIGNORE_LINES:GITIGNORE_LINES,GITIGNORE_LINE:GITIGNORE_LINE,inGitRepo:inGitRepo,writeGitignore:writeGitignore,
   PROJECT_BRIEF_FILE:PROJECT_BRIEF_FILE,PROJECT_BRIEF_REL:PROJECT_BRIEF_REL,PROJECT_BRIEF_KEPT_LINE:PROJECT_BRIEF_KEPT_LINE,projectBriefPath:projectBriefPath,briefSourceOf:briefSourceOf,briefWords:briefWords,briefLine:briefLine,
+  READER_FILE:READER_FILE,READER_HEADING:READER_HEADING,READER_SHOWN:READER_SHOWN,readerPath:readerPath,readReader:readReader,readerWords:readerWords,
   BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
   capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,copyShare:copyShare,rewriteCopy:rewriteCopy,copyMark:copyMark,COPY_SHARE:COPY_SHARE,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,VOICE_ORDER:VOICE_ORDER,voiceTier:voiceTier,voiceBase:voiceBase,voiceRank:voiceRank,isFenceLine:isFenceLine,plainSpoken:plainSpoken,spokenPlain:spokenPlain,draftParts:draftParts,draftPartsLines:draftPartsLines,PARTS_HEADING:PARTS_HEADING,PARTS_LINE:PARTS_LINE,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,

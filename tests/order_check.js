@@ -209,10 +209,10 @@ var battle=skill('battle'), sparring=skill('sparring'), strategy=skill('strategy
 var method=read(path.join(plugin,'method','combat-writing.md'));
 check(/A run with no round yet \(strategy made it, nothing has read it\) is discussed as it is: this round is `01-battle`/.test(battle),'battle: must run 01-battle on a run with no round');
 check(!/has nothing to discuss/.test(battle)&&!/battle never starts a run/.test(battle),'battle: must not refuse a run with no round or refuse to start a run');
-check(/new-run\.js --draft <draft file> \[--brief <brief file>\] --stage battle/.test(battle),'battle: must start a run with new-run.js --stage battle');
-check(/add-draft\.js --run <folder> --file <draft file> --stage battle/.test(battle),'battle: must add the draft with --stage battle');
+check(/new-run\.js --draft <draft file> \[--brief <brief file>\] \[--reader <reader file>\] --stage battle/.test(battle),'battle: must start a run with new-run.js --stage battle');
+check(/add-draft\.js --run <folder> \[--file <draft file>\] --stage battle \[--reader <reader file>\]/.test(battle),'battle: must add the draft with --stage battle');
 check(/`sn:` and `sfq:` carry no other seat's answer, the packet says so in one line/.test(battle),'battle: must say sn: and sfq: carry nothing on a first round and the packet says so');
-check(/new-run\.js --draft <draft file> \[--brief <brief file>\] --stage sparring/.test(sparring),'sparring: must start a run with new-run.js --stage sparring');
+check(/new-run\.js --draft <draft file> \[--brief <brief file>\] \[--reader <reader file>\] --stage sparring/.test(sparring),'sparring: must start a run with new-run.js --stage sparring');
 check(/the pasted draft joins that run and carries its brief/.test(sparring),'sparring: a pasted draft must join a brief-only run');
 check(/create the run from the brief alone at once/.test(strategy)&&/`new-run\.js --brief` with no `--draft`/.test(strategy),'strategy: must keep a run made from a brief alone');
 [['battle',battle],['sparring',sparring],['strategy',strategy],['help',help],['combat-writing',rules]].forEach(function(p){

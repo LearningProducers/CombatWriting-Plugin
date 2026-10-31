@@ -3,7 +3,8 @@
 //
 //   node render-record.js --run <run folder> [--short]
 //
-// record.md opens with the crew line, then the drafts and the brief, the
+// record.md opens with the crew line, then the drafts, the brief and the reader (Part 84: who
+// this one piece is for, from reader.md, shown under the brief), the
 // scoreboard (one row per seat, one column per round, every rating shown on its own, flips
 // marked valid or invalid with the earlier number kept visible, Stand marked, missing seats
 // marked missing, a seat the round was not put to marked "not asked" (a round of seat lines
@@ -124,6 +125,14 @@ if(fs.existsSync(path.join(runDir,'brief.md'))){
   out.push('**Brief:**');
   out.push('');
   out.push(lib.readText(path.join(runDir,'brief.md')).trim());
+}
+// The reader (Part 84): under the brief, the run's own, never the project's.
+var readerText=lib.readReader(runDir);
+if(readerText!==null){
+  out.push('');
+  out.push('**Reader** (who this piece is for, from the author; this run\'s own, carried in every packet after the brief):');
+  out.push('');
+  out.push(readerText);
 }
 out.push('');
 out.push('## Scoreboard');
