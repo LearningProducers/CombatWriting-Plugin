@@ -37,7 +37,12 @@
 //     naming the miss on the screen, renders nothing, exit 0.
 //   - additionalContext tells the host the lines are on the screen and to print the round line
 //     and the picker only. The output is one JSON line, exit 0, nothing on stderr.
-//   - hooks.json carries the PostToolUse entry on Bash with a timeout under 15; the source has
+//   - Every quality voice (Part 82, issue 129): with two quality voices listed the hook renders both
+//     for the seat, the line counts them and names the default ("2 voices for seat-1 (Ava (Premium)
+//     the default, 12.5 s)"), the second file is on disk, voices.json's renders names both, and the
+//     rebuilt board's frame carries both in data-renders; the render window is 60 s and hooks.json's
+//     timeout covers it plus the board.
+//   - hooks.json carries the PostToolUse entry on Bash with a timeout that covers the render; the source has
 //     the Shield header, the one PROVED_ON constant, and spawns only the opener.
 //
 // Run from the repo root:   node tests/show_result_check.js
@@ -131,7 +136,8 @@ check(/^Board: .*\(the plugin could not open it either: /.test(m10),'a missing o
 // with FAKE_M4A_SECONDS of sound (0: a silent one, the sandbox's output).
 var fakeSay=path.join(tmp,'fakesay.js');
 fs.writeFileSync(fakeSay,'var fs=require("fs");var a=process.argv.slice(2);\n'
- +'if(a[0]==="-v"&&a[1]==="?"){process.stdout.write("Samantha            en_US    # Hello! My name is Samantha.\\nAva (Premium)       en_US    # Hello! My name is Ava.\\n");process.exit(0);}\n'
+ +'if(a[0]==="-v"&&a[1]==="?"){process.stdout.write("Samantha            en_US    # Hello! My name is Samantha.\\nAva (Premium)       en_US    # Hello! My name is Ava.\\n"+(process.env.FAKE_SAY_TWO?"Nathan (Enhanced)   en_US    # Hello! My name is Nathan.\\n":""));process.exit(0);}\n'
+ +'if(a.indexOf("-o")<0){process.stdout.write("lpcm  Linear PCM\\n");process.exit(0);}\n'
  +'var out=a[a.indexOf("-o")+1],sec=parseFloat(process.env.FAKE_M4A_SECONDS||"0");\n'
  +'function atom(t,b){var h=Buffer.alloc(8);h.writeUInt32BE(8+b.length,0);h.write(t,4,"latin1");return Buffer.concat([h,b]);}\n'
  +'var mv=Buffer.alloc(100);mv.writeUInt32BE(1000,12);mv.writeUInt32BE(Math.round(sec*1000),16);\n'
@@ -182,6 +188,17 @@ fs.unlinkSync(voiceFile);
 var v9=shown('the short form, a shell variable and the run on the line',call(post('R='+run+'; node '+path.join(scripts,'render-record.js')+' --run $R --short; '+speakVar,shortForm+silencedLine+'\n'),null,sayEnv));
 check(v9===expected+'\n\nVoices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).','the short form then the voices with a shell variable: the order, got '+JSON.stringify(v9.slice(-120)));
 fs.unlinkSync(voiceFile);
+// Every quality voice (Part 82): two voices listed, both rendered, the line counts them.
+var twoEnv={CW_SAY:sayEnv.CW_SAY,FAKE_M4A_SECONDS:'12.5',FAKE_SAY_TWO:'1'};
+var secondFile=path.join(run,'rounds','01-sparring','seat-1.nathan-enhanced.m4a');
+var v10=shown('two voices rendered',call(post(speakCmd+' && node '+path.join(scripts,'render-board.js')+' --run '+run,silencedLine+'\n'),null,twoEnv));
+check(v10==='Voices rendered by the plugin: 2 voices for seat-1 (Ava (Premium) the default, 12.5 s). The board carries them.','two voices: the line counts the voices and names the default, got '+JSON.stringify(v10));
+check(fs.existsSync(voiceFile)&&fs.existsSync(secondFile),'two voices: both files on disk');
+var vj2=JSON.parse(fs.readFileSync(path.join(run,'rounds','01-sparring','voices.json'),'utf8'));
+check(vj2.files['seat-1']==='seat-1.m4a'&&vj2.renders['seat-1']['Ava (Premium)'].file==='seat-1.m4a'&&vj2.renders['seat-1']['Nathan (Enhanced)'].file==='seat-1.nathan-enhanced.m4a'&&vj2.renders['seat-1']['Nathan (Enhanced)'].seconds===12.5,'two voices: voices.json names both renders, got '+JSON.stringify(vj2.renders));
+var boardTwo=fs.readFileSync(board,'utf8'), dr=(/data-renders="([^"]*)"/.exec(boardTwo)||[])[1]||'';
+check(/Ava \(Premium\)/.test(dr.replace(/&quot;/g,'"'))&&/seat-1\.nathan-enhanced\.m4a/.test(dr),'two voices: the rebuilt board\'s frame carries both renders, got '+JSON.stringify(dr.slice(0,200)));
+fs.unlinkSync(voiceFile); fs.unlinkSync(secondFile);
 
 // The hook wrote nothing but the log lines; the run folder is as the scripts left it.
 check(fs.readdirSync(run).sort().join(',')==='board.html,brief.md,draft.md,log.jsonl,record.md,rounds,seats.json','run folder changed by the hook: '+fs.readdirSync(run).sort().join(','));
@@ -189,7 +206,10 @@ check(fs.readdirSync(run).sort().join(',')==='board.html,brief.md,draft.md,log.j
 // hooks.json and the source.
 var hooks=JSON.parse(fs.readFileSync(path.join(plugin,'hooks','hooks.json'),'utf8'));
 var postEntries=hooks.hooks.PostToolUse||[];
-check(postEntries.length===1&&postEntries[0].matcher==='Bash'&&postEntries[0].hooks.length===1&&postEntries[0].hooks[0].type==='command'&&postEntries[0].hooks[0].command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js"'&&typeof postEntries[0].hooks[0].timeout==='number'&&postEntries[0].hooks[0].timeout<=45,'hooks.json: one PostToolUse entry on Bash running show-result.js with a timeout that holds a three-file render: '+JSON.stringify(postEntries));
+var srcForWait=fs.readFileSync(hook,'utf8');
+var renderWait=parseInt((/var RENDER_WAIT_MS=(\d+)/.exec(srcForWait)||[])[1],10), boardWait=parseInt((/BOARD_WAIT_MS=(\d+)/.exec(srcForWait)||[])[1],10);
+check(renderWait===60000&&boardWait===15000,'show-result.js: the render window is 60 s and the board window 15 s (Part 82: twelve files at about 1.4 s each, measured 2026-10-31, three times over), got '+renderWait+' and '+boardWait);
+check(postEntries.length===1&&postEntries[0].matcher==='Bash'&&postEntries[0].hooks.length===1&&postEntries[0].hooks[0].type==='command'&&postEntries[0].hooks[0].command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js"'&&typeof postEntries[0].hooks[0].timeout==='number'&&postEntries[0].hooks[0].timeout*1000>=renderWait+boardWait&&postEntries[0].hooks[0].timeout<=90,'hooks.json: one PostToolUse entry on Bash running show-result.js with a timeout that covers the render window plus the board and stays at 90 s or under: '+JSON.stringify(postEntries));
 check(!(hooks.hooks.PreToolUse||[]).some(function(e){return e.matcher==='AskUserQuestion';}),'hooks.json: the refusing hook on AskUserQuestion must be gone');
 var src=fs.readFileSync(hook,'utf8');
 check(src.split('\n')[0]==='// SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0','show-result.js: no Shield header on line 1');
