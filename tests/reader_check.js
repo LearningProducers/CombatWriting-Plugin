@@ -145,7 +145,7 @@ check(st2.reader&&st2.reader.present===false&&st2.reader.file===null&&st2.reader
 // 6. The skills and the docs.
 var battle=skill('battle'), sparring=skill('sparring'), strategy=skill('strategy'), rules=skill('combat-writing'), help=skill('help');
 [['battle',battle],['sparring',sparring],['strategy',strategy]].forEach(function(p){
-  check(/The keywords: `brief:`, `brief update:` \(or `update brief:`\), `reader:` \(`prospect:`\), `battle:`/.test(p[1]),p[0]+': THE PASTE RULE lists reader: (prospect:)');
+  check(/The keywords: `brief:`, `brief <name>:` \(a brief saved by name\), `brief update:` \(or `update brief:`, with an optional name\), `reader:` \(`prospect:`\), `battle:`/.test(p[1]),p[0]+': THE PASTE RULE lists reader: (prospect:)');
   check(/^- `reader:` \(or `prospect:`\) followed by text is the reader \(Part 84, 2026-10-31\): who this one piece is for, in the author's words/m.test(p[1]),p[0]+': carries the reader bullet');
   check(/The two have two lifetimes: `brief:` is the standing rules of the project, carried by every run; `reader:` is who this one piece is for and travels with the run\./.test(p[1]),p[0]+': the bullet says the two lifetimes');
   check(/`<slug>\.reader\.md`/.test(p[1])&&/\[--reader <reader file>\]/.test(p[1])&&/never written to `combat-writing\/brief\.md`/.test(p[1]),p[0]+': cuts the reader to <slug>.reader.md, passes --reader, and never writes the project brief');

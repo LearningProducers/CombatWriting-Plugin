@@ -59,6 +59,8 @@ var drafts=lib.listDrafts(runDir);
 var newestDraft=lib.latestDraft(runDir);
 var hasBrief=fs.existsSync(path.join(runDir,'brief.md'));
 var readerText=lib.readReader(runDir);
+// The brief by name (Part 86), from run.created.
+var briefName=(function(){ var c=log.filter(function(e){return e.event==='run.created';})[0]; return c&&c.brief&&c.brief.name?c.brief.name:null; })();
 
 var esc=lib.escapeHtml;
 // A seat's read: lib.renderLite, the markdown subset after escaping (2026-10-15). The draft keeps paras(): the author's text as pasted.
@@ -386,7 +388,7 @@ html.push('<details class="fold"><summary>Run details</summary>');
 html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies: '+esc(companies.join(', '))+'.')+' '+esc(lib.nameSources(seats))+'</p>');
 lib.crewStateLines(runDir,seats,log).forEach(function(l){ html.push('<p class="meta"><strong>Seats:</strong> '+esc(l)+'</p>'); });
 html.push('<p class="meta"><strong>Seat key:</strong> '+esc(lib.seatKey(seats))+'</p>');
-html.push('<p class="meta"><strong>Drafts:</strong> '+(drafts.length?esc(drafts.map(function(d){return d+' ('+lib.draftFactsLine(lib.draftFacts(lib.readText(path.join(runDir,d))))+')';}).join(', '))+'.':'none yet; the draft joins the run when sparring or battle brings it.')+(hasBrief?' <strong>Brief:</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
+html.push('<p class="meta"><strong>Drafts:</strong> '+(drafts.length?esc(drafts.map(function(d){return d+' ('+lib.draftFactsLine(lib.draftFacts(lib.readText(path.join(runDir,d))))+')';}).join(', '))+'.':'none yet; the draft joins the run when sparring or battle brings it.')+(hasBrief?' <strong>Brief'+(briefName?' ('+esc(briefName)+', combat-writing/briefs/'+esc(briefName)+'.md)':'')+':</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
 // The reader (Part 84): under the brief, this run's own, as every packet carries it.
 if(readerText!==null)html.push('<p class="meta reader"><strong>Reader:</strong> '+esc(readerText)+' <span class="note">(who this piece is for, from the author; this run\'s own, carried in every packet after the brief)</span></p>');
 html.push('<p class="meta"><strong>Started at:</strong> '+esc(lib.startedAtLine(runDir,log,rounds))+'</p>');
