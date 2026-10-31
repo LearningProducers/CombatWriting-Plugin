@@ -188,7 +188,7 @@ check(!/https?:\/\//.test(board),'board: makes an outside request');
 // A one-seat crew's Next line says what has no other seat.
 seatsFile.seats.pop(); fs.writeFileSync(path.join(run,'seats.json'),JSON.stringify(seatsFile,null,2)+'\n');
 var s1=node('render-record.js',['--run',run,'--next']);
-check(/^Next: \/cw:battle fq:[^\n]*With one seat, SN, SFQ and debate have no other seat to share: use fq: or n:, or seat the add-on\.$/m.test(s1.stdout),'--next (one seat): the Next line must say SN, SFQ and debate have no other seat');
+check(/^Next: \/cw:battle fq:[^\n]*With one seat, SN, SFQ and debate have no other seat to share: use fq: or n:, or seat the add-on\. This run: [^\n]*$/m.test(s1.stdout),'--next (one seat): the Next line must say SN, SFQ and debate have no other seat');
 // A revision still lands as draft-2.md.
 var a2=node('add-draft.js',['--run',run,'--file','draft2.md','--stage','battle']);
 check(a2.status===0&&a2.stdout.trim()==='draft-2.md'&&read(path.join(run,'draft-2.md'))===draft2Text,'add-draft (second): must write draft-2.md; got '+a2.stdout+a2.stderr);
@@ -236,7 +236,7 @@ var three=/\*\*Shipped\*\*[^\n]*\*\*Result\*\*[^\n]*\*\*Insight\*\*/;
 });
 check(/then `\/cw:champion` runs as if typed/.test(rules),'the Next picker: after Champion\'s text, /cw:champion runs as if typed');
 check(/ask for the text in one line/.test(rules)&&/\*\*Rerate\*\*[^\n]*\*\*No rating\*\*/.test(rules),'the Next picker: the text line and the rerate yes/no');
-check(/Done for now prints the text Next line, as `render-record\.js --run <folder> --next` prints it, and nothing else\./.test(rules),'the Next picker: Done for now must print the text Next line (--next) and nothing else');
+check(/Done for now prints the text Next line, as `render-record\.js --run <folder> --next` prints it, and nothing else; that line names the run it is on/.test(rules),'the Next picker: Done for now must print the text Next line (--next) and nothing else, naming the run');
 check(/the seat list as the existing picker builds it/.test(rules),'the Next picker: the seat list is the existing picker\'s');
 check(/Strategy's result keeps its single Next line/.test(rules)&&/End with one line, the Next line, and nothing after it/.test(strategy)&&!/Next picker/.test(strategy.replace(/not the picker/,'')),'strategy: must keep its single Next line and open no picker');
 check(/Where you have no AskUserQuestion tool, print the text Next line instead of the picker\./.test(battle)&&/Where you have no AskUserQuestion tool, print the text Next line instead of the picker\./.test(sparring),'battle and sparring: the no-tool fallback is the text Next line');

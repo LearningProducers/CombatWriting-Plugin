@@ -150,7 +150,7 @@ if(rounds.length){
   });
   out.push('');
   // The text Next line (2026-10-14): kept here, and printed by --short for the host's picker.
-  out.push('**'+lib.nextLine(seats).replace(/^Next: /,'Next:** '));
+  out.push('**'+lib.nextLine(seats,path.basename(runDir)).replace(/^Next: /,'Next:** '));
 }else out.push(noRoundsLine);
 // Champion (ruled 2026-10-19): what was shipped, what came back, what the run taught, from the
 // champion.* log lines in order, only when there are any (a run with none renders as before).
@@ -219,7 +219,8 @@ out.push('');
 fs.writeFileSync(path.join(runDir,'record.md'),out.join('\n'));
 lib.appendLog(runDir,{event:'record.rendered',file:'record.md',rounds:rounds.length});
 if(args.next===true){
-  process.stdout.write((rounds.length?lib.nextLine(seats):noRoundsLine)+'\n');
+  // The Next line names the run and the line that leaves it (Part 85), on a run with rounds and on one without.
+  process.stdout.write((rounds.length?lib.nextLine(seats,path.basename(runDir)):noRoundsLine+lib.thisRunLine(path.basename(runDir)))+'\n');
 }else if(args.short===true){
   var s=[out.filter(function(l){return l.indexOf('**Crew:**')===0;})[0],''];
   var createdLine=log.filter(function(e){return e.event==='run.created';})[0]||null;

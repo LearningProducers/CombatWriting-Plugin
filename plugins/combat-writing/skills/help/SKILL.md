@@ -26,7 +26,7 @@ Begin with any one, in any order; the pieces of a paste go in any order too, eac
 `/cw:help all` is the full guide; `/cw:help <topic>` one section.
 <!-- THE CARD END -->
 
-**`all`** as `$ARGUMENTS`: show the guide below the rule to the person, as it is, with its headings and lists. If `$ARGUMENTS` names one topic (stages, order, commands, next, rounds, champion, briefs, files, where, crew, rating, record, privacy, method), show only that section, under the motto line and above the credit line at the foot. When the plugin loads, a session-start hook prints one line, "Combat Writing ready. /cw:help for the guide."; the card is what that line points at, and the guide is behind `all`. Fill in the one bracketed line under "Where you are running" with the case that applies right now (`all` and `where` only; the card calls nothing); change nothing else. Add no verdict, no sales pitch, no offer to run anything.
+**`all`** as `$ARGUMENTS`: show the guide below the rule to the person, as it is, with its headings and lists. If `$ARGUMENTS` names one topic (stages, order, commands, next, rounds, champion, briefs, runs, files, where, crew, rating, record, privacy, method), show only that section, under the motto line and above the credit line at the foot. When the plugin loads, a session-start hook prints one line, "Combat Writing ready. /cw:help for the guide."; the card is what that line points at, and the guide is behind `all`. Fill in the one bracketed line under "Where you are running" with the case that applies right now (`all` and `where` only; the card calls nothing); change nothing else. Add no verdict, no sales pitch, no offer to run anything.
 
 ---
 
@@ -62,6 +62,9 @@ The method lists the stages in order; the plugin does not hold you to it (2026-1
   Example: `/cw:champion insight: "the ask" is the one sentence the reader can say yes to; lead with it.`
 - `/cw:briefs` — lists your briefs: the unnamed default and every brief saved by name, each with its first line and the runs on it. Bare; it takes nothing.
   Example: `/cw:briefs`
+- `/cw:runs` — lists every run in the project, newest first: its brief, its reader, its last round, the drafts it holds, and OPEN or SHIPPED with the date. A word after it finds the run whose id holds it.
+  Example: `/cw:runs`
+  Example: `/cw:runs first-piece`
 - `/cw:help` — bare, the card and a picker to begin (the terminal's `/cw` completes to it); `help all` is this guide; `help rounds` shows one section.
   Example: `/cw:help`
 
@@ -69,7 +72,7 @@ Shortcuts: the pieces of a paste go in any order, each found by its word, and `b
 
 ## What comes next: the picker
 
-Every sparring and battle result ends with a picker instead of a line to retype (2026-10-14). One keypress a screen. First: **Battle: everyone**, **Battle: one seat**, **Debate: seats re-read and rerate**, or **More**. Under Battle: everyone: **FQ**, same question to every seat, nothing shared; **N**, same guidance to every seat, nothing shared; **SN**, everyone reads each other plus responds to your prompt; **SFQ**, everyone reads each other's response to this question plus responds to your question. Under Battle: one seat: the seats, by id and short name. Under More: **Final reads**, **Champion** (the piece went out: **Shipped**, **Result** or **Insight** on the next screen, then your text, then `/cw:champion` runs), **Help**, **Done for now**. After a kind or a seat, one line asks for your text, then one yes or no asks whether the seats should rate again. Your selection plus your text is a round: it goes to exactly the seats you chose, as you wrote it, whatever it asks for (a rewrite, a question, a judgment), and every one of them answers it; the host never answers it itself. Anything but yes or no on the rating question counts as no, and the round still runs. Debate runs at once; so do the final reads. Done for now prints the one-line text form of the same moves, which `record.md` keeps too, so you can type the next round later. Strategy keeps its single Next line. `help next` shows this section.
+Every sparring and battle result ends with a picker instead of a line to retype (2026-10-14). One keypress a screen. First: **Battle: everyone**, **Battle: one seat**, **Debate: seats re-read and rerate**, or **More**. Under Battle: everyone: **FQ**, same question to every seat, nothing shared; **N**, same guidance to every seat, nothing shared; **SN**, everyone reads each other plus responds to your prompt; **SFQ**, everyone reads each other's response to this question plus responds to your question. Under Battle: one seat: the seats, by id and short name. Under More: **Final reads**, **Champion** (the piece went out: **Shipped**, **Result** or **Insight** on the next screen, then your text, then `/cw:champion` runs), **Help**, **Done for now**. After a kind or a seat, one line asks for your text, then one yes or no asks whether the seats should rate again. Your selection plus your text is a round: it goes to exactly the seats you chose, as you wrote it, whatever it asks for (a rewrite, a question, a judgment), and every one of them answers it; the host never answers it itself. Anything but yes or no on the rating question counts as no, and the round still runs. Debate runs at once; so do the final reads. Done for now prints the one-line text form of the same moves, which `record.md` keeps too, so you can type the next round later; that line names the run you are on, the word that returns to it and the line that starts a new piece. Strategy keeps its single Next line. `help next` shows this section.
 
 ## The rounds
 
@@ -99,6 +102,10 @@ Steps 15 to 19: publish, watch the numbers, acknowledge, follow through, and wri
 ## Many kinds of writing at once
 
 A brief is the rules for one kind of writing, saved by name once: `brief cold-email: <the rules>`, `brief blog: <the rules>`, `brief speech: <the rules>` (one word, lower case, dashes allowed). A run is one piece, with its brief and its reader: `/cw:battle brief: cold-email reader: <who this one is for> battle: <the draft>` picks the saved brief and starts the run on it, and the record, the board and every result say which brief the seats judged by ("Brief: cold-email"). `brief: <text>` with no name is the unnamed default, as before, and a named brief never touches it. `brief update cold-email: <a line>` adds a dated line to that brief; `brief update:` on a run whose brief is named adds to that one. Any number of runs stay open at once, each on its own brief; `run: <word>` returns to one. `/cw:briefs` lists every brief with its first line and the runs on it. `help briefs` shows this section.
+
+## Returning and starting fresh
+
+Any number of runs stay open at once. `/cw:runs` lists them newest first, one line each: the run id, its brief, its reader, its last round, the drafts it holds, and OPEN or SHIPPED with the date; a run is open until `/cw:champion shipped` freezes its canon, and nothing else closes it. To return to one, `run: <word>` on any stage command, a word of the run id (`/cw:battle run: first-piece sn: ...`, `/cw:sparring run: first-piece`); one match is the run, two or more are shown and you are asked which, none shows the list. To start fresh, paste the new piece with `battle:` or `sparring:`: it is a new run, and the one you left stays open where it was. Every result's text Next line names the run it is on and that line to leave it. `help runs` shows this section.
 
 ## Where files land
 
