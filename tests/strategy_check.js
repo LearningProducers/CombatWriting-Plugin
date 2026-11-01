@@ -18,7 +18,7 @@
 //     tests/order_check.js.
 //   - help.md: the four-stages section has four bullets, each naming its command on its own
 //     line, Champion's naming /cw:champion and its three keywords (ruled 2026-10-19); the
-//     commands section lists all five commands, each with an example.
+//     commands section lists all six commands, each with an example.
 //   - sparring.md says a bare command after strategy uses the stored draft and brief with no
 //     repaste, by the newest run whose rounds/ is empty, and that a pasted draft still starts
 //     a new run.
@@ -55,7 +55,7 @@ function read(p){ return fs.readFileSync(p,'utf8'); }
 // The four commands are skills (moved from commands/ on 2026-10-14, the format the docs name for
 // new plugins), beside the rules skill combat-writing; there is no commands/ folder.
 var skillDirs=fs.readdirSync(path.join(plugin,'skills')).filter(function(d){return fs.existsSync(path.join(plugin,'skills',d,'SKILL.md'));}).sort();
-check(skillDirs.join(',')==='battle,champion,combat-writing,help,sparring,strategy','skills/: expected battle, champion, combat-writing, help, sparring, strategy; got '+skillDirs.join(','));
+check(skillDirs.join(',')==='battle,briefs,champion,combat-writing,help,sparring,strategy','skills/: expected battle, briefs, champion, combat-writing, help, sparring, strategy; got '+skillDirs.join(','));
 check(!fs.existsSync(path.join(plugin,'commands')),'commands/ should be gone: the four commands are skills');
 function cmd(name){ return path.join(plugin,'skills',name,'SKILL.md'); }
 
@@ -71,7 +71,7 @@ check(/^argument-hint: .*draft/m.test(fm)&&/brief:/.test(fm),'strategy.md: the a
 check(sLines[fmEnd+1]==='<!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->','strategy.md: the SPDX comment must be on the line after the front matter');
 check(/\.paste\.md/.test(strategy)&&/Parse only after that file exists/.test(strategy),'strategy.md: must write the whole paste to the inbox before parsing');
 check(/<slug>\.brief\.md/.test(strategy),'strategy.md: must cut the brief to <slug>.brief.md');
-check(/new-run\.js --draft <draft file> --brief <brief file> \[--reader <reader file>\] --stage strategy/.test(strategy),'strategy.md: must run new-run.js with --draft, --brief and --stage strategy');
+check(/new-run\.js --draft <draft file> --brief <brief file> \[--brief-name <name>\] \[--reader <reader file>\] --stage strategy/.test(strategy),'strategy.md: must run new-run.js with --draft, --brief and --stage strategy');
 check(/[Bb]uild no packet and start no seat/.test(strategy)&&/reads nothing/.test(strategy),'strategy.md: must say it builds no packet, starts no seat and reads nothing');
 check(/A bare command.*never errors/.test(fm)||/\*\*A bare command\*\*[^\n]*never refuse/.test(strategy),'strategy.md: a bare command must ask for the draft and never error');
 check(/Paste the draft, or give its path\. \/cw:help for the full guide\./.test(strategy),'strategy.md: the bare command must ask for the draft in one line ending with the help line');

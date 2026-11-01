@@ -26,7 +26,7 @@ Begin with any one, in any order; the pieces of a paste go in any order too, eac
 `/cw:help all` is the full guide; `/cw:help <topic>` one section.
 <!-- THE CARD END -->
 
-**`all`** as `$ARGUMENTS`: show the guide below the rule to the person, as it is, with its headings and lists. If `$ARGUMENTS` names one topic (stages, order, commands, next, rounds, champion, files, where, crew, rating, record, privacy, method), show only that section, under the motto line and above the credit line at the foot. When the plugin loads, a session-start hook prints one line, "Combat Writing ready. /cw:help for the guide."; the card is what that line points at, and the guide is behind `all`. Fill in the one bracketed line under "Where you are running" with the case that applies right now (`all` and `where` only; the card calls nothing); change nothing else. Add no verdict, no sales pitch, no offer to run anything.
+**`all`** as `$ARGUMENTS`: show the guide below the rule to the person, as it is, with its headings and lists. If `$ARGUMENTS` names one topic (stages, order, commands, next, rounds, champion, briefs, files, where, crew, rating, record, privacy, method), show only that section, under the motto line and above the credit line at the foot. When the plugin loads, a session-start hook prints one line, "Combat Writing ready. /cw:help for the guide."; the card is what that line points at, and the guide is behind `all`. Fill in the one bracketed line under "Where you are running" with the case that applies right now (`all` and `where` only; the card calls nothing); change nothing else. Add no verdict, no sales pitch, no offer to run anything.
 
 ---
 
@@ -60,6 +60,8 @@ The method lists the stages in order; the plugin does not hold you to it (2026-1
 - `/cw:champion` — after the piece goes out. `shipped <link>`, or `shipped email to <whom>`, freezes the final draft as canon with the time and the channel, and with a link the host opens it once to record whether it is live and matches canon; `result: <text>` records what came back, dated, silence included; `insight: <text>` records what you learned in the project's vault. Three keywords and no more; a bare command asks which.
   Example: `/cw:champion shipped email to the board`
   Example: `/cw:champion insight: "the ask" is the one sentence the reader can say yes to; lead with it.`
+- `/cw:briefs` — lists your briefs: the unnamed default and every brief saved by name, each with its first line and the runs on it. Bare; it takes nothing.
+  Example: `/cw:briefs`
 - `/cw:help` — bare, the card and a picker to begin (the terminal's `/cw` completes to it); `help all` is this guide; `help rounds` shows one section.
   Example: `/cw:help`
 
@@ -94,11 +96,16 @@ Steps 15 to 19: publish, watch the numbers, acknowledge, follow through, and wri
 - **`insight: <what you learned>`**: one dated, run-tagged line in `combat-writing/insight-vault.md`, one file for the whole project, kept across runs. A lexicon term is an insight: `insight: "the ask" is the one sentence the reader can say yes to; lead with it.`
 - A bare `/cw:champion` asks which of the three you mean. The roundtable of step 18 is not built. To return to the piece when the field reveals a gap: `/cw:battle draft: <path>` on the same run.
 
+## Many kinds of writing at once
+
+A brief is the rules for one kind of writing, saved by name once: `brief cold-email: <the rules>`, `brief blog: <the rules>`, `brief speech: <the rules>` (one word, lower case, dashes allowed). A run is one piece, with its brief and its reader: `/cw:battle brief: cold-email reader: <who this one is for> battle: <the draft>` picks the saved brief and starts the run on it, and the record, the board and every result say which brief the seats judged by ("Brief: cold-email"). `brief: <text>` with no name is the unnamed default, as before, and a named brief never touches it. `brief update cold-email: <a line>` adds a dated line to that brief; `brief update:` on a run whose brief is named adds to that one. Any number of runs stay open at once, each on its own brief; `run: <word>` returns to one. `/cw:briefs` lists every brief with its first line and the runs on it. `help briefs` shows this section.
+
 ## Where files land
 
 - `combat-writing/runs/<date-time-slug>/` in your project: the draft snapshot and any revisions, the canon once shipped, the brief (written by strategy, or by sparring or battle when a draft is pasted there), the reader when you gave one (`reader.md`, this run's own), every packet, every answer, `log.jsonl`, `record.md` (the full record, with the stage the run started at, the text Next line and the Champion section) and `board.html` (the board, the result: it opens in your browser after every sparring and battle round and after `shipped`, a local file, never published).
 - `combat-writing/inbox/` in your project: whatever you paste, written whole before anything is parsed, then cut into the draft, the brief, the reader, the questions and the champion entries.
 - `combat-writing/insight-vault.md` in your project: the Insight Vault, one file across all runs, appended by `/cw:champion insight:`. If you ignore run folders in git, ignore `combat-writing/runs/` and `combat-writing/inbox/`, never `combat-writing/`, so the vault stays with the project. On the first run inside a git repository, the plugin writes `combat-writing/.gitignore` with exactly two lines, `runs/` and `inbox/`, and says so once in the result; a file already there is never overwritten.
+- `combat-writing/briefs/<name>.md` in your project: the briefs saved by name (`brief <name>: <text>`), one file each, picked by `brief: <name>`, added to by `brief update <name>:`; they ride with the project in git as the vault does.
 - `combat-writing/brief.md` in your project: the project's brief, the last one you typed (`brief: <text>` in any command replaces it), plus every `brief update:` as a dated line under it; carried by every new run that brings no brief of its own, so the next piece is pasted alone, and named on every result's Brief line with its newest update. It rides with the project in git, as the vault does; add `brief.md` to `combat-writing/.gitignore` if it must not.
 - Nothing is written anywhere else. Nothing is fetched but the one link you give `shipped`, which the host opens once; the plugin's scripts call nothing and hold no keys.
 

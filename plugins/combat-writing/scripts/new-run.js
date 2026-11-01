@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // new-run.js: creates the run folder for one Combat Writing session.
 //
-//   node new-run.js [--draft <file>] [--brief <file> | --no-brief] [--reader <file>] [--stage strategy|sparring|battle]
+//   node new-run.js [--draft <file>] [--brief <file> | --no-brief] [--brief-name <name>] [--reader <file>] [--stage strategy|sparring|battle]
 //                   [--name <slug>] [--model "<model name>"] [--company "<company>"] [--root <dir>]
 //
 // The brief (issue 65, 2026-10-26; issue 72 the same day): --brief <file> is the run's brief and
@@ -13,6 +13,14 @@
 // brief given is kept. run.created logs the brief's source, read from the path
 // (lib.briefSourceOf): project, last (another run's brief.md, the run id kept), pasted (an
 // inbox file) or given; the record's Started-at line names it.
+//
+// Briefs by name (Part 86, 2026-10-31): --brief <file> --brief-name <name> saves the brief as
+// <root>/combat-writing/briefs/<name>.md (`brief <name>: <text>`) and makes it the run's, the
+// unnamed default untouched; --brief-name <name> alone picks the saved brief for the run
+// (`brief: <name>`), refused with the saved names listed when there is none; a --brief path
+// that is a saved brief's own file is read as that name. run.created carries brief.name and
+// brief.kept the name and the file written. --brief with no name keeps today's meaning: the
+// unnamed default, combat-writing/brief.md, replaced.
 //
 // The reader (Part 84, 2026-10-31): --reader <file> is who this one piece is for, from the author
 // (the prospect of the day, the page the piece quotes), copied into the run as reader.md and
@@ -55,7 +63,6 @@ var hasDraft=!!args.draft&&args.draft!==true, hasBrief=!!args.brief&&args.brief!
 var root=path.resolve(args.root&&args.root!==true?args.root:process.cwd());
 var noBrief=args['no-brief']===true;
 var projectBriefThere=!noBrief&&fs.existsSync(lib.projectBriefPath(root));
-if(!hasDraft&&!hasBrief&&!projectBriefThere)lib.die('--draft <file> or --brief <file> is required (a brief alone is allowed: the draft joins the run later through add-draft.js)');
 if(args.draft===true)lib.die('--draft takes a file path');
 if(args.brief===true)lib.die('--brief takes a file path');
 if(hasDraft&&!fs.existsSync(args.draft))lib.die('draft not found: '+args.draft);
@@ -64,6 +71,17 @@ var hasReader=args.reader!==undefined;
 if(args.reader===true)lib.die('--reader takes a file path');
 if(hasReader&&!fs.existsSync(args.reader))lib.die('reader not found: '+args.reader);
 if(noBrief&&hasBrief)lib.die('--no-brief and --brief together: one or the other');
+var briefName=null;
+if(args['brief-name']!==undefined){
+  if(args['brief-name']===true)lib.die('--brief-name takes a name: one word, lower case letters, digits, dashes or underscores');
+  briefName=String(args['brief-name']).trim().toLowerCase();
+  if(!lib.isBriefName(briefName))lib.die('not a brief name: '+args['brief-name']+' (one word, lower case letters, digits, dashes or underscores, 40 characters at most, never update)');
+  if(noBrief)lib.die('--no-brief and --brief-name together: one or the other');
+  if(!hasBrief&&!fs.existsSync(lib.briefNamePath(root,briefName))){
+    var saved=lib.listBriefs(root).map(function(b){return b.name;});
+    lib.die('no saved brief named '+briefName+(saved.length?' (saved: '+saved.join(', ')+')':' (none saved yet)')+'; save one with brief '+briefName+': <text>');
+  }
+}
 if(args.keep!==undefined)lib.die('--keep is gone (issue 72): every brief given with --brief is the project\'s; pass --brief alone');
 var STAGES=['strategy','sparring','battle'];
 var stage=null;
@@ -71,6 +89,9 @@ if(args.stage!==undefined){
   if(args.stage===true||STAGES.indexOf(String(args.stage).toLowerCase())<0)lib.die('--stage must be strategy, sparring or battle');
   stage=String(args.stage).toLowerCase();
 }
+
+// The guard reads briefName, so it stands after the block that sets it (the watchman caught it read before its declaration, 2026-10-31).
+if(!hasDraft&&!hasBrief&&!projectBriefThere&&!briefName)lib.die('--draft <file> or --brief <file> is required (a brief alone is allowed: the draft joins the run later through add-draft.js)');
 
 if(args.seats!==undefined)lib.die('--seats is not an option: the crew is one fresh reader, seat-1, plus the outside seats the add-on registers, never padded (ruled 2026-10-09, enforced 2026-10-12)');
 var model=(args.model&&args.model!==true)?String(args.model).trim():lib.MODEL_UNREPORTED;
@@ -95,6 +116,7 @@ var draft=null;
 if(hasDraft){draft=fs.readFileSync(args.draft);fs.writeFileSync(path.join(runDir,'draft.md'),draft);}
 // The brief: the file given, else the project's when it exists and --no-brief was not said.
 var briefFile=hasBrief?path.resolve(args.brief):null;
+if(!briefFile&&briefName)briefFile=lib.briefNamePath(root,briefName);
 if(!briefFile&&projectBriefThere)briefFile=lib.projectBriefPath(root);
 var briefHash=null, briefSource=null, kept=null;
 if(briefFile){
@@ -102,8 +124,16 @@ if(briefFile){
   fs.writeFileSync(path.join(runDir,'brief.md'),brief);
   briefHash=lib.sha256(brief);
   briefSource=lib.briefSourceOf(briefFile,root);
-  // A brief given is the project's (issue 72): written unless it is that file, logged when it changed.
-  if(briefSource.source!=='project'){
+  if(briefSource.source==='named')briefName=briefSource.from;
+  // A brief given with a name is saved by that name (Part 86), the unnamed default untouched;
+  // a brief given with none is the project's (issue 72): written unless it is that file, logged when it changed.
+  if(briefName&&briefSource.source!=='named'){
+    var nb=lib.briefNamePath(root,briefName);
+    var beforeN=fs.existsSync(nb)?lib.sha256(fs.readFileSync(nb)):null;
+    fs.mkdirSync(path.dirname(nb),{recursive:true});
+    fs.writeFileSync(nb,brief);
+    if(beforeN!==briefHash)kept={file:lib.BRIEFS_DIR_REL.split(path.sep).join('/')+'/'+briefName+'.md',name:briefName,sha256:briefHash,replaced:beforeN};
+  }else if(!briefName&&briefSource.source!=='project'){
     var pb=lib.projectBriefPath(root);
     var before=fs.existsSync(pb)?lib.sha256(fs.readFileSync(pb)):null;
     fs.mkdirSync(path.dirname(pb),{recursive:true});
@@ -127,10 +157,10 @@ fs.writeFileSync(path.join(runDir,'seats.json'),JSON.stringify({seats:seats},nul
 
 lib.appendLog(runDir,{event:'run.created',run:path.basename(runDir),stage:stage,
   draft:draft?Object.assign({file:'draft.md',sha256:lib.sha256(draft)},lib.draftFacts(draft.toString('utf8'))):null,
-  brief:briefHash?{file:'brief.md',sha256:briefHash,source:briefSource.source,from:briefSource.from}:null,
+  brief:briefHash?{file:'brief.md',sha256:briefHash,source:briefSource.source,from:briefSource.source==='named'?null:briefSource.from,name:briefName}:null,
   reader:reader,
   seats:seats.map(function(s){return {id:s.id,model:s.model,company:s.company};}),
   crew_note:'one fresh reader, every seat is '+company+'\'s models until the crew add-on registers outside seats; the plugin never fakes a seat and never pads the crew'});
 if(ignore.state==='written')lib.appendLog(runDir,{event:'gitignore.written',file:path.join('combat-writing',lib.GITIGNORE_FILE).split(path.sep).join('/'),lines:lib.GITIGNORE_LINES});
-if(kept)lib.appendLog(runDir,{event:'brief.kept',file:kept.file,sha256:kept.sha256,replaced:kept.replaced});
+if(kept)lib.appendLog(runDir,{event:'brief.kept',file:kept.file,name:kept.name||null,sha256:kept.sha256,replaced:kept.replaced});
 process.stdout.write(runDir+'\n');

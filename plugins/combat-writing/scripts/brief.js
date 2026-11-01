@@ -3,7 +3,7 @@
 // by a line just adds to the brief." The prospect of the day (who the piece is to, the page it
 // quotes) lives in the brief, where the seats already read, so no other keyword carries it.
 //
-//   node brief.js --update <inbox file> [--run <run folder>] [--root <dir>] [--at <time>]
+//   node brief.js --update <inbox file> [--name <brief name>] [--run <run folder>] [--root <dir>] [--at <time>]
 //
 // The text reaches this script as a file cut from the inbox, never as inline text (the packet
 // rule). It is appended as one dated paragraph, "Update YYYY-MM-DD: <text>" (lib.briefUpdateParagraph;
@@ -18,6 +18,13 @@
 // given, with the project file's and the run file's sha256 after the write and the update's
 // words; prints one line, "Brief updated <date> in combat-writing/brief.md[ and the run's]: <text>",
 // and nothing else. --at dates the update (any form Date parses; UTC); it defaults to now.
+//
+// Briefs by name (Part 86, 2026-10-31): --name <name> appends to the saved brief
+// <root>/combat-writing/briefs/<name>.md instead of the unnamed default (`brief update <name>:`),
+// created from the update alone when there is none; with no --name and a --run whose brief has a
+// name (run.created brief.name), that named brief is the one added to, so an update typed on a run
+// lands where the run's brief lives; the unnamed default is touched only when neither names one.
+// brief.updated and the printed line carry the name and the file.
 //
 // Refusals, exit 2 with one line on stderr: a missing --update; a missing or empty file; a --run
 // folder that does not exist; an --at that is not a date. Writes nowhere but the two brief files
@@ -38,6 +45,16 @@ if(args.run!==undefined){
   runDir=path.resolve(args.run);
   if(!fs.existsSync(runDir)||!fs.statSync(runDir).isDirectory())lib.die('run folder not found: '+args.run);
 }
+var name=null;
+if(args.name!==undefined){
+  if(args.name===true)lib.die('--name takes a brief name');
+  name=String(args.name).trim().toLowerCase();
+  if(!lib.isBriefName(name))lib.die('not a brief name: '+args.name);
+}
+if(!name&&runDir){
+  var createdLine=lib.readLog(runDir).filter(function(e){return e.event==='run.created';})[0];
+  if(createdLine&&createdLine.brief&&createdLine.brief.name)name=createdLine.brief.name;
+}
 var at=new Date();
 if(args.at!==undefined){
   if(args.at===true||isNaN(new Date(args.at).getTime()))lib.die('--at takes a date');
@@ -56,15 +73,16 @@ function appendTo(file){
   return {created:!had.trim(),sha256:lib.sha256(fs.readFileSync(file))};
 }
 
-var pb=lib.projectBriefPath(root);
+var pb=name?lib.briefNamePath(root,name):lib.projectBriefPath(root);
+var pbRel=name?lib.BRIEFS_DIR_REL.split(path.sep).join('/')+'/'+name+'.md':lib.PROJECT_BRIEF_REL.split(path.sep).join('/');
 var project=appendTo(pb);
 var run=null;
 if(runDir){
   var rb=path.join(runDir,'brief.md');
   if(fs.existsSync(rb))run=appendTo(rb);
   else { fs.copyFileSync(pb,rb); run={created:true,sha256:lib.sha256(fs.readFileSync(rb))}; }
-  lib.appendLog(runDir,{event:'brief.updated',date:date,words:lib.wordCount(text),
-    project:{file:lib.PROJECT_BRIEF_REL.split(path.sep).join('/'),sha256:project.sha256,created:project.created},
+  lib.appendLog(runDir,{event:'brief.updated',date:date,words:lib.wordCount(text),name:name,
+    project:{file:pbRel,sha256:project.sha256,created:project.created},
     run:{file:'brief.md',sha256:run.sha256,created:run.created}});
 }
-process.stdout.write('Brief updated '+date+' in combat-writing/brief.md'+(project.created?' (created from this update)':'')+(run?' and the run\'s':'')+': '+text.split('\n')[0]+'\n');
+process.stdout.write('Brief updated '+date+' in '+pbRel+(project.created?' (created from this update)':'')+(run?' and the run\'s':'')+': '+text.split('\n')[0]+'\n');

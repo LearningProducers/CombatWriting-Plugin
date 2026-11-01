@@ -135,8 +135,37 @@ function readerPath(runDir){ return path.join(path.resolve(runDir),READER_FILE);
 function readReader(runDir){ var p=readerPath(runDir); return fs.existsSync(p)?readText(p).replace(/\r\n/g,'\n').trim():null; }
 // One line naming the reader, cut at READER_SHOWN characters on a word, for the record's and the board's Reader line.
 function readerWords(text){ var t=String(text||'').replace(/\s+/g,' ').trim(); if(!t)return null; return t.length>READER_SHOWN?t.slice(0,READER_SHOWN).replace(/\s+\S*$/,'')+'…':t; }
+// Briefs by name (Part 86, 2026-10-31; the founder: "someone [uses the] cw plugin for various writing
+// projects at once which means various briefs"): one project, many briefs. A named brief lives at
+// <project>/combat-writing/briefs/<name>.md, saved by `brief <name>: <text>` (new-run.js --brief <file>
+// --brief-name <name>), picked by `brief: <name>` (new-run.js --brief-name <name> alone), added to by
+// `brief update <name>:` (brief.js --update --name <name>). The unnamed default, combat-writing/brief.md,
+// keeps today's meaning and is untouched by a named brief. A run's brief name rides in run.created
+// (brief.name), and the record, the board and the short form name it ("Brief: cold-email").
+var BRIEFS_DIR='briefs';
+var BRIEFS_DIR_REL=path.join('combat-writing',BRIEFS_DIR);
+var BRIEF_NAME_RE=/^[a-z0-9][a-z0-9_-]{0,39}$/;
+function briefsDir(root){ return path.join(path.resolve(root),'combat-writing',BRIEFS_DIR); }
+function briefNamePath(root,name){ return path.join(briefsDir(root),name+'.md'); }
+// A brief name: one word, lower case letters, digits, dashes and underscores, 40 characters at most;
+// `update` is never one, because `brief update:` is its own keyword.
+function isBriefName(s){ s=String(s||'').trim(); return BRIEF_NAME_RE.test(s)&&s!=='update'; }
+// The saved briefs, by name, with each one's first non-empty line cut at BRIEF_UPDATE_SHOWN characters.
+function listBriefs(root){
+  var dir=briefsDir(root);
+  if(!fs.existsSync(dir))return [];
+  return fs.readdirSync(dir).filter(function(f){return /\.md$/.test(f)&&isBriefName(f.replace(/\.md$/,''));}).sort().map(function(f){
+    var text=readText(path.join(dir,f));
+    return {name:f.replace(/\.md$/,''),file:BRIEFS_DIR_REL.split(path.sep).join('/')+'/'+f,first_line:briefFirstLine(text),words:wordCount(text)};
+  });
+}
+function briefFirstLine(text){
+  var l=String(text||'').replace(/\r\n/g,'\n').split('\n').map(function(x){return x.trim();}).filter(Boolean)[0]||'';
+  return l.length>BRIEF_UPDATE_SHOWN?l.slice(0,BRIEF_UPDATE_SHOWN).replace(/\s+\S*$/,'')+'…':l;
+}
 var PROJECT_BRIEF_FILE='brief.md';
 var PROJECT_BRIEF_REL=path.join('combat-writing',PROJECT_BRIEF_FILE);
+function briefNameKeptLine(name){ return 'This brief is saved as '+name+' (combat-writing/briefs/'+name+'.md): brief: '+name+' picks it for a run, brief '+name+': replaces it and brief update '+name+': adds to it. The unnamed default, combat-writing/brief.md, is untouched. /cw:briefs lists every saved brief.'; }
 var PROJECT_BRIEF_KEPT_LINE='This brief is now the project\'s: combat-writing/brief.md serves every new run in this project that brings none, until the next brief: replaces it or brief update: adds to it (cold leaves it out of a read). It rides with the project in git, as the vault does; add brief.md to combat-writing/.gitignore if it must not.';
 var BRIEF_UPDATE_RE=/^Update (\d{4}-\d{2}-\d{2}): (.*)$/;
 var BRIEF_UPDATE_SHOWN=120;
@@ -161,6 +190,8 @@ function realOr(p){ p=path.resolve(p); try{ return fs.realpathSync(p); }catch(e)
 function briefSourceOf(briefFile,root){
   var p=realOr(briefFile), r=realOr(root);
   if(p===projectBriefPath(r))return {source:'project',from:null};
+  var named=under(p,briefsDir(r));
+  if(named&&named.indexOf(path.sep)<0&&/\.md$/.test(named)&&isBriefName(named.replace(/\.md$/,'')))return {source:'named',from:named.replace(/\.md$/,'')};
   var rel=under(p,path.join(r,RUNS_DIR));
   if(rel){ var parts=rel.split(path.sep); if(parts.length===2&&parts[1]==='brief.md')return {source:'last',from:parts[0]}; }
   if(under(p,path.join(r,'combat-writing','inbox')))return {source:'pasted',from:null};
@@ -170,6 +201,7 @@ function briefSourceOf(briefFile,root){
 function briefWords(created,dflt){
   var b=created&&created.brief;
   if(!b)return null;
+  if(b.name)return 'the brief '+b.name;
   if(b.source==='project')return 'the project\'s brief';
   if(b.source==='last')return 'the brief from run '+(b.from||'?');
   if(b.source==='pasted')return 'the brief pasted';
@@ -182,7 +214,8 @@ function briefLine(created,text){
   var b=created&&created.brief;
   if(!b)return 'Brief: none.';
   var s;
-  if(b.source==='project')s='Brief: the project\'s (combat-writing/brief.md)';
+  if(b.name)s='Brief: '+b.name+' (combat-writing/briefs/'+b.name+'.md'+(b.source==='named'?'':', saved from this paste')+')';
+  else if(b.source==='project')s='Brief: the project\'s (combat-writing/brief.md)';
   else if(b.source==='last')s='Brief: from run '+(b.from||'?');
   else if(b.source==='pasted')s='Brief: stored, pasted with the draft';
   else s='Brief: brief.md, stored';
@@ -1488,7 +1521,7 @@ function runState(runDir){
     schema:STATE_SCHEMA,plugin_version:pluginVersion(),rendered_at:new Date().toISOString(),
     run:{id:path.basename(runDir),dir:runDir,stage_started:created&&created.stage?created.stage:null,first_round:rounds.length?rounds[0]:null,started_line:startedAtLine(runDir,log,rounds)},
     drafts:draftsOut,newest_draft:newestDraft,
-    brief:{present:hasBrief,file:hasBrief?'brief.md':null,text:hasBrief?readText(path.join(runDir,'brief.md')).trim():null},
+    brief:{present:hasBrief,file:hasBrief?'brief.md':null,name:(created&&created.brief&&created.brief.name)||null,text:hasBrief?readText(path.join(runDir,'brief.md')).trim():null},
     reader:{present:readerText!==null,file:readerText!==null?READER_FILE:null,text:readerText,line:readerWords(readerText)},
     canons:canons,newest_canon:latestCanon(runDir),
     seats:seatsOut,crew_line:crewLine,seats_lines:crewStateLines(runDir,seats,log),seat_key:seatKey(seats),name_sources:nameSources(seats),
@@ -1509,6 +1542,7 @@ module.exports={
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   GITIGNORE_FILE:GITIGNORE_FILE,GITIGNORE_LINES:GITIGNORE_LINES,GITIGNORE_LINE:GITIGNORE_LINE,inGitRepo:inGitRepo,writeGitignore:writeGitignore,
+  BRIEFS_DIR:BRIEFS_DIR,BRIEFS_DIR_REL:BRIEFS_DIR_REL,BRIEF_NAME_RE:BRIEF_NAME_RE,briefsDir:briefsDir,briefNamePath:briefNamePath,isBriefName:isBriefName,listBriefs:listBriefs,briefFirstLine:briefFirstLine,briefNameKeptLine:briefNameKeptLine,
   PROJECT_BRIEF_FILE:PROJECT_BRIEF_FILE,PROJECT_BRIEF_REL:PROJECT_BRIEF_REL,PROJECT_BRIEF_KEPT_LINE:PROJECT_BRIEF_KEPT_LINE,projectBriefPath:projectBriefPath,briefSourceOf:briefSourceOf,briefWords:briefWords,briefLine:briefLine,
   READER_FILE:READER_FILE,READER_HEADING:READER_HEADING,READER_SHOWN:READER_SHOWN,readerPath:readerPath,readReader:readReader,readerWords:readerWords,
   BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,

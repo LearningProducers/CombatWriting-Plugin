@@ -120,9 +120,11 @@ if(newestFacts){out.push('');out.push('**'+lib.FACTS_HEADING+':** '+lib.draftFac
 out.push('');
 // Where the run started (2026-10-14: the order of the stages is the person's choice).
 out.push('**Started at:** '+lib.startedAtLine(runDir,log,rounds));
+var briefName=created.brief&&created.brief.name?created.brief.name:null;
 if(fs.existsSync(path.join(runDir,'brief.md'))){
   out.push('');
-  out.push('**Brief:**');
+  // The brief by name (Part 86): the label names it, so a project with many briefs reads which one this run judged by.
+  out.push(briefName?'**Brief** ('+briefName+', combat-writing/briefs/'+briefName+'.md):':'**Brief:**');
   out.push('');
   out.push(lib.readText(path.join(runDir,'brief.md')).trim());
 }
@@ -227,7 +229,8 @@ if(args.next===true){
   // its first short form and never again, like the legend.
   if(log.some(function(e){return e.event==='gitignore.written';})&&!log.some(function(e){return e.event==='gitignore.printed';})){ s.push(lib.GITIGNORE_LINE,''); lib.appendLog(runDir,{event:'gitignore.printed'}); }
   // The project brief, said once (issue 65): the run that kept the brief as the project's says so in its first short form.
-  if(log.some(function(e){return e.event==='brief.kept';})&&!log.some(function(e){return e.event==='brief.kept.printed';})){ s.push(lib.PROJECT_BRIEF_KEPT_LINE,''); lib.appendLog(runDir,{event:'brief.kept.printed'}); }
+  var keptLine=lastLog(function(e){return e.event==='brief.kept';});
+  if(keptLine&&!log.some(function(e){return e.event==='brief.kept.printed';})){ s.push(keptLine.name?lib.briefNameKeptLine(keptLine.name):lib.PROJECT_BRIEF_KEPT_LINE,''); lib.appendLog(runDir,{event:'brief.kept.printed'}); }
   if(rounds.length){
     // The legend once per run: the first short form of the run prints it and logs that it did.
     var legendShown=log.some(function(e){return e.event==='legend.printed';});
