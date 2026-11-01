@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// hook_check.js: the listed plugin's session-start hook (ruled 2026-10-09; since 2026-10-16 the
+// hook_check.js: the listed plugin's session-start hook (ruled 2026-10-09; since 2026-10-31 it also
+// prints the first-session line once, Part 83, pinned by tests/session_start_check.js; since 2026-10-16 the
 // seat-scope hook sits beside it in hooks.json, pinned by tests/seat_scope_check.js; since
 // 2026-10-26 the show-result hook too, issue 70, pinned by tests/show_result_check.js),
-// and it reads, writes and calls nothing.
+// and on every start but the first it reads, writes and calls nothing (the first start measures the
+// add-on and the voices and writes the sentinel, Part 83).
 //
 // What it pins:
 //   - plugins/combat-writing/hooks/ holds exactly hooks.json, seat-scope.js, session-start.js
@@ -10,11 +12,13 @@
 //   - hooks.json has the top-level `hooks` wrapper, three events, SessionStart, PreToolUse and
 //     PostToolUse, SessionStart with one entry
 //     whose one command hook runs node on a file inside the plugin, named through
-//     ${CLAUDE_PLUGIN_ROOT}, with no other variable, substitution, shell operator or launcher.
-//   - Run with node, session-start.js exits 0 and prints one JSON object whose systemMessage
-//     is exactly "Combat Writing ready. /cw:help for the guide." and whose
+//     ${CLAUDE_PLUGIN_ROOT}, handed ${CLAUDE_PLUGIN_DATA} as its one argument (Part 83), with no
+//     other variable, substitution, shell operator or launcher.
+//   - Run with node and no data folder, session-start.js exits 0 and prints one JSON object whose
+//     systemMessage is exactly "Combat Writing ready. /cw:help for the guide." and whose
 //     hookSpecificOutput carries the same line as additionalContext for SessionStart.
-//   - The script requires no module at all and holds no URL: it prints and stops.
+//   - The script requires fs, path, child_process and the plugin's lib.js and nothing else, holds
+//     no URL, never installs, and reads one environment variable, CW_SESSION_PROBE (the tests' fakes).
 //
 // Run from the repo root:   node tests/hook_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -40,15 +44,18 @@ if(hooks){
   check(entries.length===1&&Array.isArray(entries[0].hooks)&&entries[0].hooks.length===1,'hooks.json: SessionStart must hold one entry with one hook');
   var h=(entries[0]&&entries[0].hooks&&entries[0].hooks[0])||{};
   check(h.type==='command','hooks.json: the hook type must be command');
-  check(h.command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js"','hooks.json: the command must be node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js", got '+JSON.stringify(h.command));
-  check(!/[;&|<>`$]/.test(String(h.command).replace('${CLAUDE_PLUGIN_ROOT}','')),'hooks.json: the command holds a shell operator or another substitution');
-  check(typeof h.timeout==='number'&&h.timeout<=10,'hooks.json: the hook should carry a short timeout');
+  check(h.command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js" "${CLAUDE_PLUGIN_DATA}"','hooks.json: the command must be node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js" "${CLAUDE_PLUGIN_DATA}", got '+JSON.stringify(h.command));
+  check(!/[;&|<>`$]/.test(String(h.command).replace('${CLAUDE_PLUGIN_ROOT}','').replace('${CLAUDE_PLUGIN_DATA}','')),'hooks.json: the command holds a shell operator or another substitution');
+  check(typeof h.timeout==='number'&&h.timeout>=12&&h.timeout<=15,'hooks.json: the hook timeout covers the two 5 s measurement budgets and no more (Part 83)');
 }
 
 var script=read(dir+'/session-start.js');
 check(script.split('\n')[0]==='// SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0','session-start.js: no Shield header on line 1');
-check(!/require\(/.test(script)&&!/\bfetch\(/.test(script)&&!/https?:\/\//.test(script.replace(/\/\/[^\n]*/g,'')),'session-start.js: must require nothing, fetch nothing and hold no URL');
-check(!/process\.env|readFileSync|writeFileSync|process\.argv/.test(script),'session-start.js: must read no environment, file or argument');
+var code=script.replace(/\/\/[^\n]*/g,'');
+var reqs=(code.match(/require\(['"][^'"]+['"]\)/g)||[]).map(function(r){return r.replace(/require\(['"]|['"]\)/g,'');}).sort();
+check(reqs.join()==='../scripts/lib.js,child_process,fs,path'&&!/\bfetch\(/.test(code)&&!/https?:\/\//.test(code),'session-start.js: requires fs, path, child_process and lib.js only, fetches nothing, holds no URL: '+reqs.join());
+check((code.match(/process\.env\.([A-Z_]+)/g)||[]).filter(function(v,i,a){return a.indexOf(v)===i;}).sort().join()==='process.env.CLAUDE_PLUGIN_DATA,process.env.CW_SESSION_PROBE,process.env.HOME','session-start.js: reads only CLAUDE_PLUGIN_DATA, HOME (the cache fallback) and CW_SESSION_PROBE from the environment');
+check(!/plugin install|plugin\s*,\s*['"]install/.test(code),'session-start.js: never installs');
 
 var r=cp.spawnSync(process.execPath,[path.join(root,dir,'session-start.js')],{encoding:'utf8',cwd:root});
 check(r.status===0,'session-start.js: exit '+r.status+' '+r.stderr);
