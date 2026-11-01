@@ -24,7 +24,7 @@
 // earlier number kept, Stand, missing, not asked, failed reads, truncated reads) with the
 // round history under it (every round's task in one line), the final reads when a final
 // round exists, and the run details (the crew line, the Seats line when the crew is short,
-// the seat key, the drafts, the brief, where the run started, a link to record.md). Light and dark
+// the seat key, the drafts, the brief, the reader (Part 84, who this piece is for, under the brief), where the run started, a link to record.md). Light and dark
 // follow the system setting, with a toggle. No external request of any kind: no script,
 // style, font or image is fetched. Nothing is averaged. Every seat's words are escaped: an
 // answer is text, never markup; a small markdown subset (lists, bold, italic, code) is then
@@ -58,6 +58,7 @@ var finalRounds=rounds.filter(lib.isFinalRound);
 var drafts=lib.listDrafts(runDir);
 var newestDraft=lib.latestDraft(runDir);
 var hasBrief=fs.existsSync(path.join(runDir,'brief.md'));
+var readerText=lib.readReader(runDir);
 
 var esc=lib.escapeHtml;
 // A seat's read: lib.renderLite, the markdown subset after escaping (2026-10-15). The draft keeps paras(): the author's text as pasted.
@@ -386,6 +387,8 @@ html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel)
 lib.crewStateLines(runDir,seats,log).forEach(function(l){ html.push('<p class="meta"><strong>Seats:</strong> '+esc(l)+'</p>'); });
 html.push('<p class="meta"><strong>Seat key:</strong> '+esc(lib.seatKey(seats))+'</p>');
 html.push('<p class="meta"><strong>Drafts:</strong> '+(drafts.length?esc(drafts.map(function(d){return d+' ('+lib.draftFactsLine(lib.draftFacts(lib.readText(path.join(runDir,d))))+')';}).join(', '))+'.':'none yet; the draft joins the run when sparring or battle brings it.')+(hasBrief?' <strong>Brief:</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
+// The reader (Part 84): under the brief, this run's own, as every packet carries it.
+if(readerText!==null)html.push('<p class="meta reader"><strong>Reader:</strong> '+esc(readerText)+' <span class="note">(who this piece is for, from the author; this run\'s own, carried in every packet after the brief)</span></p>');
 html.push('<p class="meta"><strong>Started at:</strong> '+esc(lib.startedAtLine(runDir,log,rounds))+'</p>');
 // The price of every round (issue 95), here and not on the terminal: the founder's ruling, accessible, not presented.
 var budgetLines=lib.budgetLines(runDir,log);

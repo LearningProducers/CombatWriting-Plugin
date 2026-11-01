@@ -6,8 +6,9 @@
 //                  [--sfq <file>] [--sn <file>] [--n <file>] [--fq <file>] [--rerate]
 //                  [--cold] [--final sn|redflag] [--word-cap <n>]
 //
-// Reads the draft (the newest draft file in the run unless --draft names one), brief.md
-// (unless --cold or --final), seats.json, the optional question, SFQ, SN, N or FQ file, and
+// Reads the draft (the newest draft file in the run unless --draft names one), brief.md and
+// reader.md (both unless --cold or --final; the reader, Part 84, is who this one piece is for,
+// carried under its own heading after the brief), seats.json, the optional question, SFQ, SN, N or FQ file, and
 // the previous round's answers, and writes rounds/<nn-kind>/<seat>.packet.md (or
 // <seat>.sn.packet.md / <seat>.redflag.packet.md in final mode), copying a --question file
 // into the round folder as <seat>.question.md when it is not already there. Prints the packet path.
@@ -115,6 +116,8 @@ if(!draftName)lib.die('no draft in '+runDir+': the run holds a brief alone; add 
 if(!/^draft(-\d+)?\.md$/.test(draftName)||!fs.existsSync(path.join(runDir,draftName)))lib.die('draft '+draftName+' is not in the run');
 var draft=lib.readText(path.join(runDir,draftName));
 var brief=(!cold&&!finalMode&&fs.existsSync(path.join(runDir,'brief.md')))?lib.readText(path.join(runDir,'brief.md')).trim():null;
+// The reader (Part 84): who this piece is for, from the author; it rides where the brief rides.
+var reader=(!cold&&!finalMode)?lib.readReader(runDir):null;
 
 // The previous round feeds the seat's own earlier turn in every non-cold, non-final packet;
 // the other seats' answers are carried only when the round shares them: not in an N or FQ
@@ -152,7 +155,7 @@ if(prev){
 // Links are unread (issue 90): when the brief, the draft or the round's text carries an address, the
 // Contract says no seat can open it, so a seat never describes a page it never read.
 var crewTask=crewPass?lib.roundTask(runDir,args.round):null;
-var linked=[brief,draft,sfq&&sfq.text,sn&&sn.text,nav&&nav.text,fq&&fq.text,question&&question.text,crewTask&&crewTask.text].some(lib.hasLink);
+var linked=[brief,reader,draft,sfq&&sfq.text,sn&&sn.text,nav&&nav.text,fq&&fq.text,question&&question.text,crewTask&&crewTask.text].some(lib.hasLink);
 
 var cap=args['word-cap']&&args['word-cap']!==true?parseInt(args['word-cap'],10)
   :finalMode?lib.DEFAULT_FINAL_WORD_CAP:crewPass?lib.DEFAULT_CREW_WORD_CAP:synthesis?lib.DEFAULT_SYNTHESIS_WORD_CAP:lib.DEFAULT_WORD_CAP;
@@ -243,6 +246,15 @@ if(brief){
   out.push(brief);
   out.push('');
 }
+if(reader){
+  marks.reader=out.length;
+  out.push(lib.READER_HEADING);
+  out.push('');
+  out.push('Judge the draft as a piece written for this reader. The brief above is the author\'s standing rules; this is who this one piece is for, in the author\'s words.');
+  out.push('');
+  out.push(reader);
+  out.push('');
+}
 marks.draft=out.length;
 out.push('## The draft'+(draftName!=='draft.md'?' ('+draftName+', a revision)':''));
 out.push('');
@@ -301,7 +313,7 @@ var size=lib.packetSize(out,marks);
 lib.appendLog(runDir,{event:'packet.built',round:args.round,seat:seat.id,model:seat.model,company:seat.company,
   mode:finalMode?'final-'+finalMode:crewPass?'crew':cold?'cold':nav?'navigation':fq?'focus':seatAlone?'seat':(synthesis||synthesisTerm)?'synthesis':'read',
   contract:contract,rerate:rerate,shares:shares,sections:sections,prompted:prompted,rewrite:rewrite,first_round:firstRound,pass:crewPass?'crew':null,links_unread:linked,
-  file:path.relative(runDir,packetPath),draft:draftName,draft_facts:facts,brief_included:!!brief,
+  file:path.relative(runDir,packetPath),draft:draftName,draft_facts:facts,brief_included:!!brief,reader_included:!!reader,
   question:question?path.basename(question.file):null,sfq:sfq?path.basename(sfq.file):null,sn:sn?path.basename(sn.file):null,n:nav?path.basename(nav.file):null,fq:fq?path.basename(fq.file):null,
   reads_round:shares?prev:null,own_previous:own?own.round:null,own_rating:ownRated?ownRated.round:null,
   carried:carried.map(function(o){return {seat:o.seat.id,round:o.round};}),
