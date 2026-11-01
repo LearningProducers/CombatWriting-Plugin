@@ -297,11 +297,44 @@ function startedAtLine(runDir,log,rounds){
 
 // The text Next line (2026-10-14): what the person can type after a round. The record keeps it;
 // the short form prints it so the host has it for the picker's "Done for now". One line.
-function nextLine(seats){
+// The run on the Next line (Part 85, 2026-10-31; the founder: "There needs to be a clear way for a user to
+// return to a run not finished ... and it ought to be able to start fresh on a new one whenever"): every
+// text Next line names the run it is on, the word that returns to it (run: <word>, matched against the
+// run ids by runs.js --match) and the line that leaves it. runSlug is the id after its date and time.
+function runSlug(id){ return String(id||'').replace(/^\d{4}-\d\d-\d\d-\d{4}-/,''); }
+function thisRunLine(runId){ return runId?' This run: '+runId+' (run: '+runSlug(runId)+' returns to it). A new piece: paste it with battle: or sparring:.':''; }
+// Every run of a project in one line each, newest first (Part 85): the id, the brief by name (default,
+// or none), the reader's first words, the last round, the drafts held, and OPEN or SHIPPED <date>, read
+// from the run folder and its log, nothing computed beyond that. matchRuns finds the ids holding a word.
+function runSummary(runDir){
+  runDir=path.resolve(runDir);
+  var log=readLog(runDir), created=null; log.forEach(function(e){ if(e.event==='run.created'&&!created)created=e; });
+  var rounds=listRounds(runDir), drafts=listDrafts(runDir), canon=latestCanon(runDir);
+  var shippedAt=null; log.forEach(function(e){ if(e.event==='champion.shipped'&&e.at)shippedAt=e.at; });
+  var b=created&&created.brief;
+  return {id:path.basename(runDir),dir:runDir,slug:runSlug(path.basename(runDir)),
+    brief:b?(b.name||'default'):'none',brief_name:b&&b.name?b.name:null,reader:readerWords(readReader(runDir)),
+    last_round:rounds.length?rounds[rounds.length-1]:null,rounds:rounds.length,drafts:drafts.length,
+    shipped:!!canon,shipped_date:canon?(shippedAt?dateUtc(shippedAt):null):null,canon:canon};
+}
+function runsLine(s){
+  return s.id+' · brief: '+s.brief+' · reader: '+(s.reader||'none')+' · '+(s.last_round?'last round '+s.last_round:'no round')+' · '+s.drafts+' draft'+(s.drafts===1?'':'s')+' · '+(s.shipped?'SHIPPED'+(s.shipped_date?' '+s.shipped_date:''):'OPEN');
+}
+function listRunSummaries(root){
+  var dir=path.join(path.resolve(root),RUNS_DIR);
+  if(!fs.existsSync(dir))return [];
+  return fs.readdirSync(dir).filter(function(d){return fs.existsSync(path.join(dir,d,'seats.json'));}).sort().reverse().map(function(d){return runSummary(path.join(dir,d));});
+}
+function matchRuns(root,word){
+  var w=String(word||'').trim().toLowerCase();
+  if(!w)return [];
+  return listRunSummaries(root).filter(function(s){return s.id.toLowerCase().indexOf(w)>=0;});
+}
+function nextLine(seats,runId){
   var one=seats.length<2;
   var s='Next: '+CMD.battle+' fq: <question> (FQ, the same question to every seat, nothing shared) · n: <guidance> (N, the same new guidance to every seat individually) · sn: <prompt> (SN, each seat\'s synthesis shared with the others plus your new prompt) · sfq: <question> (SFQ, the crew\'s answers shared plus a new question) · seat-2: <note> (one seat only) · add rerate to any of them for a new rating · draft: <path> for a revised draft · final for the S/N ratio and red-flag reads on the draft alone · '+CMD.sparring+' debate (the seats read each other and rate again).';
   if(one)s+=' With one seat, SN, SFQ and debate have no other seat to share: use fq: or n:, or seat the add-on.';
-  return s;
+  return s+thisRunLine(runId);
 }
 
 // The line a packet carries when the round asks for no rating; the checker and the add-on read it.
@@ -1519,7 +1552,7 @@ function runState(runDir){
   var noRounds=noRoundsLine(!!newestDraft,hasBrief);
   return {
     schema:STATE_SCHEMA,plugin_version:pluginVersion(),rendered_at:new Date().toISOString(),
-    run:{id:path.basename(runDir),dir:runDir,stage_started:created&&created.stage?created.stage:null,first_round:rounds.length?rounds[0]:null,started_line:startedAtLine(runDir,log,rounds)},
+    run:{id:path.basename(runDir),slug:runSlug(path.basename(runDir)),dir:runDir,stage_started:created&&created.stage?created.stage:null,first_round:rounds.length?rounds[0]:null,started_line:startedAtLine(runDir,log,rounds)},
     drafts:draftsOut,newest_draft:newestDraft,
     brief:{present:hasBrief,file:hasBrief?'brief.md':null,name:(created&&created.brief&&created.brief.name)||null,text:hasBrief?readText(path.join(runDir,'brief.md')).trim():null},
     reader:{present:readerText!==null,file:readerText!==null?READER_FILE:null,text:readerText,line:readerWords(readerText)},
@@ -1527,7 +1560,7 @@ function runState(runDir){
     seats:seatsOut,crew_line:crewLine,seats_lines:crewStateLines(runDir,seats,log),seat_key:seatKey(seats),name_sources:nameSources(seats),
     briefing:null,
     rounds:roundsOut,latest:latest,latest_turn:latestTurn,band:band,champion:championOut,
-    next_line:rounds.length?nextLine(seats):noRounds,no_rounds_line:noRounds,legend:SCOREBOARD_LEGEND,
+    next_line:rounds.length?nextLine(seats,path.basename(runDir)):noRounds+thisRunLine(path.basename(runDir)),no_rounds_line:noRounds,legend:SCOREBOARD_LEGEND,
     board_file:BOARD_FILE,record_file:'record.md',board_present:fs.existsSync(path.join(runDir,BOARD_FILE)),record_present:fs.existsSync(path.join(runDir,'record.md')),
     gitignore_written:log.some(function(e){return e.event==='gitignore.written';}),log_lines:log.length
   };
@@ -1537,7 +1570,7 @@ module.exports={
   RUNS_DIR:RUNS_DIR,DEFAULT_WORD_CAP:DEFAULT_WORD_CAP,DEFAULT_SYNTHESIS_WORD_CAP:DEFAULT_SYNTHESIS_WORD_CAP,
   DEFAULT_FINAL_WORD_CAP:DEFAULT_FINAL_WORD_CAP,DEFAULT_CREW_WORD_CAP:DEFAULT_CREW_WORD_CAP,CREW_PASS_LINE:CREW_PASS_LINE,CREW_PASS_HEADING:CREW_PASS_HEADING,crewPassOf:crewPassOf,DEFAULT_COMPANY:DEFAULT_COMPANY,MODEL_UNREPORTED:MODEL_UNREPORTED,
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
-  DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,NO_RATING_LINE:NO_RATING_LINE,
+  DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,runSlug:runSlug,thisRunLine:thisRunLine,runSummary:runSummary,runsLine:runsLine,listRunSummaries:listRunSummaries,matchRuns:matchRuns,NO_RATING_LINE:NO_RATING_LINE,
   SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,

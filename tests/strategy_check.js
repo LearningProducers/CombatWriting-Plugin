@@ -18,7 +18,7 @@
 //     tests/order_check.js.
 //   - help.md: the four-stages section has four bullets, each naming its command on its own
 //     line, Champion's naming /cw:champion and its three keywords (ruled 2026-10-19); the
-//     commands section lists all six commands, each with an example.
+//     commands section lists the five stage and help commands, each with an example (briefs and runs are pinned by their own checks).
 //   - sparring.md says a bare command after strategy uses the stored draft and brief with no
 //     repaste, by the newest run whose rounds/ is empty, and that a pasted draft still starts
 //     a new run.
@@ -55,7 +55,7 @@ function read(p){ return fs.readFileSync(p,'utf8'); }
 // The four commands are skills (moved from commands/ on 2026-10-14, the format the docs name for
 // new plugins), beside the rules skill combat-writing; there is no commands/ folder.
 var skillDirs=fs.readdirSync(path.join(plugin,'skills')).filter(function(d){return fs.existsSync(path.join(plugin,'skills',d,'SKILL.md'));}).sort();
-check(skillDirs.join(',')==='battle,briefs,champion,combat-writing,help,sparring,strategy','skills/: expected battle, briefs, champion, combat-writing, help, sparring, strategy; got '+skillDirs.join(','));
+check(skillDirs.join(',')==='battle,briefs,champion,combat-writing,help,runs,sparring,strategy','skills/: expected battle, briefs, champion, combat-writing, help, runs, sparring, strategy; got '+skillDirs.join(','));
 check(!fs.existsSync(path.join(plugin,'commands')),'commands/ should be gone: the four commands are skills');
 function cmd(name){ return path.join(plugin,'skills',name,'SKILL.md'); }
 

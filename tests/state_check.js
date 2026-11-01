@@ -148,7 +148,7 @@ check(st.band.verdict==='BACK TO THE DRAWING BOARD'&&st.band.low.join(',')==='se
 var html=fs.readFileSync(path.join(run,'board.html'),'utf8');
 var why=(/<p class="why">([^<]*)<\/p>/.exec(html)||['',''])[1].replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&amp;/g,'&');
 check(why.length>0&&st.band.why===why,'state: the band\'s why-line differs from the board\'s: '+st.band.why+' | '+why);
-check(st.next_line===lib.nextLine(st.seats)&&/^Next: \/cw:battle fq:/.test(st.next_line),'state: next_line wrong');
+check(st.next_line===lib.nextLine(st.seats,st.run.id)&&/^Next: \/cw:battle fq:/.test(st.next_line)&&st.run.slug===lib.runSlug(st.run.id),'state: next_line wrong');
 check(st.legend===lib.SCOREBOARD_LEGEND&&st.board_file==='board.html'&&st.record_file==='record.md'&&st.board_present===true&&st.record_present===true&&st.briefing===null,'state: the tail fields are wrong');
 
 // 6. --write: the file, the log line, the path.
@@ -183,7 +183,7 @@ var nf=JSON.parse(node('render-state.js',['--run',nr]).stdout);
 check(nf.band.verdict==='FINAL READS'&&nf.band.final_round==='02-final'&&nf.band.numbers.length===2&&nf.band.numbers[0].text==='S/N 60% · no red flags'&&nf.band.numbers[1].text==='S/N missing · red flags missing'&&nf.band.why==='No seat has rated this draft. These are the final reads of round 02-final, each seat\'s own S/N ratio and red-flag count. Nothing is averaged.','state (final reads): band wrong: '+JSON.stringify(nf.band));
 var fresh=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','fresh','--stage','strategy','--model','Test Model']).stdout.trim();
 var fsz=JSON.parse(node('render-state.js',['--run',fresh]).stdout);
-check(fsz.rounds.length===0&&fsz.band.verdict===null&&fsz.run.first_round===null&&fsz.next_line===fsz.no_rounds_line&&/^No rounds yet\. The draft and the brief are stored/.test(fsz.next_line)&&fsz.run.stage_started==='strategy'&&fsz.board_present===false,'state (no rounds): wrong: '+JSON.stringify({rounds:fsz.rounds.length,band:fsz.band,next:fsz.next_line}));
+check(fsz.rounds.length===0&&fsz.band.verdict===null&&fsz.run.first_round===null&&fsz.next_line===fsz.no_rounds_line+lib.thisRunLine(fsz.run.id)&&/^No rounds yet\. The draft and the brief are stored/.test(fsz.next_line)&&fsz.run.stage_started==='strategy'&&fsz.board_present===false,'state (no rounds): wrong: '+JSON.stringify({rounds:fsz.rounds.length,band:fsz.band,next:fsz.next_line}));
 check(Object.keys(fsz.latest).length===1&&fsz.latest['seat-1']===null&&fsz.latest_turn['seat-1']===null,'state (no rounds): latest should be null per seat');
 
 // 8. Refusals.

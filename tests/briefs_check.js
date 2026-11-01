@@ -155,12 +155,12 @@ var battle=skill('battle'), sparring=skill('sparring'), strategy=skill('strategy
   check(/\[--brief-name <name>\]/.test(p[1])&&/argument-hint: .*\[brief: \.\.\.\|brief <name>: \.\.\.\|brief: <name>\]/.test(p[1]),p[0]+': the command line and the argument-hint show --brief-name and the three brief forms');
 });
 check(/^name: briefs$/m.test(briefs)&&/^argument-hint: \(nothing\)$/m.test(briefs)&&briefs.split('\n')[0]==='---'&&/scripts\/briefs\.js/.test(briefs)&&/It reads only and writes nothing\./.test(briefs)&&/`\$ARGUMENTS` is ignored/.test(briefs),'skills/briefs/SKILL.md: the frontmatter, the script, reads only, arguments ignored');
-check(/^## Many kinds of writing at once$/m.test(help)&&/A brief is the rules for one kind of writing, saved by name once/.test(help)&&/^- `\/cw:briefs` — lists your briefs/m.test(help)&&/^- `combat-writing\/briefs\/<name>\.md` in your project/m.test(help)&&/\(stages, order, commands, next, rounds, champion, briefs, files/.test(help),'help: the section, the command, the file and the topic');
-check(/`\/cw:champion` and `\/cw:briefs` \(each a skill/.test(rules)&&/\[--brief-name <name>\] \[--reader <file>\] --stage strategy/.test(rules)&&/scripts\/briefs\.js \[--names\]/.test(rules)&&/scripts\/brief\.js --update <file> \[--run <folder>\] \[--name <brief name>\]/.test(rules)&&/combat-writing\/briefs\/<name>\.md` \(Part 86/.test(rules),'the rules skill: the sixth command, the flags, the two script rows, the write location');
+check(/^## Many kinds of writing at once$/m.test(help)&&/A brief is the rules for one kind of writing, saved by name once/.test(help)&&/^- `\/cw:briefs` — lists your briefs/m.test(help)&&/^- `combat-writing\/briefs\/<name>\.md` in your project/m.test(help)&&/\(stages, order, commands, next, rounds, champion, briefs, runs, files/.test(help),'help: the section, the command, the file and the topic');
+check(/`\/cw:briefs` and `\/cw:runs` \(each a skill/.test(rules)&&/\[--brief-name <name>\] \[--reader <file>\] --stage strategy/.test(rules)&&/scripts\/briefs\.js \[--names\]/.test(rules)&&/scripts\/brief\.js --update <file> \[--run <folder>\] \[--name <brief name>\]/.test(rules)&&/combat-writing\/briefs\/<name>\.md` \(Part 86/.test(rules),'the rules skill: the sixth command, the flags, the two script rows, the write location');
 check(/^- `\/cw:briefs` lists your briefs/m.test(read(path.join(plugin,'README.md'))),'the plugin README names /cw:briefs and the named forms');
 var claude=read(path.join(root,'CLAUDE.md'));
-check(/The sixth and last \(Part 86, 2026-10-31/.test(claude)&&/`\/cw:help` and `\/cw:briefs`;/.test(claude)&&/The six commands are skills/.test(claude)&&/brief\.js, briefs\.js,/.test(claude),'CLAUDE.md: the sixth write location, the sixth command, the script');
-check(/the six commands/.test(read(path.join(root,'README.md'))),'the root README says six commands');
+check(/The sixth and last \(Part 86, 2026-10-31/.test(claude)&&/`\/cw:help`, `\/cw:briefs` and `\/cw:runs`;/.test(claude)&&/The seven commands are skills/.test(claude)&&/brief\.js, briefs\.js,/.test(claude),'CLAUDE.md: the sixth write location, the sixth command, the script');
+check(/the seven commands/.test(read(path.join(root,'README.md'))),'the root README says seven commands');
 
 fs.rmSync(proj,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
