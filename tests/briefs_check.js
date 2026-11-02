@@ -159,7 +159,7 @@ check(/^## Many kinds of writing at once$/m.test(help)&&/A brief is the rules fo
 check(/`\/cw:briefs` and `\/cw:runs` \(each a skill/.test(rules)&&/\[--brief-name <name>\] \[--reader <file>\] --stage strategy/.test(rules)&&/scripts\/briefs\.js \[--names\]/.test(rules)&&/scripts\/brief\.js --update <file> \[--run <folder>\] \[--name <brief name>\]/.test(rules)&&/combat-writing\/briefs\/<name>\.md` \(Part 86/.test(rules),'the rules skill: the sixth command, the flags, the two script rows, the write location');
 check(/^- `\/cw:briefs` lists your briefs/m.test(read(path.join(plugin,'README.md'))),'the plugin README names /cw:briefs and the named forms');
 var claude=read(path.join(root,'CLAUDE.md'));
-check(/The sixth and last \(Part 86, 2026-10-31/.test(claude)&&/`\/cw:help`, `\/cw:briefs` and `\/cw:runs`;/.test(claude)&&/The seven commands are skills/.test(claude)&&/brief\.js, briefs\.js,/.test(claude),'CLAUDE.md: the sixth write location, the sixth command, the script');
+check(/The sixth \(Part 86, 2026-10-31/.test(claude)&&/`\/cw:help`, `\/cw:briefs` and `\/cw:runs`;/.test(claude)&&/The seven commands are skills/.test(claude)&&/brief\.js, briefs\.js,/.test(claude),'CLAUDE.md: the sixth write location, the sixth command, the script');
 check(/the seven commands/.test(read(path.join(root,'README.md'))),'the root README says seven commands');
 
 fs.rmSync(proj,{recursive:true,force:true});

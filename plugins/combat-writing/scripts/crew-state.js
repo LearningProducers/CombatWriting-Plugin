@@ -15,8 +15,9 @@ var lib=require('./lib.js');
 var args=lib.parseArgs(process.argv.slice(2));
 ['run','state'].forEach(function(k){ if(!args[k]||args[k]===true)lib.die('--'+k+' is required'); });
 var runDir=path.resolve(args.run);
-lib.readSeats(runDir);
+var seats=lib.readSeats(runDir).seats;
 var state=String(args.state).trim().toLowerCase();
 if(!lib.ADDON_STATE[state])lib.die('--state must be absent or down (the add-on records the no-key state itself); got '+args.state);
 lib.appendLog(runDir,{event:'addon.state',state:state,by:'host',crew_list_tool:false});
-process.stdout.write(lib.ADDON_STATE[state]+'\n');
+// The sentence names the crew the run is left with (Part 87: the two fresh readers, or one seat).
+process.stdout.write(lib.addonStateLine(state,seats)+'\n');

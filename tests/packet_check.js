@@ -9,9 +9,9 @@
 //
 // What it pins:
 //   - new-run.js creates combat-writing/runs/<date-time-slug>/ with draft.md (byte-
-//     identical to the source), brief.md, seats.json (ONE fresh reader, ruled 2026-10-09 and
-//     enforced 2026-10-12: the crew is never padded; --seats is refused; a second fresh
-//     reader in seats.json gets no packet, an outside seat does; each
+//     identical to the source), brief.md, seats.json (TWO fresh readers by default, Part 87,
+//     2026-11-02, one with --readers 1: the crew is never padded past that; --seats is refused;
+//     a fresh reader past the second in seats.json gets no packet, an outside seat does; each
 //     seat with model, company and the source of the name), rounds/, and log.jsonl whose
 //     first line records the draft's SHA-256. No file in the run carries the credit line
 //     (ruled 2026-10-12).
@@ -82,9 +82,9 @@ function node(script,args){ return cp.spawnSync(process.execPath,[path.join(scri
 function read(p){ return fs.readFileSync(p,'utf8'); }
 function logOf(run){ return read(path.join(run,'log.jsonl')).trim().split('\n').filter(Boolean).map(function(l){return JSON.parse(l);}); }
 function write(p,t){ fs.writeFileSync(p,t); }
-// The crew is one fresh reader, never padded (ruled 2026-10-09, enforced 2026-10-12): the extra
+// The crew is two fresh readers by default (Part 87, 2026-11-02; one from 2026-10-09 until then), never padded past that: the extra
 // seats a test needs are written into seats.json the way the add-on's crew_register writes an
-// outside seat (a provider field), so packet.js seats them; a second fresh reader it refuses.
+// outside seat (a provider field), so packet.js seats them; a fresh reader past the second it refuses.
 function seatMore(run,n,model,company){ var f=path.join(run,'seats.json'); var sj=JSON.parse(fs.readFileSync(f,'utf8')); for(var i=sj.seats.length+1;i<=n;i++)sj.seats.push({id:'seat-'+i,model:model,company:company||'Anthropic',provider:'test-fixture',source:'test fixture: an outside seat as the add-on would register it'}); fs.writeFileSync(f,JSON.stringify(sj,null,2)+'\n'); return run; }
 // No file the run holds carries the credit line (ruled 2026-10-12): it stands once, at the foot of the help guide.
 function creditFree(dir){ var hits=[]; (function walk(d){ fs.readdirSync(d).forEach(function(n){ var p=path.join(d,n); if(fs.statSync(p).isDirectory())walk(p); else if(fs.readFileSync(p,'utf8').indexOf(CREDIT)>=0)hits.push(path.relative(dir,p)); }); })(dir); return hits; }
@@ -95,7 +95,7 @@ write(path.join(proj,'draft.md'),draftText);
 write(path.join(proj,'brief.md'),briefText);
 
 // new-run.js
-var r=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','Board letter','--model','Test Model 1.0']);
+var r=node('new-run.js',['--readers','1','--draft','draft.md','--brief','brief.md','--name','Board letter','--model','Test Model 1.0']);
 check(r.status===0,'new-run: exit '+r.status+' '+r.stderr);
 var run=r.stdout.trim();
 var seatsFresh=JSON.parse(read(path.join(run,'seats.json')));
@@ -118,7 +118,7 @@ check(log[0].draft&&log[0].draft.sha256===require('crypto').createHash('sha256')
 check(log[0].brief&&log[0].brief.file==='brief.md','new-run: brief not logged');
 
 // Same name again in the same minute: a different folder. No model: unreported, rendered from the company.
-var r2=node('new-run.js',['--draft','draft.md','--name','Board letter','--no-brief']);
+var r2=node('new-run.js',['--readers','1','--draft','draft.md','--name','Board letter','--no-brief']);
 check(r2.status===0,'new-run (2): exit '+r2.status);
 var run2=r2.stdout.trim();
 seatMore(run2,2,'model unreported');
@@ -219,7 +219,7 @@ fs.rmSync(path.join(run,'rounds','04-battle'),{recursive:true,force:true});
 // The live check uses the cap the seat was sent. A fresh run: seat-1's packet is built at 300;
 // seat-1 writes 350 words and no check is logged. seat-2's packet at the default; seat-2 writes
 // 350 words. A round-2 packet for seat-3 lists seat-1 as a failed read (over 300) and carries seat-2.
-var runC=seatMore(node('new-run.js',['--draft','draft.md','--name','caps','--model','Test Model 1.0']).stdout.trim(),3,'Test Model 1.0');
+var runC=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--name','caps','--model','Test Model 1.0']).stdout.trim(),3,'Test Model 1.0');
 node('packet.js',['--run',runC,'--round','01-sparring','--seat','seat-1','--word-cap','300']);
 node('packet.js',['--run',runC,'--round','01-sparring','--seat','seat-2']);
 node('packet.js',['--run',runC,'--round','01-sparring','--seat','seat-3']);
@@ -350,41 +350,42 @@ check(node('packet.js',['--run',run,'--round','05-battle','--seat','seat-2','--q
 check(node('packet.js',['--run',run,'--round','05-battle','--seat','seat-2','--sfq',INJECT]).status===2,'free text: --sfq with text instead of a path should exit 2');
 check(node('packet.js',['--run',run,'--round','05-battle','--seat','seat-2','--n',INJECT]).status===2,'free text: --n with text instead of a path should exit 2');
 var seatsBefore=read(path.join(run,'seats.json'));
-var freeRun=node('new-run.js',['--draft','draft.md','--name','free','--model',INJECT]);
+var freeRun=node('new-run.js',['--draft','draft.md','--name','free','--model',INJECT,'--model-2','Second Model']);
 check(freeRun.status===0&&read(path.join(run,'seats.json'))===seatsBefore,'free text: new-run.js --model must not touch an existing run');
-// The default crew is one fresh reader, seat-1: never padded.
+// The default crew is two fresh readers, seat-1 and seat-2 (Part 87, 2026-11-02): never padded past that.
 var freeSeats=JSON.parse(read(path.join(freeRun.stdout.trim(),'seats.json'))).seats;
-check(freeSeats.length===1&&freeSeats[0].id==='seat-1','default crew: expected one fresh reader, got '+freeSeats.length);
+check(freeSeats.length===2&&freeSeats[0].id==='seat-1'&&freeSeats[1].id==='seat-2'&&!freeSeats[1].provider&&freeSeats[1].model==='Second Model','default crew: expected two fresh readers, got '+JSON.stringify(freeSeats.map(function(s){return s.id+' '+s.model;})));
 var freeLog=logOf(freeRun.stdout.trim())[0]||{};
-check(/one fresh reader/.test(freeLog.crew_note||'')&&/never fakes a seat/.test(freeLog.crew_note||''),'default crew: run.created should say one fresh reader, got '+freeLog.crew_note);
-// Enforced (2026-10-12): --seats is refused; a second fresh reader written into seats.json by hand
-// (as an older run holds) gets no packet, while the fresh reader and an outside seat still do.
+check(freeLog.readers===2&&/two fresh readers/.test(freeLog.crew_note||'')&&/second chair/.test(freeLog.crew_note||'')&&/never fakes a seat/.test(freeLog.crew_note||''),'default crew: run.created should say two fresh readers and the second chair, got '+freeLog.crew_note);
+// --seats is refused; a fresh reader past the second written into seats.json by hand gets no
+// packet, while the two fresh readers and an outside seat still do.
 var padded=node('new-run.js',['--draft','draft.md','--name','padded','--model','Test Model 1.0','--seats','3']);
 check(padded.status===2&&/never padded/.test(padded.stderr),'--seats: should be refused with the rule, got exit '+padded.status+' '+padded.stderr.slice(0,80));
-var oldRun=node('new-run.js',['--draft','draft.md','--name','older','--model','Test Model 1.0']).stdout.trim();
+var oldRun=node('new-run.js',['--draft','draft.md','--name','older','--model','Test Model 1.0','--model-2','Test Model 1.1']).stdout.trim();
 var oldSeats=JSON.parse(read(path.join(oldRun,'seats.json')));
-oldSeats.seats.push({id:'seat-2',model:'Test Model 1.0',company:'Anthropic',source:'agent configuration (a padded seat from an older run)'});
 oldSeats.seats.push({id:'seat-3',model:'outside/model-1b',company:'Elsewhere',provider:'test-fixture',source:'test fixture'});
+oldSeats.seats.push({id:'seat-4',model:'Test Model 1.0',company:'Anthropic',source:'agent configuration (a padded seat written by hand)'});
 write(path.join(oldRun,'seats.json'),JSON.stringify(oldSeats,null,2)+'\n');
 var p1old=node('packet.js',['--run',oldRun,'--round','01-sparring','--seat','seat-1']);
 var p2old=node('packet.js',['--run',oldRun,'--round','01-sparring','--seat','seat-2']);
 var p3old=node('packet.js',['--run',oldRun,'--round','01-sparring','--seat','seat-3']);
-check(p1old.status===0,'older run: the fresh reader should get a packet, exit '+p1old.status);
-check(p2old.status===2&&/second fresh reader/.test(p2old.stderr)&&!fs.existsSync(path.join(oldRun,'rounds','01-sparring','seat-2.packet.md')),'older run: a second fresh reader should be refused with no packet written, got exit '+p2old.status+' '+p2old.stderr.slice(0,80));
-check(p3old.status===0,'older run: the outside seat should get a packet, exit '+p3old.status);
-check(!logOf(oldRun).some(function(e){return e.event==='packet.built'&&e.seat==='seat-2';}),'older run: no packet.built line for the refused seat');
+var p4old=node('packet.js',['--run',oldRun,'--round','01-sparring','--seat','seat-4']);
+check(p1old.status===0&&p2old.status===0,'padded run: both fresh readers should get a packet, exit '+p1old.status+' '+p2old.status);
+check(p4old.status===2&&/past the second/.test(p4old.stderr)&&!fs.existsSync(path.join(oldRun,'rounds','01-sparring','seat-4.packet.md')),'padded run: a third fresh reader should be refused with no packet written, got exit '+p4old.status+' '+p4old.stderr.slice(0,80));
+check(p3old.status===0,'padded run: the outside seat should get a packet, exit '+p3old.status);
+check(!logOf(oldRun).some(function(e){return e.event==='packet.built'&&e.seat==='seat-4';}),'padded run: no packet.built line for the refused seat');
 
 // Refusals.
 check(node('packet.js',['--run',run,'--round','07-debate','--seat','seat-9']).status===2,'packet: unknown seat should exit 2');
 check(node('packet.js',['--run',run,'--round','debate','--seat','seat-1']).status===2,'packet: malformed round should exit 2');
 check(node('packet.js',['--run',run,'--round','07-debate','--seat','seat-1','--question','missing.md']).status===2,'packet: missing question file should exit 2');
 check(node('packet.js',['--run',run,'--round','07-debate','--seat','seat-1','--draft','draft-9.md']).status===2,'packet: unknown draft should exit 2');
-check(node('new-run.js',['--draft','missing.md']).status===2,'new-run: missing draft should exit 2');
+check(node('new-run.js',['--readers','1','--draft','missing.md']).status===2,'new-run: missing draft should exit 2');
 check(node('add-draft.js',['--run',run,'--file','missing.md']).status===2,'add-draft: missing file should exit 2');
 
 // A round of seat lines alone: round 2 goes to seat-2 only. Round 3's packets list seat-1 and
 // seat-3 as "not asked" (no packet line in round 2), never "missing"; the log names them.
-var soRun=seatMore(node('new-run.js',['--draft','draft.md','--name','seatonly','--model','Test Model 1.0']).stdout.trim(),3,'Test Model 1.0');
+var soRun=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--name','seatonly','--model','Test Model 1.0']).stdout.trim(),3,'Test Model 1.0');
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',soRun,'--round','01-sparring','--seat',s]); write(path.join(soRun,'rounds','01-sparring',s+'.answer.md'),'RATING: 8/10\nRound one, '+s+'.\n'); });
 node('packet.js',['--run',soRun,'--round','02-battle','--seat','seat-2','--question','q2.md']);
 write(path.join(soRun,'rounds','02-battle','seat-2.answer.md'),'Round two, seat-2 alone.\n');

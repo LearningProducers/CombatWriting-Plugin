@@ -134,10 +134,35 @@ function listSeats(){
   return chain.then(function(){return out;});
 }
 
+// The second chair is the outside seats' (Part 87, 2026-11-02): the listed plugin seats two fresh
+// readers by default, and the moment this add-on seats at least one outside model, the fresh
+// seat-2 that no round has read leaves and the outside seats number from 2 (Qwen as seat-2,
+// gpt-oss as seat-3 on a Groq key, issue 86). A fresh seat-2 that already answered (an older run,
+// a key added mid-run) stays, and the outside seats number after it; the crew of a run is fixed
+// when the run starts. The seat dropped is logged on crew.registered as `replaced`.
+function freshSeatTwoUnread(runDir,seatsFile){
+  var s2=seatsFile.seats.filter(function(s){return s.id==='seat-2'&&!s.provider;})[0];
+  if(!s2)return null;
+  var roundsDir=path.join(runDir,'rounds');
+  var read=fs.existsSync(roundsDir)&&fs.readdirSync(roundsDir).some(function(r){
+    var d=path.join(roundsDir,r);
+    return fs.statSync(d).isDirectory()&&fs.readdirSync(d).some(function(f){return /^seat-2\..*answer\.md$/.test(f);});
+  });
+  return read?null:s2;
+}
 function registerSeats(runDir){
   var seatsFile=lib.readSeats(runDir);
   return listSeats().then(function(seats){
     var avail=seats.filter(function(s){return s.available;});
+    var replaced=null;
+    var newOnes=avail.filter(function(s){return !seatsFile.seats.some(function(e){return e.provider===s.provider&&e.slot===s.slot;});});
+    if(newOnes.length){
+      var s2=freshSeatTwoUnread(runDir,seatsFile);
+      if(s2){
+        seatsFile.seats=seatsFile.seats.filter(function(s){return s!==s2;});
+        replaced={id:s2.id,model:s2.model,company:s2.company};
+      }
+    }
     var existing=seatsFile.seats.map(function(s){return s.id;});
     var n=seatsFile.seats.length;
     var added=[];
@@ -158,8 +183,9 @@ function registerSeats(runDir){
     });
     lib.writeSeats(runDir,seatsFile);
     lib.appendLog(runDir,{event:'crew.registered',added:added.map(function(s){return {id:s.id,model:s.model,company:s.company,served_by:s.served_by,provider:s.provider};}),
+      replaced:replaced,
       unavailable:seats.filter(function(s){return !s.available;}).map(function(s){return {slot:s.slot,provider:s.provider,provider_name:s.provider_name,family:s.family,reason:s.reason,key_shape:s.key_shape,next:s.next,field:s.field,field_title:s.field_title,env:s.env,file:s.file};})});
-    return {added:added,unavailable:seats.filter(function(s){return !s.available;}),seats:seatsFile.seats};
+    return {added:added,replaced:replaced,unavailable:seats.filter(function(s){return !s.available;}),seats:seatsFile.seats};
   });
 }
 

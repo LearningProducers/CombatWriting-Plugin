@@ -83,13 +83,13 @@ fs.writeFileSync(path.join(proj,'fq.md'),'Which line carries the ask?\n');
 fs.writeFileSync(path.join(proj,'n.md'),'Read it as a board member with two minutes.\n');
 
 // Refusals.
-var r0=node('new-run.js',['--name','nothing','--model','Test Model 1.0']);
+var r0=node('new-run.js',['--readers','1','--name','nothing','--model','Test Model 1.0']);
 check(r0.status===2&&/--draft <file> or --brief <file> is required/.test(r0.stderr),'new-run with neither draft nor brief: must refuse naming both; got '+r0.status+' '+r0.stderr);
-var r1=node('new-run.js',['--draft','draft.md','--stage','champion','--model','Test Model 1.0']);
+var r1=node('new-run.js',['--readers','1','--draft','draft.md','--stage','champion','--model','Test Model 1.0']);
 check(r1.status===2&&/--stage must be strategy, sparring or battle/.test(r1.stderr),'new-run --stage champion: must refuse; got '+r1.stderr);
 
 // Strategy from a brief alone.
-var r=node('new-run.js',['--brief','brief.md','--stage','strategy','--name','board letter','--model','Test Model 1.0']);
+var r=node('new-run.js',['--readers','1','--brief','brief.md','--stage','strategy','--name','board letter','--model','Test Model 1.0']);
 check(r.status===0,'new-run --brief alone: exit '+r.status+' '+r.stderr);
 var run=r.stdout.trim();
 check(fs.existsSync(path.join(run,'brief.md'))&&!fs.existsSync(path.join(run,'draft.md'))&&fs.readdirSync(path.join(run,'rounds')).length===0,'brief-only run: expected brief.md, no draft.md, empty rounds/');
@@ -194,12 +194,12 @@ var a2=node('add-draft.js',['--run',run,'--file','draft2.md','--stage','battle']
 check(a2.status===0&&a2.stdout.trim()==='draft-2.md'&&read(path.join(run,'draft-2.md'))===draft2Text,'add-draft (second): must write draft-2.md; got '+a2.stdout+a2.stderr);
 
 // A run battle made from a pasted draft, and a run with no stage logged.
-var rb=node('new-run.js',['--draft','draft.md','--brief','brief.md','--stage','battle','--name','from battle','--model','Test Model 1.0']);
+var rb=node('new-run.js',['--readers','1','--draft','draft.md','--brief','brief.md','--stage','battle','--name','from battle','--model','Test Model 1.0']);
 check(rb.status===0,'new-run --stage battle: exit '+rb.status+' '+rb.stderr);
 var runB=rb.stdout.trim();
 var sb=node('render-record.js',['--run',runB,'--short']);
 check(/^Started at: battle: the run was made from a pasted draft, with no strategy stage \(a brief came with it\)\. No round yet\.$/m.test(sb.stdout),'short form (started at battle): got '+sb.stdout);
-var rn=node('new-run.js',['--draft','draft.md','--name','no stage','--model','Test Model 1.0']);
+var rn=node('new-run.js',['--readers','1','--draft','draft.md','--name','no stage','--model','Test Model 1.0']);
 var runN=rn.stdout.trim();
 var sn=node('render-record.js',['--run',runN,'--short']);
 check(sn.status===0&&/^Started at: a stage not recorded \(the run was made before the stage was logged\)\. No round yet\.$/m.test(sn.stdout),'short form (no stage logged): must say so and not fail; got '+sn.stdout+sn.stderr);

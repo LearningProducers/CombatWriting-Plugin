@@ -70,14 +70,14 @@ var failures=[], passes=0;
 function check(cond,msg){ if(cond)passes++; else failures.push(msg); }
 function node(script,args){ return cp.spawnSync(process.execPath,[path.join(scripts,script)].concat(args),{cwd:proj,encoding:'utf8'}); }
 function write(p,t){ fs.writeFileSync(p,t); }
-// The crew is one fresh reader, never padded (ruled 2026-10-09, enforced 2026-10-12): the extra
+// The crew is two fresh readers by default (Part 87, 2026-11-02; one from 2026-10-09 until then), never padded past that: the extra
 // seats a test needs are written into seats.json the way the add-on's crew_register writes an
-// outside seat (a provider field), so packet.js seats them; a second fresh reader it refuses.
+// outside seat (a provider field), so packet.js seats them; a fresh reader past the second it refuses.
 function seatMore(run,n,model,company){ var f=path.join(run,'seats.json'); var sj=JSON.parse(fs.readFileSync(f,'utf8')); for(var i=sj.seats.length+1;i<=n;i++)sj.seats.push({id:'seat-'+i,model:model,company:company||'Anthropic',provider:'test-fixture',source:'test fixture: an outside seat as the add-on would register it'}); fs.writeFileSync(f,JSON.stringify(sj,null,2)+'\n'); return run; }
 
 fs.writeFileSync(path.join(proj,'draft.md'),'Dear board, buy the company.\n');
 fs.writeFileSync(path.join(proj,'brief.md'),'CEO. Get a yes.\n');
-var run=seatMore(node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','board','--model','Test Model']).stdout.trim(),3,'Test Model');
+var run=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--brief','brief.md','--name','board','--model','Test Model']).stdout.trim(),3,'Test Model');
 var S2LINE='The board will ask for numbers and find none.';
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','01-sparring','--seat',s]); });
 var r1=path.join(run,'rounds','01-sparring');
@@ -197,7 +197,7 @@ check(html.indexOf('<ul class="rounds">')>html.indexOf('Every round: the scorebo
 check(!/<span class="note-line">/.test(html),'board: no seat was asked something different, so no frame carries a note');
 
 // A run with no round: no box; the no-rounds line under the draft heading.
-var fresh=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','fresh','--stage','strategy','--model','Test Model']).stdout.trim();
+var fresh=node('new-run.js',['--readers','1','--draft','draft.md','--brief','brief.md','--name','fresh','--stage','strategy','--model','Test Model']).stdout.trim();
 node('render-board.js',['--run',fresh]);
 var freshHtml=fs.readFileSync(path.join(fresh,'board.html'),'utf8');
 check(!/class="verdict/.test(freshHtml)&&!/NO RATING/.test(freshHtml),'board (no rounds): there must be no verdict box at all');
@@ -206,7 +206,7 @@ check(!/<p class="round">/.test(freshHtml),'board (no rounds): no round strip');
 
 // A run whose one round asked for no rating (a first battle round with an SN): no box, the
 // strip carries the SN and the count; then final reads with still no rating: a FINAL READS box.
-var nr=seatMore(node('new-run.js',['--draft','draft.md','--name','norating','--stage','battle','--model','Test Model']).stdout.trim(),3,'Test Model');
+var nr=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--name','norating','--stage','battle','--model','Test Model']).stdout.trim(),3,'Test Model');
 write(path.join(proj,'sn.md'),'Is this ready to go to the board?\n');
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',nr,'--round','01-battle','--seat',s,'--sn','sn.md']); });
 write(path.join(nr,'rounds','01-battle','seat-1.answer.md'),'Not ready: the ask is buried.\n');
@@ -230,7 +230,7 @@ check(/<h2>The draft<\/h2>/.test(freshHtml)&&/<div class="paper"><p>Dear board, 
 
 // A round of seat lines alone: round 2 goes to seat-2 only, with rerate. After round 1 every
 // seat is at 8: SEND. After round 2 seat-2 is at 6: BACK, and the other frames cite round 1.
-var so=seatMore(node('new-run.js',['--draft','draft.md','--name','seatonly','--model','Test Model']).stdout.trim(),3,'Test Model');
+var so=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--name','seatonly','--model','Test Model']).stdout.trim(),3,'Test Model');
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',so,'--round','01-sparring','--seat',s]); write(path.join(so,'rounds','01-sparring',s+'.answer.md'),'RATING: 8/10\nRound one. It ships as is.\n'); node('check-answer.js',[path.join(so,'rounds','01-sparring',s+'.answer.md'),'--run',so]); });
 node('render-board.js',['--run',so]);
 var sendHtml=fs.readFileSync(path.join(so,'board.html'),'utf8');
@@ -259,7 +259,7 @@ check(/main\{max-width:1360px/.test(html)&&/minmax\(360px,1fr\)/.test(html)&&/\.
 check((html.match(/overflow-wrap:anywhere/g)||[]).length>=5,'board: long words must wrap in the draft, the quote, the read, the cells and the strip');
 // A read with markdown and a long address: lists, bold, italic and code render; the address stays
 // text and wraps by CSS; a script tag inside bold is text; no new href; a heading is a bold paragraph.
-var md=node('new-run.js',['--draft','draft.md','--name','markdown','--model','Test Model']).stdout.trim();
+var md=node('new-run.js',['--readers','1','--draft','draft.md','--name','markdown','--model','Test Model']).stdout.trim();
 node('packet.js',['--run',md,'--round','01-sparring','--seat','seat-1']);
 var LONG='https://example.invalid/a-very-long-path-segment/that-goes-on-and-on/and-on-and-on/and-never-breaks-on-its-own';
 write(path.join(md,'rounds','01-sparring','seat-1.answer.md'),'RATING: 6/10\nNot ready: **the close** is *soft* and `the ask` is late.\n\n# What to fix\n\n* First point\n* Second **bold** point <script>alert(2)</script>\n\n1. Step one\n2) Step two with '+LONG+'\n\nA line\nwith a break and a [link](https://example.invalid/x) and 2 * 3 * 4 and a_snake_case_word.\n');
