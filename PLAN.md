@@ -909,3 +909,13 @@ Built. `tests/run_all.js`: every `tests/*_check.js`, then `uv sync --frozen` and
 Delivers: `tests/run_all.js` (new), CLAUDE.md, PLAN.md.
 
 Status: delivered — 2026-11-02 — pull request open; the runner's own run on this Mac is the gate (the plugin's tests, the screen's four through uv with its cache in the sandbox's temp folder, the three validations), and CI's three jobs after the push.
+
+## Part 89 — The plugin on one page (no bump)
+
+The founder's words, 2026-11-02: "I couldn't tell you everything that is in it nor all the commands. I know my methodology but the plugin becomes a bit more technical so I want to make sure I'm more familiar with my own Combat Writing plugin." Measured the same day: what the plugin does was spread over CLAUDE.md (the rulings), this file (88 parts) and `/cw:help all` (6,291 words), on no single page. Ruled the same day, the order: the map first, then the help cut (Part 90), because the help is cut from a measured list and the list did not exist.
+
+Built. `docs/plugin-map.md`: seven sections, a table each, one line a row, every row set measured from disk: the seven commands (what each takes, does and ends with), the twenty-one words the paste rule reads with their synonyms and who reads them, the six pickers screen by screen, the seven write locations with the script that writes each, the three hooks, the seats, the add-on's three tools and the key-to-seat table, the nineteen scripts (called when, what each writes), the forty-seven checks and the six eval cases, and what is not in the plugin. `tests/map_check.js`: the row sets are compared to their folders on every run (the commands to the skill folders, the hooks to `hooks.json`, the tools to `server.js`, the key fields to the add-on's `userConfig`, the scripts to `scripts/`, the checks to `tests/` and `screen/tests/`, the evals to `evals/`), one line per missing or extra row; the prose beside a row is not checked. Measured: the check passes on the map as written, and on a scratch copy with three rows deleted it fails naming `runs`, `packet.js` and `tests/flip_check.js`. CLAUDE.md's layout names the page and the check.
+
+Delivers: `docs/plugin-map.md` (new), `tests/map_check.js` (new), CLAUDE.md, PLAN.md.
+
+Status: delivered — 2026-11-02 — pull request open; every check passes; the live pass is the founder reading the page and naming a command he did not know he had.
