@@ -897,3 +897,15 @@ Not in this part: an order or a pick for the outside seats (CLAUDE.md: no per-us
 Delivers: `scripts/new-run.js`, `scripts/seats.js` (new), `scripts/lib.js`, `scripts/packet.js`, `scripts/crew-state.js`, `hooks/session-start.js`, the add-on's `server.js`, the five skills and the rules skill, CLAUDE.md, the three READMEs, the method text and its mirror; `tests/readers_check.js` (new), `tests/crew_check.js` (the replacement), `tests/packet_check.js` (the guard), the fixtures that hand-seat outside models now pass `--readers 1`, and the state and session-start pins; cw 0.8.35, crew 0.5.13.
 
 Status: delivered — 2026-11-02 — pull request open; every check passes; the live pass is two real runs on this Mac, one with the add-on's key absent (two Anthropic seats answer) and one with it (Fable, Qwen, gpt-oss), recorded in the directory checklist when made.
+
+## Part 88 — One suite: the screen's tests beside the plugin's, in one command (no bump)
+
+The founder's words, 2026-11-02, on a TWO QUESTIONS section that said an elite team "would have had the screen's tests in the same suite" with nothing done about it: "we don't want to simply claim what elite devs would do, we want to follow through on what an elite dev would do and measure that we did it and document it." The first part built under THE APPLICATION RULE (the ruling of the same day, carried to the protocol by /Users/lpi/lpi/scratch/application-rule-brief.md).
+
+Origin, measured: pull request 136 passed the plugin's 39 tests, three validations and the night-watchman locally, and went red in CI's `screen` job on `screen/tests/shell_check.py`, whose fixture builds a run with the real `new-run.js`; nothing local ran the screen's tests beside the plugin's, CLAUDE.md's layout did not list `screen/`, and its bump rule named only the two plugin folders while the gate covers `screen/` too (the second red, cured by the screen's bump).
+
+Built. `tests/run_all.js`: every `tests/*_check.js`, then `uv sync --frozen` and every `screen/tests/*_check.py` in `screen/`, then `claude plugin validate --strict` on the three folders when the CLI is on the PATH; one line per test, the failures' lines under theirs, a measured count last; exit 1 on any failure and when uv is missing unless `--no-screen`; validate skipped with a line when `claude` is absent; not a `*_check.js`, so CI's loop does not run it. CLAUDE.md: the bump rule names `screen/` and its two version lines; the layout carries `screen/` and the three CI jobs and the runner; the test-style rule names the screen's tests and the one command a session runs before every pull request. No file under the two plugin folders or `screen/` changed: no bump.
+
+Delivers: `tests/run_all.js` (new), CLAUDE.md, PLAN.md.
+
+Status: delivered — 2026-11-02 — pull request open; the runner's own run on this Mac is the gate (the plugin's tests, the screen's four through uv with its cache in the sandbox's temp folder, the three validations), and CI's three jobs after the push.
