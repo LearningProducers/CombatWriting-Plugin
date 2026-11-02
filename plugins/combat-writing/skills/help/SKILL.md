@@ -33,7 +33,7 @@ Begin with any one, in any order; the pieces of a paste go in any order too, eac
 
 A crew of seats attacks your draft before it ships. A seat is one model judging it. The rating leads every result, 1 to 10 with 7 forbidden, never averaged. The order of the stages is yours: start at any, skip any.
 
-## The commands
+## The seven commands
 
 - **Strategy** `/cw:strategy` stores your draft and your brief (who you are, what you want, the stakes) in a new run, reads nothing, and names the next move. A brief typed once is the project's from then on.
   `/cw:strategy brief: I am the CEO; the board must approve a letter of intent this week.`
