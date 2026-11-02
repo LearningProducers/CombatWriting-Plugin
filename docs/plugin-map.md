@@ -23,7 +23,7 @@ Typed as `/cw:<name>` in Claude Code. Each is a skill file at `plugins/combat-wr
 
 ## 2. The words the plugin reads
 
-Any of these can sit anywhere in what you type or paste, in any order. A keyword line opens a block that runs to the next keyword line. They match in any case, with or without a space after the colon; a dash or bullet before one, or a dash for its colon, is dropped (`brief-`, `-battle:`). This is THE PASTE RULE, the same paragraph in the strategy, sparring and battle skills.
+Any of these can sit anywhere in what you type or paste, in any order. The first thirteen rows (`brief:` through `run:`; `brief: <name>` is a form of `brief:`) are the keywords of THE PASTE RULE, the same paragraph in the strategy, sparring and battle skills: a keyword line opens a block that runs to the next keyword line; they match in any case, with or without a space after the colon; a dash or bullet before one, or a dash for its colon, is dropped (`brief-`, `-battle:`). The last seven (`rerate` through `insight:`) are command words the sparring, battle and champion skills read.
 
 | Word | Also | Who reads it | What it does |
 |---|---|---|---|
@@ -68,7 +68,7 @@ Done for now prints the text Next line, which names the run, the word that retur
 
 ## 4. What is written where
 
-Everything lands in your project, under `combat-writing/`, never in the plugin. Seven places, no more.
+Everything lands in your project, under `combat-writing/`, never in the plugin: the seven places the rulings count, the last of them holding your two pick files.
 
 | Place | What | Written by |
 |---|---|---|
