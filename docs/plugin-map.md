@@ -23,7 +23,7 @@ Typed as `/cw:<name>` in Claude Code. Each is a skill file at `plugins/combat-wr
 
 ## 2. The words the plugin reads
 
-Any of these can sit anywhere in what you type or paste, in any order. The first thirteen rows (`brief:` through `run:`; `brief: <name>` is a form of `brief:`) are the keywords of THE PASTE RULE, the same paragraph in the strategy, sparring and battle skills: a keyword line opens a block that runs to the next keyword line; they match in any case, with or without a space after the colon; a dash or bullet before one, or a dash for its colon, is dropped (`brief-`, `-battle:`). The last seven (`rerate` through `insight:`) are command words the sparring, battle and champion skills read.
+Any of these can sit anywhere in what you type or paste, in any order. The first fourteen rows (`brief:` through `run:`; `brief: <name>` is a form of `brief:`, so thirteen keywords) are those of THE PASTE RULE, the same paragraph in the strategy, sparring and battle skills: a keyword line opens a block that runs to the next keyword line; they match in any case, with or without a space after the colon; a dash or bullet before one, or a dash for its colon, is dropped (`brief-`, `-battle:`). The last seven (`rerate` through `insight:`) are command words the sparring, battle and champion skills read.
 
 | Word | Also | Who reads it | What it does |
 |---|---|---|---|
@@ -40,11 +40,11 @@ Any of these can sit anywhere in what you type or paste, in any order. The first
 | `sn:` | | battle | SN, synthesis navigation: everyone reads each other plus your prompt |
 | `sfq:` | | battle | SFQ, synthesis focus question: everyone reads each other plus your question |
 | `seat-2:` | `seat 2:`, `seat2:`, the seat's short name | sparring, battle | a note or question to one seat only; combines with any round word |
+| `run:` | | sparring, battle, champion | returns to a run by a word of its id, or a folder path |
 | `rerate` | anywhere in the line | battle | this round asks for a new rating, the rating line first |
 | `cold` | | sparring | a read with no brief |
 | `debate` | | sparring | the seats read each other's answers and rate again |
 | `final` | | battle | the two final reads on the draft alone: S/N ratio and red flags; not ratings |
-| `run:` | | sparring, battle, champion | returns to a run by a word of its id, or a folder path |
 | `shipped` | | champion | the piece went out: a link, `email to <whom>`, or any channel in words |
 | `result:` | | champion | one dated line in your words; silence is a result; `at:` dates it |
 | `insight:` | | champion | one dated, run-tagged line in the project's insight vault |
