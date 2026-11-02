@@ -32,7 +32,7 @@ def make_run(name: str = "shell", seats: int = 2) -> tuple[Path, Path]:
     proj = Path(tempfile.mkdtemp(prefix="cw-screen-"))
     (proj / "draft.md").write_text("Dear board, buy the company.\n")
     (proj / "brief.md").write_text("CEO. Get a yes.\n")
-    r = node("new-run.js", ["--draft", "draft.md", "--brief", "brief.md", "--name", name, "--stage", "sparring", "--model", "Test Model"], proj)
+    r = node("new-run.js", ["--readers", "1", "--draft", "draft.md", "--brief", "brief.md", "--name", name, "--stage", "sparring", "--model", "Test Model"], proj)
     if r.returncode != 0:
         print("FAIL: new-run.js " + r.stderr, file=sys.stderr)
         sys.exit(1)
