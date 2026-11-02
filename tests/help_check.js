@@ -11,7 +11,7 @@
 //     its command, the "Begin with any one" line, one typed line per stage, and the `all` line.
 //   - The bare rule: print the card exactly, call no tool, then the picker with the four options
 //     in order, then one text prompt per stage, then the stage's command as if typed; `all` is
-//     the full guide, a topic one section; the argument-hint reads [all | topic].
+//     the guide (Part 90, below), a topic one section of the full guide; the argument-hint reads [all | topic].
 //   - The commands section's /cw:help bullet says bare is the card and `help all` the guide.
 //   - The plugin README's /cw:help example output is the card with its markdown stripped (bold
 //     and code spans), line for line, and its /cw:help bullet names the card, all and a topic.
@@ -52,13 +52,13 @@ check(!/http/.test(card)&&!/Learning Producers/.test(card),'card: no address and
 // The bare rule, the picker, the text prompts, all and the topics.
 var rule=help.slice(help.indexOf('<!-- SPDX'),b);
 check(/^\*\*Bare\*\* \(no `\$ARGUMENTS`/m.test(rule)&&/print the card between the two marker comments below, exactly as it stands, every line/.test(rule)&&/call no tool and read nothing/.test(rule),'help: the bare rule prints the card exactly and calls no tool');
-check(/open the picker with the AskUserQuestion tool: one screen, one keypress, the question "Which stage\? \/cw:help all for the full guide\.", four options in this order, \*\*Strategy\*\* \([^)]*\), \*\*Sparring\*\* \([^)]*\), \*\*Battle\*\* \([^)]*\), \*\*Champion\*\* \([^)]*\); mark nothing and point at no "Other"/.test(rule),'help: the picker with its four options in order, nothing marked, no Other');
+check(/open the picker with the AskUserQuestion tool: one screen, one keypress, the question "Which stage\? \/cw:help all for the guide\.", four options in this order, \*\*Strategy\*\* \([^)]*\), \*\*Sparring\*\* \([^)]*\), \*\*Battle\*\* \([^)]*\), \*\*Champion\*\* \([^)]*\); mark nothing and point at no "Other"/.test(rule),'help: the picker with its four options in order, nothing marked, no Other');
 ['Strategy, "Paste the draft, the brief with brief:, or both."','Sparring, "Paste the draft; add question: <one question> to put it to every seat."','Battle, "Paste the draft; add sn:, n:, fq: or sfq: with your prompt, or nothing for a first critique."','Champion, "shipped <link, or email to whom>, result: <what came back>, or insight: <what you learned>."'].forEach(function(t){ check(rule.indexOf(t)>=0,'help: the text prompt must stand verbatim: '+t); });
 check(/Run that stage's command with the next message as its text, exactly as if the person had typed `\/cw:<stage> <text>`/.test(rule)&&/never answer it, never shorten it/.test(rule),'help: the next message runs as the command\'s text, never answered by the host');
 var after=help.slice(e);
 check(/^\*\*`all`\*\* as `\$ARGUMENTS`: print the guide between the two marker comments below \(THE GUIDE BEGIN, THE GUIDE END\) exactly as it stands/m.test(after)&&/If `\$ARGUMENTS` names one topic \(stages, order, commands, next, rounds, champion, briefs, runs, voices, files, where, crew, rating, record, privacy, method\), show only that section of the full guide below the rule/.test(after)&&/\(`all` and `where` only; the card calls nothing\)/.test(after),'help: all prints the guide between its markers, a topic one section of the full guide, the live line only there');
 
-// The guide (Part 90, 2026-11-02): `all` printed 6,291 words and the founder named it too dense. The
+// The guide (Part 90, 2026-11-02): `all` printed 5,516 words and the founder named it too dense. The
 // short guide stands once between its two markers, under the word ceiling, with its seven command
 // bullets in order, the word table, the one live line, the topic words in the instruction's order
 // as its More line, and the credit line last; the full guide keeps every section behind a topic word.
