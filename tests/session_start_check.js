@@ -61,7 +61,7 @@ fakes(f1,LIST_ABSENT,SAY_ONE);
 var a=run(f1,d1);
 check(a.r.status===0&&a.r.stderr===''&&a.out,'first start: exit '+a.r.status+' '+a.r.stderr);
 check(a.lines.length===3&&a.lines[0]===LINE,'first start: three lines, the ready line first: '+JSON.stringify(a.lines));
-check(a.lines[1]==='The crew add-on is not installed: the crew is one seat. '+lib.ADDON_INSTALL+' seats two more models on a free Groq key, your key going only to Groq. /cw:help crew for the three states.','first start: the add-on line: '+a.lines[1]);
+check(a.lines[1]==='The crew add-on is not installed: the crew is the two fresh readers, one company\'s models. '+lib.ADDON_INSTALL+' seats two more models on a free Groq key in the second chair, your key going only to Groq. /cw:help crew for the three states.','first start: the add-on line: '+a.lines[1]);
 check(/^This Mac has 1 premium or enhanced voice \(Ava \(Premium\)\)\. The board reads each seat in its own voice when three are installed: System Settings, Accessibility, Read & Speak \(Spoken Content before macOS 26\), the ⓘ beside System voice, then the arrow beside Ava \(Premium\), Nathan \(Enhanced\) and Allison \(Enhanced\), or any Premium or Enhanced voice\. \/cw:help voices\.$/.test(a.lines[2]),'first start: the voices line counts one and names the path: '+a.lines[2]);
 check(a.out.hookSpecificOutput&&a.out.hookSpecificOutput.hookEventName==='SessionStart'&&a.out.hookSpecificOutput.additionalContext===a.out.systemMessage,'first start: additionalContext carries the same text');
 var sent=path.join(d1,'first-session');

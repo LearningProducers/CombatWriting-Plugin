@@ -122,18 +122,32 @@ On a Mac, every seat's answer is read aloud on the board in its own voice, recor
 
 ## Where you are running
 
-- **The crew** is one fresh reader plus one seat per outside model the add-on has a key for. Nothing is padded: with no add-on the crew is one seat; with one free Groq key it is three.
-- **Fresh readers.** The host can start separate agents and run Node: the fresh reader is a separate reader started for one job, with no memory of this conversation, never the host itself. A hook holds it to its run folder: it reads only there and writes only its own answer file.
+- **The crew** is two fresh readers plus one seat per outside model the add-on has a key for, and the outside seats take the second chair: with no add-on the crew is the two fresh readers, one company's models; with one free Groq key it is seat-1, Qwen as seat-2 and gpt-oss as seat-3. Nothing is padded.
+- **Fresh readers.** The host can start separate agents and run Node: a fresh reader is a separate reader started for one job, with no memory of this conversation, never the host itself. A hook holds it to its run folder: it reads only there and writes only its own answer file. Seat-1 runs on the first model the host's own agent tool lists and seat-2 on the second, in the tool's order, so when the top model changes the seats move with it and nothing in the plugin is edited. To pick a model for a seat yourself, say so ("seat-2 on <model>"): the host keeps it in `combat-writing/seats.json` with `seats.js --set`, it wins for that seat whenever the host offers that model, and "seat-2 back to the list" clears it.
 - **One seat, the host.** The host cannot start separate agents: it reads as the one seat, says so in every result, and still follows every rule.
 - **With the add-on.** `combat-writing-crew`, installed from the same repository (`/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin`), sends the packets to other companies' models on your own keys, each key only to its own provider; then the crew is more than one company. An outside seat is told the word cap; an answer over it is sent back once, and a second overrun is cut at the cap with the rating kept and marked "truncated" in the record.
 - Without the add-on, every seat is one company's models, and every result says so. The plugin never fakes a seat.
-- [Right now: which of the three applies; and when the crew is one seat, which of the three states in the next section, with its next command.]
+- [Right now: which of the three applies; and when the crew is its fresh readers alone, which of the three states in the next section, with its next command.]
 
 ## Fewer seats than you expected
 
-The crew is one fresh reader plus one seat per outside model the add-on has a key for. When a result shows fewer seats than that, its Seats line (under the crew line, in the record and on the board too) names which of three states applies and the exact next command. `help crew` shows this section.
+The crew is two fresh readers plus one seat per outside model the add-on has a key for, the outside seats taking the second chair. When a result shows no outside seat, its Seats line (under the crew line, in the record and on the board too) names which of three states applies and the exact next command. `help crew` shows this section.
 
-- **The add-on is not installed.** The crew is one seat. Next: `/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin`, then `/reload-plugins` or a new session, then `/plugin configure combat-writing-crew` to enter a key.
+The seat each key gives, each resolved from that provider's live catalog when the run starts, never a model name written in the plugin:
+
+| Key field | Provider | The seat it gives |
+|---|---|---|
+| `groq_api_key` | Groq | Alibaba's Qwen line as seat-2 and OpenAI's open-weight line as seat-3 (the free tier seats two) |
+| `xai_api_key` | xAI | xAI's Grok line |
+| `perplexity_api_key` | Perplexity | Perplexity's Sonar line |
+| `openai_api_key` | OpenAI | OpenAI's GPT line |
+| `mistral_api_key` | Mistral AI | Mistral's large line |
+| `gemini_api_key` | Google | Google's Gemini line |
+| `ollama_model` | Ollama (local) | the local model you name |
+
+With several keys the seats number from 2 in that order, the add-on's own; the fresh seat-2 leaves the moment the first outside seat registers.
+
+- **The add-on is not installed.** The crew is the two fresh readers. Next: `/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin`, then `/reload-plugins` or a new session, then `/plugin configure combat-writing-crew` to enter a key.
 - **Installed, but its server is not running** in this session (the host has no `crew_list` tool). Next: `/mcp`, find `combat-writing-crew`: if it shows failed or disconnected, reconnect it there and run the command again; if it is not listed, `/plugin` to check the add-on is enabled, then `/reload-plugins`.
 - **Running, but no key for a provider.** The add-on says so itself and names the key field. Two causes: the key was never entered, or an update dropped it (a key entered in the masked prompt lives in the host's credentials store; a plugin version bump keeps it, but a host that rebuilds that store drops it, and the install looks untouched). Next, one step: `/plugin configure combat-writing-crew`, type the key into the field and save: `groq_api_key` (Groq API key; the free tier seats two), `xai_api_key`, `perplexity_api_key`, `openai_api_key`, `mistral_api_key` or `gemini_api_key`. A save with nothing typed says "No configuration changes" and keeps nothing, so the field is typed in again, not confirmed. The provider's environment variable (`GROQ_API_KEY` and the like) serves when the prompt is empty. A keyed provider that did not answer is named with its error; run the command again.
 

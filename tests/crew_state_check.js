@@ -43,7 +43,7 @@ function seatsLines(text){ return text.split('\n').filter(function(l){return l.i
 function render(run){ var s=node('render-record.js',['--run',run,'--short']); check(s.status===0,'render-record: exit '+s.status+' '+s.stderr); check(node('render-board.js',['--run',run]).status===0,'render-board failed'); return {short:s.stdout,record:read(path.join(run,'record.md')),board:read(path.join(run,'board.html'))}; }
 
 fs.writeFileSync(path.join(proj,'draft.md'),'Dear board,\n\nA vote this week, please.\n');
-var run=node('new-run.js',['--draft','draft.md','--name','state','--model','Test Model']).stdout.trim();
+var run=node('new-run.js',['--readers','1','--draft','draft.md','--name','state','--model','Test Model']).stdout.trim();
 check(fs.existsSync(run),'new-run failed');
 
 // Nothing recorded.

@@ -56,7 +56,7 @@ function qualityVoices(){
   });
   return names;
 }
-function addonLine(){ return 'The crew add-on is not installed: the crew is one seat. '+lib.ADDON_INSTALL+' seats two more models on a free Groq key, your key going only to Groq. /cw:help crew for the three states.'; }
+function addonLine(){ return 'The crew add-on is not installed: the crew is the two fresh readers, one company\'s models. '+lib.ADDON_INSTALL+' seats two more models on a free Groq key in the second chair, your key going only to Groq. /cw:help crew for the three states.'; }
 function voicesLine(names){ return 'This Mac has '+names.length+' premium or enhanced '+(names.length===1?'voice':'voices')+(names.length?' ('+names.join(', ')+')':'')+'. The board reads each seat in its own voice when three are installed: System Settings, Accessibility, Read & Speak (Spoken Content before macOS 26), the ⓘ beside System voice, then the arrow beside Ava (Premium), Nathan (Enhanced) and Allison (Enhanced), or any Premium or Enhanced voice. /cw:help voices.'; }
 
 var lines=[LINE];

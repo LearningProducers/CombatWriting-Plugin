@@ -133,7 +133,7 @@ async def main():
 
         # A newer run appears: the screen follows it.
         (proj / "draft2.md").write_text("Second draft, new run.\n")
-        r = node("new-run.js", ["--draft", "draft2.md", "--name", "zz-newer", "--stage", "battle", "--model", "Test Model"], proj)
+        r = node("new-run.js", ["--readers", "1", "--draft", "draft2.md", "--name", "zz-newer", "--stage", "battle", "--model", "Test Model"], proj)
         newer = Path(r.stdout.strip())
         took = await wait_for(app, pilot, lambda t: newer.name in t)
         check(took is not None and "No rounds yet" in app.screen_text(), "shell: a newer run should be followed: " + app.screen_text().splitlines()[0])

@@ -44,7 +44,7 @@ fs.writeFileSync(path.join(proj,'draft.md'),'Dear board,\n\nBuy the company befo
 fs.writeFileSync(path.join(proj,'brief.md'),'CEO. Get a yes.\n');
 fs.writeFileSync(path.join(proj,'sn.md'),'is this ready to send?\n');
 fs.writeFileSync(path.join(proj,'fq.md'),'does the close ask for the vote?\n');
-var run=node('new-run.js',['--draft','draft.md','--brief','brief.md','--stage','battle','--name','two','--model','Test Model']).stdout.trim();
+var run=node('new-run.js',['--readers','1','--draft','draft.md','--brief','brief.md','--stage','battle','--name','two','--model','Test Model']).stdout.trim();
 var seats=JSON.parse(read(path.join(run,'seats.json')));
 seats.seats.push({id:'seat-2',model:'Model Two',company:'Two Inc.',provider:'test-fixture',source:'test fixture: an outside seat'},{id:'seat-3',model:'Model Three',company:'Three Inc.',provider:'test-fixture',source:'test fixture: an outside seat'});
 fs.writeFileSync(path.join(run,'seats.json'),JSON.stringify(seats,null,2)+'\n');

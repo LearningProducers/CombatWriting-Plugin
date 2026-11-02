@@ -28,7 +28,7 @@
 // which is the standing rules of the project. Every packet carries it after the brief.
 //
 // Copies the draft (and the brief, when given) into a new folder under
-// <root>/combat-writing/runs/<run-id>/, writes seats.json with one fresh reader, and
+// <root>/combat-writing/runs/<run-id>/, writes seats.json with two fresh readers (Part 87), and
 // opens log.jsonl. Prints the run folder path on stdout, and nothing else. On the first run
 // inside a git repository it also writes <root>/combat-writing/.gitignore with exactly two
 // lines, runs/ and inbox/ (issue 36, ruled 2026-10-19), never overwriting a file already there,
@@ -40,16 +40,23 @@
 // add-draft.js, which writes draft.md when there is none. --stage names the command that made
 // the run; the record and the board say where the run started.
 //
-// The crew (ruled 2026-10-09, enforced 2026-10-12): one fresh reader, seat-1, plus one
-// seat per outside model the crew add-on has a key for; the add-on's crew_register appends
-// those. Never padded: there is no option to seat a second fresh reader, and a --seats
-// flag is refused. packet.js refuses a second fresh reader in an older run.
+// The crew (ruled 2026-11-02, Part 87, reversing the one-reader rule of 2026-10-09 and
+// 2026-10-12): two fresh readers by default, seat-1 and seat-2, the first and the second model
+// the host's own agent tool lists (--model and --model-2, the names the host passes; the list is
+// the host's, so the seats move with it and no model name is written here), plus one seat per
+// outside model the crew add-on has a key for; the add-on's crew_register appends those and,
+// when it seats at least one, drops the fresh seat-2 that no round has read, so the second chair
+// is the outside seats' (Qwen as seat-2 and gpt-oss as seat-3 on a Groq key). --readers 1 seats
+// one fresh reader, for a host whose agent tool offers one model; run.created says so. Never
+// padded beyond that: a --seats flag is refused, and packet.js refuses a fresh reader past the
+// second. A person's pick for a reader (seats.js --set) is read by the host before this runs and
+// arrives here as the model name.
 //
 // The run id is the UTC date and time plus the slug: 2026-10-08-1930-board-letter.
 // The slug comes from --name, else from the draft's file name.
 //
 // Seats: every seat is named by model and company. The model name is what the host
-// knows about the agent it will run (--model); when the host cannot tell, the seat
+// knows about the agent it will run (--model, --model-2); when the host cannot tell, the seat
 // is recorded as "model unreported". The company defaults to Anthropic, because the
 // listed plugin's fresh readers are Claude agents. seats.json records that the name
 // comes from the agent configuration, not from an API field. No model name is
@@ -93,8 +100,15 @@ if(args.stage!==undefined){
 // The guard reads briefName, so it stands after the block that sets it (the watchman caught it read before its declaration, 2026-10-31).
 if(!hasDraft&&!hasBrief&&!projectBriefThere&&!briefName)lib.die('--draft <file> or --brief <file> is required (a brief alone is allowed: the draft joins the run later through add-draft.js)');
 
-if(args.seats!==undefined)lib.die('--seats is not an option: the crew is one fresh reader, seat-1, plus the outside seats the add-on registers, never padded (ruled 2026-10-09, enforced 2026-10-12)');
+if(args.seats!==undefined)lib.die('--seats is not an option: the crew is two fresh readers, seat-1 and seat-2 (--readers 1 for one), plus the outside seats the add-on registers, which take the second chair; never padded (ruled 2026-11-02, Part 87)');
+var readers=lib.MAX_FRESH_READERS;
+if(args.readers!==undefined){
+  readers=parseInt(String(args.readers),10);
+  if(args.readers===true||!(readers===1||readers===2))lib.die('--readers takes 1 or 2: two fresh readers by default, one when the host\'s agent tool offers one model');
+}
 var model=(args.model&&args.model!==true)?String(args.model).trim():lib.MODEL_UNREPORTED;
+var model2=(args['model-2']&&args['model-2']!==true)?String(args['model-2']).trim():lib.MODEL_UNREPORTED;
+if(args['model-2']!==undefined&&readers===1)lib.die('--model-2 names the second fresh reader, and --readers 1 seats one');
 var company=(args.company&&args.company!==true)?String(args.company).trim():lib.DEFAULT_COMPANY;
 
 function slugOf(s){ return String(s).toLowerCase().replace(/\.[a-z0-9]+$/,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'draft'; }
@@ -151,8 +165,9 @@ if(hasReader){
   reader={file:lib.READER_FILE,sha256:lib.sha256(fs.readFileSync(lib.readerPath(runDir))),words:lib.wordCount(readerText)};
 }
 
-var seats=[{id:'seat-1',model:model,company:company,
-  source:'agent configuration (model: inherit); the model name was supplied by the host from what it knows about the agent it runs, not read from an API field'}];
+var SOURCE='agent configuration (model: inherit, the model named at start winning over it); the model name was supplied by the host from the list its agent tool offers or the person\'s pick, not read from an API field';
+var seats=[{id:'seat-1',model:model,company:company,source:SOURCE}];
+if(readers===2)seats.push({id:'seat-2',model:model2,company:company,source:SOURCE});
 fs.writeFileSync(path.join(runDir,'seats.json'),JSON.stringify({seats:seats},null,2)+'\n');
 
 lib.appendLog(runDir,{event:'run.created',run:path.basename(runDir),stage:stage,
@@ -160,7 +175,8 @@ lib.appendLog(runDir,{event:'run.created',run:path.basename(runDir),stage:stage,
   brief:briefHash?{file:'brief.md',sha256:briefHash,source:briefSource.source,from:briefSource.source==='named'?null:briefSource.from,name:briefName}:null,
   reader:reader,
   seats:seats.map(function(s){return {id:s.id,model:s.model,company:s.company};}),
-  crew_note:'one fresh reader, every seat is '+company+'\'s models until the crew add-on registers outside seats; the plugin never fakes a seat and never pads the crew'});
+  readers:readers,
+  crew_note:(readers===2?'two fresh readers, seat-1 and seat-2, the first and the second model the host\'s agent tool lists':'one fresh reader, seat-1: the host\'s agent tool offers one model')+', every seat is '+company+'\'s models until the crew add-on registers outside seats, which take the second chair; the plugin never fakes a seat and never pads the crew'});
 if(ignore.state==='written')lib.appendLog(runDir,{event:'gitignore.written',file:path.join('combat-writing',lib.GITIGNORE_FILE).split(path.sep).join('/'),lines:lib.GITIGNORE_LINES});
 if(kept)lib.appendLog(runDir,{event:'brief.kept',file:kept.file,name:kept.name||null,sha256:kept.sha256,replaced:kept.replaced});
 process.stdout.write(runDir+'\n');

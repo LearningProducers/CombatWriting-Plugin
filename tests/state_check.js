@@ -48,7 +48,7 @@ function listing(dir){ return fs.readdirSync(dir).sort().map(function(n){ var p=
 
 fs.writeFileSync(path.join(proj,'draft.md'),'Dear board, buy the company.\n');
 fs.writeFileSync(path.join(proj,'brief.md'),'CEO. Get a yes.\n');
-var run=seatMore(node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','board','--stage','sparring','--model','Test Model']).stdout.trim(),3,'Test Model');
+var run=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--brief','brief.md','--name','board','--stage','sparring','--model','Test Model']).stdout.trim(),3,'Test Model');
 var S2LINE='The board will ask for numbers and find none.';
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','01-sparring','--seat',s]); });
 var r1=path.join(run,'rounds','01-sparring');
@@ -161,14 +161,14 @@ var sr=logLines[logLines.length-1];
 check(sr.event==='state.rendered'&&sr.file==='state.json'&&sr.rounds===5,'render-state --write: state.rendered not logged last: '+JSON.stringify(sr));
 
 // 7. SEND on a fixture where every rated seat is at 8 or more; FINAL READS with no rating; no band with no number; a run with no round.
-var send=seatMore(node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','send','--model','Test Model']).stdout.trim(),2,'Test Model');
+var send=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--brief','brief.md','--name','send','--model','Test Model']).stdout.trim(),2,'Test Model');
 ['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',send,'--round','01-sparring','--seat',s]); });
 write(path.join(send,'rounds','01-sparring','seat-1.answer.md'),'RATING: 9/10\nShips as is.\n');
 write(path.join(send,'rounds','01-sparring','seat-2.answer.md'),'RATING: 8/10\nReady to send.\n');
 ['seat-1','seat-2'].forEach(function(s){ node('check-answer.js',[path.join(send,'rounds','01-sparring',s+'.answer.md'),'--run',send]); });
 var ss=JSON.parse(node('render-state.js',['--run',send]).stdout);
 check(ss.band.verdict==='SEND'&&ss.band.low.length===0&&ss.band.numbers.map(function(n){return n.rating;}).join(',')==='9,8'&&/^Every rated seat put it at 8 or more/.test(ss.band.why),'state (send): band wrong: '+JSON.stringify(ss.band));
-var nr=seatMore(node('new-run.js',['--draft','draft.md','--name','norating','--stage','battle','--no-brief','--model','Test Model']).stdout.trim(),2,'Test Model');
+var nr=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--name','norating','--stage','battle','--no-brief','--model','Test Model']).stdout.trim(),2,'Test Model');
 write(path.join(proj,'sn.md'),'Is this ready to go to the board?\n');
 ['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',nr,'--round','01-battle','--seat',s,'--sn','sn.md']); });
 write(path.join(nr,'rounds','01-battle','seat-1.answer.md'),'Not ready: the ask is buried.\n');
@@ -181,7 +181,7 @@ write(path.join(nr,'rounds','02-final','seat-1.redflag.answer.md'),'NO RED FLAGS
 ['seat-1.sn','seat-1.redflag'].forEach(function(f){ node('check-answer.js',[path.join(nr,'rounds','02-final',f+'.answer.md'),'--run',nr]); });
 var nf=JSON.parse(node('render-state.js',['--run',nr]).stdout);
 check(nf.band.verdict==='FINAL READS'&&nf.band.final_round==='02-final'&&nf.band.numbers.length===2&&nf.band.numbers[0].text==='S/N 60% · no red flags'&&nf.band.numbers[1].text==='S/N missing · red flags missing'&&nf.band.why==='No seat has rated this draft. These are the final reads of round 02-final, each seat\'s own S/N ratio and red-flag count. Nothing is averaged.','state (final reads): band wrong: '+JSON.stringify(nf.band));
-var fresh=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','fresh','--stage','strategy','--model','Test Model']).stdout.trim();
+var fresh=node('new-run.js',['--readers','1','--draft','draft.md','--brief','brief.md','--name','fresh','--stage','strategy','--model','Test Model']).stdout.trim();
 var fsz=JSON.parse(node('render-state.js',['--run',fresh]).stdout);
 check(fsz.rounds.length===0&&fsz.band.verdict===null&&fsz.run.first_round===null&&fsz.next_line===fsz.no_rounds_line+lib.thisRunLine(fsz.run.id)&&/^No rounds yet\. The draft and the brief are stored/.test(fsz.next_line)&&fsz.run.stage_started==='strategy'&&fsz.board_present===false,'state (no rounds): wrong: '+JSON.stringify({rounds:fsz.rounds.length,band:fsz.band,next:fsz.next_line}));
 check(Object.keys(fsz.latest).length===1&&fsz.latest['seat-1']===null&&fsz.latest_turn['seat-1']===null,'state (no rounds): latest should be null per seat');

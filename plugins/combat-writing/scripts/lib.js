@@ -59,10 +59,13 @@ var FIRST_ROUND_LINE='This is the first round of the run: no seat has read the d
 // whichever the log holds, and the record, the board and the short form print it under the crew line.
 var ADDON_INSTALL='/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin';
 var ADDON_CONFIGURE='/plugin configure combat-writing-crew';
+// {CREW} is the crew the run is left with, in words (crewAloneWords: the two fresh readers, or one
+// seat), filled by addonStateLine for the run at hand (Part 87, 2026-11-02).
 var ADDON_STATE={
-  absent:'The crew add-on is not installed, so the crew is one seat. Next: '+ADDON_INSTALL+', then /reload-plugins or a new session, then '+ADDON_CONFIGURE+' to enter a key.',
-  down:'The crew add-on is installed but its server is not running in this session (no crew_list tool), so the crew is one seat. Next: /mcp, find combat-writing-crew: if it shows failed or disconnected, reconnect it there and run the command again; if it is not listed, /plugin to check the add-on is enabled, then /reload-plugins.'
+  absent:'The crew add-on is not installed, so the crew is {CREW}. Next: '+ADDON_INSTALL+', then /reload-plugins or a new session, then '+ADDON_CONFIGURE+' to enter a key.',
+  down:'The crew add-on is installed but its server is not running in this session (no crew_list tool), so the crew is {CREW}. Next: /mcp, find combat-writing-crew: if it shows failed or disconnected, reconnect it there and run the command again; if it is not listed, /plugin to check the add-on is enabled, then /reload-plugins.'
 };
+function addonStateLine(state,seats){ var t=ADDON_STATE[state]; return t?t.replace('{CREW}',crewAloneWords(seats||[])):null; }
 
 // The commands, for the lines the record prints (the plugin is `cw`; the commands are /cw:<name>).
 var CMD={strategy:'/cw:strategy',sparring:'/cw:sparring',battle:'/cw:battle',champion:'/cw:champion',help:'/cw:help'};
@@ -559,14 +562,35 @@ function readSeats(runDir){
   if(!fs.existsSync(p))die('no seats.json in '+runDir);
   return JSON.parse(readText(p));
 }
-// The crew (ruled 2026-10-09, enforced 2026-10-12): one fresh reader plus one seat per outside
-// model the add-on registers, never padded. A fresh reader is a seat with no provider field;
-// the first one in seats.json is the crew's. isPaddedSeat says whether a seat is a second fresh
-// reader, which packet.js refuses to seat in any round.
+// The crew (ruled 2026-11-02, Part 87, reversing the one-reader rule of 2026-10-09 and 2026-10-12):
+// two fresh readers by default, seat-1 and seat-2, the first and the second model the host's own
+// agent tool lists (no model name in this code: the list is the host's, and the seats move with
+// it), plus one seat per outside model the add-on registers; the moment the add-on seats one, the
+// second chair is the outside seats' and the fresh seat-2 leaves (crew_register drops it when no
+// round has read it). A fresh reader is a seat with no provider field. Never padded beyond that:
+// isPaddedSeat says whether a seat is a fresh reader past the second, which packet.js refuses to
+// seat in any round. A person's pick for a reader lives in <project>/combat-writing/seats.json
+// (seats.js --set), the person's own data, read by the host before the run starts.
+var MAX_FRESH_READERS=2;
+var READERS_FILE='seats.json';
+var READERS_REL=path.join('combat-writing',READERS_FILE);
 function isFreshReader(seat){ return !seat.provider; }
+function freshReaders(seats){ return seats.filter(isFreshReader); }
 function isPaddedSeat(seats,seat){
-  var first=seats.filter(isFreshReader)[0];
-  return isFreshReader(seat)&&!!first&&first.id!==seat.id;
+  var fresh=freshReaders(seats);
+  return isFreshReader(seat)&&fresh.indexOf(seat)>=MAX_FRESH_READERS;
+}
+// The crew a run is left with when no outside seat is registered, in words for the Seats line.
+function crewAloneWords(seats){
+  var n=Math.min(freshReaders(seats||[]).length,MAX_FRESH_READERS);
+  if(n===2)return 'the two fresh readers (one company\'s models)';
+  return 'one seat';
+}
+function readersPicksPath(root){ return path.join(root,READERS_REL); }
+function readReaderPicks(root){
+  var p=readersPicksPath(root);
+  if(!fs.existsSync(p))return {};
+  try{ var j=JSON.parse(readText(p)); return (j&&j.readers&&typeof j.readers==='object')?j.readers:{}; }catch(e){ return {}; }
 }
 
 // A seat's label as it appears in every packet and every result: model and company, never anonymous.
@@ -629,13 +653,13 @@ function crewStateLines(runDir,seats,log){
     if(!outside&&noKey.length){
       var fields=[]; noKey.forEach(function(u){ var f=u.field||'the key field'; if(fields.indexOf(f)<0)fields.push(f); });
       var named=noKey.filter(function(u){return u.field;}).map(function(u){return u.field+' ('+(u.field_title||u.provider_name||u.provider)+')';}).filter(function(v,i,a){return a.indexOf(v)===i;});
-      lines.push('The crew add-on is running and no provider has a key, so the crew is one seat: a key was never entered, or an update dropped it (the host rebuilt its credentials store). Next: '+(noKey[0].next||ADDON_CONFIGURE)+', type the key into a key field and save: '+(named.length?named.join(', '):fields.join(', '))+'; a save with nothing typed says No configuration changes and keeps nothing; a free Groq key seats two. Or set the provider\'s environment variable when the prompt is empty.');
+      lines.push('The crew add-on is running and no provider has a key, so the crew is '+crewAloneWords(seats)+': a key was never entered, or an update dropped it (the host rebuilt its credentials store). Next: '+(noKey[0].next||ADDON_CONFIGURE)+', type the key into a key field and save: '+(named.length?named.join(', '):fields.join(', '))+'; a save with nothing typed says No configuration changes and keeps nothing; a free Groq key seats two. Or set the provider\'s environment variable when the prompt is empty.');
     }
     failed.forEach(function(u){
       lines.push('Not seated: '+(u.provider_name||u.provider)+(u.family?' ('+u.family+')':'')+': '+u.reason+'. Next: run the command again; if it repeats, '+(u.next||ADDON_CONFIGURE)+' to check the '+(u.field||'key')+' field.');
     });
   }else if(last&&last.event==='addon.state'&&!outside){
-    lines.push(ADDON_STATE[last.state]||('The add-on state recorded, '+last.state+', is not one the record knows.'));
+    lines.push(addonStateLine(last.state,seats)||('The add-on state recorded, '+last.state+', is not one the record knows.'));
   }else if(!outside){
     lines.push('No outside seat, and the add-on\'s state was not recorded in this run. Next: '+CMD.help+' crew for the three states and the command for each.');
   }
@@ -1571,7 +1595,8 @@ module.exports={
   DEFAULT_FINAL_WORD_CAP:DEFAULT_FINAL_WORD_CAP,DEFAULT_CREW_WORD_CAP:DEFAULT_CREW_WORD_CAP,CREW_PASS_LINE:CREW_PASS_LINE,CREW_PASS_HEADING:CREW_PASS_HEADING,crewPassOf:crewPassOf,DEFAULT_COMPANY:DEFAULT_COMPANY,MODEL_UNREPORTED:MODEL_UNREPORTED,
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
   DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,runSlug:runSlug,thisRunLine:thisRunLine,runSummary:runSummary,runsLine:runsLine,listRunSummaries:listRunSummaries,matchRuns:matchRuns,NO_RATING_LINE:NO_RATING_LINE,
-  SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,crewStateLines:crewStateLines,
+  SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,addonStateLine:addonStateLine,crewStateLines:crewStateLines,
+  MAX_FRESH_READERS:MAX_FRESH_READERS,READERS_FILE:READERS_FILE,READERS_REL:READERS_REL,freshReaders:freshReaders,crewAloneWords:crewAloneWords,readersPicksPath:readersPicksPath,readReaderPicks:readReaderPicks,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   GITIGNORE_FILE:GITIGNORE_FILE,GITIGNORE_LINES:GITIGNORE_LINES,GITIGNORE_LINE:GITIGNORE_LINE,inGitRepo:inGitRepo,writeGitignore:writeGitignore,

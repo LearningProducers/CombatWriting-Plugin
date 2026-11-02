@@ -120,7 +120,7 @@ var draftText='Dear board,\n\nI would like a vote this week on the letter of int
 var briefText='I am the CEO. Purpose: a yes on the LOI this week. Stakes: the deal.\n';
 fs.writeFileSync(path.join(proj,'inbox-draft.md'),draftText);
 fs.writeFileSync(path.join(proj,'inbox-brief.md'),briefText);
-var r=node('new-run.js',['--draft','inbox-draft.md','--brief','inbox-brief.md','--stage','strategy','--name','board letter','--model','Test Model 1.0']);
+var r=node('new-run.js',['--readers','1','--draft','inbox-draft.md','--brief','inbox-brief.md','--stage','strategy','--name','board letter','--model','Test Model 1.0']);
 check(r.status===0,'new-run: exit '+r.status+' '+r.stderr);
 var run=r.stdout.trim();
 check(fs.existsSync(run)&&read(path.join(run,'draft.md'))===draftText&&read(path.join(run,'brief.md'))===briefText,'new-run: draft.md or brief.md missing or not byte-identical');
@@ -146,7 +146,7 @@ check(/<strong>Started at:<\/strong> strategy: the draft and the brief stored fi
 check(!/https?:\/\//.test(board),'board.html: makes an outside request');
 
 // A run with no brief says so (--no-brief: the first run's brief is the project's since issue 72, and the person said there is none).
-var r2=node('new-run.js',['--draft','inbox-draft.md','--stage','strategy','--name','no brief','--no-brief','--model','Test Model 1.0']);
+var r2=node('new-run.js',['--readers','1','--draft','inbox-draft.md','--stage','strategy','--name','no brief','--no-brief','--model','Test Model 1.0']);
 check(r2.status===0,'new-run (no brief): exit '+r2.status);
 var s2=node('render-record.js',['--run',r2.stdout.trim(),'--short']);
 check(/^No rounds yet\. The draft is stored; no seat has read it\. Next: \/cw:sparring for the first reads and ratings, or \/cw:battle to start with the discussion\.$/m.test(s2.stdout),'short form (no brief): must say the draft is stored, without a brief');
@@ -180,7 +180,7 @@ fs.writeFileSync(path.join(cProj,'one.md'),new Array(81).join('word ').trim()+'\
 fs.writeFileSync(path.join(cProj,'three.md'),'Dear board,\n\nBuy the company. It is cheap.\n\nYours.\n');
 fs.writeFileSync(path.join(cProj,'brief.md'),'CEO. Get a yes.\n');
 function cNode(script,args){ return cp.spawnSync(process.execPath,[path.join(scripts,script)].concat(args),{cwd:cProj,encoding:'utf8'}); }
-var cRun=cNode('new-run.js',['--draft','one.md','--brief','brief.md','--name','counts','--stage','strategy','--model','Test Model']).stdout.trim();
+var cRun=cNode('new-run.js',['--readers','1','--draft','one.md','--brief','brief.md','--name','counts','--stage','strategy','--model','Test Model']).stdout.trim();
 var cLog=fs.readFileSync(path.join(cRun,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);});
 var cCreated=cLog.filter(function(e){return e.event==='run.created';})[0];
 check(cCreated&&cCreated.draft&&cCreated.draft.words===80&&cCreated.draft.lines===1&&cCreated.draft.paragraphs===1,'counts: run.created should carry words, lines and paragraphs: '+JSON.stringify(cCreated&&cCreated.draft));

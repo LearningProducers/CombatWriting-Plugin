@@ -77,7 +77,7 @@ function inboxFile(name,text){ var p=path.join(inbox,name); write(p,text); retur
 var P1='Dear board, buy the company.', P2='The numbers are in the appendix.';
 write(path.join(proj,'draft.md'),P1+'\n\n'+P2+'\n');
 write(path.join(proj,'brief.md'),'CEO. Get a yes.\n');
-var run=seatMore(node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','champion','--stage','sparring','--model','Test Model']).stdout.trim(),2,'Test Model');
+var run=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--brief','brief.md','--name','champion','--stage','sparring','--model','Test Model']).stdout.trim(),2,'Test Model');
 ['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',run,'--round','01-sparring','--seat',s]); });
 write(path.join(run,'rounds','01-sparring','seat-1.answer.md'),'RATING: 8/10\nThe ask lands in the first line.\n');
 node('check-answer.js',[path.join(run,'rounds','01-sparring','seat-1.answer.md'),'--run',run]);
@@ -186,7 +186,7 @@ node('render-record.js',['--run',run]);
 var rec6=read(path.join(run,'record.md'));
 check(/\*\*Result:\*\* \d{4}-\d\d-\d\d · Two replies in a day, one asking for the appendix\.\n/.test(rec6)&&/\*\*Result:\*\* 2026-10-28 · Silence\.\n/.test(rec6),'record: the two dated Result lines');
 check(!/\*\*Shipped:\*\* not recorded/.test(rec6),'record: a shipped run must not say Shipped: not recorded');
-var bare=node('new-run.js',['--draft','draft.md','--name','bare','--stage','battle','--model','Test Model']).stdout.trim();
+var bare=node('new-run.js',['--readers','1','--draft','draft.md','--name','bare','--stage','battle','--model','Test Model']).stdout.trim();
 var rb=node('champion.js',['--run',bare,'--kind','result','--file',inboxFile('rb.result.md','One reply.\n')]);
 check(rb.status===0,'result on a run with no canon: must be accepted; got '+rb.status+' '+rb.stderr);
 node('render-record.js',['--run',bare]);
@@ -249,7 +249,7 @@ refused(['--run',run,'--kind','shipped','--file',ship1,'--live','yes'],'--live y
 refused(['--run',run,'--kind','shipped','--file',ship1,'--live','no','--page',page1],'--live no with --page');
 refused(['--run',run,'--kind','shipped','--file',ship1,'--page',path.join(inbox,'no-such.page.md')],'missing page file');
 refused(['--run',run,'--kind','result','--file',ship1,'--at','not-a-date'],'--at not a date');
-var briefOnly=node('new-run.js',['--brief','brief.md','--name','briefonly','--stage','strategy','--model','Test Model']).stdout.trim();
+var briefOnly=node('new-run.js',['--readers','1','--brief','brief.md','--name','briefonly','--stage','strategy','--model','Test Model']).stdout.trim();
 var nd=node('champion.js',['--run',briefOnly,'--kind','shipped','--file',ship1]);
 check(nd.status===2&&/no draft in this run; nothing to ship/.test(nd.stderr),'refusal (shipped on a brief-only run): got '+nd.status+' '+nd.stderr);
 var outside=path.join(proj,'elsewhere',path.basename(run)); fs.mkdirSync(path.dirname(outside),{recursive:true}); fs.cpSync(run,outside,{recursive:true});

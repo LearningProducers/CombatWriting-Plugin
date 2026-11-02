@@ -91,7 +91,7 @@
 //     the request limit, and not otherwise.
 //   - The listed plugin's checker, flip check and record then read the outside seat's answer as
 //     any seat's, and the record's crew line names two companies and both name sources.
-//   - The crew (ruled 2026-10-09) is never padded: new-run.js seats one fresh reader, and with
+//   - The crew (Part 87, 2026-11-02) is never padded: new-run.js seats two fresh readers, the add-on drops the second when it seats one, and with
 //     the Groq key alone crew_register makes the crew three (seat-1 fresh, seat-2 and seat-3
 //     from Groq); with a second provider's key present it is four. A dry run prints the seats.
 //   - The cap for outside seats (ruled 2026-10-09): the system line states the packet's cap as
@@ -210,7 +210,8 @@ fake.listen(0,'127.0.0.1',function(){
   fs.writeFileSync(path.join(proj,'draft.md'),'Dear board, buy the company. The ask lands in the first line.\n');
   var run=node('new-run.js',['--draft','draft.md','--name','crew','--model','Test Model']).stdout.trim();
   check(!!run&&fs.existsSync(run),'new-run failed');
-  check(JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats.length===1,'new-run: the default crew should be one fresh reader');
+  // Two fresh readers by default (Part 87, 2026-11-02); the second chair is the add-on's once it seats one.
+  check(JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats.length===2,'new-run: the default crew should be two fresh readers');
   check(lib.NO_RATING_LINE===require(path.join(scripts,'lib.js')).NO_RATING_LINE,'the add-on\'s no-rating line must equal the listed plugin\'s');
   // One overrun rule for every seat (ruled 2026-10-15): the cut and the retry target are mirrored word for word.
   var listed=require(path.join(scripts,'lib.js'));
@@ -247,13 +248,15 @@ fake.listen(0,'127.0.0.1',function(){
     return s1.call('crew_register',{run:run});
   }).then(function(r){
     check(!r.isError&&r.data.added&&r.data.added.length===2,'crew_register: expected 2 seats added, got '+JSON.stringify(r.data&&r.data.added));
+    // The second chair (Part 87): the fresh seat-2 no round read is dropped and the outside seats number from 2.
+    check(r.data.replaced&&r.data.replaced.id==='seat-2'&&!r.data.replaced.provider&&r.data.replaced.company==='Anthropic','crew_register: the fresh seat-2 should be replaced, got '+JSON.stringify(r.data.replaced));
     var seats=JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats;
     check(seats.length===3&&seats[0].id==='seat-1'&&!seats[0].provider&&seats[1].id==='seat-2'&&seats[1].provider==='groq'&&seats[1].served_by==='Groq'&&seats[1].company==='Alibaba'&&seats[1].model==='qwen/qwen3.6-27b'&&/API returns/.test(seats[1].source),'crew_register: with the Groq key alone the crew should be three, seat-1 the fresh reader; got '+JSON.stringify(seats.map(function(x){return x.id+' '+x.model;})));
     console.log('crew with the Groq key alone: '+seats.map(function(x){return x.id+' = '+x.model+' ('+x.company+(x.served_by?', served by '+x.served_by:'')+')';}).join('; '));
     check(seats[2].company==='OpenAI'&&seats[2].model==='openai/gpt-oss-120b','crew_register: seat-3 wrong '+JSON.stringify(seats[2]));
     // The wall each outside seat spends from (issue 95), the provider's budget as providers.json states it.
     check(seats[1].budget&&seats[1].budget.per_minute===8000&&seats[1].budget.reply_floor===1200&&seats[1].budget.reply_ceiling===2800&&seats[2].budget&&seats[2].budget.per_minute===8000&&!seats[0].budget,'crew_register: each outside seat should carry its wall, the fresh reader none, got '+JSON.stringify(seats.map(function(x){return x.budget;})));
-    check(logOf(run).some(function(e){return e.event==='crew.registered'&&!('credit' in e)&&e.added.length===2&&e.unavailable.length>=2;}),'crew_register: log line missing');
+    check(logOf(run).some(function(e){return e.event==='crew.registered'&&!('credit' in e)&&e.added.length===2&&e.unavailable.length>=2&&e.replaced&&e.replaced.id==='seat-2';}),'crew_register: log line missing or without the replaced seat');
     return s1.call('crew_register',{run:run});
   }).then(function(r){
     check(!r.isError&&r.data.added.length===0&&JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats.length===3,'crew_register: not idempotent');
@@ -573,11 +576,11 @@ fake.listen(0,'127.0.0.1',function(){
       var line=logOf(run3).filter(function(e){return e.event==='crew.registered';})[0];
       check(!!line&&line.added.length===0&&(line.unavailable||[]).some(function(u){return u.provider_name==='Groq'&&u.field==='groq_api_key'&&u.field_title==='Groq API key'&&u.next==='/plugin configure combat-writing-crew'&&/^no key for Groq/.test(u.reason);}),'state 3: crew.registered must log the next command and the field under unavailable');
       var short=node('render-record.js',['--run',run3,'--short']);
-      check(short.status===0&&/^\*\*Seats:\*\* The crew add-on is running and no provider has a key, so the crew is one seat: a key was never entered, or an update dropped it \(the host rebuilt its credentials store\)\. Next: \/plugin configure combat-writing-crew, type the key into a key field and save: groq_api_key \(Groq API key\), xai_api_key \(xAI API key\)/m.test(short.stdout),'state 3: the short form must print the Seats line with the two causes, the command and the fields, got '+short.stdout.split('\n').filter(function(l){return /Seats/.test(l);}).join(' | '));
+      check(short.status===0&&/^\*\*Seats:\*\* The crew add-on is running and no provider has a key, so the crew is the two fresh readers \(one company's models\): a key was never entered, or an update dropped it \(the host rebuilt its credentials store\)\. Next: \/plugin configure combat-writing-crew, type the key into a key field and save: groq_api_key \(Groq API key\), xai_api_key \(xAI API key\)/m.test(short.stdout),'state 3: the short form must print the Seats line with the two causes, the command and the fields, got '+short.stdout.split('\n').filter(function(l){return /Seats/.test(l);}).join(' | '));
       check(/; a save with nothing typed says No configuration changes and keeps nothing; a free Groq key seats two\. Or set the provider's environment variable when the prompt is empty\./.test(short.stdout)&&!/NEVER_READ/.test(short.stdout),'state 3: the Seats line must say what an empty save does, end with the free-tier note and the variable route, and carry no key');
       var record=fs.readFileSync(path.join(run3,'record.md'),'utf8');
       check(record.split('\n')[2].indexOf('**Crew:**')===0&&record.split('\n')[4].indexOf('**Seats:** The crew add-on is running and no provider has a key')===0,'state 3: record.md must carry the Seats line right under the crew line');
-      check(node('render-board.js',['--run',run3]).status===0&&/<strong>Seats:<\/strong> The crew add-on is running and no provider has a key, so the crew is one seat: a key was never entered, or an update dropped it \(the host rebuilt its credentials store\)\. Next: \/plugin configure combat-writing-crew, type the key into a key field and save: groq_api_key \(Groq API key\)/.test(fs.readFileSync(path.join(run3,'board.html'),'utf8')),'state 3: board.html must carry the Seats line');
+      check(node('render-board.js',['--run',run3]).status===0&&/<strong>Seats:<\/strong> The crew add-on is running and no provider has a key, so the crew is the two fresh readers \(one company's models\): a key was never entered, or an update dropped it \(the host rebuilt its credentials store\)\. Next: \/plugin configure combat-writing-crew, type the key into a key field and save: groq_api_key \(Groq API key\)/.test(fs.readFileSync(path.join(run3,'board.html'),'utf8')),'state 3: board.html must carry the Seats line');
       return s3.call('crew_answer',{run:run,round:'01-sparring',seat:'seat-2'});
     }).then(function(r){
       check(r.isError&&r.data.missing===true&&/no key/.test(r.data.reason)&&!/NEVER_READ/.test(JSON.stringify(r.data))&&requests.length===0,'key route: crew_answer with no key should be missing without a request, got '+JSON.stringify(r.data));
