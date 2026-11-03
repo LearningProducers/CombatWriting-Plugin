@@ -17,7 +17,7 @@ import sys
 import time
 from pathlib import Path
 
-from textual.app import App
+from textual.app import App, ScreenStackError
 from textual.binding import Binding
 
 from cw_screen import __version__
@@ -185,7 +185,13 @@ class CwScreen(App):
         self._fresh()
 
     def _fresh(self) -> None:
-        screen = self.screen
+        # Issue 64: the sweep timer can tick in the window after the screen stack is emptied
+        # on exit (measured on CI at the end of run_test); there is nothing to redraw, so the
+        # tick returns instead of reading self.screen.
+        try:
+            screen = self.screen
+        except ScreenStackError:
+            return
         if not isinstance(screen, Chrome) or not screen.is_mounted:
             return
         if self.sweep is None:

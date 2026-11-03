@@ -8,7 +8,8 @@
 # a new answer lands on disk and is checked; Enter opens a read as plain text; a round the
 # host announced shows as forming; a tab not yet built says so; a run folder that disappears
 # turns the freshness line stale with the time; a wrong plugin root is said on screen; a
-# newer run appearing is followed; --light takes the light palette.
+# newer run appearing is followed; --light takes the light palette; a tick after the screen
+# stack is empty returns instead of reading self.screen (issue 64).
 #
 # Run from screen/:   uv run python tests/shell_check.py        Exit 0 on pass, 1 on failure.
 
@@ -154,6 +155,17 @@ async def main():
         t = app2.screen_text()
         check(app2.theme == "cw-light", "shell: --light should take the light palette")
         check("STALE" in t and "has no" in t and "render-state.js" in t, "shell: a wrong plugin root should be said: " + t.splitlines()[-1])
+
+    # Issue 64: a tick that lands after the screen stack is empty (the teardown window of
+    # run_test, measured on CI) returns instead of reading self.screen. An app never run has
+    # the same empty stack, so the tick is fired on it here, outside run_test.
+    app3 = CwScreen(project=proj, plugin_root=PLUGIN_ROOT, interval=0.2)
+    try:
+        app3._fresh()
+        app3.tick()
+        check(True, "")
+    except Exception as e:  # noqa: BLE001
+        check(False, f"shell: a tick on an empty screen stack should return, not raise: {type(e).__name__}: {e}")
     shutil.rmtree(proj, ignore_errors=True)
 
 

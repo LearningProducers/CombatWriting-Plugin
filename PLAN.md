@@ -969,3 +969,13 @@ Built as the issue proposes. `crew-lib.js` reads the manifest once (`readManifes
 Delivers: plugins/combat-writing-crew/server.js, plugins/combat-writing-crew/crew-lib.js, tests/crew_check.js, the add-on's plugin.json, marketplace.json, PLAN.md.
 
 Status: delivered — 2026-11-03 — draft pull request open; `node tests/run_all.js` run in the build session, its count in the pull request body; the live pass is the founder's next session after the update, where `/mcp` shows `combat-writing-crew` reporting 0.5.14.
+
+## Part 95 — The sweep timer survives the screen's exit (screen 0.1.4)
+
+Issue 64, measured 2026-10-26 on pull request 63's first CI run (commit `74e9dc5`, nothing under `screen/` touched): the `screen` job failed in `tests/shell_check.py` at the end of `app.run_test`, Textual raising `ScreenStackError: No screens on stack` from `CwScreen.tick` calling `_fresh` (`screen = self.screen`) on a timer tick that fired after the test's screen had been popped. The next commit and every run on main passed: a race between the sweep timer and the app's exit, not a change in the plugin.
+
+Built in the narrower form the issue names. `_fresh`, the one place the tick reads `self.screen`, catches `ScreenStackError` and returns: there is nothing to redraw once the stack is empty. `tests/shell_check.py` gains one check that fires `_fresh` and `tick` on an app whose stack is empty (an app never run has the same empty stack as one being torn down); measured in the build session: the check fails with `ScreenStackError` on the old line and passes on the new one, 37 shell checks. `screen/` changes, so the patch bump: cw-screen 0.1.4 in `pyproject.toml` and the lock's own entry, `uv lock --check` agreeing.
+
+Delivers: screen/cw_screen/app.py, screen/tests/shell_check.py, screen/pyproject.toml, screen/uv.lock, PLAN.md.
+
+Status: delivered — 2026-11-03 — draft pull request open; `node tests/run_all.js` reads 47 passed, 0 failed, 0 skipped in the build session; the live pass is CI's `screen` job staying green across runs, since the race never surfaced locally.
