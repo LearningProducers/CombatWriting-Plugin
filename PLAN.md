@@ -929,3 +929,13 @@ Built. `skills/help/SKILL.md` holds three blocks: the card (unchanged but its la
 Delivers: `skills/help/SKILL.md`, `plugins/combat-writing/README.md`, `tests/help_check.js`, `plugin.json` and `marketplace.json` (0.8.36), CLAUDE.md, PLAN.md.
 
 Status: delivered — 2026-11-02 — pull request open, stacked on Part 89's branch until it merges; every check passes; the live pass is the founder typing `/cw:help all` and reading it to the end.
+
+## Part 91 — marketplace_check.js reads the scripts and nothing beside them (no bump)
+
+Issue 138, measured 2026-10-31 and 2026-11-02 on the founder's Mac: `node tests/marketplace_check.js` exited 1 with `EISDIR` because it read every entry `readdirSync` returned for `plugins/combat-writing/scripts/`, and the Claude Code harness keeps a globally git-ignored `.claude` folder there. CI has no such folder and passed, so `node tests/run_all.js` read 46 passed, 1 failed locally for a cause outside the change under test, the disagreement Part 88 exists to remove.
+
+Built. The two `readdirSync` sites (lines 104 and 110) filter to `.js` files, the filter `tests/map_check.js` already uses. Measured in the build session with a `.claude/.cc-writes` planted beside the scripts: EISDIR before the change, 89 checks passing after it, and 89 with the folder removed. One change, no file under the plugin folders or `screen/`: no bump.
+
+Delivers: `tests/marketplace_check.js`, PLAN.md.
+
+Status: delivered — 2026-11-03 — draft pull request open; `node tests/run_all.js` reads 47 passed, 0 failed, 0 skipped in the build session; the live pass is the founder running it on the Mac that measured the failure.
