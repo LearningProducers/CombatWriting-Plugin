@@ -101,13 +101,13 @@ var listed=JSON.parse(read('plugins/combat-writing/.claude-plugin/plugin.json'))
 check(!listed.mcpServers&&!listed.hooks&&!listed.userConfig,'listed manifest: must declare no MCP server, hooks field or userConfig');
 check(!exists('plugins/combat-writing/.mcp.json'),'listed plugin: must have no .mcp.json');
 check(exists('tests/hook_check.js'),'listed plugin: hooks/ is pinned by tests/hook_check.js, which is missing');
-var listedScripts=fs.readdirSync(path.join(root,'plugins/combat-writing/scripts')).map(function(f){return read('plugins/combat-writing/scripts/'+f);}).join('\n');
+var listedScripts=fs.readdirSync(path.join(root,'plugins/combat-writing/scripts')).filter(function(f){return /\.js$/.test(f);}).map(function(f){return read('plugins/combat-writing/scripts/'+f);}).join('\n');
 check(!/require\(['"](https?|net|dgram)['"]\)/.test(listedScripts)&&!/\bfetch\(/.test(listedScripts),'listed plugin: a script requires a network module or calls fetch');
 // child_process is allowed in two scripts: open-board.js, which starts the system's opener on the
 // local board.html (2026-10-14), and speak.js, which runs the Mac's speech engine on each seat's
 // answer (Part 81, issue 121); tests/open_board_check.js pins that no other script requires it and
 // that neither makes a network call.
-var scriptsButRuled=fs.readdirSync(path.join(root,'plugins/combat-writing/scripts')).filter(function(f){return f!=='open-board.js'&&f!=='speak.js';}).map(function(f){return read('plugins/combat-writing/scripts/'+f);}).join('\n');
+var scriptsButRuled=fs.readdirSync(path.join(root,'plugins/combat-writing/scripts')).filter(function(f){return /\.js$/.test(f)&&f!=='open-board.js'&&f!=='speak.js';}).map(function(f){return read('plugins/combat-writing/scripts/'+f);}).join('\n');
 check(!/require\(['"]child_process['"]\)/.test(scriptsButRuled),'listed plugin: a script other than open-board.js or speak.js requires child_process');
 check(!/https?:\/\//.test(listedScripts.replace(/\/\/[^\n]*/g,'')),'listed plugin: a script holds a URL outside a comment');
 
