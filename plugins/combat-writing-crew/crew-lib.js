@@ -125,12 +125,20 @@ function keyShape(provider){
 // alternative routes; the file is the one that survives the host (Part 36.2).
 var CONFIGURE_COMMAND='/plugin configure combat-writing-crew';
 var CAUSES='never entered, or dropped by an update (the host rebuilt its credentials store, where the masked prompt keeps it)';
-var manifestOptions=null;
-function optionTitle(option){
-  if(manifestOptions===null){
-    try{manifestOptions=JSON.parse(readText(path.join(__dirname,'.claude-plugin','plugin.json'))).userConfig||{};}catch(e){manifestOptions={};}
+// The add-on's own manifest, read once: the field titles the key hints name, and the version the
+// server reports on initialize (issue 49: server.js carried its own copy, 0.2.0, while the manifest
+// said 0.4.5; the manifest is the one copy).
+var manifest=null;
+function readManifest(){
+  if(manifest===null){
+    try{manifest=JSON.parse(readText(path.join(__dirname,'.claude-plugin','plugin.json')))||{};}catch(e){manifest={};}
   }
-  return (manifestOptions[option]&&manifestOptions[option].title)||option;
+  return manifest;
+}
+function manifestVersion(){ return String(readManifest().version||''); }
+function optionTitle(option){
+  var options=readManifest().userConfig||{};
+  return (options[option]&&options[option].title)||option;
 }
 function keyField(provider){
   var option=provider.key_option||(provider.id+'_api_key');
@@ -374,7 +382,7 @@ function scrubIds(text){
   return String(text===undefined||text===null?'':text).replace(KEY_SHAPE,'[key redacted]').replace(ID_UNDERSCORE,'$1_[redacted]').replace(ID_HYPHEN,'$1-[redacted]');
 }
 
-module.exports={readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
+module.exports={readText:readText,readManifest:readManifest,manifestVersion:manifestVersion,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
   loadProviders:loadProviders,keyFor:keyFor,keyShape:keyShape,keyHint:keyHint,keyNext:keyNext,keyField:keyField,keyFilePath:keyFilePath,keyFileShown:keyFileShown,readKeyFile:readKeyFile,KEY_FILE:KEY_FILE,CONFIGURE_COMMAND:CONFIGURE_COMMAND,CAUSES:CAUSES,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
   eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,windowKey:windowKey,
   parseCapRefusal:parseCapRefusal,tokensForCap:tokensForCap,loweredMaxTokens:loweredMaxTokens,capRefusalReason:capRefusalReason,TOKENS_PER_WORD:TOKENS_PER_WORD,FIRST_LINE_TOKENS:FIRST_LINE_TOKENS,CAP_MARGIN:CAP_MARGIN,scrubIds:scrubIds,
