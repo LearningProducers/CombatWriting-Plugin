@@ -13,7 +13,9 @@
 //
 // What it pins:
 //   - initialize answers with a supported protocol version, the server's name and tools; tools/list
-//     names crew_list, crew_register and crew_answer.
+//     names crew_list, crew_register and crew_answer. The serverInfo version is the manifest's
+//     (plugins/combat-writing-crew/.claude-plugin/plugin.json), read by the server at start, so
+//     there is one copy (issue 49: server.js had carried 0.2.0 while the manifest said 0.4.5).
 //   - Key route: with both the prompt value and the environment variable set, the request carries
 //     the prompt's value; with the prompt empty, the environment variable; with neither, the seat
 //     is unavailable, the reason names the prompt, the variable and the key file and never a
@@ -222,6 +224,9 @@ fake.listen(0,'127.0.0.1',function(){
   s1.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'crew_check',version:'1'}}).then(function(m){
     check(m.result&&m.result.protocolVersion==='2025-06-18'&&m.result.serverInfo&&m.result.serverInfo.name==='combat-writing-crew'&&m.result.capabilities&&m.result.capabilities.tools,'initialize: wrong result '+JSON.stringify(m.result||m.error));
     check(m.result&&/^Outside seats for Combat Writing/.test(m.result.instructions||'')&&(m.result.instructions||'').indexOf(CREDIT)<0,'initialize: instructions should open with the tool guide and carry no credit line');
+    var manifestVersion=JSON.parse(fs.readFileSync(path.join(crewDir,'.claude-plugin','plugin.json'),'utf8')).version;
+    check(/^\d+\.\d+\.\d+$/.test(manifestVersion)&&m.result&&m.result.serverInfo&&m.result.serverInfo.version===manifestVersion,'initialize: serverInfo.version should equal the manifest\'s '+manifestVersion+', got '+JSON.stringify(m.result&&m.result.serverInfo));
+    check(lib.manifestVersion()===manifestVersion,'crew-lib manifestVersion: should read the manifest\'s version, got '+JSON.stringify(lib.manifestVersion()));
     s1.notify('notifications/initialized');
     return s1.rpc('tools/list');
   }).then(function(m){

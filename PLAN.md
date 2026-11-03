@@ -959,3 +959,13 @@ Built. Each of the two sentences is cut to one clause pointing at the paragraph 
 Delivers: plugins/combat-writing/README.md, plugins/combat-writing/skills/help/SKILL.md, tests/board_check.js, plugin.json, marketplace.json, PLAN.md.
 
 Status: delivered — 2026-11-03 — draft pull request open; `node tests/run_all.js` run in the build session, its count in the pull request body; the done-when is read on the page: no file in the tree states the Part 72 voice rule as live.
+
+## Part 94 — The add-on's server reports the manifest's version (crew 0.5.14)
+
+Issue 49, measured 2026-10-21 on main e5f4886: `plugins/combat-writing-crew/server.js` held `SERVER_INFO.version` as `'0.2.0'`, the value an MCP client sees on `initialize`, while the manifest `plugins/combat-writing-crew/.claude-plugin/plugin.json` and the marketplace entry said 0.4.5 (0.5.13 by the day this was built). Two copies, drifted since 0.2.0, and no check read the second.
+
+Built as the issue proposes. `crew-lib.js` reads the manifest once (`readManifest`, the cached read `optionTitle` already made for the field titles) and exposes `manifestVersion`; `server.js` sets `SERVER_INFO.version` from it at start, so the manifest is the one copy and a bump reaches the `initialize` reply with nothing else touched. `tests/crew_check.js` pins the `initialize` reply's `serverInfo.version` equal to the manifest's version and `lib.manifestVersion()` the same; measured in the build session: the pin fails on the old hardcoded line and passes on the new one. The add-on changes, so the crew bump: 0.5.14. Nothing in the listed plugin or `screen/` changes.
+
+Delivers: plugins/combat-writing-crew/server.js, plugins/combat-writing-crew/crew-lib.js, tests/crew_check.js, the add-on's plugin.json, marketplace.json, PLAN.md.
+
+Status: delivered — 2026-11-03 — draft pull request open; `node tests/run_all.js` run in the build session, its count in the pull request body; the live pass is the founder's next session after the update, where `/mcp` shows `combat-writing-crew` reporting 0.5.14.

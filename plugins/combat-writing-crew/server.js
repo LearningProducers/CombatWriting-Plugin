@@ -57,7 +57,7 @@
 var fs=require('fs'), path=require('path');
 var lib=require('./crew-lib.js');
 
-var SERVER_INFO={name:'combat-writing-crew',version:'0.2.0'};
+var SERVER_INFO={name:'combat-writing-crew',version:lib.manifestVersion()}; // the version is the manifest's, read at start (issue 49)
 var SUPPORTED_PROTOCOLS=['2025-11-25','2025-06-18','2025-03-26','2024-11-05'];
 // The window and the queue are keyed per MODEL at a provider (issue 93, measured 2026-10-27): Groq's
 // refusal text names the model it refuses for, so each model has its own per-minute wall, and two
