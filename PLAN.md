@@ -949,3 +949,13 @@ Built. The Part 72 sentence is cut from the Champion bullet to one pointer at TH
 Delivers: CLAUDE.md, PLAN.md.
 
 Status: delivered — 2026-11-03 — draft pull request open; `node tests/run_all.js` reads 47 passed, 0 failed, 0 skipped in the build session; the done-when is read on the page: CLAUDE.md names the voice rule once, in THE VOICE FLOOR bullet, and the Champion bullet points at it.
+
+## Part 93 — README and help carry one voice rule (cw 0.8.37)
+
+Issue 145, filed 2026-11-03 after Part 92: the plugin README's champion line and the help's `shipped` line still described the read-aloud voices as seat-1 in the system's default and every later seat picked from the system's list with the novelty ones skipped, the Part 72 rule; THE VOICE FLOOR (issues 101, 111, 114) replaced it, and each file already states the current rule elsewhere (the README's "Read aloud on the board" paragraph, the help's "Voices on the board" bullet). The comment over the voice checks in `tests/board_check.js` cited issue 109 in the Part 72 words.
+
+Built. Each of the two sentences is cut to one clause pointing at the paragraph that holds the rule; the comment in `tests/board_check.js` is reworded to THE VOICE FLOOR, the checks under it untouched. Two files under the plugin folder change, so the patch bump: cw 0.8.37.
+
+Delivers: plugins/combat-writing/README.md, plugins/combat-writing/skills/help/SKILL.md, tests/board_check.js, plugin.json, marketplace.json, PLAN.md.
+
+Status: delivered — 2026-11-03 — draft pull request open; `node tests/run_all.js` run in the build session, its count in the pull request body; the done-when is read on the page: no file in the tree states the Part 72 voice rule as live.
