@@ -939,3 +939,13 @@ Built. The two `readdirSync` sites (lines 104 and 110) filter to `.js` files, th
 Delivers: `tests/marketplace_check.js`, PLAN.md.
 
 Status: delivered — 2026-11-03 — draft pull request open; `node tests/run_all.js` reads 47 passed, 0 failed, 0 skipped in the build session; the live pass is the founder running it on the Mac that measured the failure.
+
+## Part 92 — One voice rule in CLAUDE.md (no bump)
+
+Issue 118, filed 2026-10-28 when Part 76 landed THE VOICE FLOOR: CLAUDE.md's Champion bullet still ended on the Part 72 wording (issue 101: seat-1 in the browser's default voice, every later seat picked from the browser's full list, issue 109's novelty set skipped), while THE VOICE FLOOR bullet under What is ruled asserted the rule that replaced it (only Premium or Enhanced voices, seat-1 included, no menu when none is installed). Two bullets asserting two rules is the drift class.
+
+Built. The Part 72 sentence is cut from the Champion bullet to one pointer at THE VOICE FLOOR bullet, naming issues 101, 111 and 114 and saying the Part 72 rule is replaced; the canon's reader and the no-send clause stay. No other line moves. Docs only, nothing under the plugin folders or `screen/`: no bump.
+
+Delivers: CLAUDE.md, PLAN.md.
+
+Status: delivered — 2026-11-03 — draft pull request open; `node tests/run_all.js` reads 47 passed, 0 failed, 0 skipped in the build session; the done-when is read on the page: CLAUDE.md names the voice rule once, in THE VOICE FLOOR bullet, and the Champion bullet points at it.
