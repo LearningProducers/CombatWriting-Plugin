@@ -979,3 +979,13 @@ Built in the narrower form the issue names. `_fresh`, the one place the tick rea
 Delivers: screen/cw_screen/app.py, screen/tests/shell_check.py, screen/pyproject.toml, screen/uv.lock, PLAN.md.
 
 Status: delivered — 2026-11-03 — draft pull request open; `node tests/run_all.js` reads 47 passed, 0 failed, 0 skipped in the build session; the live pass is CI's `screen` job staying green across runs, since the race never surfaced locally.
+
+## Part 96 — The screen's own version string agrees with the package (screen 0.1.5)
+
+Issue 149, measured 2026-11-04: `screen/cw_screen/__init__.py` said `__version__ = "0.1.2"` while `screen/pyproject.toml` and the lock's `cw-screen` entry said 0.1.4; the 0.1.3 and 0.1.4 bumps moved two files and left the third, so `cw-screen --version` reported a version two releases old. The bump rule in CLAUDE.md named two files and no gate read the third.
+
+Built as the issue names. `__init__.py` reads the package's version. `tests/shell_check.py` reads `pyproject.toml` with `tomllib` and pins `__version__` equal to it, so a bump that moves either alone fails the suite; measured in the build session: `__init__.py` set back to 0.1.4 alone, the check fails naming both numbers, 37 passed and 1 failed; restored, 38 pass. CLAUDE.md's bump rule for `screen/` names `__init__.py` as the third file. `screen/` changes, so the patch bump: cw-screen 0.1.5 in the three files, `uv lock --check` agreeing.
+
+Delivers: screen/cw_screen/__init__.py, screen/tests/shell_check.py, screen/pyproject.toml, screen/uv.lock, CLAUDE.md, PLAN.md.
+
+Status: delivered — 2026-11-04 — draft pull request open; `node tests/run_all.js` reads 47 passed, 0 failed, 0 skipped in the build session; the done-when is read on the page: the three files say 0.1.5, and the pin went red with one moved alone.
