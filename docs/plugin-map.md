@@ -19,7 +19,7 @@ Typed as `/cw:<name>` in Claude Code. Each is a skill file at `plugins/combat-wr
 | `/cw:champion` | `shipped <link or channel>`, `result: <what came back>`, `insight: <what you learned>` | freezes the shipped draft as canon; records each result; appends each insight to the project's vault | the script's line, the board's path, the text Next line |
 | `/cw:briefs` | nothing | lists the unnamed default brief and every brief saved by name, with its first line and the runs on it | the list |
 | `/cw:runs` | nothing, or a word of a run id | lists every run newest first (brief, reader, last round, drafts, OPEN or SHIPPED); the word finds one run | the list, or the one run |
-| `/cw:help` | nothing, `all`, or a topic word | bare: the card and a picker to begin; `all`: the guide, under 400 words, in three tables, with no example; a topic word: one section of the full guide | the card and a picker, or the guide |
+| `/cw:help` | nothing, `all`, or a topic word | bare: the card and a picker to begin, no tool called and nothing between them; `all`: the guide, under 400 words, opening with the motto and the one-liner, in three tables, with no example and one live line under The crew naming the seats that sit; a topic word: one section of the full guide | the card and a picker, or the guide |
 
 ## 2. The words the plugin reads
 
@@ -162,7 +162,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/draft_parts_check.js` | the labeled draft: greeting, opening sentence, body, closer |
 | `tests/flip_check.js` | a flip must quote who moved it |
 | `tests/gitignore_check.js` | the two-line gitignore on the first run in a git repository |
-| `tests/help_check.js` | the card, the picker, the README's copy of the card |
+| `tests/help_check.js` | the card, the bare rule with no tool call, the guide's opening and its one live line, the picker, the README's copy of the card |
 | `tests/hook_check.js` | the three hooks are declared as ruled |
 | `tests/license_check.js` | the right license header on every file by path |
 | `tests/links_check.js` | links are unread: the packet says so when one is present |
