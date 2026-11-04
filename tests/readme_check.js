@@ -8,7 +8,8 @@
 //   - The plugin README's example prompts (one each for help, strategy, sparring, battle and
 //     champion) are fenced blocks that begin with /cw:<command>, each naming a skill folder
 //     that exists under plugins/combat-writing/skills/<command>/SKILL.md, and each is followed by a
-//     fenced block of real output that carries no credit line (ruled 2026-10-12): the
+//     fenced block of real output that carries no credit line (ruled 2026-10-12), except the help
+//     block, which is the card, the one place the credit line stands (issue 158, 2026-11-04): the
 //     strategy, sparring and battle blocks open with the crew line, the help block with the motto,
 //     the champion block with its Shipped, Result or Insight line (2026-10-19).
 //   - The disclosures: what the plugin runs, sends and fetches; that every record opens
@@ -62,7 +63,8 @@ prompts.forEach(function(pr){
   named[cmd]=true;
   check(commands.indexOf(cmd)>=0,'plugin README: example prompt names /cw:'+cmd+', which has no command file');
   var out=blocks[pr.index+1];
-  check(!!out&&out.indexOf(CREDIT)<0,'plugin README: the output block after "'+pr.text.slice(0,40)+'" carries the credit line');
+  if(cmd==='help')check(!!out&&out.indexOf(CREDIT)>=0,'plugin README: the output block after "/cw:help" is the card and closes with the credit line');
+  else check(!!out&&out.indexOf(CREDIT)<0,'plugin README: the output block after "'+pr.text.slice(0,40)+'" carries the credit line');
   // The help block opens with the motto, a champion block with its Shipped, Result or Insight line
   // (ruled 2026-10-19; champion is not a round and prints no crew line), every other with the crew line.
   var first=(out||'').split('\n')[0];
