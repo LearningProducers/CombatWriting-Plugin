@@ -11,6 +11,11 @@
 // in place is not text and a CRLF body is read like any other. A bold label such as
 // **WHAT CHANGED** is not a heading.
 //
+// The body also carries no session link (issue 156): a body holding the text
+// claude.ai/code/session anywhere, comments included, fails naming it, because such a link
+// opens for one account only and is a dead link to every other reader. The repository's
+// tracked .claude/settings.json tells the cloud harness not to append one.
+//
 // Prints one line per problem naming the section and exits 1; prints one line and exits 0
 // when all four sections carry text. Run by .github/workflows/pr-body.yml on every pull
 // request; a session runs it before opening one:
@@ -20,6 +25,7 @@
 var fs = require('fs');
 
 var SECTIONS = ['WHAT CHANGED', 'WHY', 'HOW IT WAS TESTED', 'WHAT COULD BREAK'];
+var SESSION_LINK = 'claude.ai/code/session';
 
 function headingName(line) {
   var h = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
@@ -29,7 +35,8 @@ function headingName(line) {
 
 // The problems with a body: an empty array when it passes.
 function problems(body) {
-  var text = String(body || '').replace(/\r/g, '').replace(/<!--[\s\S]*?-->/g, '');
+  var raw = String(body || '').replace(/\r/g, '');
+  var text = raw.replace(/<!--[\s\S]*?-->/g, '');
   var lines = text.split('\n');
   var seen = {};
   var current = null, level = 0;
@@ -53,6 +60,7 @@ function problems(body) {
     if (!(s in seen)) out.push(s + ': the heading is missing. Add "## ' + s + '" with text under it.');
     else if (!seen[s]) out.push(s + ': nothing under the heading but blank lines or comments. Write the section.');
   });
+  if (raw.indexOf(SESSION_LINK) >= 0) out.push('session link: the body carries a ' + SESSION_LINK + ' address, which opens for one account only. Delete the line that holds it.');
   return out;
 }
 
@@ -68,4 +76,4 @@ if (require.main === module) {
   process.stdout.write('pr-body: all four sections carry text.\n');
 }
 
-module.exports = { problems: problems, SECTIONS: SECTIONS };
+module.exports = { problems: problems, SECTIONS: SECTIONS, SESSION_LINK: SESSION_LINK };

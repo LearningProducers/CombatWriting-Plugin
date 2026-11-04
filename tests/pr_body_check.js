@@ -14,6 +14,12 @@
 //     footer is DOCS OWED: none.
 //   - The workflow: the four event types, permissions: {}, every action pinned to a
 //     40-hex commit, the script run from stdin.
+//   - The session link (issue 156): a filled body carrying claude.ai/code/session, as plain
+//     text or inside an HTML comment, fails naming the link and no section; the same body
+//     without it passes; a 'Generated with Claude Code' line alone is not refused. The
+//     tracked .claude/settings.json tells the cloud harness not to append the link:
+//     attribution.commit is the Co-Authored-By line, attribution.pr is empty and
+//     attribution.sessionUrl is false.
 // Run from the repo root:   node tests/pr_body_check.js
 'use strict';
 var cp = require('child_process');
@@ -83,6 +89,33 @@ expectFail('other heading ends the section', filled.replace('The gate.', '## Not
 expectFail('a lower heading alone', filled.replace('The gate.', '### Sub'), ['WHAT CHANGED']);
 // A comment spanning lines around the only text hides it.
 expectFail('multi-line comment', filled.replace('The gate.', '<!--\nThe gate.\n-->'), ['WHAT CHANGED']);
+
+// The session link (issue 156): refused wherever it stands; the Generated line alone is not.
+var LINK = 'https://claude.ai/code/session_01ABCDEFGHIJKLMNOPQRSTUVWX';
+var footer = 'DOCS OWED: none\n';
+var withGenerated = filled.replace(footer, footer + '\n\u{1F916} Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n');
+expectPass('the Generated line alone', withGenerated);
+function expectLinkFail(label, body) {
+  var r = run(body);
+  check(r.code === 1, label + ': exit ' + r.code + ', expected 1');
+  check(/^pr-body: session link: .*claude\.ai\/code\/session/m.test(r.out), label + ': the output must name the session link\n' + r.out);
+  check(named(r.out).length === 0, label + ': no section should be named\n' + r.out);
+}
+expectLinkFail('the session link after the footer', withGenerated.replace('Co-Authored-By', LINK + '\n\nCo-Authored-By'));
+expectLinkFail('the session link inside a comment', filled.replace('The gate.', 'The gate. <!-- ' + LINK + ' -->'));
+expectLinkFail('the session link in CRLF', withGenerated.replace('Co-Authored-By', LINK + '\n\nCo-Authored-By').replace(/\n/g, '\r\n'));
+// A link and an empty section are both named.
+(function () {
+  var r = run(filled.replace('The ruling of 2026-10-14.', '').replace(footer, footer + LINK + '\n'));
+  check(r.code === 1 && named(r.out).join('|') === 'WHY' && /^pr-body: session link:/m.test(r.out), 'link and empty section: both named\n' + r.out);
+})();
+
+// The tracked settings that keep the harness from appending the link.
+var settings = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude', 'settings.json'), 'utf8'));
+var attribution = settings.attribution || {};
+check(attribution.commit === 'Co-Authored-By: Claude', '.claude/settings.json: attribution.commit must be "Co-Authored-By: Claude", got ' + JSON.stringify(attribution.commit));
+check(attribution.pr === '', '.claude/settings.json: attribution.pr must be "", got ' + JSON.stringify(attribution.pr));
+check(attribution.sessionUrl === false, '.claude/settings.json: attribution.sessionUrl must be false, got ' + JSON.stringify(attribution.sessionUrl));
 
 // The shipped template.
 var tpl = fs.readFileSync(path.join(ROOT, '.github', 'PULL_REQUEST_TEMPLATE.md'), 'utf8');

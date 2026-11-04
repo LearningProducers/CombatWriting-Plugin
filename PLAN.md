@@ -999,3 +999,13 @@ Built as the issue names. Every provenance clause is removed and the rule's text
 Delivers: plugins/combat-writing/**, plugins/combat-writing-crew/{README.md,server.js,crew-lib.js,.claude-plugin/plugin.json}, .claude-plugin/marketplace.json, tests/provenance_check.js, tests/readers_check.js, tests/rewrite_check.js, tests/champion_check.js, tests/reader_check.js, tests/paste_check.js, tests/runs_check.js, tests/two_pass_check.js, tests/briefs_check.js, docs/plugin-map.md, docs/combat-writing.md, CLAUDE.md, PLAN.md.
 
 Status: delivered — 2026-11-04 — draft pull request open; `node tests/run_all.js` run in the build session, its count in the pull request body; the done-when is read by the check: zero hits under the two folders, the planted line refused.
+
+## Part 99 — The session link never reaches a pull request body
+
+Issue 156, measured 2026-11-04: the cloud harness appends a session link and a "Generated with Claude Code" line to the body of every pull request it opens, after the session's text, and the founder deleted them by hand before each merge; a session link opens for one account only and is a dead link to every other reader (issue 141 ruled the same for commit messages). Claude Code reads a repository's tracked `.claude/settings.json` in a cloud session, and its attribution keys govern those lines.
+
+Built as the issue names. The repository tracks `.claude/settings.json` with `attribution.commit` "Co-Authored-By: Claude", `attribution.pr` "" and `attribution.sessionUrl` false. `.github/scripts/pr-body.js` fails a body carrying `claude.ai/code/session` anywhere, comments included, naming the link and no section, so a link that slips past the settings turns the pr-body check red and the founder deletes nothing by hand. `tests/pr_body_check.js` proves it both ways: a filled body with the link after the footer, inside a comment, and in CRLF fails naming the link; the same body without it passes; a Generated line alone is not refused, because the issue names the link; a link and an empty section are both named; and the three settings keys are pinned to the issue's values. CLAUDE.md's commit-shape line says the settings file holds it. Nothing under `plugins/` or `screen/` changes, so no bump. Part 98 is in pull request 154, open on another branch when this part was written; both parts append to this file, so the second to merge resolves the join.
+
+Delivers: .claude/settings.json, .github/scripts/pr-body.js, tests/pr_body_check.js, CLAUDE.md, PLAN.md.
+
+Status: delivered — 2026-11-04 — draft pull request open; `node tests/run_all.js` run in the build session, its count in the pull request body; the done-when is read on the pull request itself: its body is the first the gate measures, and it carries no link.
