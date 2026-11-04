@@ -21,6 +21,10 @@
 //     endorsed by Anthropic, and never says "official", "partner", "certified",
 //     "approved by Anthropic" or "in partnership with".
 //   - The plugin README has more than 40 words outside code blocks.
+//   - No Markdown file in the tree says the credit line "stands once" (issue 158: the credit line
+//     stands at the foot of the help card and of the help guide; the phrase outlived the change in
+//     three READMEs after six other files were cured). PLAN.md and .github/release-notes/ keep
+//     their history and are not read; node_modules, .git and virtual environments are skipped.
 //
 // Run from the repo root:   node tests/readme_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -73,6 +77,11 @@ prompts.forEach(function(pr){
 ['help','strategy','sparring','battle','champion'].forEach(function(c){ check(named[c],'plugin README: no example prompt for /cw:'+c); });
 var prose=p.replace(/```[\s\S]*?```/g,' ').replace(/<!--[\s\S]*?-->/g,' ');
 check(prose.split(/\s+/).filter(Boolean).length>40,'plugin README: 40 words or fewer outside code blocks');
+
+// The phrase "stands once" in any Markdown file outside PLAN.md and the release notes.
+var SKIP={'node_modules':1,'.git':1,'.venv':1,'results':1};
+function mdFiles(dir){ var out=[]; fs.readdirSync(dir).forEach(function(n){ if(SKIP[n])return; var p=path.join(dir,n); var st=fs.statSync(p); if(st.isDirectory()){ if(path.relative(root,p)==='.github/release-notes')return; out=out.concat(mdFiles(p)); } else if(/\.md$/.test(n)&&path.relative(root,p)!=='PLAN.md')out.push(p); }); return out; }
+mdFiles(root).forEach(function(p){ read(path.relative(root,p)).split('\n').forEach(function(l,i){ check(l.indexOf('stands once')<0,path.relative(root,p)+':'+(i+1)+': says the credit line "stands once"; it stands at the foot of the help card and of the help guide'); }); });
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'readme_check: '+failures.length+' failure(s), ':'readme_check: all passed, ')+passes+' checks');
