@@ -19,8 +19,8 @@
 //       <seat>.sn.packet.md / <seat>.sn.answer.md             the final mode's S/N read
 //       <seat>.redflag.packet.md / <seat>.redflag.answer.md   the final mode's red-flag read
 //
-// No file in the run carries the credit line: it stands once, at the foot of
-// the help guide. A seat's answer is the seat's writing and opens with its contract's first line.
+// No file in the run carries the credit line: it stands at the foot of the
+// help card and of the help guide. A seat's answer is the seat's writing and opens with its contract's first line.
 
 var fs=require('fs'), path=require('path'), crypto=require('crypto');
 

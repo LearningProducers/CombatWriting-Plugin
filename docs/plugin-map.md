@@ -19,7 +19,7 @@ Typed as `/cw:<name>` in Claude Code. Each is a skill file at `plugins/combat-wr
 | `/cw:champion` | `shipped <link or channel>`, `result: <what came back>`, `insight: <what you learned>` | freezes the shipped draft as canon; records each result; appends each insight to the project's vault | the script's line, the board's path, the text Next line |
 | `/cw:briefs` | nothing | lists the unnamed default brief and every brief saved by name, with its first line and the runs on it | the list |
 | `/cw:runs` | nothing, or a word of a run id | lists every run newest first (brief, reader, last round, drafts, OPEN or SHIPPED); the word finds one run | the list, or the one run |
-| `/cw:help` | nothing, `all`, or a topic word | bare: the card and a picker to begin; `all`: the guide, under 1,200 words; a topic word: one section of the full guide | the card and a picker, or the guide |
+| `/cw:help` | nothing, `all`, or a topic word | bare: the card and a picker to begin; `all`: the guide, under 400 words, in three tables, with no example; a topic word: one section of the full guide | the card and a picker, or the guide |
 
 ## 2. The words the plugin reads
 
@@ -204,4 +204,4 @@ The six eval cases, `plugins/combat-writing/evals/`, each one draft through the 
 
 ## What is not in the plugin
 
-No key, ever, in any file the plugin writes. No model name in any file. No fetch by any script. No padding of the crew: a seat that fails is shown as missing. The credit line stands once, at the foot of `/cw:help all`, and in no run output.
+No key, ever, in any file the plugin writes. No model name in any file. No fetch by any script. No padding of the crew: a seat that fails is shown as missing. The credit line stands at the foot of the card and of the guide, `/cw:help` and `/cw:help all`, with the site, and in no run output.

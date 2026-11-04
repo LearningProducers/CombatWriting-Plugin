@@ -48,7 +48,7 @@ function write(p,t){ fs.writeFileSync(p,t); }
 // seats a test needs are written into seats.json the way the add-on's crew_register writes an
 // outside seat (a provider field), so packet.js seats them; a fresh reader past the second it refuses.
 function seatMore(run,n,model,company){ var f=path.join(run,'seats.json'); var sj=JSON.parse(fs.readFileSync(f,'utf8')); for(var i=sj.seats.length+1;i<=n;i++)sj.seats.push({id:'seat-'+i,model:model,company:company||'Anthropic',provider:'test-fixture',source:'test fixture: an outside seat as the add-on would register it'}); fs.writeFileSync(f,JSON.stringify(sj,null,2)+'\n'); return run; }
-// No file the run holds carries the credit line (ruled 2026-10-12): it stands once, at the foot of the help guide.
+// No file the run holds carries the credit line (ruled 2026-10-12): it stands at the foot of the help card and of the help guide.
 function creditFree(dir){ var hits=[]; (function walk(d){ fs.readdirSync(d).forEach(function(n){ var p=path.join(d,n); if(fs.statSync(p).isDirectory())walk(p); else if(fs.readFileSync(p,'utf8').indexOf(CREDIT)>=0)hits.push(path.relative(dir,p)); }); })(dir); return hits; }
 
 fs.writeFileSync(path.join(proj,'draft.md'),'Dear board, buy the company.\n');
