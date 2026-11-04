@@ -9,7 +9,8 @@
 # host announced shows as forming; a tab not yet built says so; a run folder that disappears
 # turns the freshness line stale with the time; a wrong plugin root is said on screen; a
 # newer run appearing is followed; --light takes the light palette; a tick after the screen
-# stack is empty returns instead of reading self.screen (issue 64).
+# stack is empty returns instead of reading self.screen (issue 64); the package's own
+# __version__, the string --version prints, equals the version in pyproject.toml (issue 149).
 #
 # Run from screen/:   uv run python tests/shell_check.py        Exit 0 on pass, 1 on failure.
 
@@ -19,12 +20,13 @@ import asyncio
 import shutil
 import sys
 import time
+import tomllib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from _run import PLUGIN_ROOT, answer, finish, make_run, node, seat_more  # noqa: E402
 
-from cw_screen import MOTTO  # noqa: E402
+from cw_screen import MOTTO, __version__  # noqa: E402
 from cw_screen.app import CwScreen  # noqa: E402
 from cw_screen.widgets import Entry  # noqa: E402
 
@@ -170,4 +172,12 @@ async def main():
 
 
 asyncio.run(main())
+
+# The version the screen reports is the package's (issue 149: __init__.py sat at 0.1.2 while
+# pyproject.toml and the lock said 0.1.4). The one source is pyproject.toml; a bump that moves
+# it alone, or __init__.py alone, fails here.
+with (Path(__file__).resolve().parents[1] / "pyproject.toml").open("rb") as fh:
+    PACKAGE_VERSION = tomllib.load(fh)["project"]["version"]
+check(__version__ == PACKAGE_VERSION, f"version: cw_screen.__version__ is {__version__!r} but pyproject.toml says {PACKAGE_VERSION!r}; bump both (and the lock's cw-screen entry)")
+
 finish("shell_check", failures, passes)
