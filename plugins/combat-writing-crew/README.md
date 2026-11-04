@@ -3,7 +3,7 @@
 
 **Reading is Peace. Writing is War.**
 
-The listed Combat Writing plugin seats two fresh readers from one company. This add-on seats other companies' models in the second chair, one seat per model you hold a key for, on your own API keys, so a round can be read by more than one company: the moment it seats one, the listed plugin's second fresh reader leaves and the outside seats number from 2 (Part 87, 2026-11-02). The crew is never padded: with one free Groq key it is three seats, seat-1, Qwen as seat-2 and gpt-oss as seat-3; an xAI key seats Grok, a Google key Gemini, each key the model of its provider, resolved from that provider's live catalog. It is a local MCP server. It is **not in the Claude plugin directory**; it is installed from this repository as Learning Producers' own marketplace. The add-on is source-available under the same terms as the listed plugin.
+The listed Combat Writing plugin seats two fresh readers from one company. This add-on seats other companies' models in the second chair, one seat per model you hold a key for, on your own API keys, so a round can be read by more than one company: the moment it seats one, the listed plugin's second fresh reader leaves and the outside seats number from 2 (Part 87). The crew is never padded: with one free Groq key it is three seats, seat-1, Qwen as seat-2 and gpt-oss as seat-3; an xAI key seats Grok, a Google key Gemini, each key the model of its provider, resolved from that provider's live catalog. It is a local MCP server. It is **not in the Claude plugin directory**; it is installed from this repository as Learning Producers' own marketplace. The add-on is source-available under the same terms as the listed plugin.
 
 ## What it does
 
@@ -58,7 +58,7 @@ A crew with no paid keys is allowed: one free Groq key seats two outside models 
 
 ## When a seat you expected is missing
 
-Ruled 2026-10-13: every result of the listed plugin names the reason and the exact next command when the crew is short, in a Seats line under the crew line. Three states:
+Every result of the listed plugin names the reason and the exact next command when the crew is short, in a Seats line under the crew line. Three states:
 
 1. **Not installed.** The host has no crew tools and `claude plugin list` does not show `combat-writing-crew`. Next: `/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin`, then `/reload-plugins` or a new session, then `/plugin configure combat-writing-crew`.
 2. **Installed, server not running.** The host has no crew tools but `claude plugin list` shows the add-on. Next: `/mcp`, find `combat-writing-crew`; if it shows failed or disconnected, reconnect it there and run the command again; if it is not listed, `/plugin` to check the add-on is enabled, then `/reload-plugins`.
@@ -66,7 +66,7 @@ Ruled 2026-10-13: every result of the listed plugin names the reason and the exa
 
 ## Which models
 
-No model id is written in the add-on. For each provider, a seat names a family and a preference, and the server resolves the id from the provider's live catalog at the start of a run: for Groq, the newest live model in Alibaba's `qwen/` line as the first outside seat (seat-2) and the largest live model in OpenAI's `gpt-oss` line as the second (seat-3), the Qwen seat first by the founder's reading of the rounds of 2026-10-26 (issue 86; a per-user order is not built), excluding speech, guard, compound and embedding models and anything with a small context window, the same filter the Combat Writing app uses. Every answer's log line and the record carry the id the API actually returned.
+No model id is written in the add-on. For each provider, a seat names a family and a preference, and the server resolves the id from the provider's live catalog at the start of a run: for Groq, the newest live model in Alibaba's `qwen/` line as the first outside seat (seat-2) and the largest live model in OpenAI's `gpt-oss` line as the second (seat-3), the Qwen seat first (issue 86; a per-user order is not built), excluding speech, guard, compound and embedding models and anything with a small context window, the same filter the Combat Writing app uses. Every answer's log line and the record carry the id the API actually returned.
 
 | Seat | Provider | Family | Maker named in the record |
 |---|---|---|---|

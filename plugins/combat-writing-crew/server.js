@@ -21,9 +21,9 @@
 //                  packet's word cap and contract stated in the system line; writes the
 //                  answer file and a log line with the timestamp and the model id the API
 //                  returned; returns the path and the id. The answer text is never the thing
-//                  carried: the file is. A retry asks for the retry target, 80% of the cap
-//                  (ruled 2026-10-15). On a retry whose reply is over the cap again (the
-//                  seat's second overrun, ruled 2026-10-09), the reply is cut at the cap, at the
+//                  carried: the file is. A retry asks for the retry target, 80% of the cap.
+//                  On a retry whose reply is over the cap again (the
+//                  seat's second overrun), the reply is cut at the cap, at the
 //                  last sentence end before it, with its first line kept, and the log line and
 //                  the result say so; the record and the board mark the read "truncated at N words".
 //                  A 429 naming a per-request output cap (Groq's OTPM, issue 56) is not waited
@@ -48,7 +48,7 @@
 // names the route that served: prompt, environment or file.
 //
 // Transport: newline-delimited JSON-RPC 2.0 on stdin/stdout (the MCP stdio transport).
-// Diagnostics go to stderr only. Nothing it writes carries the credit line (ruled 2026-10-12).
+// Diagnostics go to stderr only. Nothing it writes carries the credit line.
 // A provider's error text, and any thrown error's message, passes through crew-lib.js scrubIds
 // (issue 58) before it reaches a log line, a tool result or stderr: an account id the provider
 // put in its prose (Groq's "in organization `org_…`") lands as org_[redacted], a key-shaped
@@ -134,7 +134,7 @@ function listSeats(){
   return chain.then(function(){return out;});
 }
 
-// The second chair is the outside seats' (Part 87, 2026-11-02): the listed plugin seats two fresh
+// The second chair is the outside seats' (Part 87): the listed plugin seats two fresh
 // readers by default, and the moment this add-on seats at least one outside model, the fresh
 // seat-2 that no round has read leaves and the outside seats number from 2 (Qwen as seat-2,
 // gpt-oss as seat-3 on a Groq key, issue 86). A fresh seat-2 that already answered (an older run,
@@ -192,7 +192,7 @@ function registerSeats(runDir){
 // ---- the call -----------------------------------------------------------------------------
 
 // The system line: who the seat is, the first-line contract the packet asks for, and the word
-// cap stated as a number (ruled 2026-10-09), so an outside seat is told the cap before it writes.
+// cap stated as a number, so an outside seat is told the cap before it writes.
 function systemPromptFor(read,seat,rules){
   var who='You are one seat on a Combat Writing crew, '+seat.model+' served by '+seat.served_by+', reading one packet. You have no memory of the person\'s conversation. The packet below is everything. ';
   var contract=read==='crew'?'This is the round\'s second pass: the packet carries the other seats\' answers to the same round. Write only your reply to them: where you agree or disagree, each named by its model as the packet labels it, never by seat number alone, quoted word for word, or a question to them. No rating line, no new critique of the draft.'

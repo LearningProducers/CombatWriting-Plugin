@@ -130,7 +130,7 @@ check(/\| rounds\/01-battle\/seat-1\.crew\.packet\.md \| draft\.md \| crew \(no 
 var battle=skill('battle'), rules=skill('combat-writing'), help=skill('help'), agent=read(path.join(plugin,'agents','seat.md')), claude=read(path.join(root,'CLAUDE.md'));
 check(/^## 7b\. The second pass of a first round \(`sn:` or `sfq:` on a run nothing has read; issue 88\)/m.test(battle)&&/announce\.js --run <folder> --round <nn>-battle --kind crew --to <every seat id>/.test(battle)&&/packet\.js --run <folder> --round <nn>-battle --seat <seat id> --crew/.test(battle)&&/<seat>\.crew\.answer\.md --run <folder>/.test(battle)&&/an outside seat goes through `crew_answer` with `read: "crew"`/.test(battle)&&/A later round with `sn:` or `sfq:` runs one pass/.test(battle),'battle: step 7b with the three commands and the one-pass rule for later rounds');
 check(/A first-round `sn:` or `sfq:` runs two passes \(issue 88, step 7b\)/.test(battle),'battle: the SN bullet names the two passes');
-check(/then run a second pass \(issue 88, 2026-10-27/.test(rules)&&/then run a second pass \(issue 88, 2026-10-27/.test(claude)&&/`crew_answer` with `read: "crew"`/.test(claude),'the rules skill and CLAUDE.md say the second pass');
+check(/then run a second pass \(issue 88:/.test(rules)&&/then run a second pass \(issue 88, 2026-10-27/.test(claude)&&/`crew_answer` with `read: "crew"`/.test(claude),'the rules skill and CLAUDE.md say the second pass');
 check(/^- \*\*Two passes on round one\*\*: `sn:` or `sfq:` on a draft nothing has read runs twice/m.test(help),'the help names the two passes');
 check(/When the packet is a round's second pass \(its title says "second pass: to the crew", issue 88\), the whole answer is To the crew/.test(agent),'the seat agent says the second pass');
 

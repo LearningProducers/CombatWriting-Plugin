@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // render-board.js: writes board.html for a run, a single self-contained page. The board is
-// the result (2026-10-14): after every sparring and battle round the host opens it in the
+// the result: after every sparring and battle round the host opens it in the
 // person's browser (open-board.js), a local file, never published.
 //
 //   node render-board.js --run <run folder>
 //
-// The page, top to bottom: the motto; the round strip (ruled 2026-10-15: the latest round's
+// The page, top to bottom: the motto; the round strip (the latest round's
 // prompt is visible at the top with nothing opened, from lib.roundTask, with whether a rating
 // was asked and how many seats answered); the newest draft, in full; the verdict box, only when
-// the run holds a number (ruled 2026-10-15): SEND or BACK TO THE DRAWING BOARD from every
+// the run holds a number: SEND or BACK TO THE DRAWING BOARD from every
 // seat's own latest rating and nothing averaged (every seat 8 or more sends; any seat 6 or
 // less sends it back, and the band names that seat), or FINAL READS over each seat's S/N and
 // red-flag numbers when the run holds final reads and no rating, and no box at all otherwise;
@@ -16,7 +16,7 @@
 // name and company (and the provider that served an outside seat) with the round it came
 // from, and the seat's own note when that seat was asked something different (a seat line),
 // the seat's rating or its state (critique, failed read, missing) on the frame, a read-aloud
-// control on every read frame (issue 82, 2026-10-26: the browser's own speech synthesis with
+// control on every read frame (issue 82: the browser's own speech synthesis with
 // pause and stop, the answer spoken as plain text with its markdown marks dropped, one seat at
 // a time, none on a missing or failed read), and the full read folded under a click; then,
 // folded, the scoreboard of every round (one row per seat,
@@ -28,12 +28,12 @@
 // follow the system setting, with a toggle. No external request of any kind: no script,
 // style, font or image is fetched. Nothing is averaged. Every seat's words are escaped: an
 // answer is text, never markup; a small markdown subset (lists, bold, italic, code) is then
-// rendered, no link among it (lib.renderLite). The measure (2026-10-15): the page is 1360 px
+// rendered, no link among it (lib.renderLite). The measure: the page is 1360 px
 // wide, the cards sit three abreast at 45 to 50 characters a line on a laptop and two on a
 // tablet, an opened read spans the row at 70 characters, the draft panel is 76 characters,
 // and long words and addresses wrap. Rebuilt after every round from the files and log.jsonl.
 //
-// Champion (ruled 2026-10-19): when the run holds a champion.shipped line, a Shipped strip sits
+// Champion: when the run holds a champion.shipped line, a Shipped strip sits
 // under the round strip (the Shipped line, the address as text with its scheme cut, never a
 // link, and the counts of results and insights); the draft heading says whether the newest
 // draft is the canon or a revision after it; the draft panel gets three client-side controls on
@@ -63,7 +63,7 @@ var readerText=lib.readReader(runDir);
 var briefName=(function(){ var c=log.filter(function(e){return e.event==='run.created';})[0]; return c&&c.brief&&c.brief.name?c.brief.name:null; })();
 
 var esc=lib.escapeHtml;
-// A seat's read: lib.renderLite, the markdown subset after escaping (2026-10-15). The draft keeps paras(): the author's text as pasted.
+// A seat's read: lib.renderLite, the markdown subset after escaping. The draft keeps paras(): the author's text as pasted.
 var read=lib.renderLite;
 function paras(text){
   return String(text).replace(/\r\n/g,'\n').replace(/^﻿/,'').trim().split(/\n\s*\n/).map(function(p){return '<p>'+esc(p).replace(/\n/g,'<br>')+'</p>';}).join('');
@@ -79,7 +79,7 @@ function truncationOf(seat,round,read){
 function withTrunc(mark,t){ return t?(mark?mark+' · ':'')+'truncated at '+t.at+' words':mark; }
 
 // One seat in one non-final round, from the files with the log's verdicts where it has them.
-// The fence lines (issue 108, the founder's words: "why the === separators? Not necessary.") stay in the
+// The fence lines (issue 108) stay in the
 // file for the checker and leave the page: the fold's full read and the spoken text drop them, and the
 // spoken text drops the bare Answer label too, so a reading opens on the seat's words.
 function isFence(l){ var s=String(l).trim().replace(/^[`*_]+|[`*_]+$/g,'').trim(); return s===lib.REWRITE_BEGIN||s===lib.REWRITE_END; }
@@ -160,10 +160,10 @@ function latestRating(seat){
   return latest;
 }
 
-// The verdict across the top (2026-10-14): from every seat's own latest rating, nothing
+// The verdict across the top: from every seat's own latest rating, nothing
 // averaged. 8 to 10 is a working document and 1 to 6 a problem document, the seat's own rule;
 // every rated seat at 8 or more is SEND; any seat at 6 or less is BACK TO THE DRAWING BOARD,
-// and the band names that seat. The box shows only over a number (ruled 2026-10-15): with
+// and the band names that seat. The box shows only over a number: with
 // final reads and no rating it is FINAL READS over each seat's own two numbers; with neither
 // there is no box, and the round strip says what ran.
 var rated=seats.map(function(s){return {seat:s,latest:latestRating(s)};}).filter(function(x){return x.latest;});
@@ -213,7 +213,7 @@ html.push('</style></head><body><main>');
 html.push('<p class="motto">Reading is Peace. Writing is War.</p>');
 html.push('<div class="bar"><h1>Combat Writing board — '+esc(path.basename(runDir))+'</h1><button type="button" id="theme" aria-label="Switch light and dark">Light / dark</button></div>');
 
-// The round strip (ruled 2026-10-15): the latest round's task, visible with nothing opened.
+// The round strip: the latest round's task, visible with nothing opened.
 // roundLine renders one round for the strip and for the history in the scoreboard fold.
 function answeredIn(round){
   var asked=lib.askedIn(runDir,round,log);
@@ -235,7 +235,7 @@ function roundLine(round){
 }
 if(rounds.length)html.push('<p class="round">'+roundLine(rounds[rounds.length-1])+'</p>');
 
-// The Shipped strip (ruled 2026-10-19): the latest shipping, visible with nothing opened. The
+// The Shipped strip: the latest shipping, visible with nothing opened. The
 // address is text with its scheme cut, never an href: the page keeps its one link.
 var champ=lib.championEvents(log);
 var shipped=champ.filter(function(e){return e.event==='champion.shipped';});
@@ -255,21 +255,21 @@ if(newestDraft){
   var canonClause=!canonFile?'':canonCurrent?' · shipped as '+esc(canonFile)+(canonFroze?', which froze '+esc(canonFroze):''):' · '+esc(canonFile)+' froze '+esc(canonFroze||'an earlier draft')+'; this revision is not shipped';
   html.push('<h2>The draft'+(newestDraft!=='draft.md'?' · '+esc(newestDraft)+', a revision':'')+canonClause+'</h2>');
   if(!rounds.length)html.push('<p class="meta">'+esc(noRoundsLine)+'</p>');
-  // The canon controls (ruled 2026-10-19), only when the run holds a canon: read aloud, copy,
+  // The canon controls, only when the run holds a canon: read aloud, copy,
   // download, all on the canon text exactly, all in the browser, nothing fetched.
   if(canonFile){
     html.push('<div class="canon-controls" aria-label="The canon, '+esc(canonFile)+'"><span class="meta">Canon: '+esc(canonFile)+(canonFroze?' froze '+esc(canonFroze):'')+'</span> <button type="button" id="canon-speak" aria-label="Read the canon aloud">🔊 Read aloud</button> <button type="button" id="canon-pause" aria-label="Pause or resume the reading" disabled>Pause</button> <button type="button" id="canon-stop" aria-label="Stop the reading" disabled>Stop</button> <button type="button" id="canon-copy" aria-label="Copy the canon text">Copy</button> <button type="button" id="canon-download" aria-label="Download the canon as a text file">Download .txt</button> <span class="meta" id="canon-status" aria-live="polite"></span></div>');
     html.push('<div id="canon-text" hidden>'+esc(canonText)+'</div>');
   }
   html.push('<div class="paper">'+paras(lib.readText(path.join(runDir,newestDraft)))+'</div>');
-  // The counts every packet carries (ruled 2026-10-15): the person sees what the seats were told.
+  // The counts every packet carries: the person sees what the seats were told.
   html.push('<p class="meta facts"><strong>'+esc(lib.FACTS_HEADING)+':</strong> '+esc(lib.draftFactsFull(lib.draftFacts(lib.readText(path.join(runDir,newestDraft)))))+'.</p>');
 }else{
   html.push('<h2>The draft</h2><p class="meta">None yet. The brief is stored; the draft joins the run when sparring or battle brings it.</p>');
   if(!rounds.length)html.push('<p class="meta">'+esc(noRoundsLine)+'</p>');
 }
 
-// 2. The verdict across the page, only over a number (ruled 2026-10-15).
+// 2. The verdict across the page, only over a number.
 if(verdict){
   html.push('<section class="verdict '+verdictClass+'" aria-label="Verdict"><p class="word">'+esc(verdict)+'</p><p class="why">'+esc(verdictWhy)+'</p>');
   if(rated.length)html.push('<ul class="numbers">'+rated.map(function(x){return '<li><b>'+x.latest.rating+'/10</b>'+esc(lib.seatLabel(x.seat))+'</li>';}).join('')+'</ul>');
@@ -370,7 +370,7 @@ if(rounds.length){
   html.push('</details>');
 }
 
-// 4b. Folded: champion (ruled 2026-10-19), the record's lines, only when the log holds any.
+// 4b. Folded: champion, the record's lines, only when the log holds any.
 if(champ.length){
   html.push('<details class="fold"><summary>Champion: shipped, results, insights</summary>');
   html.push('<p class="note">What was shipped, what came back, and what the run taught. The live and match marks are measured by code against the page text the host saved, never by a seat.</p>');
@@ -392,7 +392,7 @@ html.push('<p class="meta"><strong>Drafts:</strong> '+(drafts.length?esc(drafts.
 // The reader (Part 84): under the brief, this run's own, as every packet carries it.
 if(readerText!==null)html.push('<p class="meta reader"><strong>Reader:</strong> '+esc(readerText)+' <span class="note">(who this piece is for, from the author; this run\'s own, carried in every packet after the brief)</span></p>');
 html.push('<p class="meta"><strong>Started at:</strong> '+esc(lib.startedAtLine(runDir,log,rounds))+'</p>');
-// The price of every round (issue 95), here and not on the terminal: the founder's ruling, accessible, not presented.
+// The price of every round (issue 95), here and not on the terminal: accessible, not presented.
 var budgetLines=lib.budgetLines(runDir,log);
 if(budgetLines.length)html.push('<p class="meta"><strong>Packets:</strong> '+esc('Tokens are estimated at four characters each, the add-on\'s rule. '+budgetLines.join(' '))+'</p>');
 if(!rounds.length)html.push('<p class="note">'+esc(noRoundsLine)+'</p>');
@@ -402,8 +402,7 @@ html.push('<script>');
 html.push('(function(){var b=document.getElementById("theme");var r=document.documentElement;b.addEventListener("click",function(){var dark=r.getAttribute("data-theme")==="dark"||(r.getAttribute("data-theme")!=="light"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches);r.setAttribute("data-theme",dark?"light":"dark");});})();');
 // Read aloud on every read frame (issue 82): the browser's own speech synthesis, the seat's answer as the
 // plain text in the page, one seat at a time (starting one cancels another). No request leaves the page.
-// A voice per seat (issue 101, 2026-10-27, the founder's words: "the first one for anthropic is the one it
-// has now but gptoss and qwen3 have to have different ones you pick the next best two"): seat-1 reads in
+// A voice per seat (issue 101): seat-1 reads in
 // the browser's default voice as before; every later seat gets its own from the browser's list, the
 // page's language first, the standard voices by name first (issue 109: sorted by name alone the picker
 // landed on macOS's novelty voices, Albert and Bad News, measured in Chromium), the novelty set
@@ -411,21 +410,19 @@ html.push('(function(){var b=document.getElementById("theme");var r=document.doc
 // second, so a seat sounds the same every time on one machine. The list is asked for at page open and
 // the picks are cleared when the browser's list arrives, so a first click never lands every seat on the
 // default. Another machine has other
-// voices, which the founder accepted. The canon's reader is unchanged. Nothing is sent anywhere.
-// Issue 111 (2026-10-28, the founder's board in Safari: seats 2 and 3 read in seat-1's voice, the
+// voices. The canon's reader is unchanged. Nothing is sent anywhere.
+// Issue 111 (measured in Safari: seats 2 and 3 read in seat-1's voice, the
 // status line naming none): Safari fills its voice list late, and the picker asked once at open. Now
 // every Read aloud waits for the list (voiceschanged or 1.5 s), the utterance carries the voice's
 // language too, a menu on every read frame lets the person pick a voice for that seat, remembered
 // in this browser (localStorage, never a file), automatic by default, and the status line says when
 // no other voice was found and how many the list held.
-// Part 76, THE VOICE FLOOR (issue 114, 2026-10-28, the founder: "only really good options or none at
-// all"; "every seat takes the best available, seat one included"; Ava seat one, Nathan seat two, Allison
-// seat three): automatic picks only from voices named Premium or Enhanced in the page's language,
+// Part 76, THE VOICE FLOOR (issue 114): automatic picks only from voices named Premium or Enhanced in the page's language,
 // Premium above Enhanced, then ORDER, then by name, seat k the k-th distinct one, wrapping; with none
 // installed every seat reads in the browser default and the menu stays hidden. The stock list and the
 // novelty set are gone: no stock voice is ever picked for anyone. The help names where macOS keeps
 // the downloads.
-// Part 76.1 (issue 119, 2026-10-28, the founder's Safari board after Part 76: seats 1 and 3 on the
+// Part 76.1 (issue 119, measured in Safari after Part 76: seats 1 and 3 on the
 // default with "68 voices in the list", seat 2 in Daniel): Safari names the premium and enhanced
 // voices plainly ("Ava") and carries the mark in the identifier (com.apple.voice.premium.en-US.Ava),
 // so tier() reads the name or the identifier; a pick remembered from an older board is honored only
@@ -438,7 +435,7 @@ if(canonFile){
   // and a download built from the text in the page. No request leaves the page.
   html.push('(function(){var t=document.getElementById("canon-text");if(!t)return;var text=t.textContent;var speak=document.getElementById("canon-speak"),pause=document.getElementById("canon-pause"),stop=document.getElementById("canon-stop"),copy=document.getElementById("canon-copy"),dl=document.getElementById("canon-download"),st=document.getElementById("canon-status");function say(m){st.textContent=m;}var synth=window.speechSynthesis;var held=false;function idle(){held=false;pause.disabled=true;stop.disabled=true;pause.textContent="Pause";speak.disabled=false;}');
   html.push('speak.addEventListener("click",function(){if(!synth||!window.SpeechSynthesisUtterance){say("This browser has no speech synthesis.");return;}synth.cancel();var u=new SpeechSynthesisUtterance(text);u.onstart=function(){say("Reading the canon aloud.");pause.disabled=false;stop.disabled=false;speak.disabled=true;};u.onend=function(){say("Finished reading.");idle();};u.onerror=function(e){var why=e&&e.error?e.error:"";if(why!=="interrupted"&&why!=="canceled")say("Reading stopped"+(why?": "+why:"")+".");idle();};synth.speak(u);});');
-  // The engine's own paused flag changes asynchronously (measured in Chromium, 2026-10-19), so the
+  // The engine's own paused flag changes asynchronously (measured in Chromium), so the
   // button keeps its own state.
   html.push('pause.addEventListener("click",function(){if(!synth)return;if(held){held=false;synth.resume();pause.textContent="Pause";say("Resumed.");}else{held=true;synth.pause();pause.textContent="Resume";say("Paused.");}});');
   html.push('stop.addEventListener("click",function(){if(!synth)return;synth.cancel();say("Stopped.");idle();});');

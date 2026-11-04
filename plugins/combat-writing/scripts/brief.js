@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// brief.js: adds to the brief (issue 72, 2026-10-26). The founder's rule: "brief update: followed
-// by a line just adds to the brief." The prospect of the day (who the piece is to, the page it
+// brief.js: adds to the brief (issue 72): `brief update:` followed by a line adds to the brief.
+// The prospect of the day (who the piece is to, the page it
 // quotes) lives in the brief, where the seats already read, so no other keyword carries it.
 //
 //   node brief.js --update <inbox file> [--name <brief name>] [--run <run folder>] [--root <dir>] [--at <time>]
@@ -19,7 +19,7 @@
 // words; prints one line, "Brief updated <date> in combat-writing/brief.md[ and the run's]: <text>",
 // and nothing else. --at dates the update (any form Date parses; UTC); it defaults to now.
 //
-// Briefs by name (Part 86, 2026-10-31): --name <name> appends to the saved brief
+// Briefs by name (Part 86): --name <name> appends to the saved brief
 // <root>/combat-writing/briefs/<name>.md instead of the unnamed default (`brief update <name>:`),
 // created from the update alone when there is none; with no --name and a --run whose brief has a
 // name (run.created brief.name), that named brief is the one added to, so an update typed on a run

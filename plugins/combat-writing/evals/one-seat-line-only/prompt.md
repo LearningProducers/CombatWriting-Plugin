@@ -1,5 +1,5 @@
 ---
-description: 'A seat line (ruled 2026-10-19, issue 32): the text goes to that seat alone, nothing shared, and the host answers nothing itself.'
+description: 'A seat line (issue 32): the text goes to that seat alone, nothing shared, and the host answers nothing itself.'
 expected_outcome: 'The host starts a run from the pasted draft, runs round 01-battle as a round of seat lines to seat-1 only, says the round went to seat-1 with the note quoted, shows the scoreboard with that column marked critique, and answers the note itself nowhere.'
 runs: 1
 max_turns: 40

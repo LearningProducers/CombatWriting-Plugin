@@ -32,7 +32,7 @@ function skill(name){ return read(path.join(plugin,'skills',name,'SKILL.md')); }
 
 var battle=skill('battle'), sparring=skill('sparring'), strategy=skill('strategy'), rules=skill('combat-writing'), help=skill('help');
 function ruleOf(text,name){
-  var m=/^THE PASTE RULE \(issue 76, 2026-10-26; the same words in [a-z]+ and [a-z]+\): (.*)$/m.exec(text);
+  var m=/^THE PASTE RULE \(issue 76; the same words in [a-z]+ and [a-z]+\): (.*)$/m.exec(text);
   check(!!m,name+': must carry the paragraph headed THE PASTE RULE with its same-words clause');
   return m?m[1]:'';
 }

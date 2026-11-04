@@ -3,7 +3,7 @@
 //
 //   node crew-state.js --run <run folder> --state absent|down
 //
-// Ruled 2026-10-13: when the crew has fewer seats than the person expects, every result names
+// When the crew has fewer seats than the person expects, every result names
 // the reason and the exact next command. Three states. The add-on itself records the third
 // (running, no key) in the crew.registered log line. The host records the other two here, since
 // no add-on tool is there to do it: `absent`, the add-on is not installed; `down`, it is

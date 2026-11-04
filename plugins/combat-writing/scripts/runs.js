@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// runs.js: the project's runs, and the way back to one (Part 85, 2026-10-31). The founder's words:
-// "There needs to be a clear way for a user to return to a run not finished whether it's an email
-// or an article and it ought to be able to start fresh on a new one whenever also, i guess
-// publishing or sending makes it complete?"
+// runs.js: the project's runs, and the way back to one (Part 85).
 //
 //   node runs.js [--root <dir>] [--match <word>]
 //

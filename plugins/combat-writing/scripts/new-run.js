@@ -4,9 +4,9 @@
 //   node new-run.js [--draft <file>] [--brief <file> | --no-brief] [--brief-name <name>] [--reader <file>] [--stage strategy|sparring|battle]
 //                   [--name <slug>] [--model "<model name>"] [--company "<company>"] [--root <dir>]
 //
-// The brief (issue 65, 2026-10-26; issue 72 the same day): --brief <file> is the run's brief and
+// The brief (issue 65; issue 72): --brief <file> is the run's brief and
 // the project's: unless that file is the project's brief itself, <root>/combat-writing/brief.md
-// is written from it (the founder's rule: the brief typed overrides the previous one), logged
+// is written from it (the brief typed overrides the previous one), logged
 // brief.kept with the sha256 when the project's brief changed, and the short form says so once.
 // With no --brief, the project's brief serves when it exists; --no-brief means none for this
 // run and leaves the project's alone. --keep, the word of issue 65, is refused by name: every
@@ -14,7 +14,7 @@
 // (lib.briefSourceOf): project, last (another run's brief.md, the run id kept), pasted (an
 // inbox file) or given; the record's Started-at line names it.
 //
-// Briefs by name (Part 86, 2026-10-31): --brief <file> --brief-name <name> saves the brief as
+// Briefs by name (Part 86): --brief <file> --brief-name <name> saves the brief as
 // <root>/combat-writing/briefs/<name>.md (`brief <name>: <text>`) and makes it the run's, the
 // unnamed default untouched; --brief-name <name> alone picks the saved brief for the run
 // (`brief: <name>`), refused with the saved names listed when there is none; a --brief path
@@ -22,7 +22,7 @@
 // brief.kept the name and the file written. --brief with no name keeps today's meaning: the
 // unnamed default, combat-writing/brief.md, replaced.
 //
-// The reader (Part 84, 2026-10-31): --reader <file> is who this one piece is for, from the author
+// The reader (Part 84): --reader <file> is who this one piece is for, from the author
 // (the prospect of the day, the page the piece quotes), copied into the run as reader.md and
 // logged in run.created; it travels with the run and is never written to the project's brief,
 // which is the standing rules of the project. Every packet carries it after the brief.
@@ -31,17 +31,16 @@
 // <root>/combat-writing/runs/<run-id>/, writes seats.json with two fresh readers (Part 87), and
 // opens log.jsonl. Prints the run folder path on stdout, and nothing else. On the first run
 // inside a git repository it also writes <root>/combat-writing/.gitignore with exactly two
-// lines, runs/ and inbox/ (issue 36, ruled 2026-10-19), never overwriting a file already there,
+// lines, runs/ and inbox/ (issue 36), never overwriting a file already there,
 // and logs gitignore.written so the short form says so once. With neither --draft nor --brief
 // the project's brief, when it exists, makes a brief-only run (issue 72: strategy with a brief
 // update alone stores the updated brief); with no project brief either, the call is refused:
-// strategy may store a brief alone (2026-10-14: any stage may be skipped, the order is the
+// strategy may store a brief alone (any stage may be skipped, the order is the
 // person's choice), and sparring or battle then brings the draft into the same run through
 // add-draft.js, which writes draft.md when there is none. --stage names the command that made
 // the run; the record and the board say where the run started.
 //
-// The crew (ruled 2026-11-02, Part 87, reversing the one-reader rule of 2026-10-09 and
-// 2026-10-12): two fresh readers by default, seat-1 and seat-2, the first and the second model
+// The crew (Part 87): two fresh readers by default, seat-1 and seat-2, the first and the second model
 // the host's own agent tool lists (--model and --model-2, the names the host passes; the list is
 // the host's, so the seats move with it and no model name is written here), plus one seat per
 // outside model the crew add-on has a key for; the add-on's crew_register appends those and,
@@ -97,10 +96,10 @@ if(args.stage!==undefined){
   stage=String(args.stage).toLowerCase();
 }
 
-// The guard reads briefName, so it stands after the block that sets it (the watchman caught it read before its declaration, 2026-10-31).
+// The guard reads briefName, so it stands after the block that sets it (the watchman caught it read before its declaration).
 if(!hasDraft&&!hasBrief&&!projectBriefThere&&!briefName)lib.die('--draft <file> or --brief <file> is required (a brief alone is allowed: the draft joins the run later through add-draft.js)');
 
-if(args.seats!==undefined)lib.die('--seats is not an option: the crew is two fresh readers, seat-1 and seat-2 (--readers 1 for one), plus the outside seats the add-on registers, which take the second chair; never padded (ruled 2026-11-02, Part 87)');
+if(args.seats!==undefined)lib.die('--seats is not an option: the crew is two fresh readers, seat-1 and seat-2 (--readers 1 for one), plus the outside seats the add-on registers, which take the second chair; never padded (Part 87)');
 var readers=lib.MAX_FRESH_READERS;
 if(args.readers!==undefined){
   readers=parseInt(String(args.readers),10);
@@ -121,7 +120,7 @@ var runDir=path.join(root,lib.RUNS_DIR,runId);
 var n=2;
 while(fs.existsSync(runDir)){runDir=path.join(root,lib.RUNS_DIR,runId+'-'+(n++));}
 fs.mkdirSync(path.join(runDir,'rounds'),{recursive:true});
-// The ignore file (issue 36, ruled 2026-10-19): on the first run inside a git repository,
+// The ignore file (issue 36): on the first run inside a git repository,
 // combat-writing/.gitignore with runs/ and inbox/, never overwriting a file already there,
 // nothing outside a repository. Logged so the short form says so once.
 var ignore=lib.writeGitignore(root);

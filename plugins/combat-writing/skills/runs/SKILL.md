@@ -4,7 +4,7 @@ description: Runs. Lists every run in the project, newest first, one line each, 
 argument-hint: [<a word of the run id>]
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
-List the project's runs, or find one (Part 85, 2026-10-31: open runs, and the way back). The rules that hold across every command are in the `combat-writing` skill.
+List the project's runs, or find one (Part 85: open runs, and the way back). The rules that hold across every command are in the `combat-writing` skill.
 
 Bare, from the person's project folder:
 

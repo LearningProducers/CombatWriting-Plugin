@@ -8,11 +8,11 @@
 // paragraphs, lib.draftFacts), and prints the new
 // draft's file name. packet.js reads the newest draft unless told otherwise.
 //
-// A run with no draft.md (strategy stored a brief alone; 2026-10-14, any stage may be
+// A run with no draft.md (strategy stored a brief alone; any stage may be
 // skipped) gets the file as draft.md, the snapshot, and the log line says so (first: true).
 // --stage names the command that brought it, for the record's Started-at line.
 //
-// The reader (Part 84, 2026-10-31): --reader <file> writes who this piece is for into the run as
+// The reader (Part 84): --reader <file> writes who this piece is for into the run as
 // reader.md, the newest standing (a reader may change with a revised draft, rare), logged
 // reader.set with the draft it came with; with --reader alone no draft is added. Never the
 // project's brief: the reader is one run's and travels with it.

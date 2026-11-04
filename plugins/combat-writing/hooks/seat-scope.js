@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// seat-scope.js: the seat's reach (ruled 2026-10-16). A PreToolUse hook on every tool. A fresh
+// seat-scope.js: the seat's reach. A PreToolUse hook on every tool. A fresh
 // reader (the `seat` agent, agent_type `cw:seat`) uses Read and Write only, reads only inside
 // its run folder and writes only its own answer file, both judged on the resolved path; any
 // other tool, and any path the hook cannot place, is denied. Every other caller, the host and

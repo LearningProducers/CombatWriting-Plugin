@@ -185,7 +185,7 @@ check(/var rewrite=rules\.rewrite\?' The task asks for a rewrite: write it in fu
 // 10. The text.
 var agent=read(path.join(plugin,'agents','seat.md')), battle=skill('battle'), rules_=skill('combat-writing'), help=skill('help'), claude=read(path.join(root,'CLAUDE.md')), readme=read(path.join(plugin,'README.md'));
 check(/On a round with the author's prompt and no rating \(issue 103\), open with the answer to the prompt as it asks/.test(agent)&&/A rewrite asked for goes first, in full, between the fence lines the Contract names/.test(agent),'seat.md says the prompt rules the shape');
-check(/The Contract follows the prompt \(issue 103, 2026-10-27/.test(battle)&&/The Contract follows the prompt \(issue 103, 2026-10-27, the founder's words/.test(rules_)&&/\*\*Your prompt rules the shape\*\*/.test(help)&&/The Contract follows the prompt \(issue 103/.test(claude)&&/a prompt that asks for a rewrite gets the rewrite first, in full, framed on the board under a Rewrite badge/.test(readme),'the skills, CLAUDE.md and the README say it');
+check(/The Contract follows the prompt \(issue 103; issue 106/.test(battle)&&/The Contract follows the prompt \(issue 103\):/.test(rules_)&&/\*\*Your prompt rules the shape\*\*/.test(help)&&/The Contract follows the prompt \(issue 103/.test(claude)&&/a prompt that asks for a rewrite gets the rewrite first, in full, framed on the board under a Rewrite badge/.test(readme),'the skills, CLAUDE.md and the README say it');
 
 fs.rmSync(proj,{recursive:true,force:true});
 if(failures.length){ console.log('rewrite_check: '+failures.length+' failure(s), '+(passes+failures.length)+' checks'); failures.forEach(function(f){console.log('FAIL '+f);}); process.exit(1); }

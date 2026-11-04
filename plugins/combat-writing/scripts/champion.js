@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // champion.js: records the Champion stage (steps 15 to 19) on a run: the piece as shipped, each
-// result as it comes, and the insights that outlive the run (ruled 2026-10-19, issue 13). The
+// result as it comes, and the insights that outlive the run (issue 13). The
 // only writer of canon, results and the vault.
 //
 //   node champion.js --run <run folder> --kind shipped|result|insight --file <inbox file>
