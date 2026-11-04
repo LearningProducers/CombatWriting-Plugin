@@ -11,12 +11,12 @@
 // alone goes to the named seats only), a battle round that asked for no rating marked "critique", an outside
 // seat's second overrun the add-on or the checker cut marked "truncated at N words", the final round's S/N and
 // red-flag counts per seat), then every answer in full by round under its seat's name, then
-// the log of what was sent. A Champion section (ruled 2026-10-19) sits between the scoreboard
+// the log of what was sent. A Champion section sits between the scoreboard
 // and the answers only when the log holds a champion.* line: the Shipped, Result and Insight
 // lines in order. Nothing is averaged, summed or ranked. Rebuilt after every round; the log
 // and the answer files are the truth.
 //
-// --short prints what the person sees in the terminal after a round (2026-10-14: the board is
+// --short prints what the person sees in the terminal after a round (the board is
 // the result, the terminal is short): the crew line, the Seats line when the crew is short, the
 // scoreboard legend the first time this run prints it and never again (the log line
 // legend.printed), the ignore-file line once when this run wrote combat-writing/.gitignore (the
@@ -34,9 +34,9 @@ var runDir=path.resolve(args.run);
 var seatsFile=lib.readSeats(runDir), seats=seatsFile.seats;
 var log=lib.readLog(runDir);
 var rounds=lib.listRounds(runDir);
-// A run strategy made and nothing has read yet (ruled 2026-10-13): the record and the short form say
-// what is stored and name the next move, so the person is never left without one. Since 2026-10-14
-// the order of the stages is the person's choice, so the next move is sparring or battle, and a run
+// A run strategy made and nothing has read yet: the record and the short form say
+// what is stored and name the next move, so the person is never left without one. The order
+// of the stages is the person's choice, so the next move is sparring or battle, and a run
 // that holds a brief alone says the draft joins it when either command brings one.
 var hasBrief=fs.existsSync(path.join(runDir,'brief.md')), hasDraft=!!lib.latestDraft(runDir);
 var noRoundsLine=hasDraft
@@ -48,8 +48,8 @@ var created=log.filter(function(e){return e.event==='run.created';})[0]||{};
 function bar(n){ return n===null?'          ':new Array(n+1).join('█')+new Array(11-n).join('░'); }
 function lastLog(pred){ for(var i=log.length-1;i>=0;i--){ if(pred(log[i]))return log[i]; } return null; }
 
-// A cut read: the add-on's cut of an outside seat's read (ruled 2026-10-09, the crew.answered
-// line) or the checker's cut of a fresh reader's (ruled 2026-10-15, the answer.checked line),
+// A cut read: the add-on's cut of an outside seat's read (the crew.answered
+// line) or the checker's cut of a fresh reader's (the answer.checked line),
 // whichever is last for that seat, round and read.
 function truncationOf(seat,round,read){
   var e=lastLog(function(x){return (x.event==='crew.answered'&&x.round===round&&x.seat===seat.id&&(x.read||'rating')===read)
@@ -106,11 +106,11 @@ out.push('');
 var companies=seats.map(function(s){return s.company;}).filter(function(v,i,a){return a.indexOf(v)===i;});
 out.push('**Crew:** '+seats.map(lib.seatLabel).join('; ')+'. '+(companies.length===1?'One company\'s models ('+companies[0]+').':companies.length+' companies: '+companies.join(', ')+'.')+' '+lib.nameSources(seats));
 out.push('');
-// Fewer seats than expected (ruled 2026-10-13): the reason and the next command, from the log.
+// Fewer seats than expected: the reason and the next command, from the log.
 lib.crewStateLines(runDir,seats,log).forEach(function(l){ out.push('**Seats:** '+l); out.push(''); });
 out.push('**Seat key:** '+lib.seatKey(seats));
 out.push('');
-// Each draft with its hash and its counts (2026-10-15): words, paragraphs, lines, measured from the file.
+// Each draft with its hash and its counts: words, paragraphs, lines, measured from the file.
 function draftLabel(d){var e=lastLog(function(x){return (x.event==='draft.added'&&x.file===d)||(x.event==='run.created'&&d==='draft.md');});var sha=e?(e.sha256||(e.draft&&e.draft.sha256)):null;var f=lib.draftFacts(lib.readText(path.join(runDir,d)));return d+' ('+(sha?'sha256 '+sha.slice(0,12)+'…; ':'')+lib.draftFactsLine(f)+')';}
 out.push('**Drafts:** '+(drafts.length?drafts.map(draftLabel).join(', ')+'.':'none yet; the brief is stored and the draft joins the run when sparring or battle brings it.'));
 var newestFacts=drafts.length?lib.draftFacts(lib.readText(path.join(runDir,drafts[drafts.length-1]))):null;
@@ -118,7 +118,7 @@ var oneLine=newestFacts?lib.oneLineWarning(newestFacts):null;
 if(oneLine){out.push('');out.push('**Draft as stored:** '+oneLine);}
 if(newestFacts){out.push('');out.push('**'+lib.FACTS_HEADING+':** '+lib.draftFactsFull(newestFacts)+'. Every packet carries this line.');}
 out.push('');
-// Where the run started (2026-10-14: the order of the stages is the person's choice).
+// Where the run started (the order of the stages is the person's choice).
 out.push('**Started at:** '+lib.startedAtLine(runDir,log,rounds));
 var briefName=created.brief&&created.brief.name?created.brief.name:null;
 if(fs.existsSync(path.join(runDir,'brief.md'))){
@@ -149,10 +149,10 @@ if(rounds.length){
     out.push('| '+lib.seatLabel(s)+' | '+rounds.map(function(r){return grid[s.id][r].text;}).join(' | ')+' | '+(latest===null?'—':bar(latest)+' '+latest+'/10')+' |');
   });
   out.push('');
-  // The text Next line (2026-10-14): kept here, and printed by --short for the host's picker.
+  // The text Next line: kept here, and printed by --short for the host's picker.
   out.push('**'+lib.nextLine(seats,path.basename(runDir)).replace(/^Next: /,'Next:** '));
 }else out.push(noRoundsLine);
-// Champion (ruled 2026-10-19): what was shipped, what came back, what the run taught, from the
+// Champion: what was shipped, what came back, what the run taught, from the
 // champion.* log lines in order, only when there are any (a run with none renders as before).
 // No line here starts with |, so the --short slice never carries it: champion is not a round.
 var champ=lib.championEvents(log);
@@ -176,7 +176,7 @@ rounds.forEach(function(r){
   out.push('### Round '+r);
   var pb=log.filter(function(e){return e.event==='packet.built'&&e.round===r;})[0];
   if(pb)out.push('');
-  // The round's task in words (ruled 2026-10-15), from the packet through lib.roundTask, never the inbox file name.
+  // The round's task in words, from the packet through lib.roundTask, never the inbox file name.
   var task=lib.roundTask(runDir,r,log);
   if(pb)out.push('Draft read: '+pb.draft+'.'+(pb.reads_round?' Answers carried from round '+pb.reads_round+'.':'')+(pb.mode==='navigation'?' Navigation round: no other seat\'s answer carried.':'')+(pb.mode==='focus'?' Focus-question round: no other seat\'s answer carried.':'')+(pb.contract==='critique'?' No rating this round.':pb.rerate?' Rerate: a new rating asked.':'')+' Task: '+lib.taskLine(task)+'.');
   var askedHere=lib.askedIn(runDir,r,log);
@@ -244,7 +244,7 @@ if(args.next===true){
     s.push('','Board: '+path.join(runDir,lib.BOARD_FILE));
   }else{
     s.push(noRoundsLine,'','Started at: '+lib.startedAtLine(runDir,log,rounds));
-    // After strategy (2026-10-15): the draft's counts, and the one-line warning, before any seat reads it;
+    // After strategy: the draft's counts, and the one-line warning, before any seat reads it;
     // and which brief the run has (issue 65).
     if(newestFacts)s.push('','Draft: '+lib.draftFactsLine(newestFacts)+(oneLine?'\n'+oneLine:''));
     s.push('',lib.briefLine(createdLine,briefText));

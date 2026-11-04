@@ -173,6 +173,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/order_check.js` | any stage may be skipped |
 | `tests/packet_check.js` | the packet from files only, the previous round carried, the contract |
 | `tests/paste_check.js` | THE PASTE RULE, the same words in three skills |
+| `tests/provenance_check.js` | the shipped folders carry the rule, never the ruling: no "ruled", no "founder" outside the credit line |
 | `tests/pr_body_check.js` | the four-section gate script |
 | `tests/rating_contract_check.js` | `RATING: X/10`, 7 forbidden, the number against the words |
 | `tests/reader_check.js` | the reader rides in the run, not in the project's brief |

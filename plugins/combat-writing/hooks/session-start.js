@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// session-start.js: the line the plugin prints when it loads (ruled 2026-10-09), and, on the
-// first session only, what one install still lacks (Part 83, 2026-10-31).
+// session-start.js: the line the plugin prints when it loads, and, on the
+// first session only, what one install still lacks (Part 83).
 //
 // Run by the SessionStart hook in hooks.json at session start and resume. Every start prints the
 // ready line. The FIRST start (no `first-session` file in the plugin's data folder, the folder
@@ -18,8 +18,7 @@
 // and reads one environment variable, CW_SESSION_PROBE, the tests' fake commands. The data folder
 // comes as the second argument (hooks.json passes "${CLAUDE_PLUGIN_DATA}", which creates it), else
 // from CLAUDE_PLUGIN_DATA, else nothing is measured and the ready line stands alone.
-// The founder's words: "whatever is best practice and more transparent"; the security page asks for
-// review before an install, so the hook never runs one.
+// The security page asks for review before an install, so the hook never runs one.
 
 var fs=require('fs'), path=require('path'), cp=require('child_process');
 var lib=require('../scripts/lib.js');

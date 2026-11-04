@@ -3,7 +3,7 @@
 //
 //   node announce.js --run <run folder> --round <nn-kind> --kind FQ|N|SN|SFQ|seat|plain|cold|debate|final --to <seat ids, comma-separated> [--rerate]
 //
-// Issue 33 (2026-10-19): nothing showed between a picker selection and the board. Now the host
+// Issue 33: nothing showed between a picker selection and the board. Now the host
 // prints this line as soon as the kind and the seats are known ("Round 03 forming: N to 3 seats
 // (seat-1 claude, seat-2 gpt-oss, seat-3 qwen), rerate"; the second N of a run forms as N2, issue 99), and one line per seat as its check
 // runs (check-answer.js prints it first), so every round shows at least two lines before the

@@ -4,12 +4,12 @@
 //
 //   node budget.js --run <run folder> --round <nn-kind> [--pass crew]
 //
-// Issue 95 (2026-10-27): "Too long to send" came after the send, and nothing said what a round cost.
+// Issue 95: "Too long to send" came after the send, and nothing said what a round cost.
 // Reads the round's packet.built lines (their `size`, written by packet.js) and the budget
 // crew_register wrote on each outside seat (lib.roundBudget), and logs budget.measured with the
 // numbers and the line (lib.budgetLine: the largest packet's tokens by part, each provider's wall
-// and the room left). The founder's ruling the same day: the measurement is accessible, not
-// presented; the user does not need to know how the sausage is made. So the line goes to the
+// and the room left). The measurement is accessible, not presented; the
+// user does not need to know how the sausage is made. So the line goes to the
 // record's What was sent and the board's Run details, and this script prints NOTHING unless a
 // seat's packet is over the room, when it prints the one warning (lib.budgetWarning) that must be
 // known before the send. `--pass crew` reads the second pass's packets. Writes nothing but the log

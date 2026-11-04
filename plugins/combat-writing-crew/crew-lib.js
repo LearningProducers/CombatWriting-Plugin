@@ -7,7 +7,7 @@
 // plus one log line per event. Nothing else is written anywhere. Keys come from the masked
 // prompt's value first, the conventional environment variable when the prompt is empty, then
 // one NAME=value line in the person's own key file, <home>/.combat-writing/keys, owner-only
-// (Part 36.2, stamped 2026-10-20, issue 62); never a file inside a project or the plugin.
+// (Part 36.2, issue 62); never a file inside a project or the plugin.
 
 var fs=require('fs'), path=require('path'), os=require('os'), http=require('http'), https=require('https'), url=require('url');
 
@@ -34,7 +34,7 @@ function loadProviders(){
   return JSON.parse(readText(p));
 }
 
-// The key route (ruled 2026-10-08; the third route stamped 2026-10-20, Part 36.2, issue 62):
+// The key route (the third route: Part 36.2, issue 62):
 // the masked prompt's value first (it reaches the server as the environment variable the
 // plugin manifest maps it to); the conventional environment variable only when the prompt's
 // value is empty; then the person's own key file, below. Returns {key, source} or null.
@@ -50,7 +50,7 @@ function keyValue(name){
   var v=name?(process.env[name]||'').trim():'';
   return unfilled(v)?'':v;
 }
-// The key file (Part 36.2, stamped 2026-10-20, issue 62; the measurement, Part 36.1): the
+// The key file (Part 36.2, issue 62; the measurement, Part 36.1): the
 // host's credentials store, where the masked prompt keeps a key, was rebuilt by the host on
 // 2026-10-16 and again on 2026-10-24, each on a Claude Code update, and the key went with it
 // both times while the install stood; no rebuild touches a file. So the third route is one
@@ -112,8 +112,8 @@ function keyShape(provider){
   if(readKeyFile().refused)return 'file-refused';
   return 'empty';
 }
-// What to tell the person when a key is missing (ruled 2026-10-13: the exact next command and the
-// key field, never a value; 2026-10-19: the two causes a person can hit and the one next step).
+// What to tell the person when a key is missing (the exact next command and the
+// key field, never a value; the two causes a person can hit and the one next step).
 // The causes: the key was never entered, or an update dropped it. Measured 2026-10-19 on this
 // machine: a key entered through the masked prompt lives in the host's credentials store, keyed
 // by plugin id, so a plugin version bump keeps it; but the host rebuilt that store on 2026-10-16
@@ -242,8 +242,7 @@ function budgetFor(provider,systemPrompt,userText){
 }
 
 // What a packet asks of the seat, read from the packet file the listed plugin built: the word
-// cap from its "Under N words." line, and the contract from its no-rating line (ruled
-// 2026-10-09: a battle round asks for no rating unless the person asks with `rerate`). The
+// cap from its "Under N words." line, and the contract from its no-rating line (a battle round asks for no rating unless the person asks with `rerate`). The
 // no-rating line is the listed plugin's NO_RATING_LINE, mirrored here word for word because
 // the add-on never reaches into the other plugin's folder; crew_check.js pins the two equal.
 var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your answer to the task.';
@@ -263,13 +262,13 @@ function packetRules(packetText){
 }
 function wordCount(text){ return String(text||'').split(/\s+/).filter(Boolean).length; }
 
-// The retry target (ruled 2026-10-15): a seat sent back over the cap is asked for a target well
+// The retry target: a seat sent back over the cap is asked for a target well
 // under it, 80% (400 of 500, 480 of 600, 200 of 250), so the second answer has room; the cap
 // itself still holds. Mirrored word for word from the listed plugin's lib.js; crew_check.js pins the two equal.
 var RETRY_TARGET_RATIO=0.8;
 function retryTarget(cap){ return Math.floor(cap*RETRY_TARGET_RATIO); }
 
-// The cut (ruled 2026-10-09 for an outside seat, 2026-10-15 for every seat): on a seat's second
+// The cut (one rule for every seat): on a seat's second
 // overrun, the read is truncated at the cap, marked, and its rating kept. The contract's first
 // line (RATING: X/10 for a rating read, the S/N or red-flag line for a final read) is pulled out
 // of the reply wherever it sits before the cut, so it survives even when the seat put it last;

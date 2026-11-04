@@ -1,5 +1,5 @@
 ---
-description: 'N with rewrite guidance (ruled 2026-10-19, issue 32): the guidance goes to every seat as written, every seat writes the rewrite it asks for, and the host writes no rewrite of its own.'
+description: 'N with rewrite guidance (issue 32): the guidance goes to every seat as written, every seat writes the rewrite it asks for, and the host writes no rewrite of its own.'
 expected_outcome: 'The host starts a run from the pasted draft, runs round 01-battle as an N round with the guidance as typed, shows the scoreboard with that column marked critique, names the round as N with the guidance quoted, and its reply holds no rewritten close, no draft text of its own and no answer of its own to the guidance.'
 runs: 1
 max_turns: 40

@@ -171,11 +171,11 @@ check(/The crew is the two fresh readers\. Next:/.test(help),'help: the not-inst
 });
 ['battle','sparring'].forEach(function(s){
   var skill=read(path.join(plugin,'skills',s,'SKILL.md'));
-  check(/Two fresh readers by default \(Part 87, 2026-11-02\)/.test(skill)&&/seats\.js --root <project>/.test(skill)&&/--readers 1/.test(skill),s+': the two readers and the pick are explained');
+  check(/Two fresh readers by default \(Part 87\)/.test(skill)&&/seats\.js --root <project>/.test(skill)&&/--readers 1/.test(skill),s+': the two readers and the pick are explained');
   check(/on the model its seat record names \(passed as the agent tool's model choice; the agent file's `model: inherit` yields to the model named at start\)/.test(skill),s+': each reader starts on the model its seat record names');
 });
 var rules=read(path.join(plugin,'skills','combat-writing','SKILL.md'));
-check(/ruled 2026-11-02, Part 87, reversing the one-reader rule of 2026-10-09/.test(rules)&&/seats\.js \[--root <project>\] \[--set seat-1\\\|seat-2 "<model>"\] \[--clear <seat>\]/.test(rules)&&/--model-2 "<name>"\] \[--readers 1\]/.test(rules),'rules skill: the crew rule, the seats.js row and the new-run row');
+check(/- The crew \(Part 87\) is two fresh readers by default/.test(rules)&&/seats\.js \[--root <project>\] \[--set seat-1\\\|seat-2 "<model>"\] \[--clear <seat>\]/.test(rules)&&/--model-2 "<name>"\] \[--readers 1\]/.test(rules),'rules skill: the crew rule, the seats.js row and the new-run row');
 check(/and pass the names to `new-run\.js --model` and `--model-2`/.test(rules),'rules skill: naming the seats passes both models');
 
 // Docs.

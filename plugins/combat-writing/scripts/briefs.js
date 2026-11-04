@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// briefs.js: lists the project's briefs (Part 86, 2026-10-31): the unnamed default and every
+// briefs.js: lists the project's briefs (Part 86): the unnamed default and every
 // brief saved by name, each with its first line and the runs on it, read from the files and
 // each run's log, nothing computed beyond that.
 //

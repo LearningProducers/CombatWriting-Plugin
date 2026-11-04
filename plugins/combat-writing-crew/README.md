@@ -58,7 +58,7 @@ A crew with no paid keys is allowed: one free Groq key seats two outside models 
 
 ## When a seat you expected is missing
 
-Ruled 2026-10-13: every result of the listed plugin names the reason and the exact next command when the crew is short, in a Seats line under the crew line. Three states:
+Every result of the listed plugin names the reason and the exact next command when the crew is short, in a Seats line under the crew line. Three states:
 
 1. **Not installed.** The host has no crew tools and `claude plugin list` does not show `combat-writing-crew`. Next: `/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin`, then `/reload-plugins` or a new session, then `/plugin configure combat-writing-crew`.
 2. **Installed, server not running.** The host has no crew tools but `claude plugin list` shows the add-on. Next: `/mcp`, find `combat-writing-crew`; if it shows failed or disconnected, reconnect it there and run the command again; if it is not listed, `/plugin` to check the add-on is enabled, then `/reload-plugins`.
@@ -66,7 +66,7 @@ Ruled 2026-10-13: every result of the listed plugin names the reason and the exa
 
 ## Which models
 
-No model id is written in the add-on. For each provider, a seat names a family and a preference, and the server resolves the id from the provider's live catalog at the start of a run: for Groq, the newest live model in Alibaba's `qwen/` line as the first outside seat (seat-2) and the largest live model in OpenAI's `gpt-oss` line as the second (seat-3), the Qwen seat first by the founder's reading of the rounds of 2026-10-26 (issue 86; a per-user order is not built), excluding speech, guard, compound and embedding models and anything with a small context window, the same filter the Combat Writing app uses. Every answer's log line and the record carry the id the API actually returned.
+No model id is written in the add-on. For each provider, a seat names a family and a preference, and the server resolves the id from the provider's live catalog at the start of a run: for Groq, the newest live model in Alibaba's `qwen/` line as the first outside seat (seat-2) and the largest live model in OpenAI's `gpt-oss` line as the second (seat-3), the Qwen seat first (issue 86; a per-user order is not built), excluding speech, guard, compound and embedding models and anything with a small context window, the same filter the Combat Writing app uses. Every answer's log line and the record carry the id the API actually returned.
 
 | Seat | Provider | Family | Maker named in the record |
 |---|---|---|---|

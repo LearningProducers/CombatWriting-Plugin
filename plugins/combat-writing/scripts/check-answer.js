@@ -10,13 +10,13 @@
 // check and is sent back with the reason; on the second check it is a note (section_notes in
 // the summary and the log line), the answer accepted, so a read is never lost over a label.
 //   <seat>.answer.md          rating:   RATING: X/10, uppercase, X 1 to 10, never 7, nothing else on the line
-//                             critique: a battle round that asked for no rating (ruled 2026-10-09):
+//                             critique: a battle round that asked for no rating:
 //                                       no RATING line; the critique opens the answer
 //   <seat>.sn.answer.md       sn:       S/N RATIO: XX%, XX 0 to 100 (the app's final read; no 7 rule)
 //   <seat>.redflag.answer.md  redflag:  NO RED FLAGS, or RED FLAGS FOUND: X with X 1 or more (the app's)
 // Reasoning must follow the first line, and the whole answer must be within the word cap.
 // Prints one line: with --run, "<seat> <short name> finished round <nn-kind>: " then OK or FAIL
-// with the reasons (issue 33, 2026-10-19: the host prints it as each seat finishes, so the person
+// with the reasons (issue 33: the host prints it as each seat finishes, so the person
 // sees one line per seat before the board opens); without --run, OK or FAIL alone. Then a JSON
 // summary on the second line.
 // Exit 0 on pass, 1 on fail, 2 on misuse.
@@ -26,7 +26,7 @@
 // "Under N words" line of the seat's packet file; else the contract's default.
 // With --run, appends the result to the run's log.jsonl.
 //
-// The second overrun (ruled 2026-10-15, one rule for every seat): with --run, when the log already
+// The second overrun (one rule for every seat): with --run, when the log already
 // holds a failed answer.checked line for this same file (so this is the retry's check) and the answer
 // is over the cap, the file is cut at the cap, at the last sentence end before it, with its
 // first line kept (lib.truncateAnswer, the add-on's rule for an outside seat), written back,

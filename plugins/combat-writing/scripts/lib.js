@@ -5,7 +5,7 @@
 //   <root>/combat-writing/runs/<run-id>/
 //     draft.md                 the draft snapshot, copied once, never changed
 //     draft-2.md, draft-3.md   revised drafts added later by add-draft.js; the newest is the default
-//     canon.md, canon-2.md     the draft as shipped, byte for byte, written by champion.js (ruled 2026-10-19):
+//     canon.md, canon-2.md     the draft as shipped, byte for byte, written by champion.js:
 //                              canon.md once, canon-2.md only after a revised draft is shipped
 //     brief.md                 the context brief, when the person gave one
 //     seats.json               the crew: id, model, company, and where the name came from
@@ -19,7 +19,7 @@
 //       <seat>.sn.packet.md / <seat>.sn.answer.md             the final mode's S/N read
 //       <seat>.redflag.packet.md / <seat>.redflag.answer.md   the final mode's red-flag read
 //
-// No file in the run carries the credit line (ruled 2026-10-12): it stands once, at the foot of
+// No file in the run carries the credit line: it stands once, at the foot of
 // the help guide. A seat's answer is the seat's writing and opens with its contract's first line.
 
 var fs=require('fs'), path=require('path'), crypto=require('crypto');
@@ -29,9 +29,7 @@ var DEFAULT_WORD_CAP=500;            // a read with no other seats' answers
 var DEFAULT_SYNTHESIS_WORD_CAP=600;  // a read that quotes other seats
 var DEFAULT_FINAL_WORD_CAP=250;      // the S/N and red-flag reads (the app's S/N prompt says under 250)
 var DEFAULT_CREW_WORD_CAP=300;       // the second pass of a first-round SN or SFQ: To the crew alone (issue 88)
-// The second pass of a first round (issue 88, 2026-10-27, the founder's words: "if a user was to use sn
-// on round 1 it ought to not be denied the double run to include what the ai crew has to say about each
-// other"): after every seat has answered on the draft alone, each gets one more packet carrying the
+// The second pass of a first round (issue 88): after every seat has answered on the draft alone, each gets one more packet carrying the
 // others' answers to the same round and writes To the crew alone, into <seat>.crew.answer.md. The
 // record prints it under the answer, the board shows it under the read, and the next round's packets
 // carry it with the answer it belongs to (roundAnswers appends it), so a quote from it counts.
@@ -44,15 +42,15 @@ var MODEL_UNREPORTED='model unreported';
 var SN_PROMPT='Evaluate the signal-to-noise ratio of this final draft. Your first line must be: S/N RATIO: XX%';
 var REDFLAG_PROMPT='Check this final draft for red flags. Your first line must be exactly: NO RED FLAGS or RED FLAGS FOUND: X';
 var DEFAULT_READ_PROMPT='Read this rough draft and rate it on a scale from 1–10, you cannot use 7. Explain your reasoning with evidence.';
-// Battle (ruled 2026-10-09): a battle round asks for no rating unless the person asks with
+// Battle: a battle round asks for no rating unless the person asks with
 // `rerate`. The synthesis prompt has one form for each case.
 var DEFAULT_SYNTHESIS_PROMPT='Read the other seats\' latest answers. Where do your interpretations overlap and where do they diverge? Give a new critique of the structure and content of the draft.';
 var DEFAULT_SYNTHESIS_RERATE_PROMPT='Read the other seats\' latest answers. Where do your interpretations overlap and where do they diverge? Give a new critique and a new rating of the draft.';
-// A battle round on a run nothing has read (2026-10-14: the order of the stages is the person's
+// A battle round on a run nothing has read (the order of the stages is the person's
 // choice): there is no other seat's answer to share and, without `rerate`, no rating to ask for.
 var DEFAULT_FIRST_CRITIQUE_PROMPT='Read this rough draft. Give your critique of its structure and content, with specific evidence from it.';
 var FIRST_ROUND_LINE='This is the first round of the run: no seat has read the draft yet, so no other seat\'s answer is carried. Answer on the draft alone.';
-// Fewer seats than the person expects (ruled 2026-10-13): every result names the reason and the
+// Fewer seats than the person expects: every result names the reason and the
 // exact next command. Three states. The host records `absent` and `down` with crew-state.js (no
 // add-on tool is there to do it); the add-on records the third, running with no key, in the
 // crew.registered log line it writes, naming the key field to fill. crewStateLines renders
@@ -60,7 +58,7 @@ var FIRST_ROUND_LINE='This is the first round of the run: no seat has read the d
 var ADDON_INSTALL='/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin';
 var ADDON_CONFIGURE='/plugin configure combat-writing-crew';
 // {CREW} is the crew the run is left with, in words (crewAloneWords: the two fresh readers, or one
-// seat), filled by addonStateLine for the run at hand (Part 87, 2026-11-02).
+// seat), filled by addonStateLine for the run at hand (Part 87).
 var ADDON_STATE={
   absent:'The crew add-on is not installed, so the crew is {CREW}. Next: '+ADDON_INSTALL+', then /reload-plugins or a new session, then '+ADDON_CONFIGURE+' to enter a key.',
   down:'The crew add-on is installed but its server is not running in this session (no crew_list tool), so the crew is {CREW}. Next: /mcp, find combat-writing-crew: if it shows failed or disconnected, reconnect it there and run the command again; if it is not listed, /plugin to check the add-on is enabled, then /reload-plugins.'
@@ -70,7 +68,7 @@ function addonStateLine(state,seats){ var t=ADDON_STATE[state]; return t?t.repla
 // The commands, for the lines the record prints (the plugin is `cw`; the commands are /cw:<name>).
 var CMD={strategy:'/cw:strategy',sparring:'/cw:sparring',battle:'/cw:battle',champion:'/cw:champion',help:'/cw:help'};
 
-// Champion (ruled 2026-10-19, issue 13): one command, three keywords, each writing to a
+// Champion (issue 13): one command, three keywords, each writing to a
 // different place. `shipped` freezes the newest draft as canon in the run folder with the time
 // and the channel; `result:` is one dated line in the run's log and record; `insight:` is one
 // dated, run-tagged line in the project's vault, one file across all runs, kept beside the runs
@@ -86,7 +84,7 @@ function vaultPath(runDir){
   if(path.basename(parent)!=='runs'||path.basename(grand)!=='combat-writing')return null;
   return path.join(grand,VAULT_FILE);
 }
-// The ignore file (issue 36, ruled 2026-10-19): on the first run inside a git repository the
+// The ignore file (issue 36): on the first run inside a git repository the
 // plugin writes <project>/combat-writing/.gitignore with exactly two lines, runs/ and inbox/,
 // so the runs and the inbox stay out of git and the vault stays with the project, and the
 // result says so once. A file already there is never overwritten; outside a git repository
@@ -111,11 +109,10 @@ function writeGitignore(root){
   fs.writeFileSync(p,GITIGNORE_LINES.join('\n')+'\n');
   return {state:'written',file:p};
 }
-// The project brief (issue 65, 2026-10-26; issue 72, the same day): <project>/combat-writing/
+// The project brief (issue 65; issue 72): <project>/combat-writing/
 // brief.md, beside the vault, the one brief of the project. A brief given to new-run.js
 // (--brief <file>, any path but that file itself) is the run's brief AND the project's: the file
-// is overwritten, so the brief typed last is the brief every new run that brings none carries
-// (the founder's rule, 2026-10-26: "anytime I type in brief: it overrides the previous brief").
+// is overwritten, so the brief typed last is the brief every new run that brings none carries.
 // brief.js --update appends one dated paragraph, "Update YYYY-MM-DD: <text>", to the project's
 // brief and to a run's, so the prospect of the day lives in the brief where the seats read
 // ("brief update: followed by a line just adds to the brief"); the newest such line is named on
@@ -124,7 +121,7 @@ function writeGitignore(root){
 // (another run's brief.md under combat-writing/runs/, the run id kept), 'pasted' (a file in
 // combat-writing/inbox/), 'given' (any other path); none means no brief (--no-brief, or nothing
 // and no project brief).
-// The reader (Part 84, 2026-10-31): who this one piece is for, from the author, as the brief is the
+// The reader (Part 84): who this one piece is for, from the author, as the brief is the
 // standing rules of the project. The two have two lifetimes: the brief is the project's and serves
 // every run; the reader is one run's and travels with it (reader.md in the run folder, written by
 // new-run.js --reader and add-draft.js --reader, the newest standing), never written to the project's
@@ -138,8 +135,7 @@ function readerPath(runDir){ return path.join(path.resolve(runDir),READER_FILE);
 function readReader(runDir){ var p=readerPath(runDir); return fs.existsSync(p)?readText(p).replace(/\r\n/g,'\n').trim():null; }
 // One line naming the reader, cut at READER_SHOWN characters on a word, for the record's and the board's Reader line.
 function readerWords(text){ var t=String(text||'').replace(/\s+/g,' ').trim(); if(!t)return null; return t.length>READER_SHOWN?t.slice(0,READER_SHOWN).replace(/\s+\S*$/,'')+'…':t; }
-// Briefs by name (Part 86, 2026-10-31; the founder: "someone [uses the] cw plugin for various writing
-// projects at once which means various briefs"): one project, many briefs. A named brief lives at
+// Briefs by name (Part 86): one project, many briefs. A named brief lives at
 // <project>/combat-writing/briefs/<name>.md, saved by `brief <name>: <text>` (new-run.js --brief <file>
 // --brief-name <name>), picked by `brief: <name>` (new-run.js --brief-name <name> alone), added to by
 // `brief update <name>:` (brief.js --update --name <name>). The unnamed default, combat-writing/brief.md,
@@ -241,7 +237,7 @@ function canonMatch(canon,page){
   var found=paras.filter(function(p){return hay.indexOf(p)>=0;}).length;
   return {found:found,of:paras.length,status:found&&found===paras.length?'matches':found?'partial':'not-found'};
 }
-// The page's text (issue 40, ruled 2026-10-19): a page the host saved whole is HTML on most
+// The page's text (issue 40): a page the host saved whole is HTML on most
 // channels, so before the match the markup is dropped: scripts, styles and comments go, block
 // ends become paragraph breaks, every other tag goes, the common entities are decoded. A page
 // with no markup is measured as it is. Returns {kind: 'html' | 'text', text}.
@@ -281,7 +277,7 @@ function championNextLine(runDir){
   return 'Next: '+(hasCanon?'':CMD.champion+' shipped <link, or email to whom> (freezes the final draft as canon with the time and the channel) · ')+CMD.champion+' result: <what came back, silence included> · '+CMD.champion+' insight: <what you learned, or a term and what it means> · '+CMD.battle+' draft: <path> to return to the piece on this run.';
 }
 
-// Where the run started (2026-10-14: any stage may be skipped, the order is the person's choice).
+// Where the run started (any stage may be skipped, the order is the person's choice).
 // new-run.js logs the stage whose command made the run in run.created; the line names it, what
 // was stored first, and the first round, so the record and the board say where the run began.
 // The caller adds the label ("Started at:").
@@ -298,10 +294,9 @@ function startedAtLine(runDir,log,rounds){
   return s;
 }
 
-// The text Next line (2026-10-14): what the person can type after a round. The record keeps it;
+// The text Next line: what the person can type after a round. The record keeps it;
 // the short form prints it so the host has it for the picker's "Done for now". One line.
-// The run on the Next line (Part 85, 2026-10-31; the founder: "There needs to be a clear way for a user to
-// return to a run not finished ... and it ought to be able to start fresh on a new one whenever"): every
+// The run on the Next line (Part 85): every
 // text Next line names the run it is on, the word that returns to it (run: <word>, matched against the
 // run ids by runs.js --match) and the line that leaves it. runSlug is the id after its date and time.
 function runSlug(id){ return String(id||'').replace(/^\d{4}-\d\d-\d\d-\d{4}-/,''); }
@@ -342,9 +337,7 @@ function nextLine(seats,runId){
 
 // The line a packet carries when the round asks for no rating; the checker and the add-on read it.
 var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your answer to the task.';
-// The two sections of a battle answer that shares (issue 80, 2026-10-26, the founder's words: "the
-// first section is open ended response by the LLM responding directly to the prompt. Then a response
-// to the AI crew or question to the ai crew"): a packet that carries the other seats' answers asks
+// The two sections of a battle answer that shares (issue 80): a packet that carries the other seats' answers asks
 // for them in its Contract (SECTIONS_LINE, mirrored word for word in the add-on's crew-lib.js, which
 // reads it to tell an outside seat the same). A label is a line holding only the label, in any case,
 // with or without markdown marks or a colon (sectionLabelOf); answerSections cuts the answer by them;
@@ -352,10 +345,7 @@ var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with 
 // into notes on the second check, so a read is never lost over a label; verdictLine frames the Answer.
 var SECTIONS_LINE='Two sections, each opened by a line holding only its label: `Answer`, your reply to the task, the verdict line first; then `To the crew`, where you agree or disagree with the other seats, each named by its model as the packet labels it (never by seat number alone), quoted word for word, or put a question to them. Nothing before the Answer label but the rating line when one is asked.';
 var SECTION_LABELS={answer:'Answer',crew:'To the crew'};
-// The Contract follows the prompt (issue 103, 2026-10-27, the founder's words: "it also ought to pay
-// attention to what the prompt is saying. If it asks: Who was queen elizabeth? it ought to respond to
-// the question and not begin with 'verdict', or 'not ready', or some other glitchy robotic response"):
-// on a round with the person's prompt and no rating, the packet asks for the answer as it asks and no
+// The Contract follows the prompt (issue 103): on a round with the person's prompt and no rating, the packet asks for the answer as it asks and no
 // verdict on the draft; the verdict line stays where a number needs it (a rated round) and on a plain
 // round with no prompt. The sharing form of the sections line drops the verdict clause the same way.
 // A prompt that asks for a rewrite (asksRewrite) gets REWRITE_LINE: the rewrite first, in full, inside
@@ -389,9 +379,7 @@ function rewriteReasons(text,contract){
   if(before.length>allowed)reasons.push('text before the rewrite: '+(contract==='rating'?'only the rating line and the verdict line go before it':'nothing goes before it; the rewrite opens the answer'));
   return reasons;
 }
-// Links are unread (issue 90, 2026-10-27, the founder's question after a seat described a post it never
-// opened: "Are you guys actually able to even pull and read the millionaire warehouse post I alluded
-// to? Be honest if not."). No seat can open a link: a fresh reader has Read and Write inside its run
+// Links are unread (issue 90). No seat can open a link: a fresh reader has Read and Write inside its run
 // folder, an outside seat is sent the packet text alone. A packet whose brief, draft or prompt carries
 // an address says so in its Contract (LINKS_UNREAD_LINE, mirrored word for word in the add-on's
 // crew-lib.js, which reads it to tell an outside seat the same); hasLink decides. A page reaches the
@@ -414,7 +402,7 @@ function answerSections(text){
   var crew=c>=0?lines.slice(c+1,a>c?a:lines.length).join('\n').trim():null;
   return {answer:answer,crew:crew,labeled:a>=0&&c>=0,answer_at:a,crew_at:c};
 }
-// The packet's size (issue 95, 2026-10-27): characters and estimated tokens, whole and by part, so
+// The packet's size (issue 95): characters and estimated tokens, whole and by part, so
 // the budget line can say what a round costs before any seat starts. Tokens are estimated at four
 // characters each, the add-on's own rule (crew-lib.js estimateTokens, pinned equal by crew_check.js),
 // so the number on the screen is the number the add-on will count. packetSize reads the packet's
@@ -484,7 +472,7 @@ function budgetLine(b){
   });
   return line;
 }
-// The warning alone (the founder, 2026-10-27: the measurement is accessible, not presented; the
+// The warning alone (the measurement is accessible, not presented; the
 // terminal gets only what must be known before the send): null when every packet fits, else one line
 // naming each seat whose packet the add-on will refuse and by how much.
 function budgetWarning(b){
@@ -517,16 +505,15 @@ function sectionReasons(text,contract){
   return reasons;
 }
 
-// Every packet carries this line, hardwired, in its Contract section (the founder's words,
-// 2026-10-14): a seat that thinks out loud in its answer is the wall of text the person reads.
+// Every packet carries this line, hardwired, in its Contract section: a seat that thinks out loud in its answer is the wall of text the person reads.
 var SIGNAL_LINE='Do not be verbose. Do not ramble. Only high signal-to-noise responses, no cosplay explanations, no thinking out loud in the answer.';
-// The verdict sentence (2026-10-14): the first sentence after the first line is the seat's
+// The verdict sentence: the first sentence after the first line is the seat's
 // verdict on the draft, the line the board frames. The packet says so in these words.
 var VERDICT_SENTENCE_LINE='Your first sentence after it is your verdict on the draft, in one line.';
 var VERDICT_SENTENCE_LINE_CRITIQUE='Your first sentence is your verdict on the draft, in one line.';
 
 // The scoreboard legend, one paragraph: record.md carries it, and the short form prints it
-// once per run (2026-10-14), the first time it prints, never again in that run.
+// once per run, the first time it prints, never again in that run.
 var SCOREBOARD_LEGEND='Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Not asked means the round was put to other seats only. Critique means the round asked for no rating (a battle round rates only on `rerate`). Failed read means the answer broke the contract it was sent, the rating line, the cap, or a number that contradicts the verdict. Truncated means the seat\'s second overrun was cut at the cap, at the last sentence end before it, with its first line kept. The bar is the seat\'s latest rating.';
 var BOARD_FILE='board.html';
 
@@ -562,7 +549,7 @@ function readSeats(runDir){
   if(!fs.existsSync(p))die('no seats.json in '+runDir);
   return JSON.parse(readText(p));
 }
-// The crew (ruled 2026-11-02, Part 87, reversing the one-reader rule of 2026-10-09 and 2026-10-12):
+// The crew (Part 87):
 // two fresh readers by default, seat-1 and seat-2, the first and the second model the host's own
 // agent tool lists (no model name in this code: the list is the host's, and the seats move with
 // it), plus one seat per outside model the add-on registers; the moment the add-on seats one, the
@@ -600,7 +587,7 @@ function seatLabel(seat){
   if(!seat.model||seat.model===MODEL_UNREPORTED)return seat.company+' model, name not reported, '+seat.id;
   return seat.model+' ('+seat.company+(seat.served_by?', served by '+seat.served_by:'')+'), '+seat.id;
 }
-// The seat key (ruled 2026-10-09): one line naming every seat by id and a short name, from the
+// The seat key: one line naming every seat by id and a short name, from the
 // live crew, for the person to address a seat by id or short name. The short name is derived,
 // never pinned: the model id without its maker prefix, cut before its first digit (an id of the
 // form maker/name-120b gives "name"); an unreported model falls back to its company.
@@ -731,7 +718,7 @@ function capSent(runDir,round,answerFile,log){
   return null;
 }
 
-// The first-line contract a seat was sent for one answer file (ruled 2026-10-09: a battle
+// The first-line contract a seat was sent for one answer file (a battle
 // round asks for no rating unless the person asks with `rerate`): the packet.built line's
 // contract, else the packet file's no-rating line, else the contract the file name implies.
 // Every live check of an answer file uses this, so a seat is never held to a contract it
@@ -753,8 +740,7 @@ function sectionsSent(runDir,round,answerFile,log){
   var t=readText(packetPath);
   return t.indexOf(SECTIONS_LINE)>=0||t.indexOf(SECTIONS_LINE_PROMPTED)>=0;
 }
-// The copy check (issue 107, 2026-10-27, the founder's words: "Why did qwen3 have an identical response
-// to fable 5.1? Something went wrong there."): on a rewrite round the packet carries the other seats'
+// The copy check (issue 107): on a rewrite round the packet carries the other seats'
 // answers, rewrites included, and a seat may hand one back as its own. The checker measures each
 // rewrite against the rewrites carried in its packet (a carried answer's fenced rewrite, else its whole
 // text): the share of the rewrite's three-word runs found in the carried text. At 60 in 100 or more it
@@ -811,7 +797,7 @@ function roundContract(runDir,round,log){
   return 'rating';
 }
 
-// The round's task (2026-10-15: the board and the record show the round's prompt): what the
+// The round's task (the board and the record show the round's prompt): what the
 // round asked every seat, read from the round's first packet, which is what the seats were
 // sent, so one source serves runs built before anything about the task was logged. Returns
 // {kind, text, contract, rerate, first_round}: kind is SN, SFQ, N or FQ with the person's text;
@@ -820,8 +806,7 @@ function roundContract(runDir,round,log){
 // packet sent. A round with no packet at all is 'plain' with no text.
 var TASK_LABELS=[['SFQ','Synthesis focus question (SFQ): '],['SN','Synthesis navigation (SN): '],['N','Navigation (N): '],['FQ','Focus question (FQ): ']];
 var TASK_KINDS=TASK_LABELS.map(function(t){return t[0];});
-// The task with its count within the run (issue 99, 2026-10-27, the founder's words: "it ought to
-// say SFQ2 because it was the second one"): `n` is which of its kind this round is, counted per
+// The task with its count within the run (issue 99): `n` is which of its kind this round is, counted per
 // kind over the run's rounds in order for the four kinds the packet labels (FQ, N, SN, SFQ), and
 // 0 for every other kind. The first of a kind keeps its bare name; the second is SN2, SFQ2. Read
 // from the packets at render time, so a run already on disk reads the same way once updated.
@@ -893,7 +878,7 @@ function ratingLine(task,round){
 
 // Every seat's answer in one round: {seat, file, text, contract} when present and sound,
 // {seat, missing:true} when there is no file, {seat, missing:true, notAsked:true} when the
-// round was put to other seats only (ruled 2026-10-09: a round of seat lines alone goes to the
+// round was put to other seats only (a round of seat lines alone goes to the
 // named seats; no packet was built for this one), and {seat, missing:true, failed:true, reasons}
 // when the file is there but fails the contract it was sent (contractSent): by the log's last
 // check of it, or by a live check at the cap the seat was sent (capSent), falling back to the
@@ -974,13 +959,13 @@ function flipInputs(runDir,seat,round,seats){
 
 function wordCount(text){ return text.split(/\s+/).filter(Boolean).length; }
 
-// The draft's counts (2026-10-15, Part 22): words, lines and paragraphs, measured by code from the
+// The draft's counts (Part 22): words, lines and paragraphs, measured by code from the
 // text as stored. A paragraph is a block separated by a blank line; a single newline inside one
 // is a line, not a paragraph, so a paste whose breaks were lost shows as one paragraph of one line.
 // draftFactsLine prints them; oneLineWarning says so when a long draft arrived as one line, before
-// any seat reads it (the inbox paste, the earliest record, already held it that way on the run of
-// 2026-10-15, so the warning is the guard).
-// Part 21 (ruled 2026-10-15, no claims checker): the same counter also measures what the seats
+// any seat reads it (the inbox paste, the earliest record, already held it that way on the run
+// that showed it, so the warning is the guard).
+// Part 21 (no claims checker): the same counter also measures what the seats
 // misread on the run of 2026-10-15, and every packet carries the result as facts, not a verdict:
 //   sentences: an end mark (. ! ?) followed by a space or a line end ends a sentence; a line with
 //     no end mark is not a sentence; addresses are taken out before counting. The count is exact
@@ -1039,7 +1024,7 @@ function draftFactsFull(f){
 var FACTS_HEADING='Measured by code (facts, not a judgment)';
 
 // THE VOICE FLOOR, shared (Part 76, 76.1, 81): a voice is good when its name or identifier carries
-// Premium or Enhanced; Premium ranks above Enhanced, then the founder's order, then the name. The
+// Premium or Enhanced; Premium ranks above Enhanced, then VOICE_ORDER, then the name. The
 // board's page and speak.js (the Mac's own engine writing files) read the same rule.
 var VOICE_ORDER=["Ava","Nathan","Allison","Zoe","Samantha","Evan","Joelle","Noelle","Tom","Susan","Nicky","Aaron"];
 function voiceTier(nameOrId){ var n=String(nameOrId||''); return /\(Premium\)|\.premium\./i.test(n)?2:(/\(Enhanced\)|\.enhanced\./i.test(n)?1:0); }
@@ -1062,7 +1047,7 @@ function spokenPlain(answer,crewText){
   return out;
 }
 
-// THE LABELED DRAFT (Part 79, issue 116, 2026-10-28). The founder's shape: greeting, opening
+// THE LABELED DRAFT (Part 79, issue 116). The parts: greeting, opening
 // sentence, body, closer (the signature is the mail client's, never in the draft). On the run of
 // 2026-10-28 one seat rewrote the greeting, one the whole email and one the first body sentence
 // under the same guidance ("rewrite the opening line"), because the draft's literal first line is
@@ -1155,13 +1140,13 @@ function oneLineWarning(f){
   return null;
 }
 
-// The retry target (ruled 2026-10-15): a seat sent back over the cap is asked for a target well
+// The retry target: a seat sent back over the cap is asked for a target well
 // under it, 80% (400 of 500, 480 of 600, 200 of 250), so the second answer has room; the cap
 // itself still holds. The add-on mirrors retryTarget word for word; crew_check.js pins the two equal.
 var RETRY_TARGET_RATIO=0.8;
 function retryTarget(cap){ return Math.floor(cap*RETRY_TARGET_RATIO); }
 
-// The cut (ruled 2026-10-09 for an outside seat, 2026-10-15 for every seat): on a seat's second
+// The cut (one rule for every seat): on a seat's second
 // overrun, the read is truncated at the cap, marked, and its rating kept. The contract's first
 // line (RATING: X/10 for a rating read, the S/N or red-flag line for a final read) is pulled out
 // of the reply wherever it sits before the cut, so it survives even when the seat put it last;
@@ -1196,7 +1181,7 @@ function truncateAnswer(text,cap,read,contract){
   return {text:out,truncated:{at:cap,words_returned:returned,words_kept:wordCount(out),first_line_moved:moved,cut_at:cutAt}};
 }
 
-// The verdict in an answer (2026-10-14): a seat's number and its words must agree. 8 to 10 is a
+// The verdict in an answer: a seat's number and its words must agree. 8 to 10 is a
 // working document, 1 to 6 a problem document (the seat's own rule); an 8 to 10 that says the
 // draft is not send-ready, or a 1 to 6 that says it ships as it is, is a failed read, and the
 // seat is sent back once with the reason, like an overrun. The phrases are these and no others;
@@ -1233,7 +1218,7 @@ function verdictOf(text){ var f=verdictPhrases(text); return f.length?f[0]:null;
 
 // HTML escaping for the board: every seat's words and every draft are text, never markup.
 function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-// A markdown subset for a seat's read on the board (2026-10-15: outside seats write markdown
+// A markdown subset for a seat's read on the board (outside seats write markdown
 // and it printed raw). Escaped first, then only: paragraphs (blank-line separated; a single
 // newline inside one is a line break), bullet lines (* - •) and numbered lines (1. or 1))
 // grouped into lists, **bold**, __bold__, *italic*, `code`, and a # heading line as a bold
@@ -1313,7 +1298,7 @@ function parseRating(text){
 
 // The contracts, checked on a seat's answer. Returns {ok, contract, rating, value, words, reasons}.
 //   rating:   RATING: X/10, uppercase, X 1 to 10, never 7, nothing else on the line.
-//   critique: a battle round that asked for no rating (ruled 2026-10-09): no RATING line
+//   critique: a battle round that asked for no rating: no RATING line
 //             anywhere on the first line; the critique opens the answer.
 //   sn:       S/N RATIO: XX%, XX 0 to 100, nothing else on the line. (The app's; no 7 ban.)
 //   redflag:  NO RED FLAGS, or RED FLAGS FOUND: X with X 1 or more, nothing else on the line. (The app's.)
@@ -1358,7 +1343,7 @@ function checkAnswer(text,wordCap,contract,opts){
   var body=lines.slice(contract==='critique'||contract==='crew'?0:1).join('\n');
   if(body.trim()==='')reasons.push(contract==='critique'?'no critique':contract==='crew'?'no reply to the other seats':'no reasoning after the first line');
   var words=wordCount(text);
-  // The cap reason names the retry target (ruled 2026-10-15); it reaches a fresh reader in its retry
+  // The cap reason names the retry target; it reaches a fresh reader in its retry
   // task and an outside seat in its retry note, so both get the same number from this one line.
   if(words>cap)reasons.push(words+' words, over the cap of '+cap+'; write it again under '+retryTarget(cap)+' words, counting them; a second answer over '+cap+' is cut at the last sentence before '+cap);
   // The two sections (issue 80), only when the packet asked for them; the reasons are listed apart so
@@ -1369,8 +1354,8 @@ function checkAnswer(text,wordCap,contract,opts){
   return {ok:reasons.length===0,contract:contract,rating:rating,value:value,words:words,reasons:reasons,sections:opts.sections?answerSections(text).labeled:null,rewrite:opts.rewrite?!!rewriteOf(text):null,section_reasons:sectionFaults};
 }
 
-// The record's line for a cut read, for either cutter: the checker (a fresh reader, 2026-10-15)
-// or the crew add-on (an outside seat, 2026-10-09). `t` is the truncated object a log line carries.
+// The record's line for a cut read, for either cutter: the checker (a fresh reader)
+// or the crew add-on (an outside seat). `t` is the truncated object a log line carries.
 function truncationLine(t){
   return 'Truncated at '+t.at+' words by '+(t.by==='checker'?'the checker':'the crew add-on')+' on the seat\'s second overrun; the seat returned '+t.words_returned+' words'+(t.cut_at==='sentence'?'; cut at the last sentence end before the cap':'')+(t.first_line_moved?'; its first line was found lower in the reply and moved to the top':'')+'.';
 }
@@ -1436,7 +1421,7 @@ function checkFlip(text,self,previousText,carried){
 }
 
 
-// The run as one object (Part 43, 2026-10-21): every presentation over a run reads this,
+// The run as one object (Part 43): every presentation over a run reads this,
 // the screen first, so the rules that make a cell, a latest rating or the band live once.
 // Built from the files and log.jsonl, like the record and the board; nothing is averaged. The
 // why-lines of the band and the no-rounds line are the board's words, pinned equal by
@@ -1504,7 +1489,7 @@ function finalText(f){
   var rfT=f.redflag.missing?'red flags missing':f.redflag.ok?(f.redflag.value===0?'no red flags':f.redflag.value+' red flag'+(f.redflag.value===1?'':'s')):'red-flag read failed';
   return snT+' · '+rfT;
 }
-// The band (ruled 2026-10-14 and 2026-10-15): from every seat's own latest rating, nothing
+// The band: from every seat's own latest rating, nothing
 // averaged; every rated seat at 8 or more is SEND; any at 6 or less is BACK TO THE DRAWING
 // BOARD and the band names it; FINAL READS over each seat's two numbers when the run holds final
 // reads and no rating; no band at all otherwise. The words are the board's.

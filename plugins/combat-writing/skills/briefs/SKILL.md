@@ -4,7 +4,7 @@ description: Briefs. Lists your briefs, the unnamed default and every brief save
 argument-hint: (nothing)
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
-List the project's briefs (Part 86, 2026-10-31: one project, many briefs). The rules that hold across every command are in the `combat-writing` skill.
+List the project's briefs (Part 86: one project, many briefs). The rules that hold across every command are in the `combat-writing` skill.
 
 Run, from the person's project folder:
 

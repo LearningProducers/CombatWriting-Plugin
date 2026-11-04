@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// show-result.js: the result shown by the plugin itself (issue 70, 2026-10-26). A PostToolUse
+// show-result.js: the result shown by the plugin itself (issue 70). A PostToolUse
 // hook on the Bash tool. When the host's command ran `render-record.js --short`, the hook puts
 // the short form the script printed (the Crew line through the Seat key line) on the person's
 // screen as the plugin's own message, through the hook's systemMessage, the field the terminal

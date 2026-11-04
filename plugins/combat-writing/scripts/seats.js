@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// seats.js: the person's pick of a model for a fresh reader (Part 87, 2026-11-02). The founder's
-// words: "if someone wants to change seats manually they can do that".
+// seats.js: the person's pick of a model for a fresh reader (Part 87).
 //
 //   node seats.js [--root <dir>] --set <seat-1|seat-2> "<model>"
 //   node seats.js [--root <dir>] --clear <seat-1|seat-2>

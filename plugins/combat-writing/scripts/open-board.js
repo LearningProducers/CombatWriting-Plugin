@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// open-board.js: opens a run's board.html in the person's browser (2026-10-14: the board is
+// open-board.js: opens a run's board.html in the person's browser (the board is
 // the result). A local file, opened with the system's own opener, never published anywhere.
 //
 //   node open-board.js --run <run folder> [--opener "<command>"] [--dry-run]
@@ -8,7 +8,7 @@
 // --opener names another command (split on spaces, the path appended), which the tests use
 // with a fake. --dry-run prints the command it would run and runs nothing.
 //
-// The opener's exit is read (issue 54, 2026-10-24). An opener hands the file to the browser and
+// The opener's exit is read (issue 54). An opener hands the file to the browser and
 // exits within a moment (`open` and `cmd /c start` return at once; `xdg-open` when its handler
 // returns), so the script waits up to EXIT_WAIT_MS for that exit: 0 is opened; any other code is
 // a failure, named with the opener's first stderr line, so a shell with no desktop (Claude Code's

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// speak.js: THE MAC SPEAKS THE FILES (Part 81, issue 121, 2026-10-28). Renders each seat's answer of
+// speak.js: THE MAC SPEAKS THE FILES (Part 81, issue 121). Renders each seat's answer of
 // a round to a small audio file in that seat's voice with the Mac's own speech engine (`say`), so
 // the board plays a recording and no browser has to see the voices. Measured 2026-10-28: Safari
 // hands pages 68 voices and none of the downloaded Premium or Enhanced ones, where Chromium hands
-// 183 with all three; the founder keeps Safari; `say -v "Ava (Premium)" -o ava.m4a ...` rendered
-// Ava on his Mac and `afplay` played it.
+// 183 with all three; Safari is the browser in use; `say -v "Ava (Premium)" -o ava.m4a ...` rendered
+// Ava on that Mac and `afplay` played it.
 //
 //   node speak.js --run <run folder> --round <nn-kind>            render the round's answers
 //   node speak.js --run <run folder> --set <seat id> "<Voice Name>"  keep a voice for a seat, next rounds on
@@ -14,7 +14,7 @@
 //
 // WHAT IT DOES. On macOS (or whenever a --say command is given), asks the engine for its voice list
 // (`say -v ?`), keeps the voices named Premium or Enhanced (the quality floor, Part 76), ranks them
-// Premium above Enhanced, then by the founder's order (Ava, Nathan, Allison, then the rest), then by
+// Premium above Enhanced, then by a fixed order (Ava, Nathan, Allison, then the rest), then by
 // name, and gives seat k the k-th distinct one, seat-1 included, wrapping; a voice kept for a seat
 // in <project>/combat-writing/voices.json wins when it is installed. For every <seat>.answer.md in
 // the round it writes the spoken text (lib.spokenPlain: fences and markdown marks dropped, the
@@ -25,9 +25,7 @@
 // render fails is logged (voices.failed, the first stderr line) and skipped; the board falls back to
 // the browser for that seat.
 //
-// THE VOICE IS THE READER'S TO PICK (Part 82, issue 129, 2026-10-31; the founder: "after the next
-// run, i can choose the voice for each model response without telling you, i want this for plugin
-// users too"). The board cannot write a file and the host is not to be told, so the recordings a
+// THE VOICE IS THE READER'S TO PICK (Part 82, issue 129). The board cannot write a file and the host is not to be told, so the recordings a
 // pick could choose from exist before the pick is made: after every seat's own voice, the script
 // renders the other quality voices for each seat, the ranked pool in order, up to
 // MAX_VOICES_PER_SEAT files a seat, as rounds/<round>/<seat>.<voice slug>.m4a ("nathan-enhanced");
@@ -61,7 +59,7 @@
 // the shape of the host's command.
 //
 // WHAT IT NEVER DOES. No network, no key, nothing outside the run folder and the project's
-// voices.json; `child_process` runs the speech engine and nothing else (the one ruled exception
+// voices.json; `child_process` runs the speech engine and nothing else (the one allowed exception
 // beside the opener, CLAUDE.md). The spoken text is the seat's answer, untrusted content read
 // aloud, never a command.
 var fs=require('fs'), path=require('path'), os=require('os'), cp=require('child_process');
