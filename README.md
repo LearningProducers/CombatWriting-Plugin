@@ -9,7 +9,7 @@ This repository is the home of the Combat Writing plugin for Claude Code and of 
 
 ## Status
 
-Version 0.7.0. The plugin is `cw` (renamed from `combat-writing` on 2026-10-14; the marketplace carries the rename). The skeleton, the method text, the `help`, `strategy`, `sparring`, `battle` and `champion` commands (one per stage, as skills; champion, ruled 2026-10-19, freezes the shipped draft as canon and records each result and insight), the seat agent, the scripts, the rendered record, the visual board, the eval cases, the directory checklist pass ([docs/directory-checklist.md](docs/directory-checklist.md)) and the add-on are in, and the founder's rulings of 2026-10-09 are applied: the crew is never padded; the round terms FQ, N, SN and SFQ and the seat line; a rating in battle only on `rerate`; the outside-seat cap; a picker instead of an error when a keyword is missing; the seat key under every result; the one-line session-start hook; and, ruled 2026-10-13, a strategy command that stores the draft and the brief, after which a bare sparring reads them with no repaste; and, 2026-10-14, any stage may be skipped (battle may be a run's first round, a brief alone makes a run, the record says where the run started) and every sparring and battle result ends with a picker for the next round. See [PLAN.md](PLAN.md). Nothing has been submitted to the Claude plugin directory; the portal's Validate button is the owner's step.
+The version is the one in [plugins/combat-writing/.claude-plugin/plugin.json](plugins/combat-writing/.claude-plugin/plugin.json). The record of every part is [PLAN.md](PLAN.md), and the state of the directory submission is [docs/directory-checklist.md](docs/directory-checklist.md).
 
 ## What is here
 

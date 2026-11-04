@@ -38,8 +38,9 @@ The strategy prompt below was run on 2026-10-13 and the other three on 2026-10-0
 /cw:help
 ```
 
-The card, as the skill holds it (cw 0.8.8, 2026-10-26; a picker follows it in the terminal):
+The card, as the skill holds it (a picker follows it in the terminal):
 
+<!-- THE CARD BEGIN -->
 ```
 Reading is Peace. Writing is War.
 
@@ -57,6 +58,7 @@ Begin with any one, in any order; the pieces of a paste go in any order too, eac
 /cw:champion shipped email to <whom>
 /cw:help all is the guide; /cw:help <topic> one section.
 ```
+<!-- THE CARD END -->
 
 ```
 /cw:strategy Here is the draft of my letter to the board. brief: I am the CEO. I need the board to approve a letter of intent this week; the deal depends on it.
