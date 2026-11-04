@@ -3,7 +3,7 @@
 
 **Reading is Peace. Writing is War.**
 
-The listed Combat Writing plugin seats two fresh readers from one company. This add-on seats other companies' models in the second chair, one seat per model you hold a key for, on your own API keys, so a round can be read by more than one company: the moment it seats one, the listed plugin's second fresh reader leaves and the outside seats number from 2 (Part 87, 2026-11-02). The crew is never padded: with one free Groq key it is three seats, seat-1, Qwen as seat-2 and gpt-oss as seat-3; an xAI key seats Grok, a Google key Gemini, each key the model of its provider, resolved from that provider's live catalog. It is a local MCP server. It is **not in the Claude plugin directory**; it is installed from this repository as Learning Producers' own marketplace. The add-on is source-available under the same terms as the listed plugin.
+The listed Combat Writing plugin seats two fresh readers from one company. This add-on seats other companies' models in the second chair, one seat per model you hold a key for, on your own API keys, so a round can be read by more than one company: the moment it seats one, the listed plugin's second fresh reader leaves and the outside seats number from 2 (Part 87). The crew is never padded: with one free Groq key it is three seats, seat-1, Qwen as seat-2 and gpt-oss as seat-3; an xAI key seats Grok, a Google key Gemini, each key the model of its provider, resolved from that provider's live catalog. It is a local MCP server. It is **not in the Claude plugin directory**; it is installed from this repository as Learning Producers' own marketplace. The add-on is source-available under the same terms as the listed plugin.
 
 ## What it does
 
