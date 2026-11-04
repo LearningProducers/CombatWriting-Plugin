@@ -16,10 +16,7 @@
 //     40-hex commit, the script run from stdin.
 //   - The session link (issue 156): a filled body carrying claude.ai/code/session, as plain
 //     text or inside an HTML comment, fails naming the link and no section; the same body
-//     without it passes; a 'Generated with Claude Code' line alone is not refused. The
-//     tracked .claude/settings.json tells the cloud harness not to append the link:
-//     attribution.commit is the Co-Authored-By line, attribution.pr is empty and
-//     attribution.sessionUrl is false.
+//     without it passes; a 'Generated with Claude Code' line alone is not refused.
 // Run from the repo root:   node tests/pr_body_check.js
 'use strict';
 var cp = require('child_process');
@@ -109,13 +106,6 @@ expectLinkFail('the session link in CRLF', withGenerated.replace('Co-Authored-By
   var r = run(filled.replace('The ruling of 2026-10-14.', '').replace(footer, footer + LINK + '\n'));
   check(r.code === 1 && named(r.out).join('|') === 'WHY' && /^pr-body: session link:/m.test(r.out), 'link and empty section: both named\n' + r.out);
 })();
-
-// The tracked settings that keep the harness from appending the link.
-var settings = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude', 'settings.json'), 'utf8'));
-var attribution = settings.attribution || {};
-check(attribution.commit === 'Co-Authored-By: Claude', '.claude/settings.json: attribution.commit must be "Co-Authored-By: Claude", got ' + JSON.stringify(attribution.commit));
-check(attribution.pr === '', '.claude/settings.json: attribution.pr must be "", got ' + JSON.stringify(attribution.pr));
-check(attribution.sessionUrl === false, '.claude/settings.json: attribution.sessionUrl must be false, got ' + JSON.stringify(attribution.sessionUrl));
 
 // The shipped template.
 var tpl = fs.readFileSync(path.join(ROOT, '.github', 'PULL_REQUEST_TEMPLATE.md'), 'utf8');

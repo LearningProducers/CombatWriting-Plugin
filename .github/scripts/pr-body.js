@@ -13,8 +13,9 @@
 //
 // The body also carries no session link (issue 156): a body holding the text
 // claude.ai/code/session anywhere, comments included, fails naming it, because such a link
-// opens for one account only and is a dead link to every other reader. The repository's
-// tracked .claude/settings.json tells the cloud harness not to append one.
+// opens for one account only and is a dead link to every other reader. A session that
+// opens a pull request reads the body back and deletes any footer the tool route appended
+// before it reports.
 //
 // Prints one line per problem naming the section and exits 1; prints one line and exits 0
 // when all four sections carry text. Run by .github/workflows/pr-body.yml on every pull
