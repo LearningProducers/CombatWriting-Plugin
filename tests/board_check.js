@@ -21,7 +21,7 @@
 //     note; the final reads), whether a rating was asked, and how many seats answered; the same
 //     line for every round in the history under the scoreboard; the record's round line carries
 //     the same task, never the inbox file name.
-//   - The verdict box, only over a number (ruled 2026-10-15): SEND when every rated seat's
+//   - The verdict box, only over a number (ruled 2026-10-15): AUTHOR'S CALL when every rated seat's
 //     latest rating is 8 or more; BACK TO THE DRAWING BOARD when any seat's is 6 or less,
 //     naming that seat and its number; the band lists every rated seat's latest number, never
 //     an average; a failed read counts for nothing; FINAL READS over each seat's S/N and
@@ -229,12 +229,12 @@ check(!/<figure class="frame/.test(freshHtml)&&!/Every round: the scoreboard/.te
 check(/<h2>The draft<\/h2>/.test(freshHtml)&&/<div class="paper"><p>Dear board, buy the company\.<\/p><\/div>/.test(freshHtml),'board (no rounds): the draft is still on the page');
 
 // A round of seat lines alone: round 2 goes to seat-2 only, with rerate. After round 1 every
-// seat is at 8: SEND. After round 2 seat-2 is at 6: BACK, and the other frames cite round 1.
+// seat is at 8: AUTHOR'S CALL (SEND until issue 163). After round 2 seat-2 is at 6: BACK, and the other frames cite round 1.
 var so=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--name','seatonly','--model','Test Model']).stdout.trim(),3,'Test Model');
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',so,'--round','01-sparring','--seat',s]); write(path.join(so,'rounds','01-sparring',s+'.answer.md'),'RATING: 8/10\nRound one. It ships as is.\n'); node('check-answer.js',[path.join(so,'rounds','01-sparring',s+'.answer.md'),'--run',so]); });
 node('render-board.js',['--run',so]);
 var sendHtml=fs.readFileSync(path.join(so,'board.html'),'utf8');
-check(/<section class="verdict send"[^>]*><p class="word">SEND<\/p><p class="why">Every rated seat put it at 8 or more: a working document by each seat's own number\. Nothing is averaged\.<\/p>/.test(sendHtml),'board (all 8): the verdict should be SEND; got '+(/<p class="word">[^<]*/.exec(sendHtml)||[''])[0]);
+check(/<section class="verdict send"[^>]*><p class="word">AUTHOR'S CALL<\/p><p class="why">Every rated seat put it at 8 or more: a working document by each seat's own number\. Nothing is averaged\.<\/p>/.test(sendHtml),"board (all 8): the verdict should be AUTHOR'S CALL, the apostrophe as written (issue 163); got "+(/<p class="word">[^<]*/.exec(sendHtml)||[''])[0]);
 check((sendHtml.match(/<li><b>8\/10<\/b>/g)||[]).length===3,'board (all 8): the band should list three 8/10');
 write(path.join(proj,'q2.md'),'Does the close ask for the vote?\n');
 node('packet.js',['--run',so,'--round','02-battle','--seat','seat-2','--question','q2.md','--rerate']);

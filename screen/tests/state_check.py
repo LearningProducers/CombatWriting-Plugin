@@ -39,7 +39,7 @@ st = render_state(PLUGIN_ROOT, run)
 check(st["schema"] == 1 and st["run"]["id"] == run.name and st["run"]["stage_started"] == "sparring", "state: wrong run block " + str(st.get("run")))
 check([s["id"] for s in st["seats"]] == ["seat-1", "seat-2"] and st["seats"][0]["fresh_reader"] is True, "state: seats wrong")
 check(len(st["rounds"]) == 1 and st["rounds"][0]["cells"]["seat-1"]["rating"] == 8 and st["rounds"][0]["cells"]["seat-2"]["kind"] == "missing", "state: round cells wrong")
-check(st["band"]["verdict"] == "SEND", "state: band should be SEND with one seat at 8, got " + str(st["band"].get("verdict")))
+check(st["band"]["verdict"] == "AUTHOR'S CALL", "state: band should be AUTHOR'S CALL with one seat at 8, got " + str(st["band"].get("verdict")))
 
 try:
     render_state(PLUGIN_ROOT, proj)

@@ -4,7 +4,7 @@
 # strip carries the run id and the motto as written; the tab strip carries the five tabs and
 # the key hints; the freshness line says what it watches; the credit line is nowhere; the
 # dialogue shows the round, the seat, its rating and its verdict line from the state; the
-# Launch reads SEND, then BACK TO THE DRAWING BOARD naming the seat within a few sweeps after
+# Launch reads AUTHOR'S CALL, then BACK TO THE DRAWING BOARD naming the seat within a few sweeps after
 # a new answer lands on disk and is checked; Enter opens a read as plain text; a round the
 # host announced shows as forming; a tab not yet built says so; a run folder that disappears
 # turns the freshness line stale with the time; a wrong plugin root is said on screen; a
@@ -71,7 +71,7 @@ async def main():
         check("Round 01-sparring" in text and "a rating asked" in text and "1 of 2 seats answered" in text, "shell: the round line is wrong")
         check("seat-1 · Test Model (Anthropic), seat-1" in text and "8/10" in text and "The ask lands in the first line." in text, "shell: seat-1's entry is wrong")
         check("seat-2 · Test Model (Anthropic), seat-2" in text and "No answer this round. Nothing stands in for it." in text, "shell: seat-2 should be missing")
-        check("LAUNCH   SEND" in text and "8/10 seat-1" in text, "shell: the launch should read SEND over seat-1's 8")
+        check("LAUNCH   AUTHOR'S CALL" in text and "8/10 seat-1" in text, "shell: the launch should read AUTHOR'S CALL over seat-1's 8")
         check("seat-1 · Test Model (Anthropic), seat-1 · the fresh reader" in text and "seated · served by test-fixture" in text, "shell: the available block is wrong")
         check("Mission  not set" in text and "Objective  not set" in text, "shell: mission and objective should read not set")
         check(("RAT" + "ING: 8/10") not in text, "shell: a closed read should not show its first line")
