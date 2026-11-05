@@ -182,7 +182,7 @@ check(/and pass the names to `new-run\.js --model` and `--model-2`/.test(rules),
 var docs={'CLAUDE.md':read(path.join(root,'CLAUDE.md')),'README.md':read(path.join(root,'README.md')),'plugin README':read(path.join(plugin,'README.md')),'add-on README':read(path.join(root,'plugins','combat-writing-crew','README.md')),'method':read(path.join(plugin,'method','combat-writing.md')),'docs mirror':read(path.join(root,'docs','combat-writing.md'))};
 Object.keys(docs).forEach(function(k){
   check(/two fresh readers/.test(docs[k])&&/second chair/.test(docs[k]),k+': should say two fresh readers and the second chair');
-  check(!/one fresh reader plus one seat per outside model/.test(docs[k]),k+': the one-reader sentence survives');
+  check(!/one fresh reader plus/.test(docs[k]),k+': the one-reader sentence survives');
 });
 check(/reversing the one-reader ruling of 2026-10-09/.test(docs['CLAUDE.md'])&&/seventh write location/.test(docs['CLAUDE.md'])&&/scripts\/seats\.js --set/.test(docs['CLAUDE.md']),'CLAUDE.md: the ruling, the seventh write location and seats.js');
 check(/seats\.js/.test(docs['CLAUDE.md'].split('## Layout')[1]||''),'CLAUDE.md: seats.js in the layout');
