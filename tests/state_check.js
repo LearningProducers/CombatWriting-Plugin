@@ -24,7 +24,7 @@
 //     rendered as a failed read with rating null (never a rating anywhere), a not-asked seat.
 //   - latest is each seat's own newest sound rating; the band is BACK TO THE DRAWING BOARD
 //     naming the low seat, its why-line equal to the board's, its numbers every rated seat's
-//     own; SEND on a fixture with every seat at 8 or more; FINAL READS over the two numbers on
+//     own; AUTHOR'S CALL on a fixture with every seat at 8 or more; FINAL READS over the two numbers on
 //     a run with final reads and no rating; no band on a run with no number.
 //   - The verdict line of a cell is lib.verdictLine; the draft's text and counts are present;
 //     the canon names the draft it froze; the champion's shipped line is lib.shippedLine.
@@ -160,14 +160,14 @@ var logLines=fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n
 var sr=logLines[logLines.length-1];
 check(sr.event==='state.rendered'&&sr.file==='state.json'&&sr.rounds===5,'render-state --write: state.rendered not logged last: '+JSON.stringify(sr));
 
-// 7. SEND on a fixture where every rated seat is at 8 or more; FINAL READS with no rating; no band with no number; a run with no round.
+// 7. AUTHOR'S CALL (SEND until issue 163) on a fixture where every rated seat is at 8 or more; FINAL READS with no rating; no band with no number; a run with no round.
 var send=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--brief','brief.md','--name','send','--model','Test Model']).stdout.trim(),2,'Test Model');
 ['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',send,'--round','01-sparring','--seat',s]); });
 write(path.join(send,'rounds','01-sparring','seat-1.answer.md'),'RATING: 9/10\nShips as is.\n');
 write(path.join(send,'rounds','01-sparring','seat-2.answer.md'),'RATING: 8/10\nReady to send.\n');
 ['seat-1','seat-2'].forEach(function(s){ node('check-answer.js',[path.join(send,'rounds','01-sparring',s+'.answer.md'),'--run',send]); });
 var ss=JSON.parse(node('render-state.js',['--run',send]).stdout);
-check(ss.band.verdict==='SEND'&&ss.band.low.length===0&&ss.band.numbers.map(function(n){return n.rating;}).join(',')==='9,8'&&/^Every rated seat put it at 8 or more/.test(ss.band.why),'state (send): band wrong: '+JSON.stringify(ss.band));
+check(ss.band.verdict==="AUTHOR'S CALL"&&ss.band.low.length===0&&ss.band.numbers.map(function(n){return n.rating;}).join(',')==='9,8'&&/^Every rated seat put it at 8 or more/.test(ss.band.why),'state (send): band wrong: '+JSON.stringify(ss.band));
 var nr=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--name','norating','--stage','battle','--no-brief','--model','Test Model']).stdout.trim(),2,'Test Model');
 write(path.join(proj,'sn.md'),'Is this ready to go to the board?\n');
 ['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',nr,'--round','01-battle','--seat',s,'--sn','sn.md']); });

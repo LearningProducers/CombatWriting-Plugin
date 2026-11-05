@@ -15,8 +15,8 @@
 // sentence before the card naming the command, the card, the picker or what is about to happen,
 // and this test pins both rule texts. The same issue carries the founder's three sentences: the
 // one-liner (the card and the guide), the rating line with AUTHOR'S CALL for the upper band (the
-// board, the record and lib.js keep SEND until issue 163) and the crew sentence with the chairs the
-// add-on takes.
+// board and lib.js printed SEND until issue 163 renamed the band everywhere) and the crew sentence
+// with the chairs the add-on takes.
 // Issue 158: the card and the guide mixed rules, sample commands and a slogan in one voice, so a
 // first-time reader could not tell a rule from an example, and a 17-row word table mixed what you
 // paste, how a round runs and where you are. Measured the same day: the guide printed 962 words.
@@ -29,15 +29,19 @@
 //     anywhere in it, the reply's first characters the motto's first word and no sentence before
 //     the card (issue 162); then the picker with the four options in order, one text prompt per stage,
 //     then the stage's command as if typed.
-//   - The guide between <!-- THE GUIDE BEGIN --> and <!-- THE GUIDE END -->: at most 400 words,
+//   - The guide between <!-- THE GUIDE BEGIN --> and <!-- THE GUIDE END -->: at most 450 words
+//     (400 until issue 163 added the two Right now templates and the two sharing rows; the founder,
+//     2026-11-04: "it's ok if it goes a bit long"),
 //     a word being a token that carries a letter or digit (a pipe, a rule line, a heading mark or a
 //     bullet is markup, not a word), the reply's first characters the motto; its first three lines: the motto, bold, equal to the card's
 //     first line, the card's one-liner verbatim, then the seat sentence; the four stage bullets in
 //     order; the Also line naming /cw:briefs, /cw:runs and /cw:help; three tables with their rows
-//     in order; the rating sentence verbatim; one bracketed live "[Right now: ...]" line, under The
-//     crew and nowhere else (not in the card, not in the bare rule), which the `all` paragraph says
-//     it fills, measured by the `crew_list` tool, else `claude plugin list`, and changes nothing
-//     else; the credit line last, equal to the card's.
+//     in order; the rating sentence verbatim; the two Right now templates verbatim, under The crew
+//     and nowhere else (not in the card, not in the bare rule), which the `all` paragraph says it
+//     prints exactly one of, filled, never a paraphrase, measured by the `crew_list` tool, else
+//     `claude plugin list`, and changes nothing else (issue 163); the sn: and sfq: rows saying every
+//     seat reads the others' answers first; the Also line's Help clause naming the card and this
+//     guide; the credit line last, equal to the card's.
 //   - Nothing in the card or the guide is an example: no line is a bare code span, no "ruled", no
 //     date, and every code span is a word that runs, or the placeholder form of one (the allow list below).
 //   - The plugin README's card, between its markers, is the skill's card with its markdown
@@ -108,15 +112,15 @@ check(/open the picker with the AskUserQuestion tool: one screen, one keypress, 
 ['Strategy, "Paste the draft, the brief with brief:, or both."','Sparring, "Paste the draft; add question: <one question> to put it to every seat."','Battle, "Paste the draft; add sn:, n:, fq: or sfq: with your prompt, or nothing for a first critique."','Champion, "shipped <link, or email to whom>, result: <what came back>, or insight: <what you learned>."'].forEach(function(t){ check(rule.indexOf(t)>=0,'help: the text prompt must stand verbatim: '+t); });
 check(/Run that stage's command with the next message as its text, exactly as if the person had typed `\/cw:<stage> <text>`/.test(rule)&&/never answer it, never shorten it/.test(rule),'help: the next message runs as the command\'s text, never answered by the host');
 var after=help.slice(e);
-check(/^\*\*`all`\*\* as `\$ARGUMENTS`: print the guide between the two marker comments below \(THE GUIDE BEGIN, THE GUIDE END\) exactly as it stands, with its headings, its three tables and its code spans, and nothing before or after it: the reply's first characters are the motto; call no tool and read nothing but what fills its one bracketed line/m.test(after)&&/If `\$ARGUMENTS` names one topic \(stages, order, commands, next, rounds, champion, briefs, runs, voices, files, where, crew, rating, record, privacy, method\), show only that section of the full guide below the rule/.test(after),'help: all prints the guide between its markers, the reply opening on the motto (issue 162), reading nothing but what fills its live line, a topic one section of the full guide');
-check(/Fill in the one bracketed line, under "The crew" in the guide and under "Where you are running" in the full guide, with the case that applies right now \(`all` and `where` only; the card has no such line and calls nothing\)/.test(after)&&/when the `crew_list` tool is in the tool list/.test(after)&&/told installed-but-down from absent with `claude plugin list`, which reads only/.test(after)&&/That one line is all `all` fills; change nothing else\./.test(after),'help: the live line is filled on all and where, under The crew, measured by crew_list and claude plugin list, and all changes nothing else');
+check(/^\*\*`all`\*\* as `\$ARGUMENTS`: print the guide between the two marker comments below \(THE GUIDE BEGIN, THE GUIDE END\) exactly as it stands, with its headings, its three tables and its code spans, and nothing before or after it: the reply's first characters are the motto; call no tool and read nothing but what fills its one Right now line/m.test(after)&&/If `\$ARGUMENTS` names one topic \(stages, order, commands, next, rounds, champion, briefs, runs, voices, files, where, crew, rating, record, privacy, method\), show only that section of the full guide below the rule/.test(after),'help: all prints the guide between its markers, the reply opening on the motto (issue 162), reading nothing but what fills its live line, a topic one section of the full guide');
+check(/Fill in the one Right now line, under "The crew" in the guide and under "Where you are running" in the full guide, with the case that applies right now \(`all` and `where` only; the card has no such line and calls nothing\), measured by the `crew_list` tool in the tool list, else `claude plugin list`, which reads only, the add-on told installed-but-down from absent with it\./.test(after)&&/In the guide the line is one of the two templates that stand under "The crew", never a paraphrase: when the `crew_list` tool is in the tool list, the first, as written; when the fresh readers are alone, the second, its two slots filled/.test(after)&&/`all` prints exactly one of the two, filled, and nothing more: the other template is not printed\./.test(after)&&/That one line is all `all` fills; change nothing else\./.test(after),'help: the live line is filled on all and where, under The crew, measured by crew_list and claude plugin list, one of the two templates and never a paraphrase, exactly one printed, and all changes nothing else (issue 163)');
 
 // The guide (issue 158): one screen, under the word ceiling, three tables, no example.
 var GB='<!-- THE GUIDE BEGIN -->', GE='<!-- THE GUIDE END -->';
 var gb=help.indexOf(GB), ge=help.indexOf(GE);
 check(gb>e&&ge>gb&&help.indexOf(GB,gb+1)<0&&help.indexOf(GE,ge+1)<0,'guide: must stand once between its two markers, after the card');
 var guide=help.slice(gb+GB.length,ge).replace(/^\n+|\n+$/g,'');
-var GUIDE_CEILING=400;
+var GUIDE_CEILING=450;
 var guideWords=words(guide);
 check(guideWords<=GUIDE_CEILING,'guide: '+guideWords+' words, over the ceiling of '+GUIDE_CEILING);
 var glines=guide.split('\n');
@@ -132,6 +136,7 @@ check(gbullets.length===4,'guide: four stage bullets, got '+gbullets.length);
 check(/`rerate`/.test(gbullets[2]||'')&&/`shipped`, `result:`, `insight:`/.test(gbullets[3]||''),'guide: Battle names rerate and Champion its three words');
 var also=glines.filter(function(l){return /^Also: /.test(l);});
 check(also.length===1&&/Briefs \(`\/cw:briefs`\)/.test(also[0])&&/Runs \(`\/cw:runs`\)/.test(also[0])&&/Help \(`\/cw:help`\)/.test(also[0]),'guide: one Also line naming Briefs, Runs and Help with their commands');
+check(/, Help \(`\/cw:help`\) is the card; `\/cw:help all` is this guide\.$/.test(also[0]||''),'guide: the Also line\'s Help clause reads "Help (`/cw:help`) is the card; `/cw:help all` is this guide." (issue 163); got '+(also[0]||''));
 var heads=glines.filter(function(l){return /^## /.test(l);}).map(function(l){return l.slice(3);});
 check(heads.join('|')==='Start a run|Run a round|Everything else|After every round|The rating|The crew|Where files land|More','guide: the eight sections in order; got '+heads.join(' | '));
 function rows(from,to){ var a=guide.indexOf('## '+from), z=to?guide.indexOf('## '+to):guide.length; return guide.slice(a,z).split('\n').filter(function(l){return /^\| `/.test(l);}).map(function(l){return l.split('|')[1].trim();}); }
@@ -139,17 +144,21 @@ check(rows('Start a run','Run a round').join(' ; ')==='`brief:` ; `reader:` ; `s
 check(rows('Run a round','Everything else').join(' ; ')==='`fq:` (also `question:`) ; `n:` ; `sn:` ; `sfq:`','guide: the Run a round table, four rows in order; got '+rows('Run a round','Everything else').join(' ; '));
 check(rows('Everything else','After every round').join(' ; ')==='`draft:` ; `rerate` ; `seat-N:` ; `cold` / `debate` ; `final` ; `run:` ; `brief <name>:` / `brief: <name>` ; `brief update:`','guide: the Everything else table, eight rows in order; got '+rows('Everything else','After every round').join(' ; '));
 check((guide.match(/^\|---\|---\|$/mg)||[]).length===3,'guide: three tables');
+check(/^\| `sn:` \| SN, your prompt; every seat reads the others' answers first \|\n\| `sfq:` \| SFQ, your question; every seat reads the others' answers first \|$/m.test(guide),'guide: the sn: and sfq: rows say every seat reads the others\' answers first (issue 163)');
 check(/^\| `seat-N:` \| a note to one seat: `seat-1:`, `seat-2:`, or its short name \|$/m.test(guide),'guide: the seat-N row says seat-1:, seat-2: and so on, or the short name');
 check(/^A keyword line opens a block that runs to the next keyword; any order, any case\.$/m.test(guide),'guide: the Start a run sentence');
 check(/^In FQ and N each seat answers alone; in SN and SFQ they read each other first\.$/m.test(guide),'guide: the Run a round sentence');
 check(/^The terminal prints the crew line, the scoreboard, the board's path and the seat key; the board opens in your browser\. Then the picker\.$/m.test(guide),'guide: After every round names the four lines, the browser and the picker');
-check(/^Ratings are 1 to 10 with 7 forbidden, never averaged\. 8 and above is AUTHOR\'S CALL, 6 and under BACK TO THE DRAWING BOARD; a changed rating quotes who moved it\.$/m.test(guide),'guide: the rating sentence, the bands (AUTHOR\'S CALL in the guide, issue 162; the board keeps SEND until issue 163) and the flip rule');
+check(/^Ratings are 1 to 10 with 7 forbidden, never averaged\. 8 and above is AUTHOR\'S CALL, 6 and under BACK TO THE DRAWING BOARD; a changed rating quotes who moved it\.$/m.test(guide),'guide: the rating sentence, the bands (AUTHOR\'S CALL, the name every surface prints since issue 163) and the flip rule');
 check(/^Two fresh readers by default\. The add-on, named combat-writing-crew, seats other companies' models on your keys and takes the second chair, third chair or more\.$/m.test(guide),'guide: the crew in two sentences, the chairs the add-on takes');
 check(/^Under combat-writing\/ in your project: runs\/, inbox\/, insight-vault\.md, brief\.md, briefs\/, seats\.json, voices\.json\.$/m.test(guide),'guide: where files land');
 check(/^`\/cw:help <topic>` prints one section: stages, order, commands, next; rounds, champion, briefs, runs; crew, where, voices; files, record, privacy; rating; method\.$/m.test(guide),'guide: the More line lists the topic words in groups');
+var LIVE_1="Right now: seat-1, a fresh reader, plus the add-on's seats, one per provider with a key.";
+var LIVE_2="Right now: the two fresh readers; the add-on is <not installed | installed but not running>. Next: <the one command for that state>.";
 var live=glines.filter(function(l){return l.indexOf('Right now')>=0;});
-check(live.length===1&&/^\[Right now: [^\]]+\]$/.test(live[0]),'guide: one bracketed live line, [Right now: ...]; got '+live.length);
-check(guide.indexOf('## The crew')>=0&&guide.indexOf(live[0]||'\0')>guide.indexOf('## The crew')&&guide.indexOf(live[0]||'\0')<guide.indexOf('## Where files land'),'guide: the live line stands under The crew');
+check(live.length===2&&live[0]===LIVE_1&&live[1]===LIVE_2,'guide: the two Right now templates verbatim, the add-on\'s then the fresh readers\' (issue 163); got '+JSON.stringify(live));
+check(live.length===2&&glines.indexOf(live[1])===glines.indexOf(live[0])+1,'guide: the two templates stand on consecutive lines');
+check(guide.indexOf('## The crew')>=0&&guide.indexOf(LIVE_1)>guide.indexOf('## The crew')&&guide.indexOf(LIVE_2)<guide.indexOf('## Where files land'),'guide: the templates stand under The crew');
 check(card.indexOf('Right now')<0,'card: no live line');
 check(glines[glines.length-1]===CREDIT&&lines[lines.length-1]===CREDIT,'guide and card: the credit line closes both, the same line');
 noExample(guide,'guide');
@@ -157,7 +166,7 @@ var full=help.slice(ge+GE.length);
 check(/^## The four stages, and the command for each$/m.test(full)&&/^## Fewer seats than you expected$/m.test(full)&&/^## Voices$/m.test(full)&&/^## The record$/m.test(full),'full guide: the sections stand behind the topic words');
 check(full.split('[Right now').length===2,'full guide: one live line, under Where you are running');
 check(words(full)>guideWords*3,'full guide: the detail stands after the markers, longer than the guide');
-check(/^argument-hint: \[all \| topic\]$/m.test(help)&&/^description: Bare, the card and a picker to begin/m.test(help)&&/under 400 words/.test(help.split('\n---')[0]),'help: the frontmatter names all | topic, the card and the 400-word guide');
+check(/^argument-hint: \[all \| topic\]$/m.test(help)&&/^description: Bare, the card and a picker to begin/m.test(help)&&/under 450 words/.test(help.split('\n---')[0]),'help: the frontmatter names all | topic, the card and the 450-word guide');
 check(/^- `\/cw:help` — bare, the card and a picker to begin \(the terminal's `\/cw` completes to it\); `help all` is the short guide; `help rounds` shows one section of this one\.$/m.test(help),'help: the commands section\'s own bullet');
 
 // The README: the card between its markers is the skill's card with its markdown stripped.
@@ -165,7 +174,7 @@ var readme=read(path.join(plugin,'README.md'));
 var stripped=lines.map(function(l){return l.replace(/\*\*/g,'').replace(/`/g,'');}).join('\n');
 var rb=readme.indexOf(BEGIN), re=readme.indexOf(END);
 check(rb>0&&re>rb&&readme.slice(rb+BEGIN.length,re).replace(/^\n+|\n+$/g,'')==='```\n'+stripped+'\n```','README: the card between its markers must be one fenced block equal to the card with bold and code spans stripped; got\n'+readme.slice(rb+BEGIN.length,re));
-check(/^- `\/cw:help` bare is the card: what Combat Writing is in one line, the four stages with their commands, the line to begin with, then one keypress picks a stage and your next message is its text \(typing `\/cw` alone completes to it\)\. `\/cw:help all` is the guide in plain words, under 400 words, with one live line naming the seats that sit right now; `\/cw:help <topic>` one section of the full guide\.$/m.test(readme),'README: the /cw:help bullet');
+check(/^- `\/cw:help` bare is the card: what Combat Writing is in one line, the four stages with their commands, the line to begin with, then one keypress picks a stage and your next message is its text \(typing `\/cw` alone completes to it\)\. `\/cw:help all` is the guide in plain words, under 450 words, with one live line naming the seats that sit right now; `\/cw:help <topic>` one section of the full guide\.$/m.test(readme),'README: the /cw:help bullet');
 check(readme.indexOf('under the card')<0&&readme.indexOf('under it the seats')<0,'README: no sentence says a line prints under the card');
 var manifest=JSON.parse(read(path.join(plugin,'.claude-plugin','plugin.json')));
 check(/\/cw:help, bare, is the card and a picker to begin; \/cw:help all explains the method\./.test(manifest.description),'manifest: the description names the card and all');

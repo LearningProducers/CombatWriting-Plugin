@@ -129,7 +129,7 @@ class Entry(Plain):
 
 
 class Launch(Plain):
-    """The Launch block: lit green on SEND, dark red on BACK TO THE DRAWING BOARD naming the
+    """The Launch block: lit green on AUTHOR'S CALL, dark red on BACK TO THE DRAWING BOARD naming the
     seat, grey over the two numbers on FINAL READS, dim with no rating. 7 is never a rating
     in the state, so it is never shown."""
 
@@ -138,9 +138,9 @@ class Launch(Plain):
         for c in ("send", "back", "final"):
             self.remove_class(c)
         t = Text("LAUNCH", style="bold")
-        if verdict == "SEND":
+        if verdict == "AUTHOR'S CALL":
             self.add_class("send")
-            t.append("   SEND", style="bold")
+            t.append("   AUTHOR'S CALL", style="bold")
             t.append("\n" + " · ".join(f"{n['rating']}/10 {n['seat']}" for n in band.get("numbers", [])))
         elif verdict == "BACK TO THE DRAWING BOARD":
             self.add_class("back")

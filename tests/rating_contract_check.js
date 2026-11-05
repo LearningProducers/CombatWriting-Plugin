@@ -81,7 +81,7 @@ expectFail('no reasoning, blank lines','RATING: 8/10\n\n   \n',/no reasoning/);
 // run (a 9 over "The draft is not send-ready", an 8 over "Not send-ready.") fail; the agreeing
 // forms pass; a "ready" phrase under a negation reads as not ready, and one in a conditional
 // clause ("to make this ready to send") is no verdict; a 6 is sent back for "ships as is" (the bands
-// ruled 2026-10-14: 8 and above SEND, 1 to 6 BACK, 7 forbidden).
+// ruled 2026-10-14: 8 and above AUTHOR'S CALL, the band SEND until issue 163, 1 to 6 BACK, 7 forbidden).
 expectFail('9 over not send-ready','RATING: 9/10\n\nThe draft is not send-ready. It violates the structural rule.\n\nTo make this send-ready, merge the sentences.\n',/rating 9\/10 calls the draft a working document \(8 to 10\), but the answer says "not send-ready"; make the number and the verdict agree/);
 expectFail('8 over Not send-ready','RATING: 8/10\n\nNot send-ready. One change: put his name in the greeting.\n',/working document.*"Not send-ready"/);
 expectFail('10 over do not send','RATING: 10/10\nDo not send this yet.\n',/working document.*"Do not send"/);

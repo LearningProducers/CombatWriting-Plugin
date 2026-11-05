@@ -1490,7 +1490,7 @@ function finalText(f){
   return snT+' · '+rfT;
 }
 // The band: from every seat's own latest rating, nothing
-// averaged; every rated seat at 8 or more is SEND; any at 6 or less is BACK TO THE DRAWING
+// averaged; every rated seat at 8 or more is AUTHOR'S CALL; any at 6 or less is BACK TO THE DRAWING
 // BOARD and the band names it; FINAL READS over each seat's two numbers when the run holds final
 // reads and no rating; no band at all otherwise. The words are the board's.
 function bandOf(seats,latest,finalRounds,finalCells){
@@ -1502,7 +1502,7 @@ function bandOf(seats,latest,finalRounds,finalCells){
     return {verdict:null,why:null,low:[],numbers:[],final_round:null};
   }
   var numbers=rated.map(function(s){return {seat:s.id,label:seatLabel(s),rating:latest[s.id].rating,round:latest[s.id].round};});
-  if(!low.length)return {verdict:'SEND',why:(rated.length===1?'The one rated seat':'Every rated seat')+' put it at 8 or more: a working document by '+(rated.length===1?'its':'each seat\'s')+' own number. Nothing is averaged.',low:[],numbers:numbers,final_round:lastFinal};
+  if(!low.length)return {verdict:"AUTHOR'S CALL",why:(rated.length===1?'The one rated seat':'Every rated seat')+' put it at 8 or more: a working document by '+(rated.length===1?'its':'each seat\'s')+' own number. Nothing is averaged.',low:[],numbers:numbers,final_round:lastFinal};
   return {verdict:'BACK TO THE DRAWING BOARD',why:low.map(function(s){return seatLabel(s)+' rated it '+latest[s.id].rating+'/10';}).join('; ')+': a problem document by '+(low.length===1?'that seat\'s':'those seats\'')+' own number. Nothing is averaged; one seat at 6 or less sends it back.',low:low.map(function(s){return s.id;}),numbers:numbers,final_round:lastFinal};
 }
 function runState(runDir){

@@ -8,7 +8,7 @@
 // The page, top to bottom: the motto; the round strip (the latest round's
 // prompt is visible at the top with nothing opened, from lib.roundTask, with whether a rating
 // was asked and how many seats answered); the newest draft, in full; the verdict box, only when
-// the run holds a number: SEND or BACK TO THE DRAWING BOARD from every
+// the run holds a number: AUTHOR'S CALL or BACK TO THE DRAWING BOARD from every
 // seat's own latest rating and nothing averaged (every seat 8 or more sends; any seat 6 or
 // less sends it back, and the band names that seat), or FINAL READS over each seat's S/N and
 // red-flag numbers when the run holds final reads and no rating, and no box at all otherwise;
@@ -162,7 +162,7 @@ function latestRating(seat){
 
 // The verdict across the top: from every seat's own latest rating, nothing
 // averaged. 8 to 10 is a working document and 1 to 6 a problem document, the seat's own rule;
-// every rated seat at 8 or more is SEND; any seat at 6 or less is BACK TO THE DRAWING BOARD,
+// every rated seat at 8 or more is AUTHOR'S CALL; any seat at 6 or less is BACK TO THE DRAWING BOARD,
 // and the band names that seat. The box shows only over a number: with
 // final reads and no rating it is FINAL READS over each seat's own two numbers; with neither
 // there is no box, and the round strip says what ran.
@@ -177,7 +177,7 @@ if(!rated.length){
     verdictWhy='No seat has rated this draft. These are the final reads of round '+finalRounds[finalRounds.length-1]+', each seat\'s own S/N ratio and red-flag count. Nothing is averaged.';
   }
 }else if(!low.length){
-  verdict='SEND'; verdictClass='send';
+  verdict="AUTHOR'S CALL"; verdictClass='send';
   verdictWhy=(rated.length===1?'The one rated seat':'Every rated seat')+' put it at 8 or more: a working document by '+(rated.length===1?'its':'each seat\'s')+' own number. Nothing is averaged.';
 }else{
   verdict='BACK TO THE DRAWING BOARD'; verdictClass='back';

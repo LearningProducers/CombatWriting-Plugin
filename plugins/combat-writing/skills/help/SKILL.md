@@ -1,6 +1,6 @@
 ---
 name: help
-description: Bare, the card and a picker to begin (what Combat Writing is in one line, the four stages with their commands, the line to begin with, then one keypress picks a stage and the next message is its text); `all`, the guide in plain words, under 400 words: the motto, the one line, the four stages and an Also line for the other three commands, the words the plugin reads in three tables, what comes after every round, the rating rule, the crew with the seats that sit right now, where files land, the credit line; a topic word (stages, order, commands, next, rounds, champion, briefs, runs, voices, files, where, crew, rating, record, privacy, method), one section of the full guide.
+description: Bare, the card and a picker to begin (what Combat Writing is in one line, the four stages with their commands, the line to begin with, then one keypress picks a stage and the next message is its text); `all`, the guide in plain words, under 450 words: the motto, the one line, the four stages and an Also line for the other three commands, the words the plugin reads in three tables, what comes after every round, the rating rule, the crew with the seats that sit right now, where files land, the credit line; a topic word (stages, order, commands, next, rounds, champion, briefs, runs, voices, files, where, crew, rating, record, privacy, method), one section of the full guide.
 argument-hint: [all | topic]
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
@@ -23,7 +23,7 @@ Begin with any stage: paste a draft into `/cw:sparring` or `/cw:battle`. `/cw:he
 Combat Writing — Learning Producers Inc., Israel Hernandez, founder · combatwriting.learningproducers.com
 <!-- THE CARD END -->
 
-**`all`** as `$ARGUMENTS`: print the guide between the two marker comments below (THE GUIDE BEGIN, THE GUIDE END) exactly as it stands, with its headings, its three tables and its code spans, and nothing before or after it: the reply's first characters are the motto; call no tool and read nothing but what fills its one bracketed line (Part 90: the detail stands behind the topic words, nothing cut from the plugin's text). If `$ARGUMENTS` names one topic (stages, order, commands, next, rounds, champion, briefs, runs, voices, files, where, crew, rating, record, privacy, method), show only that section of the full guide below the rule, under the motto line and above the credit line at the foot. When the plugin loads, a session-start hook hands the host one line of context, "Combat Writing ready. /cw:help for the guide." (and, on the first session alone, a line per thing one install still lacks: the crew add-on, the Mac's voices), which never prints on the screen, and the host says nothing of a lack unless asked, every result's Seats line naming a missing seat as it does; the card is what that line points at, the guide is behind `all`, and the detail behind each topic word. Fill in the one bracketed line, under "The crew" in the guide and under "Where you are running" in the full guide, with the case that applies right now (`all` and `where` only; the card has no such line and calls nothing): the two fresh readers, one seat (the host cannot start agents), or seat-1 and the add-on's seats when the `crew_list` tool is in the tool list; when the fresh readers are alone, which of the three states of "Fewer seats than you expected" applies and its next command, the add-on told installed-but-down from absent with `claude plugin list`, which reads only, and both next commands named when that cannot run. That one line is all `all` fills; change nothing else. Add no verdict, no sales pitch, no offer to run anything.
+**`all`** as `$ARGUMENTS`: print the guide between the two marker comments below (THE GUIDE BEGIN, THE GUIDE END) exactly as it stands, with its headings, its three tables and its code spans, and nothing before or after it: the reply's first characters are the motto; call no tool and read nothing but what fills its one Right now line (Part 90: the detail stands behind the topic words, nothing cut from the plugin's text). If `$ARGUMENTS` names one topic (stages, order, commands, next, rounds, champion, briefs, runs, voices, files, where, crew, rating, record, privacy, method), show only that section of the full guide below the rule, under the motto line and above the credit line at the foot. When the plugin loads, a session-start hook hands the host one line of context, "Combat Writing ready. /cw:help for the guide." (and, on the first session alone, a line per thing one install still lacks: the crew add-on, the Mac's voices), which never prints on the screen, and the host says nothing of a lack unless asked, every result's Seats line naming a missing seat as it does; the card is what that line points at, the guide is behind `all`, and the detail behind each topic word. Fill in the one Right now line, under "The crew" in the guide and under "Where you are running" in the full guide, with the case that applies right now (`all` and `where` only; the card has no such line and calls nothing), measured by the `crew_list` tool in the tool list, else `claude plugin list`, which reads only, the add-on told installed-but-down from absent with it. In the guide the line is one of the two templates that stand under "The crew", never a paraphrase: when the `crew_list` tool is in the tool list, the first, as written; when the fresh readers are alone, the second, its two slots filled with the state and the one next command of that state from "Fewer seats than you expected" (not installed: the install line; installed but not running: `/mcp`), and both next commands when `claude plugin list` cannot run. `all` prints exactly one of the two, filled, and nothing more: the other template is not printed. The full guide's bracketed line under "Where you are running" takes the same facts in its own words. That one line is all `all` fills; change nothing else. Add no verdict, no sales pitch, no offer to run anything.
 
 <!-- THE GUIDE BEGIN -->
 **Reading is Peace. Writing is War.**
@@ -37,7 +37,7 @@ A seat is one model judging your draft alone. Start at any stage, skip any.
 - **Battle** `/cw:battle` the seats discuss, read each other when shared, rate again on `rerate`.
 - **Champion** `/cw:champion` the piece went out: `shipped`, `result:`, `insight:`.
 
-Also: Briefs (`/cw:briefs`) lists your briefs, Runs (`/cw:runs`) lists your runs, Help (`/cw:help`) is the card.
+Also: Briefs (`/cw:briefs`) lists your briefs, Runs (`/cw:runs`) lists your runs, Help (`/cw:help`) is the card; `/cw:help all` is this guide.
 
 ## Start a run
 
@@ -57,8 +57,8 @@ In FQ and N each seat answers alone; in SN and SFQ they read each other first.
 |---|---|
 | `fq:` (also `question:`) | FQ, a question to every seat |
 | `n:` | N, guidance to every seat |
-| `sn:` | SN, your prompt |
-| `sfq:` | SFQ, your question |
+| `sn:` | SN, your prompt; every seat reads the others' answers first |
+| `sfq:` | SFQ, your question; every seat reads the others' answers first |
 
 ## Everything else
 
@@ -85,7 +85,8 @@ Ratings are 1 to 10 with 7 forbidden, never averaged. 8 and above is AUTHOR'S CA
 
 Two fresh readers by default. The add-on, named combat-writing-crew, seats other companies' models on your keys and takes the second chair, third chair or more.
 
-[Right now: the seats that sit; fresh readers alone, why and the next command.]
+Right now: seat-1, a fresh reader, plus the add-on's seats, one per provider with a key.
+Right now: the two fresh readers; the add-on is <not installed | installed but not running>. Next: <the one command for that state>.
 
 ## Where files land
 
@@ -236,7 +237,7 @@ The host tells the first two apart with `claude plugin list`, which reads only; 
 ## The record
 
 - The terminal, while a round runs: one line the moment the round is chosen ("Round 03 forming: N to 3 seats ...") and one line per seat as it finishes, so you are never looking at nothing; and, only when a seat's packet is over its provider's wall, one warning naming the seat and how much to cut, so "Too long to send" never comes after the send. What every round cost, the largest packet's tokens by part and the room left, is on the board under Run details and in the record, when you want it. After every sparring and battle round: the crew line, the scoreboard (its legend once per run), the board's path and the picker, and nothing else. The reads are on the board.
-- `board.html`, the result: it opens in your browser after every round. At the top, the latest round in one line: its prompt in quotes, whether a rating was asked, how many seats answered; the draft; then, only when the run holds a number, the box: SEND or BACK TO THE DRAWING BOARD from every seat's own latest rating and nothing averaged (every seat at 8 or more sends; any seat at 6 or less sends it back, and the band names it), or FINAL READS over each seat's two numbers when only final reads exist, and no box at all when no seat has rated; then one framed quote per seat, the seat's one-line verdict in bold, cited to the model by name and company, with the full read folded under a click, and the seat's own note when it alone was asked something; then, folded, the scoreboard of every round with every round's prompt under it, and the run details. Light and dark, one file, no outside requests, a local file never published.
+- `board.html`, the result: it opens in your browser after every round. At the top, the latest round in one line: its prompt in quotes, whether a rating was asked, how many seats answered; the draft; then, only when the run holds a number, the box: AUTHOR'S CALL or BACK TO THE DRAWING BOARD from every seat's own latest rating and nothing averaged (every seat at 8 or more sends; any seat at 6 or less sends it back, and the band names it), or FINAL READS over each seat's two numbers when only final reads exist, and no box at all when no seat has rated; then one framed quote per seat, the seat's one-line verdict in bold, cited to the model by name and company, with the full read folded under a click, and the seat's own note when it alone was asked something; then, folded, the scoreboard of every round with every round's prompt under it, and the run details. Light and dark, one file, no outside requests, a local file never published.
 - `record.md`: the crew, the seat key, the drafts and brief, the stage the run started at and its first round, the scoreboard (one row per seat, one column per round, flips marked, Stand marked, critique rounds marked, truncated reads marked, missing marked, not asked marked), the Champion section once the piece is shipped or a result or insight is recorded, every answer in full, the log of what was sent.
 
 ## The draft is untrusted
