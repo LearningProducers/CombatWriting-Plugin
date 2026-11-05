@@ -205,10 +205,10 @@ Delivers (when done): the gap-list issue, PLAN.md.
 
 Status: not started — 2026-11-05 — still under planning, unstamped; held until Part 109.
 
-## Part 113 — The texts stop saying the short form carries the Next line (cw 0.8.45)
+## Part 113 — The texts stop saying the short form carries the Next line (cw 0.8.46)
 
-Issue 48, measured 2026-10-21 and again 2026-11-05: `render-record.js --short` keeps only the scoreboard lines, so the text Next line never reached the short form, while the rules skill, CLAUDE.md and a code comment said it did. Ruled 2026-11-05 (lpi-ops #628): the words drop rather than the line printing, because departure 15 says the terminal shows the crew line, the scoreboard, the board's path and the picker and nothing else, and the picker already carries the next moves; `record.md` keeps the line and `--next` prints it for "Done for now". The two texts and the comment now say so; no behavior changes. The skill lives under the plugin folder: cw 0.8.45.
+Issue 48, measured 2026-10-21 and again 2026-11-05: `render-record.js --short` keeps only the scoreboard lines, so the text Next line never reached the short form, while the rules skill, CLAUDE.md and a code comment said it did. Ruled 2026-11-05 (lpi-ops #628): the words drop rather than the line printing, because departure 15 says the terminal shows the crew line, the scoreboard, the board's path and the picker and nothing else, and the picker already carries the next moves; `record.md` keeps the line and `--next` prints it for "Done for now". The two texts and the comment now say so; no behavior changes. The skill lives under the plugin folder: cw 0.8.46 (0.8.45 is Part 111's, which merges first).
 
-Delivers (cw 0.8.45): CLAUDE.md, `skills/combat-writing/SKILL.md`, `scripts/render-record.js` (a comment), both manifests, PLAN.md.
+Delivers (cw 0.8.46): CLAUDE.md, `skills/combat-writing/SKILL.md`, `scripts/render-record.js` (a comment), both manifests, PLAN.md.
 
 Status: delivered — 2026-11-05 — draft pull request open; `node tests/run_all.js` run in the build session, the count in the pull request body.
