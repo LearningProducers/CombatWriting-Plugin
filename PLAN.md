@@ -205,10 +205,10 @@ Delivers (when done): the gap-list issue, PLAN.md.
 
 Status: not started — 2026-11-05 — still under planning, unstamped; held until Part 109.
 
-## Part 111 — The root README's Runs bullet says what the crew is today (no bump)
+## Part 111 — Both READMEs say what the crew is today (cw 0.8.45)
 
-Issue 155, filed 2026-11-04 by the cloud session that shipped Part 100: the root README's Runs bullet still said the crew is one fresh reader, which Part 87 made two. The sentence now carries the help skill's words (two fresh readers by default; the add-on seats other companies' models on your keys and takes the second chair, third chair or more), and no other line of the README moves. Docs only, nothing under the plugin folders: no bump.
+Issue 155, filed 2026-11-04 by the cloud session that shipped Part 100: the root README's Runs bullet still said the crew is one fresh reader, which Part 87 made two. The sentence now carries the help skill's words (two fresh readers by default; the add-on seats other companies' models on your keys and takes the second chair, third chair or more), and no other line of the root README moves. The pre-PR read found the same claim a second time, present tense, in the listing README's examples paragraph ("Today the crew is one fresh reader plus the outside seats the add-on registers"), a spelling `tests/readers_check.js` did not list; that sentence now says two fresh readers by default and the check's regex widens to `one fresh reader plus`, so the class cannot return. The listing README lives under the plugin folder: cw 0.8.45.
 
-Delivers: README.md, PLAN.md.
+Delivers (cw 0.8.45): README.md, `plugins/combat-writing/README.md`, `tests/readers_check.js`, both manifests, PLAN.md.
 
 Status: delivered — 2026-11-05 — draft pull request open; `node tests/readme_check.js` and `node tests/run_all.js` run in the build session, the counts in the pull request body.
