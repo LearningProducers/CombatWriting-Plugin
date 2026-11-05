@@ -3,7 +3,8 @@
 // hook on the Bash tool. When the host's command ran `render-record.js --short`, the hook puts
 // the short form the script printed (the Crew line through the Seat key line) on the person's
 // screen as the plugin's own message, through the hook's systemMessage, the field the terminal
-// shows the person (the session-start line "Combat Writing ready" is one); no host relays it,
+// shows the person (the one hook of the plugin that uses it: the session-start hook hands its
+// line to the host as context and prints nothing, issue 165); no host relays it,
 // so a host that narrates instead of printing changes nothing the person sees. When the command
 // ran `open-board.js` and its line says the opener failed or there is no opener (a shell with
 // no desktop: Claude Code's sandbox has no Launch Services, measured 2026-10-24), the hook opens

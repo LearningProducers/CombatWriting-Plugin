@@ -1049,3 +1049,11 @@ The Bare rule now says the opening in the host's own terms, in one clause after 
 Delivers (cw 0.8.42): plugins/combat-writing/skills/help/SKILL.md, plugins/combat-writing/README.md, plugins/combat-writing/.claude-plugin/plugin.json, .claude-plugin/marketplace.json, tests/help_check.js, PLAN.md.
 
 Status: delivered — 2026-11-05 — draft pull request open; `node tests/run_all.js` run in the build session, its count in the pull request body; the done-when is read on the founder's terminal after the merge: a bare `/cw:help` on Claude Code 2.1.318 opens with "Reading is Peace. Writing is War." and nothing before it, then the picker, and `/cw:help all` opens on the motto with the three sentences as ruled.
+
+## Part 103 — Nothing prints at session start (cw 0.8.43)
+
+Issue 165, ruled 2026-11-04: the hook printed the ready line and the first-session lacks as `systemMessage`; now it writes `hookSpecificOutput.additionalContext` alone (the hooks reference, read first: context the model reads, never a message), the host silent on a lack unless asked. Every hit for the line and the key re-pinned or reworded. The full record is in issue 165 and its pull request: this file sat 815 bytes under the 256 KiB limit, issue 166.
+
+Delivers (cw 0.8.43): the hook, show-result.js header, the help skill, the plugin README, both manifests, the two hook tests, README.md, CLAUDE.md, the map, the checklist, PLAN.md.
+
+Status: delivered — 2026-11-05 — draft pull request open; the silence is proved on the founder's terminal.

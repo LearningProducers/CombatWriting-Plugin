@@ -88,7 +88,7 @@ Nothing is fetched by any script. The one outside connection is the host opening
 
 | Hook | When | What it does |
 |---|---|---|
-| `session-start.js` | every session start and resume | prints "Combat Writing ready. /cw:help for the guide."; on the first session only, says what the install still lacks (the crew add-on, the Mac's voices) and never again |
+| `session-start.js` | every session start and resume | prints nothing to the person: hands the host "Combat Writing ready. /cw:help for the guide." as context it reads and never shows (`hookSpecificOutput.additionalContext`, no `systemMessage`); on the first session only, adds what the install still lacks (the crew add-on, the Mac's voices) and never again |
 | `seat-scope.js` | before every tool call | for a fresh reader alone: allows Read inside its run folder and Write to its own answer file, denies the rest; touches nobody else |
 | `show-result.js` | after every shell command | when the command printed the short form, puts it on your screen as the plugin's own line; when the opener failed in the sandbox, opens the board itself; when the speech engine was silenced, renders the voices itself |
 

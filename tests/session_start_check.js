@@ -9,8 +9,10 @@
 // named by CW_SESSION_PROBE, and a temporary data folder as the hook's argument:
 //   - First start, the add-on absent and one quality voice: the ready line, then the add-on line
 //     (lib.ADDON_INSTALL in it), then the voices line naming the count, the voice and the download
-//     path; the sentinel `first-session` written with what was measured; the same text in
-//     additionalContext.
+//     path, all in hookSpecificOutput.additionalContext, the context the host reads and the
+//     terminal never shows; the sentinel `first-session` written with what was measured.
+//   - No case carries a systemMessage key (issue 165, 2026-11-04: nothing prints on the screen at
+//     session start, ever; the ready line is for the model and belongs in additionalContext alone).
 //   - Second start on the same data folder: the ready line alone.
 //   - First start with the add-on present and three English quality voices: the ready line alone;
 //     the sentinel still written. A French premium voice and a stock voice are not counted.
@@ -36,6 +38,7 @@ var failures=[], passes=0;
 function check(cond,msg){ if(cond)passes++; else failures.push(msg); }
 function read(p){ return fs.readFileSync(p,'utf8'); }
 var LINE='Combat Writing ready. /cw:help for the guide.';
+var outs=[];
 var tmp=fs.mkdtempSync(path.join(os.tmpdir(),'cw-session-'));
 function fakes(dir,claudeOut,sayOut,claudeExit){
   fs.mkdirSync(dir,{recursive:true});
@@ -48,7 +51,9 @@ function run(fakeDir,dataDir,env){
   delete e.CLAUDE_PLUGIN_DATA; if(env&&env.CLAUDE_PLUGIN_DATA)e.CLAUDE_PLUGIN_DATA=env.CLAUDE_PLUGIN_DATA;
   var r=cp.spawnSync(process.execPath,[hook].concat(dataDir?[dataDir]:[]),{encoding:'utf8',env:e,cwd:tmp});
   var out=null; try{ out=JSON.parse((r.stdout||'').trim().split('\n')[0]); }catch(x){}
-  return {r:r,out:out,lines:out?String(out.systemMessage).split('\n'):[]};
+  outs.push(out);
+  var ctx=out&&out.hookSpecificOutput&&typeof out.hookSpecificOutput.additionalContext==='string'?out.hookSpecificOutput.additionalContext:null;
+  return {r:r,out:out,lines:ctx!==null?ctx.split('\n'):[]};
 }
 var LIST_ABSENT='Installed plugins:\n\n  cw@learning-producers\n    Version: 0.8.34\n';
 var LIST_PRESENT='Installed plugins:\n\n  combat-writing-crew@learning-producers\n    Version: 0.5.12\n\n  cw@learning-producers\n';
@@ -63,7 +68,7 @@ check(a.r.status===0&&a.r.stderr===''&&a.out,'first start: exit '+a.r.status+' '
 check(a.lines.length===3&&a.lines[0]===LINE,'first start: three lines, the ready line first: '+JSON.stringify(a.lines));
 check(a.lines[1]==='The crew add-on is not installed: the crew is the two fresh readers, one company\'s models. '+lib.ADDON_INSTALL+' seats two more models on a free Groq key in the second chair, your key going only to Groq. /cw:help crew for the three states.','first start: the add-on line: '+a.lines[1]);
 check(/^This Mac has 1 premium or enhanced voice \(Ava \(Premium\)\)\. The board reads each seat in its own voice when three are installed: System Settings, Accessibility, Read & Speak \(Spoken Content before macOS 26\), the ⓘ beside System voice, then the arrow beside Ava \(Premium\), Nathan \(Enhanced\) and Allison \(Enhanced\), or any Premium or Enhanced voice\. \/cw:help voices\.$/.test(a.lines[2]),'first start: the voices line counts one and names the path: '+a.lines[2]);
-check(a.out.hookSpecificOutput&&a.out.hookSpecificOutput.hookEventName==='SessionStart'&&a.out.hookSpecificOutput.additionalContext===a.out.systemMessage,'first start: additionalContext carries the same text');
+check(a.out.hookSpecificOutput&&a.out.hookSpecificOutput.hookEventName==='SessionStart'&&Object.keys(a.out).join()==='hookSpecificOutput'&&Object.keys(a.out.hookSpecificOutput).sort().join()==='additionalContext,hookEventName','first start: hookSpecificOutput for SessionStart with additionalContext is the whole object, no systemMessage: '+JSON.stringify(Object.keys(a.out)));
 var sent=path.join(d1,'first-session');
 check(fs.existsSync(sent),'first start: the sentinel is written');
 var sj=null; try{ sj=JSON.parse(read(sent)); }catch(x){}
@@ -101,11 +106,13 @@ var e7=run(f5,path.join(tmp,'d7'),{HOME:home7});
 check(e7.lines.length===1&&JSON.parse(read(path.join(tmp,'d7','first-session'))).addon.present===null,'claude fails and no cache: unmeasured, no line');
 // 6. No data folder: the ready line alone, nothing written.
 var g=run(f1,null);
-check(g.r.status===0&&g.lines.length===1&&g.lines[0]===LINE&&Object.keys(g.out).sort().join()==='hookSpecificOutput,systemMessage','no data folder: the ready line alone');
+check(g.r.status===0&&g.lines.length===1&&g.lines[0]===LINE&&Object.keys(g.out).sort().join()==='hookSpecificOutput','no data folder: the ready line alone, in additionalContext alone');
 // The data folder from the environment when no argument is given.
 var d8=path.join(tmp,'d8');
 var h8=run(f1,null,{CLAUDE_PLUGIN_DATA:d8});
 check(h8.lines.length===3&&fs.existsSync(path.join(d8,'first-session')),'the data folder is read from CLAUDE_PLUGIN_DATA when no argument comes');
+// No case prints on the screen: no systemMessage key in any output (issue 165).
+check(outs.length>=9&&outs.every(function(o){ return o&&!('systemMessage' in o); }),'no run carries a systemMessage key: nothing prints on the screen at session start; got '+outs.map(function(o){return o?Object.keys(o).join('+'):'(none)';}).join(', '));
 // 7. hooks.json, the manifests, the docs.
 var hooks=JSON.parse(read(path.join(plugin,'hooks','hooks.json')));
 var sh=hooks.hooks.SessionStart[0].hooks[0];
@@ -121,6 +128,7 @@ check(/^- \*\*What one install brings\.\*\*|\*\*What one install brings\.\*\* In
 var help=read(path.join(plugin,'skills','help','SKILL.md'));
 check(/^## Voices$/m.test(help)&&/`help voices` shows this section\./.test(help)&&/champion, briefs, runs, voices, files/.test(help),'help: the Voices section and the topic');
 check(/first-session/.test(read(path.join(root,'CLAUDE.md')))&&/The first-session line \(Part 83/.test(read(path.join(root,'CLAUDE.md'))),'CLAUDE.md names the first-session line');
+check(/never carries `systemMessage`/.test(read(path.join(root,'CLAUDE.md')))&&/prints nothing to the person/.test(read(path.join(plugin,'README.md')))&&/prints nothing to the person/.test(read(path.join(root,'docs','plugin-map.md'))),'CLAUDE.md, the plugin README and the plugin map say the hook prints nothing to the person (issue 165)');
 
 fs.rmSync(tmp,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});

@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// session-start.js: the line the plugin prints when it loads, and, on the
+// session-start.js: the line the plugin hands the host when it loads, and, on the
 // first session only, what one install still lacks (Part 83).
 //
-// Run by the SessionStart hook in hooks.json at session start and resume. Every start prints the
-// ready line. The FIRST start (no `first-session` file in the plugin's data folder, the folder
-// Claude Code keeps across updates and removes on uninstall) also measures two things and prints
-// one line per lack, nothing when there is no lack, then writes the sentinel so no later start
+// Run by the SessionStart hook in hooks.json at session start and resume. Every start writes one
+// JSON object whose hookSpecificOutput.additionalContext carries the ready line, context the host
+// reads that never appears as a message (the hooks reference's definition); nothing prints on the
+// screen at session start, so the object never carries a systemMessage key, the field the terminal
+// shows the person. The host says nothing about a lack unless asked; a missing seat is still named
+// in every result's Seats line. The FIRST start (no `first-session` file in the plugin's data folder, the folder
+// Claude Code keeps across updates and removes on uninstall) also measures two things and adds
+// one line per lack after the ready line, nothing when there is no lack, then writes the sentinel so no later start
 // repeats it; /cw:help crew and /cw:help voices carry the same lines for later:
 //   - The crew add-on: `claude plugin list` (the documented signal, read with a 5 s budget) names
 //     combat-writing-crew; when the command cannot run, the plugin cache is read instead
@@ -75,6 +79,5 @@ if(dataDir){
 }
 var text=lines.join('\n');
 process.stdout.write(JSON.stringify({
-  systemMessage:text,
   hookSpecificOutput:{hookEventName:'SessionStart',additionalContext:text}
 })+'\n');
