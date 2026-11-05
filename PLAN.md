@@ -204,3 +204,11 @@ lpi-ops #625 (the directory road), still under planning, not stamped, and held u
 Delivers (when done): the gap-list issue, PLAN.md.
 
 Status: not started — 2026-11-05 — still under planning, unstamped; held until Part 109.
+
+## Part 112 — CLAUDE.md names truncation as a field, not an event (no bump)
+
+Issue 50, measured 2026-10-21 and again 2026-11-05: the word-cap paragraph named `crew.answered.truncated` and `answer.checked.truncated` as if they were log events. No such events exist: truncation is the `truncated` field inside the `crew.answered` line (`server.js`) and inside the `answer.checked` line (`check-answer.js`), and `render-board.js` `truncationOf` and `render-record.js` read both as fields. The paragraph now says so; nothing else changes. Docs only, nothing under the plugin folders: no bump.
+
+Delivers: CLAUDE.md, PLAN.md.
+
+Status: delivered — 2026-11-05 — draft pull request open; `node tests/run_all.js` run in the build session, the count in the pull request body.
