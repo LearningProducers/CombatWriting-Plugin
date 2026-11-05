@@ -149,7 +149,7 @@ if(rounds.length){
     out.push('| '+lib.seatLabel(s)+' | '+rounds.map(function(r){return grid[s.id][r].text;}).join(' | ')+' | '+(latest===null?'—':bar(latest)+' '+latest+'/10')+' |');
   });
   out.push('');
-  // The text Next line: kept here, and printed by --short for the host's picker.
+  // The text Next line: kept here, and printed by --next for the host's picker; --short never carries it.
   out.push('**'+lib.nextLine(seats,path.basename(runDir)).replace(/^Next: /,'Next:** '));
 }else out.push(noRoundsLine);
 // Champion: what was shipped, what came back, what the run taught, from the
