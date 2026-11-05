@@ -154,3 +154,53 @@ Three lines of the help, the founder's rulings of the same day, in `skills/help/
 Delivers (cw 0.8.44, screen 0.1.6): `scripts/lib.js`, `scripts/render-board.js`, the four skills, `method/combat-writing.md` and `docs/combat-writing.md`, both READMEs, `docs/plugin-map.md`, CLAUDE.md, both manifests, `screen/cw_screen/widgets/__init__.py`, `screen/README.md`, `screen/tests/shell_check.py`, `screen/tests/state_check.py`, the screen's three version files, `tests/board_check.js`, `tests/state_check.js`, `tests/rating_contract_check.js`, `tests/help_check.js`, PLAN.md.
 
 Status: delivered — 2026-11-04 — draft pull request open; `node tests/run_all.js` run in the build session, its count and the guide's word count in the pull request body; the done-when is read on the founder's board: a run with every seat at 8 or more shows AUTHOR'S CALL across the top.
+
+## Part 106 — The board redesign: the look as data, one identity per company (cw bump when built)
+
+lpi-ops #625 (the directory road), still under planning, not stamped. The road to the directory was measured on 2026-11-04 against the published checks (the pre-submission checklist, the submission guide, the directory's publish page and the platform-support page): the plugin's mechanics pass, and the gap to a listing is presentation and one product fact. The board is the presentation. On a three-seat round every seat looked the same, and the ruling of that evening was that the board uses the full width of the window, that the text is black on light and white on dark with the color in the frames and panels, and that each seat carries its company's identity so a seat is told apart at a glance and the same company looks the same in every run.
+
+The design comes first and lives in the atelier, the private design record: eight static comps rendered from one invented fixture round (four ideas, each in light and in dark: BYLINES, the column of frames with a company identity per frame; NEWSPAPER, full-width columns under one masthead; CARDS AT THE TABLE, the draft at the centre and the seats as cards around it; CONSOLE, one screen on a `100dvh` grid with the draft in the center zone and the seats as a rank of panels), rated 1 to 10 with 7 forbidden, one light and one dark picked. The build then: `scripts/render-board.js` takes the pick as data (the `:root` tokens plus a seat-identity table keyed by company, so a variant is a theme and nothing is hard-wired); `main{max-width:1360px}` goes; the fonts are open-licensed files (OFL) in the repository, embedded as data at render time so every user sees the same board with no network; `tests/board_check.js` is re-pinned; the live board (the fourth item of issue 113's sequence, not yet a part) is built on the new layout, not before it, so the layout is designed once. The help's labeled walkthrough (the example of at most 100 words at the top of the guide) is written after this part ships, as its own part, because its last line describes the board.
+
+Two costs measured before any build, named here so the brief carries them: (1) `tests/board_check.js` bans every `url(` in the page, and an embedded font needs `@font-face{src:url(data:font/woff2;base64,...)}`, so the embed narrows that one check to `url(data:font/` and nothing else, and the no-outside-request rule still holds word for word; (2) four embedded faces add roughly 100 to 400 KB to every board.html written into a run folder; the font files are allowed binaries under `tests/license_check.js` and their licenses ride in `LICENSES/` and NOTICE. If the light and dark picks are different ideas, the build carries two layouts keyed by the Light / dark control, and that cost (two layouts kept in step on every later change) is named in the brief before it is built.
+
+Delivers (when built): `scripts/render-board.js`, the font files and their licenses, `tests/board_check.js`, the READMEs and skills that describe the board, PLAN.md.
+
+Status: not started — 2026-11-05 — still under planning, unstamped; the eight comps wait on the fixture draft; nothing is built until the pick is on the record.
+
+## Part 107 — The add-on's road to the directory: its checklist pass and README (crew bump when built)
+
+lpi-ops #625 (the directory road), still under planning, not stamped. The ruling of 2026-11-04: the add-on is submitted too, as a second bundle from the same repository, so a directory install is a real crew. Its `userConfig` masked keys with `sensitive: true` are the directory's required shape. Two items the checklist marks held for a reviewer, not blocked: the environment-variable fallback and the owner-only key file (`crew-lib.js`, `keyFor` and `keyFilePath`). The decision carried in this part when it is stamped: keep both routes and accept the hold (the file route is what survives a host update, and the README says why), or drop them for the directory.
+
+The work: `docs/directory-checklist-crew.md` passed row by row with no measured number in a row; the add-on's README drops the sentence that it is not listed; the cw listing's description names the add-on as its crew; `tests/marketplace_check.js` re-pinned where it pins the separation. The listing text says Claude Code plainly: a local MCP server is ignored on claude.ai chat and loads in the desktop app only on the person's own computer.
+
+Delivers (when built): `plugins/combat-writing-crew/README.md`, `docs/directory-checklist-crew.md`, `docs/directory-checklist.md` (its add-on row stops reading n/a), `.claude-plugin/marketplace.json`, `tests/marketplace_check.js`, PLAN.md.
+
+Status: not started — 2026-11-05 — still under planning, unstamped; after Part 106.
+
+## Part 108 — The stranger's first ten minutes: the fresh-directory run and the persona evals (no bump unless a stage fails)
+
+lpi-ops #625 (the directory road), still under planning, not stamped. No second computer is needed: a fresh config directory on one Mac is a stranger's machine (no marketplaces, no plugins, no keys, no first-session sentinel), launched with one environment variable in front of the plain `claude` binary; the exact line goes in the brief. A clock runs. Five stages, each rated 1 to 10 with 7 forbidden with one sentence on where the reader stopped to think; the numbers go on this part's issue; anything under 8 is a build before the submission. (1) INSTALL: add the marketplace, install cw, open a session; nothing prints at start (cw 0.8.43); `/cw:help` is the first thing typed and the card comes up with the picker. (2) THE FIRST ROUND, NO ADD-ON: a draft pasted into `/cw:sparring` and nothing else; a run starts, two fresh readers rate, the board opens, and the Seats line says in one sentence why two seats and what to install for more. (3) THE ADD-ON: install it, add a key the README's way, new session, one battle round; the Seats line changes and outside seats appear by company. (4) THE GUIDE AND THE RECORD: `/cw:help all` once; the run folder; `record.md` read as a stranger. (5) THE SECOND SURFACE: the desktop app in the same project, `/cw:help`; the add-on does not load on claude.ai chat and loads in the app only on the person's own machine, so the listing's Claude Code claim is what is confirmed.
+
+Persona evals under `plugins/combat-writing/evals/`: a first-timer who types `/cw:help` and then pastes a draft with no keyword; an impatient user who pastes a draft straight into `/cw:battle`; a narrow terminal. Each graded on what the plugin tells them to do next; run with `claude plugin eval` on the Mac.
+
+Delivers (when built): `plugins/combat-writing/evals/`, the stage ratings on the issue, `docs/directory-checklist.md` (the load-on-each-surface row moves from not done to the date), PLAN.md.
+
+Status: not started — 2026-11-05 — still under planning, unstamped; after Part 107.
+
+## Part 109 — The portal: both bundles submitted (no bump)
+
+lpi-ops #625 (the directory road), still under planning, not stamped. `docs/directory-checklist.md` re-passed on the day; `claude plugin validate --strict` on both plugin folders and the root. From the company's claude.ai account with the LearningProducers GitHub account connected: Submit new, Plugin bundle, repository `LearningProducers/CombatWriting-Plugin`, plugin path `plugins/combat-writing`, branch main; Validate; fix any Blocks; the data-handling answers as the checklist prepares them; the compliance step; submit. Then the same for `plugins/combat-writing-crew`. The first organization to submit a folder owns the listing.
+
+Auto-update, measured 2026-11-04 from the published loading, install and marketplace pages: a third-party marketplace, this one included, does not auto-update until the person turns it on, and `marketplace.json` has no field that turns it on; a directory install auto-updates by default. This part is therefore the cure for stale installs, and the README's install block gets one line telling marketplace installers to enable auto-update and that updates load on the next session.
+
+Delivers (when done): `docs/directory-checklist.md`, the README's install line, the submission's status recorded on the issue, PLAN.md.
+
+Status: not started — 2026-11-05 — still under planning, unstamped; after Part 108.
+
+## Part 110 — The OpenAI surface, held until Part 109 (no bump)
+
+lpi-ops #625 (the directory road), still under planning, not stamped, and held until Part 109 is done. What is measured so far and nothing more: OpenAI's Codex CLI reads AGENTS.md and a SKILL.md-shaped skills folder, so the help, the method text and the stage prompts port as text. What does not port as is: the seat-scope hook, the fresh-reader agent, the show-result and session-start hooks, and the add-on's local MCP server, which are Claude Code's plugin mechanics; a Codex build is its own crew runner, not a repackaging. First act when stamped: read Codex's current documentation on skills, hooks and MCP on that day, then write the gap list as an issue; no build before that.
+
+Delivers (when done): the gap-list issue, PLAN.md.
+
+Status: not started — 2026-11-05 — still under planning, unstamped; held until Part 109.
