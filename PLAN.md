@@ -212,3 +212,11 @@ Issue 155, filed 2026-11-04 by the cloud session that shipped Part 100: the root
 Delivers (cw 0.8.45): README.md, `plugins/combat-writing/README.md`, `tests/readers_check.js`, both manifests, PLAN.md.
 
 Status: delivered — 2026-11-05 — draft pull request open; `node tests/readme_check.js` and `node tests/run_all.js` run in the build session, the counts in the pull request body.
+
+## Part 112 — CLAUDE.md names truncation as a field, not an event (no bump)
+
+Issue 50, measured 2026-10-21 and again 2026-11-05: the word-cap paragraph named `crew.answered.truncated` and `answer.checked.truncated` as if they were log events. No such events exist: truncation is the `truncated` field inside the `crew.answered` line (`server.js`) and inside the `answer.checked` line (`check-answer.js`), and `render-board.js` `truncationOf` and `render-record.js` read both as fields. The paragraph now says so; nothing else changes. Docs only, nothing under the plugin folders: no bump.
+
+Delivers: CLAUDE.md, PLAN.md.
+
+Status: delivered — 2026-11-05 — draft pull request open; `node tests/run_all.js` run in the build session, the count in the pull request body.
