@@ -44,7 +44,7 @@ The card, as the skill holds it (a picker follows it in the terminal):
 ```
 Reading is Peace. Writing is War.
 
-Combat Writing: a crew of AI models reads your draft before it ships, each on its own, and tells you what it found.
+Combat Writing: the methodology that uses an AI crew to battle-test drafts before publishing.
 
 - Strategy /cw:strategy stores your draft and your brief (who you are, what you want, the stakes).
 - Sparring /cw:sparring every seat reads the draft alone and rates it, 1 to 10, 7 forbidden, with its critique.
