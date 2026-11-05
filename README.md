@@ -9,7 +9,7 @@ This repository is the home of the Combat Writing plugin for Claude Code and of 
 
 ## Status
 
-The version is the one in [plugins/combat-writing/.claude-plugin/plugin.json](plugins/combat-writing/.claude-plugin/plugin.json). The record of every part is [PLAN.md](PLAN.md), and the state of the directory submission is [docs/directory-checklist.md](docs/directory-checklist.md).
+The version is the one in [plugins/combat-writing/.claude-plugin/plugin.json](plugins/combat-writing/.claude-plugin/plugin.json). The record of every part is [PLAN.md](PLAN.md) from Part 91 on, with Parts 1 to 90 frozen in [PLAN_ARCHIVE.md](PLAN_ARCHIVE.md), and the state of the directory submission is [docs/directory-checklist.md](docs/directory-checklist.md).
 
 ## What is here
 
