@@ -204,3 +204,11 @@ lpi-ops #625 (the directory road), still under planning, not stamped, and held u
 Delivers (when done): the gap-list issue, PLAN.md.
 
 Status: not started — 2026-11-05 — still under planning, unstamped; held until Part 109.
+
+## Part 111 — The root README's Runs bullet says what the crew is today (no bump)
+
+Issue 155, filed 2026-11-04 by the cloud session that shipped Part 100: the root README's Runs bullet still said the crew is one fresh reader, which Part 87 made two. The sentence now carries the help skill's words (two fresh readers by default; the add-on seats other companies' models on your keys and takes the second chair, third chair or more), and no other line of the README moves. Docs only, nothing under the plugin folders: no bump.
+
+Delivers: README.md, PLAN.md.
+
+Status: delivered — 2026-11-05 — draft pull request open; `node tests/readme_check.js` and `node tests/run_all.js` run in the build session, the counts in the pull request body.
