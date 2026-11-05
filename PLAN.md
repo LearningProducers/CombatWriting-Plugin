@@ -205,6 +205,20 @@ Delivers (when done): the gap-list issue, PLAN.md.
 
 Status: not started — 2026-11-05 — still under planning, unstamped; held until Part 109.
 
+## Part 111 — Both READMEs say what the crew is today (cw 0.8.45)
+
+Issue 155, filed 2026-11-04 by the cloud session that shipped Part 100: the root README's Runs bullet still said the crew is one fresh reader, which Part 87 made two. The sentence now carries the help skill's words (two fresh readers by default; the add-on seats other companies' models on your keys and takes the second chair, third chair or more), and no other line of the root README moves. The pre-PR read found the same claim a second time, present tense, in the listing README's examples paragraph ("Today the crew is one fresh reader plus the outside seats the add-on registers"), a spelling `tests/readers_check.js` did not list; that sentence now says two fresh readers by default and the check's regex widens to `one fresh reader plus`, so the class cannot return. The listing README lives under the plugin folder: cw 0.8.45.
+
+Delivers (cw 0.8.45): README.md, `plugins/combat-writing/README.md`, `tests/readers_check.js`, both manifests, PLAN.md.
+
+Status: delivered — 2026-11-05 — draft pull request open; `node tests/readme_check.js` and `node tests/run_all.js` run in the build session, the counts in the pull request body.
+
+## Part 112 — CLAUDE.md names truncation as a field, not an event (no bump)
+
+Issue 50, measured 2026-10-21 and again 2026-11-05: the word-cap paragraph named `crew.answered.truncated` and `answer.checked.truncated` as if they were log events. No such events exist: truncation is the `truncated` field inside the `crew.answered` line (`server.js`) and inside the `answer.checked` line (`check-answer.js`), and `render-board.js` `truncationOf` and `render-record.js` read both as fields. The paragraph now says so; nothing else changes. Docs only, nothing under the plugin folders: no bump.
+
+Delivers: CLAUDE.md, PLAN.md.
+
 ## Part 113 — The texts stop saying the short form carries the Next line (cw 0.8.46)
 
 Issue 48, measured 2026-10-21 and again 2026-11-05: `render-record.js --short` keeps only the scoreboard lines, so the text Next line never reached the short form, while the rules skill, CLAUDE.md and a code comment said it did. Ruled 2026-11-05 (lpi-ops #628): the words drop rather than the line printing, because departure 15 says the terminal shows the crew line, the scoreboard, the board's path and the picker and nothing else, and the picker already carries the next moves; `record.md` keeps the line and `--next` prints it for "Done for now". The two texts and the comment now say so; no behavior changes. The skill lives under the plugin folder: cw 0.8.46 (0.8.45 is Part 111's, which merges first).
