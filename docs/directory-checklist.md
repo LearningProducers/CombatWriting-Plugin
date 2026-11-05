@@ -3,7 +3,7 @@
 
 A pass over the Claude plugin directory's pre-submission checklist (claude.com/docs/plugins/pre-submission-checklist) and the submit page (claude.com/docs/plugins/submit), item by item, against `plugins/combat-writing/`. The plugin folder is a subfolder of the repository; the directory reads and scans only that folder.
 
-**Re-passed 2026-11-04.** This is the page's one date: it moves only when the whole pass is re-run against the repository, row by row, never when one row changes. No row carries a number a test measures (a file count, a file size, a version, a date of measurement): each row names the test or the file that holds the item, and the number lives there. The plugin's version is in `plugins/combat-writing/.claude-plugin/plugin.json`; the record of every part is `PLAN.md`.
+**Re-passed 2026-11-04.** This is the page's one date: it moves only when the whole pass is re-run against the repository, row by row, never when one row changes. No row carries a number a test measures (a file count, a file size, a version, a date of measurement): each row names the test or the file that holds the item, and the number lives there. The plugin's version is in `plugins/combat-writing/.claude-plugin/plugin.json`; the record of every part is `PLAN.md` from Part 91 on, with Parts 1 to 90 frozen in `PLAN_ARCHIVE.md`.
 
 Two kinds of check exist, and this page keeps them apart:
 
