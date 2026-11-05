@@ -15,8 +15,10 @@
 //     ${CLAUDE_PLUGIN_ROOT}, handed ${CLAUDE_PLUGIN_DATA} as its one argument (Part 83), with no
 //     other variable, substitution, shell operator or launcher.
 //   - Run with node and no data folder, session-start.js exits 0 and prints one JSON object whose
-//     systemMessage is exactly "Combat Writing ready. /cw:help for the guide." and whose
-//     hookSpecificOutput carries the same line as additionalContext for SessionStart.
+//     hookSpecificOutput carries exactly "Combat Writing ready. /cw:help for the guide." as
+//     additionalContext for SessionStart, the context the host reads, and nothing else: no
+//     systemMessage key, the field the terminal shows the person (issue 165, 2026-11-04: nothing
+//     prints on the screen at session start, ever).
 //   - The script requires fs, path, child_process and the plugin's lib.js and nothing else, holds
 //     no URL, never installs, and reads one environment variable, CW_SESSION_PROBE (the tests' fakes).
 //
@@ -64,9 +66,9 @@ var lines=(r.stdout||'').split('\n').filter(Boolean);
 check(lines.length===1,'session-start.js: expected one line on stdout, got '+lines.length);
 var out=null; try{out=JSON.parse(lines[0]||'');}catch(e){failures.push('session-start.js: stdout is not JSON: '+lines[0]);}
 if(out){
-  check(out.systemMessage===LINE,'session-start.js: systemMessage is '+JSON.stringify(out.systemMessage));
-  check(out.hookSpecificOutput&&out.hookSpecificOutput.hookEventName==='SessionStart'&&out.hookSpecificOutput.additionalContext===LINE,'session-start.js: hookSpecificOutput must carry the same line as additionalContext for SessionStart');
-  check(Object.keys(out).sort().join(',')==='hookSpecificOutput,systemMessage','session-start.js: unexpected fields '+Object.keys(out).join(','));
+  check(!('systemMessage' in out),'session-start.js: carries a systemMessage key, which the terminal shows the person; nothing prints on the screen at session start (issue 165)');
+  check(out.hookSpecificOutput&&out.hookSpecificOutput.hookEventName==='SessionStart'&&out.hookSpecificOutput.additionalContext===LINE,'session-start.js: hookSpecificOutput must carry the ready line as additionalContext for SessionStart');
+  check(Object.keys(out).sort().join(',')==='hookSpecificOutput'&&Object.keys(out.hookSpecificOutput).sort().join(',')==='additionalContext,hookEventName','session-start.js: unexpected fields '+Object.keys(out).join(',')+' / '+Object.keys(out.hookSpecificOutput||{}).join(','));
 }
 
 failures.forEach(function(f){console.log('FAIL '+f);});
