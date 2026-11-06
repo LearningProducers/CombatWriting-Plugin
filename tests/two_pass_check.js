@@ -18,7 +18,7 @@
 //   - lib.crewPassOf returns the sound pass and null for a failed one; roundAnswers carries the pass under
 //     CREW_PASS_HEADING with the answer, so the next round's packet carries it and a flip quote from it
 //     counts; a first-round packet of the next run shape is unchanged.
-//   - The record prints each second pass under the seat's answer; the board's fold shows it with its word
+//   - The record prints each second pass under the seat's answer; the board's card shows it with its word
 //     count in the summary and the spoken text carries it; a failed second pass is left out of all three.
 //   - The skills and docs: battle's step 7b, its SN bullet, the rules skill, the help, CLAUDE.md, the agent.
 //
@@ -117,8 +117,8 @@ node('render-record.js',['--run',run]); node('render-board.js',['--run',run]);
 var rec=read(path.join(run,'record.md')), board=read(path.join(run,'board.html'));
 check(/#### Test Model \(Anthropic\), seat-1\n\nNot ready: the ask is buried\.\n\nThe close never asks for the vote\.\n\n\*To the crew \(second pass\):\*\n\nI agree with Model Two/.test(rec),'record: the second pass stands under seat-1\'s answer');
 check(!/#### Model Two \(Two Inc\.\), seat-2\n\nShips as is[^#]*To the crew \(second pass\)/.test(rec.split('### Round 02-battle')[0]),'record: seat-2\'s failed second pass is left out of round 01');
-var f1=/<figure class="frame critique" data-seat="seat-1">([\s\S]*?)<\/figure>/.exec(board);
-check(!!f1&&/<summary>Read the full critique \(13 words, then 24 to the crew\)<\/summary><div class="read"><p>Not ready: the ask is buried\.<\/p><p>The close never asks for the vote\.<\/p><p><strong>To the crew \(second pass\)<\/strong><\/p><p>I agree with Model Two/.test(f1[1]),'board: the fold shows the second pass under the read with its count; got '+(f1?f1[1].slice(0,600):''));
+var f1=/<figure class="frame critique co-[a-z]+" data-seat="seat-1">([\s\S]*?)<\/figure>/.exec(board);
+check(!!f1&&/<div class="read"><p>Not ready: the ask is buried\.<\/p><p>The close never asks for the vote\.<\/p><p><strong>To the crew \(second pass\)<\/strong><\/p><p>I agree with Model Two[^]*?<p class="fold">The full critique \(13 words, then 24 to the crew\)<\/p>/.test(f1[1]),'board: the fold shows the second pass under the read with its count; got '+(f1?f1[1].slice(0,600):''));
 check(!!f1&&/<div class="seat-text" hidden>Not ready: the ask is buried\.\n\nThe close never asks for the vote\.\n\nTo the crew \(second pass\)\.\n\nI agree with Model Two/.test(f1[1]),'board: the spoken text carries the second pass');
 check(/<blockquote>Not ready: the ask is buried\.<\/blockquote>/.test(f1[1]),'board: the framed line is still the answer\'s first sentence');
 var f2=/<figure class="frame[^"]*" data-seat="seat-2">([\s\S]*?)<\/figure>/.exec(board);

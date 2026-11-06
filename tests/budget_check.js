@@ -17,7 +17,7 @@
 //     the overrun in tokens and characters, that the add-on will refuse it, and the cut; writes
 //     nothing else; refuses a missing --round (exit 2) and a round with no sized packet (exit 1).
 //   - The record's What was sent carries a Tokens column and, under the table, every round's line;
-//     the board's Run details fold carries the same lines as Packets.
+//     the board's Run details panel carries the same lines as Packets.
 //   - The text: the battle, sparring, rules and help skills, CLAUDE.md, the add-on README.
 //
 // Run from the repo root:   node tests/budget_check.js
@@ -114,8 +114,8 @@ var rec=read(path.join(run,'record.md')), html=read(path.join(run,'board.html'))
 check(/\| When \(UTC\) \| Round \| Seat \| Packet \| Draft \| Mode \| Carried \| Missing \| Cap \| Tokens \|/.test(rec)&&new RegExp('\\| 01-battle \\| seat-1 \\| rounds/01-battle/seat-1\\.packet\\.md \\|[^\\n]*\\| 500 \\| '+b1.size.tokens+' \\|').test(rec),'record: the What was sent table should carry a Tokens column with the packet\'s tokens');
 var recLines=rec.slice(rec.indexOf('## What was sent'));
 check(recLines.indexOf('Tokens are estimated at four characters each, the add-on\'s rule. '+line+' ')>0&&recLines.indexOf(bpc.line)>0&&recLines.indexOf(bp2.line)>0&&recLines.indexOf(bp3.line)>0&&recLines.indexOf('Full log:')>recLines.indexOf(bp3.line),'record: every round\'s budget line should sit under the What was sent table, before the log line');
-check(html.indexOf('<p class="meta"><strong>Packets:</strong> Tokens are estimated at four characters each, the add-on&#39;s rule. '+lib.escapeHtml(line))>0||html.indexOf('<p class="meta"><strong>Packets:</strong> '+lib.escapeHtml('Tokens are estimated at four characters each, the add-on\'s rule. '+line))>0,'board: the Run details fold should carry the Packets lines');
-check(html.indexOf('<summary>Run details</summary>')<html.indexOf('<strong>Packets:</strong>'),'board: Packets sits inside Run details');
+check(html.indexOf('<p class="meta"><strong>Packets:</strong> Tokens are estimated at four characters each, the add-on&#39;s rule. '+lib.escapeHtml(line))>0||html.indexOf('<p class="meta"><strong>Packets:</strong> '+lib.escapeHtml('Tokens are estimated at four characters each, the add-on\'s rule. '+line))>0,'board: the Run details panel should carry the Packets lines');
+check(html.indexOf('<h2>Run details</h2>')<html.indexOf('<strong>Packets:</strong>'),'board: Packets sits under Run details');
 
 // 6. A run with the fresh reader alone.
 var run2=node('new-run.js',['--draft','draft.md','--brief','brief.md','--stage','sparring','--name','alone','--model','Test Model']).stdout.trim();

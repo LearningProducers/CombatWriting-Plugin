@@ -137,7 +137,7 @@ Nineteen files in `plugins/combat-writing/scripts/`, plain Node, no dependencies
 | `check-flip.js` | after a rated round | the log line: Stand, flip valid, flip invalid |
 | `champion.js` | `/cw:champion` | `canon.md`, the result line, the vault line |
 | `render-record.js` | after every round; `--short` prints the terminal's short form | `record.md` |
-| `render-board.js` | after every round | `board.html` |
+| `render-board.js` | after every round | `board.html` (the four faces under `fonts/` embedded as data) |
 | `render-state.js` | the screen, or anything reading the run | `state.json` with `--write`; else prints it |
 | `open-board.js` | after every round and after `shipped` | one log line; opens the board in your browser |
 | `speak.js` | after every round on a Mac | `rounds/<round>/<seat>.m4a` and the other quality voices, `voices.json`; with `--set`, the project's `voices.json` |
@@ -151,7 +151,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | Check | What it pins |
 |---|---|
 | `tests/announce_check.js` | the forming line and the per-seat line while a round runs |
-| `tests/board_check.js` | the board: one page, no verdict box, the frames, the read-aloud controls, no outside request |
+| `tests/board_check.js` | the board: one screen, the tabs, the cards in their company identity, the embedded faces, no verdict box, the read-aloud controls, no outside request |
 | `tests/brief_check.js` | the brief travels: typed once, carried by later runs, grown by update |
 | `tests/briefs_check.js` | briefs by name |
 | `tests/budget_check.js` | the price of a round, measured before the seats run |

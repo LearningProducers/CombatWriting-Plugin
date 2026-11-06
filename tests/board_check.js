@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// board_check.js: board.html is the result (2026-10-14): one self-contained page that opens
-// with the newest draft, the verdict across the page, one framed quote per seat, and folds the
-// full reads and the scoreboard of every round under a click; it averages nothing and fetches
-// nothing.
+// board_check.js: board.html is the result (2026-10-14; one screen since Part 106): one
+// self-contained page, the newest draft across the top beside the brief and the reader, one card
+// per seat in its company identity with the full read on the card, the scoreboard and the run
+// details under the tabs; it averages nothing and fetches nothing (the four faces ride as data).
 //
 // Runs the REAL new-run.js, packet.js, check-answer.js, check-flip.js, add-draft.js and
 // render-board.js from plugins/combat-writing/scripts as child processes in a temporary
@@ -13,24 +13,28 @@
 //     nowhere in the page (ruled 2026-10-12).
 //   - The page makes no external request: no http://, https:// or protocol-relative URL
 //     in any src, href, url(), @import or fetch; no <link>, <script src>, <img src> or
-//     <iframe>; the only href is the relative link to record.md.
+//     <iframe>; every url( is a data font (Part 106, the four embedded faces, one @font-face
+//     each) and nothing else; the only href is the relative link to record.md.
 //   - The newest draft is on the page in full, escaped, named as a revision when it is one,
-//     above the verdict.
+//     in the draft panel above the seats; the brief and the reader in the side column.
 //   - The round strip (ruled 2026-10-15): the latest round's task in words at the top of the
 //     page, from the packet (the prompt itself for SN, SFQ, N and FQ; the seat lines with each
 //     note; the final reads), whether a rating was asked, and how many seats answered; the same
 //     line for every round in the history under the scoreboard; the record's round line carries
-//     the same task, never the inbox file name.
+//     the same task, never the inbox file name. The tabs Draft, Scoreboard and Run details switch
+//     the top box's panel; the draft panel shows first.
 //   - No verdict box on any run (issue 175): no `class="verdict"` and no `aria-label="Verdict"`
 //     anywhere; the ratings are on the frames and in the scoreboard, never averaged.
-//   - One frame per seat, in seat order, from the seat's latest turn: the rating or its state
-//     (Critique, Failed read, Missing, Not yet read) on the frame with the flip or Stand mark,
-//     the one-line verdict (the first sentence after the first line, cut at a sentence end
-//     before 200 characters), the citation to the model by name and company with the round,
-//     and the seat's own note only when that seat was asked something different (a seat line),
-//     the final reads' numbers when a final round exists, and the full read folded under a
-//     <details>; a missing seat has no fold; a seat's words are escaped, never markup.
-//   - Folded: the scoreboard of every round (one column per round, the legend, a valid flip
+//   - One card per seat, in seat order, from the seat's latest turn, in its company identity
+//     (a `co-<company>` class the CSS table keys the face, the frame and the accent on): the
+//     seat's own number as the corner index, the company as the suit, the rating or its state
+//     (Critique, Failed read, Missing, Not yet read) with the flip or Stand mark, the one-line
+//     verdict (the first sentence after the first line, cut at a sentence end before 200
+//     characters), the citation to the model by name and company with the round, the seat's own
+//     note only when that seat was asked something different (a seat line), the final reads'
+//     numbers when a final round exists, and the full read open on the card; a missing seat has
+//     no read; a seat's words are escaped, never markup.
+//   - Under the tabs: the scoreboard of every round (one column per round, the legend, a valid flip
 //     with the earlier number kept and the cited seat, an invalid flip marked INVALID, Stand,
 //     missing, a failed read, a no-rating round's critique cell and its RATING-line failure,
 //     the final round's S/N and red-flag cells, the Latest column), the final reads table and
@@ -38,16 +42,16 @@
 //     Started-at line, the record.md link).
 //   - A round put to one seat only shows "not asked" for the others in the table, never
 //     "missing", and their frames cite their latest earlier round.
-//   - The measure (2026-10-15): the page at 1360 px, cards at 360 px minimum, an opened read
-//     spanning the row at 70ch, the draft panel at 76ch, long words wrapping; a seat's read
-//     renders a markdown subset after escaping (lists, bold, italic, code, a heading as bold),
-//     no link, no markup from the seat, the page's one href still record.md.
+//   - The frame (Part 106): one screen, 100dvh, rows auto 3fr 7fr auto, stacking under 1100 px;
+//     no page width cap, no character cap on the draft or the read; long words wrapping; a
+//     seat's read renders a markdown subset after escaping (lists, bold, italic, code, a heading
+//     as bold), no link, no markup from the seat, the page's one href still record.md.
 //   - The canon controls (ruled 2026-10-19): only when the run holds a canon, the draft panel
 //     carries read aloud (the browser's speech synthesis, with pause and stop), copy (the
 //     clipboard) and download (a .txt named for the run), the canon text in the page, the
 //     Shipped strip under the round strip, the heading naming the canon and the draft it froze,
-//     and the Champion fold; the page still has one href and makes no outside request; a run
-//     with no canon has none of it.
+//     and the Champion heading under Run details; the page still has one href and makes no
+//     outside request; a run with no canon has none of it.
 //   - No chart, no chart point, no series: the board is simple (2026-10-14).
 //   - No averaged number: no "average", "mean", "overall", "consensus" or "total" rating,
 //     no fractional rating.
@@ -116,14 +120,21 @@ check(html.indexOf(CREDIT)<0,'board: carries the credit line');
 
 // No external request.
 check(!/\b(https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(html),'board: an external URL appears');
-check(!/<link\b/i.test(html)&&!/<script[^>]+src=/i.test(html)&&!/<img\b/i.test(html)&&!/<iframe\b/i.test(html)&&!/@import/i.test(html)&&!/url\(/i.test(html)&&!/\bfetch\(/.test(html)&&!/XMLHttpRequest/.test(html),'board: a fetched resource or a request appears');
+function onlyDataFonts(h){ return (h.match(/url\(/gi)||[]).length===(h.match(/url\(data:font\/woff2;base64,/g)||[]).length; }
+check(!/<link\b/i.test(html)&&!/<script[^>]+src=/i.test(html)&&!/<img\b/i.test(html)&&!/<iframe\b/i.test(html)&&!/@import/i.test(html)&&onlyDataFonts(html)&&!/\bfetch\(/.test(html)&&!/XMLHttpRequest/.test(html),'board: a fetched resource or a request appears');
+// The four faces ride as data (Part 106): one @font-face each, every url( a data font, no other.
+check((html.match(/@font-face\{/g)||[]).length===4&&(html.match(/url\(data:font\/woff2;base64,/g)||[]).length===4&&['"Source Serif 4"','"Manrope"','"JetBrains Mono"','"Inter"'].every(function(f){return html.indexOf('@font-face{font-family:'+f+';')>=0;}),'board: the four faces must be embedded as data, one @font-face each');
 var hrefs=html.match(/href="[^"]*"/g)||[];
 check(hrefs.length===1&&hrefs[0]==='href="record.md"','board: hrefs are '+JSON.stringify(hrefs)+', expected only record.md');
 
 // The draft, in full, above the seats.
 check(/<h2>The draft · draft-2\.md, a revision<\/h2>/.test(html),'board: the newest draft must be named as a revision');
 check(/<div class="paper"><p>Dear board, buy the company\.<\/p><\/div>/.test(html),'board: the draft text is not on the page in full');
-check(html.indexOf('<div class="paper">')<html.indexOf('<h2>The seats</h2>'),'board: the draft must come before the seats');
+check(html.indexOf('<div class="paper">')<html.indexOf('<h2 class="sr">The seats</h2>'),'board: the draft must come before the seats');
+// The frame (Part 106): the strip, the top box with its three panels and the side column, the hand, the bar.
+check(/<header class="strip">/.test(html)&&/<section class="top"><div class="panels">\s*<section class="panel" id="panel-draft" role="tabpanel" aria-labelledby="tab-draft">/.test(html)&&/<section class="panel" id="panel-scoreboard" role="tabpanel" aria-labelledby="tab-scoreboard" hidden>/.test(html)&&/<section class="panel" id="panel-details" role="tabpanel" aria-labelledby="tab-details" hidden>/.test(html)&&/<section class="hand" aria-label="The seats">/.test(html)&&/<footer class="bar">/.test(html),'board: the frame is the strip, the top box with three panels, the hand and the bar');
+check(/<div class="tabs" role="tablist"[^>]*><button type="button" role="tab" class="tab" id="tab-draft" aria-selected="true" aria-controls="panel-draft">Draft<\/button><button type="button" role="tab" class="tab" id="tab-scoreboard" aria-selected="false" aria-controls="panel-scoreboard">Scoreboard<\/button><button type="button" role="tab" class="tab" id="tab-details" aria-selected="false" aria-controls="panel-details">Run details<\/button><\/div>/.test(html)&&/tabs\[i\]\.addEventListener\("click"/.test(html),'board: the three tabs with the draft selected first, wired to the panels');
+check(/<aside class="side" aria-label="The brief and the reader">\s*<p><b>Brief\.<\/b> CEO\. Get a yes\.<\/p>\s*<p class="under">Measured facts, the full brief and the record are under Run details\.<\/p>\s*<\/aside>/.test(html),'board: the side column carries the brief and the pointer');
 
 // No verdict box (issue 175): seat-1's latest is 8 (03-battle), seat-2's is 4, and nothing sits over them.
 check(!/class="verdict/.test(html)&&!/aria-label="Verdict"/.test(html)&&!/<p class="word">/.test(html),'board: no verdict box anywhere');
@@ -131,23 +142,24 @@ check(!/class="verdict/.test(html)&&!/aria-label="Verdict"/.test(html)&&!/<p cla
 // One frame per seat, from the seat's latest turn (04-battle for all three).
 var frames=html.match(/<figure class="frame[^"]*" data-seat="seat-\d"/g)||[];
 check(frames.length===3&&frames[0].indexOf('seat-1')>0&&frames[1].indexOf('seat-2')>0&&frames[2].indexOf('seat-3')>0,'board: expected one frame per seat in seat order, got '+JSON.stringify(frames));
-var f1=/<figure class="frame critique" data-seat="seat-1">([\s\S]*?)<\/figure>/.exec(html);
+var f1=/<figure class="frame critique co-anthropic" data-seat="seat-1">([\s\S]*?)<\/figure>/.exec(html);
+check(!!f1&&/^<span class="suit">Anthropic<\/span><span class="badge critique">/.test(f1[1]),'board: the card opens with the company as the suit, then the badge; got '+(f1?f1[1].slice(0,120):''));
 check(!!f1&&/<span class="badge critique">Critique · no rating asked<\/span>/.test(f1[1]),'board: seat-1\'s frame should carry the critique badge');
 check(!!f1&&/<blockquote>The close is the problem, as seat-2 said\.<\/blockquote>/.test(f1[1]),'board: seat-1\'s frame should quote its verdict sentence');
 check(!!f1&&/<figcaption>— Test Model \(Anthropic\), seat-1 <span class="seat">· round 04-battle<\/span><\/figcaption>/.test(f1[1]),'board: seat-1\'s citation is wrong');
 check(!!f1&&/<p class="final">05-final: S\/N 70% · 1 red flag<\/p>/.test(f1[1]),'board: seat-1\'s frame should carry its final numbers');
-check(!!f1&&/<details><summary>Read the full critique \(8 words\)<\/summary><div class="read"><p>The close is the problem, as seat-2 said\.<\/p><\/div><\/details>/.test(f1[1]),'board: seat-1\'s full read should be folded under a click');
-var f2=/<figure class="frame missing" data-seat="seat-2">([\s\S]*?)<\/figure>/.exec(html);
-check(!!f2&&/<span class="badge missing">Missing<\/span>/.test(f2[1])&&/<blockquote>No answer this round\. Nothing stands in for it\.<\/blockquote>/.test(f2[1])&&f2[1].indexOf('<details>')<0,'board: seat-2\'s frame should say missing with no fold');
+check(!!f1&&/<div class="full"><div class="read"><p>The close is the problem, as seat-2 said\.<\/p><\/div><p class="fold">The full critique \(8 words\)<\/p><\/div>/.test(f1[1]),'board: seat-1\'s full read should be open on the card, the fold line under it');
+var f2=/<figure class="frame missing co-anthropic" data-seat="seat-2">([\s\S]*?)<\/figure>/.exec(html);
+check(!!f2&&/<span class="badge missing">Missing<\/span>/.test(f2[1])&&/<blockquote>No answer this round\. Nothing stands in for it\.<\/blockquote>/.test(f2[1])&&f2[1].indexOf('class="full"')<0&&f2[1].indexOf('class="ix')<0,'board: seat-2\'s frame should say missing with no read and no index');
 check(!!f2&&/<p class="final">05-final: S\/N 55% · no red flags<\/p>/.test(f2[1]),'board: seat-2\'s frame should carry its final numbers');
-var f3=/<figure class="frame failed" data-seat="seat-3">([\s\S]*?)<\/figure>/.exec(html);
+var f3=/<figure class="frame failed co-anthropic" data-seat="seat-3">([\s\S]*?)<\/figure>/.exec(html);
 check(!!f3&&/<span class="badge failed">Failed read<\/span>/.test(f3[1])&&/<blockquote>Failed read: this round asked for no rating; remove the RATING line and open with your critique\.<\/blockquote>/.test(f3[1]),'board: seat-3\'s frame should say failed read with the reason');
-check(!!f3&&/<details><summary>The failed read \(4 words\)<\/summary><div class="read failed">/.test(f3[1]),'board: seat-3\'s failed read should be folded under a click');
+check(!!f3&&/<div class="full"><div class="read failed">[^]*?<\/div><p class="fold">The failed read \(4 words\)<\/p><\/div>/.test(f3[1]),'board: seat-3\'s failed read is on the card, the fold line under it');
 check(!!f3&&/<p class="final">05-final: S\/N missing · red flags missing<\/p>/.test(f3[1]),'board: seat-3\'s frame should say its final reads are missing');
 
-// Folded: every round, the scoreboard.
-check(/<details class="fold"><summary>Every round: the scoreboard<\/summary>/.test(html),'board: the scoreboard must be folded under "Every round"');
-check(/<p class="note">Every number is one seat's own\. Nothing here is averaged\./.test(html),'board: the legend is missing from the fold');
+// Under the Scoreboard tab: every round.
+check(/<section class="panel" id="panel-scoreboard"[^>]*>\s*<h2>Every round: the scoreboard<\/h2>/.test(html),'board: the scoreboard must open the Scoreboard panel');
+check(/<p class="note">Every number is one seat's own\. Nothing here is averaged\./.test(html),'board: the legend is missing from the scoreboard panel');
 ['01-sparring','02-battle','03-battle','04-battle','05-final'].forEach(function(r){ check(new RegExp('<th>'+r+'</th>').test(html),'board: no scoreboard column for '+r); });
 check(/<th>Latest<\/th>/.test(html),'board: no Latest column');
 ['Test Model \\(Anthropic\\), seat-1','Test Model \\(Anthropic\\), seat-2','Test Model \\(Anthropic\\), seat-3'].forEach(function(s){
@@ -163,10 +175,10 @@ check(/<span class="missing">missing<\/span>/.test(html),'board: no missing cell
 check(/<span class="failed" title="rating is 7; 7 is forbidden[^"]*">failed read<\/span>/.test(html),'board: the 7/10 answer is not marked as a failed read');
 check(/S\/N 70%<br>1 red flag<\/td>/.test(html)&&/S\/N 55%<br>no red flags<\/td>/.test(html)&&/S\/N missing<\/span><br><span class="missing">red flags missing/.test(html),'board: final cells wrong');
 check(/<h2>Final reads<\/h2>/.test(html)&&/<td class="num">70%<\/td><td class="num">1<\/td>/.test(html),'board: final reads table wrong');
-check(/<summary>Test Model \(Anthropic\), seat-1 · 05-final · S\/N read \(4 words\)<\/summary><div class="read"><p>S\/N RATIO: 70%<br>Signal\.<\/p><\/div>/.test(html),'board: the final reads should be folded in full');
+check(/<details class="fold"><summary>Test Model \(Anthropic\), seat-1 · 05-final · S\/N read \(4 words\)<\/summary><div class="read"><p>S\/N RATIO: 70%<br>Signal\.<\/p><\/div>/.test(html),'board: the final reads should be folded in full');
 
-// Run details.
-check(/<details class="fold"><summary>Run details<\/summary>/.test(html),'board: no run details fold');
+// Under the Run details tab.
+check(/<section class="panel" id="panel-details"[^>]*>\s*<h2>Run details<\/h2>/.test(html),'board: no run details panel');
 check(/<p class="meta"><strong>Seat key:<\/strong> seat-1 Test Model · seat-2 Test Model · seat-3 Test Model<\/p>/.test(html),'board: the seat key line is missing or wrong');
 check(/<strong>Started at:<\/strong> /.test(html)&&/<strong>Crew:<\/strong> /.test(html)&&/<strong>Drafts:<\/strong> draft\.md \(5 words · 1 paragraph · 1 line\), draft-2\.md \(5 words · 1 paragraph · 1 line\)\./.test(html),'board: the run details are incomplete');
 
@@ -178,8 +190,10 @@ check(!/\d\.\d+\/10/.test(html),'board: a fractional rating appears');
 check(/@media \(prefers-color-scheme: dark\)/.test(html)&&/:root\[data-theme="dark"\]/.test(html)&&/:root:not\(\[data-theme="light"\]\)/.test(html),'board: light and dark not both defined with a toggle scope');
 check(/<button type="button" id="theme"/.test(html),'board: no theme toggle');
 
-// The draft's counts under the draft (2026-10-15, Part 21).
-check(/<div class="paper"><p>Dear board, buy the company\.<\/p><\/div>\s*<p class="meta facts"><strong>Measured by code \(facts, not a judgment\):<\/strong> 5 words · 1 paragraph · 1 line · 1 sentence · 0 em dashes, 0 en dashes, 0 double hyphens · no link\.<\/p>/.test(html),'board: the measured-by-code line should sit under the draft');
+// The draft's counts (2026-10-15, Part 21), under Run details since Part 106.
+check(/<p class="meta facts"><strong>Measured by code \(facts, not a judgment\):<\/strong> 5 words · 1 paragraph · 1 line · 1 sentence · 0 em dashes, 0 en dashes, 0 double hyphens · no link\.<\/p>/.test(html)&&html.indexOf('<p class="meta facts">')>html.indexOf('id="panel-details"')&&html.indexOf('<p class="meta facts">')<html.indexOf('<strong>Started at:</strong>'),'board: the measured-by-code line should sit under Run details');
+// The bar (Part 106): every seat's latest number in its company colour.
+check(/<footer class="bar"><span class="kicker">Every round<\/span><span class="scores"><span class="score co-anthropic">seat-1 8\/10<\/span><span class="score co-anthropic">seat-2 4\/10<\/span><span class="score co-anthropic">seat-3 —<\/span><\/span>\s*<span class="kicker">Next<\/span><span class="cmd">\/cw:battle fq: a question for every seat<\/span><span class="cmd">\/cw:sparring debate<\/span><span class="cmd">\/cw:battle final<\/span><\/footer>/.test(html),'board: the bar should carry every seat\'s latest number and the next commands; got '+(/<footer class="bar">[^]*?<\/footer>/.exec(html)||[''])[0].slice(0,300));
 // The round strip and the history (2026-10-15).
 check(/<p class="round"><b>Round 05-final<\/b> · final reads: S\/N ratio and red flags · 2 of 3 seats answered<\/p>/.test(html),'board: the round strip should name the latest round and its task; got '+(/<p class="round">[^]*?<\/p>/.exec(html)||[''])[0]);
 check(html.indexOf('<p class="round">')<html.indexOf('<h2>The draft'),'board: the round strip must sit above the draft');
@@ -187,7 +201,7 @@ var hist=/<ul class="rounds">([^]*?)<\/ul>/.exec(html);
 check(!!hist&&(hist[1].match(/<li>/g)||[]).length===5,'board: the history should list five rounds');
 check(!!hist&&/<li><b>Round 02-battle<\/b> · the default prompt: “Read the other seats' latest answers\. Where do your interpretations overlap and where do they diverge\? Give a new critique and a new rating of the draft\.” · a new rating asked · 3 of 3 seats answered<\/li>/.test(hist[1]),'board: the history line for 02-battle is wrong');
 check(!!hist&&/<li><b>Round 04-battle<\/b> · the default prompt: “[^”]*” · no rating asked · 2 of 3 seats answered<\/li>/.test(hist[1]),'board: the history line for 04-battle should say no rating asked and 2 of 3');
-check(html.indexOf('<ul class="rounds">')>html.indexOf('Every round: the scoreboard'),'board: the history belongs in the scoreboard fold');
+check(html.indexOf('<ul class="rounds">')>html.indexOf('Every round: the scoreboard'),'board: the history belongs in the scoreboard panel');
 check(!/<span class="note-line">/.test(html),'board: no seat was asked something different, so no frame carries a note');
 
 // A run with no round: no box; the no-rounds line under the draft heading.
@@ -219,7 +233,7 @@ node('render-board.js',['--run',nr]);
 var nrfHtml=fs.readFileSync(path.join(nr,'board.html'),'utf8');
 check(!/class="verdict/.test(nrfHtml)&&!/<p class="word">/.test(nrfHtml),'board (final reads, no rating): no box');
 check(/<p class="round"><b>Round 02-final<\/b> · final reads: S\/N ratio and red flags · 1 of 3 seats answered<\/p>/.test(nrfHtml),'board (final reads): the strip should name the final round');
-check(!/<figure class="frame/.test(freshHtml)&&!/Every round: the scoreboard/.test(freshHtml),'board (no rounds): no frames and no scoreboard fold');
+check(!/<figure class="frame/.test(freshHtml)&&!/<table/.test(freshHtml)&&/<main class="board norounds">/.test(freshHtml),'board (no rounds): no frames, no table, the frame without a hand');
 check(/<h2>The draft<\/h2>/.test(freshHtml)&&/<div class="paper"><p>Dear board, buy the company\.<\/p><\/div>/.test(freshHtml),'board (no rounds): the draft is still on the page');
 
 // A round of seat lines alone: round 2 goes to seat-2 only, with rerate. After round 1 every
@@ -228,7 +242,7 @@ var so=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--name'
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',so,'--round','01-sparring','--seat',s]); write(path.join(so,'rounds','01-sparring',s+'.answer.md'),'RATING: 8/10\nRound one. It ships as is.\n'); node('check-answer.js',[path.join(so,'rounds','01-sparring',s+'.answer.md'),'--run',so]); });
 node('render-board.js',['--run',so]);
 var sendHtml=fs.readFileSync(path.join(so,'board.html'),'utf8');
-check(!/class="verdict/.test(sendHtml)&&(sendHtml.match(/<span class="badge">Rating 8\/10/g)||[]).length===3,'board (all 8): no box; the three 8/10 are on the frames');
+check(!/class="verdict/.test(sendHtml)&&(sendHtml.match(/<span class="badge sr">Rating 8\/10<\/span>/g)||[]).length===3&&(sendHtml.match(/<span class="ix tl" aria-hidden="true">8<small>of 10<\/small><\/span><span class="ix br" aria-hidden="true">8<small>of 10<\/small><\/span>/g)||[]).length===3,'board (all 8): no box; the three 8/10 are on the cards, as the badge and as the corner index');
 write(path.join(proj,'q2.md'),'Does the close ask for the vote?\n');
 node('packet.js',['--run',so,'--round','02-battle','--seat','seat-2','--question','q2.md','--rerate']);
 write(path.join(so,'rounds','02-battle','seat-2.answer.md'),'RATING: 6/10\nNot in so many words. <script>alert(1)</script> is text, not markup.\n');
@@ -246,9 +260,12 @@ check(/<p class="round"><b>Round 02-battle<\/b> · seat lines to seat-2 \(“Doe
 check(/data-seat="seat-2">[^]*?<span class="note-line">· your note: “Does the close ask for the vote\?”<\/span>/.test(soHtml)&&(soHtml.match(/<span class="note-line">/g)||[]).length===1,'board (seat-only round): only seat-2\'s frame carries the note');
 
 
-// The measure and the markdown subset (2026-10-15). The CSS tokens: the page at 1360 px, cards at
-// 360 px minimum, an opened read spanning the row at 70ch, the draft panel at 76ch, wrapping on.
-check(/main\{max-width:1360px/.test(html)&&/minmax\(360px,1fr\)/.test(html)&&/\.frame:has\(details\[open\]\)\{grid-column:1\/-1\}/.test(html)&&/\.read\{[^}]*max-width:70ch/.test(html)&&/\.paper\{[^}]*max-width:76ch/.test(html),'board: the measure CSS is missing a token');
+// The frame and the markdown subset (Part 106). The CSS: one screen on a 100dvh grid, rows auto 3fr 7fr
+// auto, the rows stacking under 1100 px; no page width cap and no character cap on the draft or the read;
+// the identity table keyed by company; the tokens for light and for dark; wrapping on.
+check(/main\.board\{height:100dvh;min-height:900px;[^}]*grid-template-rows:auto minmax\(0,3fr\) minmax\(0,7fr\) auto/.test(html)&&/@media \(max-width:1100px\)\{main\.board,main\.board\.norounds\{height:auto/.test(html)&&!/max-width:1360px/.test(html)&&!/76ch/.test(html)&&!/70ch/.test(html)&&!/minmax\(360px/.test(html),'board: the frame CSS is wrong or the old measure survives');
+check(/figure\.co-anthropic\{border:3px double var\(--c-anthropic\);border-radius:14px\}/.test(html)&&/figure\.co-alibaba\{border:2px solid var\(--c-alibaba\);border-radius:22px\}/.test(html)&&/figure\.co-openai\{border:4px solid var\(--c-openai\);border-radius:6px\}/.test(html)&&/figure\.co-anthropic blockquote\{font:600 25px\/1\.3 "Source Serif 4"/.test(html)&&/figure\.co-alibaba blockquote\{font:800 23px\/1\.3 Manrope/.test(html)&&/figure\.co-openai blockquote\{font:700 18px\/1\.4 "JetBrains Mono"/.test(html),'board: the identity table (the frame, the face and the accent per company) is missing an entry');
+check(/:root\{color-scheme:light;--surface:#ECE9E1;--paper:#FFFDF8;--surface-2:#F6F3EC;--ink:#111111;/.test(html)&&/--c-anthropic:#C2410C;--c-alibaba:#1D4ED8;--c-openai:#1F2937;/.test(html)&&/:root\[data-theme="dark"\]\{color-scheme:dark;--surface:#0F1114;--paper:#1B1E24;--surface-2:#171A1F;--ink:#F3F1EA;/.test(html)&&/--c-anthropic:#F09A74;--c-alibaba:#7FB0FF;--c-openai:#C9D4DE;/.test(html),'board: the light and dark tokens are not the pinned pages\' values');
 check((html.match(/overflow-wrap:anywhere/g)||[]).length>=5,'board: long words must wrap in the draft, the quote, the read, the cells and the strip');
 // A read with markdown and a long address: lists, bold, italic and code render; the address stays
 // text and wraps by CSS; a script tag inside bold is text; no new href; a heading is a bold paragraph.
@@ -259,8 +276,8 @@ write(path.join(md,'rounds','01-sparring','seat-1.answer.md'),'RATING: 6/10\nNot
 node('check-answer.js',[path.join(md,'rounds','01-sparring','seat-1.answer.md'),'--run',md]);
 node('render-board.js',['--run',md]);
 var mdHtml=fs.readFileSync(path.join(md,'board.html'),'utf8');
-var mdRead=(/<div class="read">([^]*?)<\/div><\/details>/.exec(mdHtml)||['',''])[1];
-check(mdRead.indexOf('<p>RATING: 6/10<br>Not ready: <strong>the close</strong> is <em>soft</em> and <code>the ask</code> is late.</p>')>=0,'board (markdown): bold, italic and code should render; got '+mdRead.slice(0,200));
+var mdRead=(/<div class="read">([^]*?)<\/div><p class="fold">/.exec(mdHtml)||['',''])[1];
+check(mdRead.indexOf('<p>Not ready: <strong>the close</strong> is <em>soft</em> and <code>the ask</code> is late.</p>')>=0&&mdRead.indexOf('RATING:')<0,'board (markdown): bold, italic and code should render, the RATING line off the card (the index carries it); got '+mdRead.slice(0,200));
 check(mdRead.indexOf('<p><strong>What to fix</strong></p>')>=0,'board (markdown): a heading line should be a bold paragraph');
 check(mdRead.indexOf('<ul><li>First point</li><li>Second <strong>bold</strong> point &lt;script&gt;alert(2)&lt;/script&gt;</li></ul>')>=0,'board (markdown): bullets should be a list with the script tag as text; got '+mdRead);
 check(mdRead.indexOf('<ol><li>Step one</li><li>Step two with '+LONG+'</li></ol>')>=0,'board (markdown): numbered lines should be an ordered list with the address as text');
@@ -271,7 +288,7 @@ check(/<blockquote>Not ready: the close is soft and the ask is late\.<\/blockquo
 // controls on the draft panel, read aloud (speech synthesis with pause and stop), copy (the
 // clipboard) and download (a .txt named for the run), the canon text in the page, the Shipped
 // strip under the round strip, the heading naming the canon and the draft it froze, the Champion
-// fold; the page still has one href and makes no outside request. The fresh run above has no
+// lines under the Run details tab; the page still has one href and makes no outside request. The fresh run above has no
 // canon and none of it.
 ['canon-speak','canon-pause','canon-stop','canon-copy','canon-download','canon-text','round shipped','Champion: shipped'].forEach(function(id){ check(html.indexOf(id)<0&&freshHtml.indexOf(id)<0,'board (no canon): "'+id+'" must not be on the page'); });
 fs.mkdirSync(path.join(proj,'combat-writing','inbox'),{recursive:true});
@@ -289,9 +306,9 @@ check(/<div id="canon-text" hidden>Dear board, buy the company\.\n<\/div>/.test(
 check(/speechSynthesis/.test(shipHtml)&&/SpeechSynthesisUtterance/.test(shipHtml)&&/synth\.pause\(\)/.test(shipHtml)&&/synth\.resume\(\)/.test(shipHtml)&&/synth\.cancel\(\)/.test(shipHtml),'board (canon): the reading must use the browser\'s speech synthesis with pause, resume and stop');
 check(/navigator\.clipboard/.test(shipHtml)&&/execCommand\("copy"\)/.test(shipHtml),'board (canon): copy must use the clipboard API with a fallback');
 check(/a\.download="\d{4}-\d\d-\d\d-\d{4}-board-canon\.txt"/.test(shipHtml)&&/data:text\/plain;charset=utf-8,/.test(shipHtml),'board (canon): download must name the file for the run and build it from the text in the page');
-check(/<details class="fold"><summary>Champion: shipped, results, insights<\/summary>/.test(shipHtml)&&/<strong>Shipped:<\/strong> 2026-10-19 14:02 UTC · example\.invalid \(LinkedIn post\) · canon\.md froze draft-2\.md · live: matches canon · www\.example\.invalid\/posts\/abc123<\/p>/.test(shipHtml),'board (canon): the Champion fold must carry the Shipped line');
-check(shipHtml.indexOf('Champion: shipped')<shipHtml.indexOf('<summary>Run details'),'board (canon): the Champion fold sits before Run details');
-check(!/\b(https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(shipHtml)&&!/<link\b/i.test(shipHtml)&&!/<script[^>]+src=/i.test(shipHtml)&&!/<img\b/i.test(shipHtml)&&!/<iframe\b/i.test(shipHtml)&&!/@import/i.test(shipHtml)&&!/url\(/i.test(shipHtml)&&!/\bfetch\(/.test(shipHtml)&&!/XMLHttpRequest/.test(shipHtml),'board (canon): the page must still make no outside request');
+check(/<h2>Champion: shipped, results, insights<\/h2>/.test(shipHtml)&&/<strong>Shipped:<\/strong> 2026-10-19 14:02 UTC · example\.invalid \(LinkedIn post\) · canon\.md froze draft-2\.md · live: matches canon · www\.example\.invalid\/posts\/abc123<\/p>/.test(shipHtml),'board (canon): the Champion heading must carry the Shipped line');
+check(shipHtml.indexOf('Champion: shipped')>shipHtml.indexOf('id="panel-details"')&&shipHtml.indexOf('Champion: shipped')<shipHtml.indexOf('<h2>Run details</h2>'),'board (canon): the Champion heading sits under the Run details tab, before Run details');
+check(!/\b(https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(shipHtml)&&!/<link\b/i.test(shipHtml)&&!/<script[^>]+src=/i.test(shipHtml)&&!/<img\b/i.test(shipHtml)&&!/<iframe\b/i.test(shipHtml)&&!/@import/i.test(shipHtml)&&onlyDataFonts(shipHtml)&&!/\bfetch\(/.test(shipHtml)&&!/XMLHttpRequest/.test(shipHtml),'board (canon): the page must still make no outside request');
 var shipHrefs=shipHtml.match(/href="[^"]*"/g)||[];
 check(shipHrefs.length===1&&shipHrefs[0]==='href="record.md"','board (canon): hrefs are '+JSON.stringify(shipHrefs)+', expected only record.md');
 check(!/<a /.test(shipHtml.replace(/<a href="record\.md">/,'')),'board (canon): the address must be text, never a link');
@@ -305,7 +322,7 @@ check(node('render-board.js',['--run',bad]).status===2,'render-board: a folder w
 // Read aloud on every read frame (issue 82): seat-1's critique frame carries the controls and its answer as
 // plain text; the missing and failed frames carry none; the fresh run carries none; the script wires every
 // frame to speech synthesis with pause, resume and stop; the page still has one href and no outside request.
-check(!!f1&&/<div class="read-controls"><button type="button" class="seat-speak" aria-label="Read this seat's critique aloud">🔊 Read aloud<\/button> <button type="button" class="seat-pause"[^>]*disabled>Pause<\/button> <button type="button" class="seat-stop"[^>]*disabled>Stop<\/button> <select class="seat-voice" aria-label="Voice for this seat" hidden><option value="">Voice: automatic<\/option><\/select> <span class="meta seat-status" aria-live="polite"><\/span><\/div><div class="seat-text" hidden>The close is the problem, as seat-2 said\.<\/div><details>/.test(f1[1]),'board (read aloud): seat-1\'s frame should carry the controls and the plain text before its fold; got '+(f1?f1[1].slice(0,400):''));
+check(!!f1&&/<div class="read-controls"><button type="button" class="seat-speak" aria-label="Read this seat's critique aloud">🔊 Read aloud<\/button> <button type="button" class="seat-pause"[^>]*disabled>Pause<\/button> <button type="button" class="seat-stop"[^>]*disabled>Stop<\/button> <select class="seat-voice" aria-label="Voice for this seat" hidden><option value="">Voice: automatic<\/option><\/select> <span class="meta seat-status" aria-live="polite"><\/span><\/div><div class="seat-text" hidden>The close is the problem, as seat-2 said\.<\/div><div class="full">/.test(f1[1]),'board (read aloud): seat-1\'s frame should carry the controls and the plain text before its read; got '+(f1?f1[1].slice(0,400):''));
 check(!!f2&&f2[1].indexOf('seat-speak')<0&&!!f3&&f3[1].indexOf('seat-speak')<0,'board (read aloud): a missing or failed frame carries no control');
 // A voice per seat (issue 101): the page picks a voice for every seat but seat-1, from the browser's list,
 // the page's language first, local voices first, then by name; seat-1 keeps the default; the canon's reader sets none.
