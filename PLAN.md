@@ -258,3 +258,11 @@ Issue 179. Measured 2026-11-06 on the first round run on cw 0.9.0: the host ran 
 Delivers (cw 0.9.1): `hooks/show-result.js`, `tests/show_result_check.js`, the battle, sparring and combat-writing skills, CLAUDE.md, both manifests, PLAN.md.
 
 Status: delivered — 2026-11-06 — draft pull request open; `node tests/run_all.js` run in the build session, the counts in the pull request body.
+
+## Part 117 — The fold with its plus, and the long text condensed (cw 0.9.2)
+
+Issue 180, the checkpoint's first improvements, named by the founder on the first board of 0.9.0 (2026-11-06). The fold line under each seat's read is a button again, with the plus: it opens the card over the whole hand (the 70 percent the seats share) with the full read at reading width (76ch), the card scrolling as one when the read runs past it, the minus closes it; the read stays on the card either way, scrolling inside its box when closed; a failed read the same. The round line at the top carries the prompt verbatim when it is short and condensed when it is long (cut at the last sentence end before 160 characters when one stands past the first 40, else at the last space, with an ellipsis); the history under the Scoreboard tab keeps the full line. The brief and the reader in the side column take the same rule (280 and 200 characters; the whole brief under Run details). The voices the founder named in the same breath are issue 179 (Part 116): nothing on the board changes for them.
+
+Delivers (cw 0.9.2): `scripts/render-board.js`, `tests/board_check.js`, `tests/two_pass_check.js`, `tests/rewrite_check.js`, CLAUDE.md, both manifests, PLAN.md.
+
+Status: delivered — 2026-11-06 — draft pull request open, stacked on Part 116's; `node tests/run_all.js` run in the build session, the counts in the pull request body.

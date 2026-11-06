@@ -148,13 +148,15 @@ check(!!f1&&/<span class="badge critique">Critique · no rating asked<\/span>/.t
 check(!!f1&&/<blockquote>The close is the problem, as seat-2 said\.<\/blockquote>/.test(f1[1]),'board: seat-1\'s frame should quote its verdict sentence');
 check(!!f1&&/<figcaption>— Test Model \(Anthropic\), seat-1 <span class="seat">· round 04-battle<\/span><\/figcaption>/.test(f1[1]),'board: seat-1\'s citation is wrong');
 check(!!f1&&/<p class="final">05-final: S\/N 70% · 1 red flag<\/p>/.test(f1[1]),'board: seat-1\'s frame should carry its final numbers');
-check(!!f1&&/<div class="full"><div class="read"><p>The close is the problem, as seat-2 said\.<\/p><\/div><p class="fold">The full critique \(8 words\)<\/p><\/div>/.test(f1[1]),'board: seat-1\'s full read should be open on the card, the fold line under it');
+check(!!f1&&/<div class="full"><div class="read"><p>The close is the problem, as seat-2 said\.<\/p><\/div><button type="button" class="fold" aria-expanded="false">\+ The full critique \(8 words\)<\/button><\/div>/.test(f1[1]),'board: seat-1\'s full read should be on the card with the fold button under it');
 var f2=/<figure class="frame missing co-anthropic" data-seat="seat-2">([\s\S]*?)<\/figure>/.exec(html);
 check(!!f2&&/<span class="badge missing">Missing<\/span>/.test(f2[1])&&/<blockquote>No answer this round\. Nothing stands in for it\.<\/blockquote>/.test(f2[1])&&f2[1].indexOf('class="full"')<0&&f2[1].indexOf('class="ix')<0,'board: seat-2\'s frame should say missing with no read and no index');
 check(!!f2&&/<p class="final">05-final: S\/N 55% · no red flags<\/p>/.test(f2[1]),'board: seat-2\'s frame should carry its final numbers');
 var f3=/<figure class="frame failed co-anthropic" data-seat="seat-3">([\s\S]*?)<\/figure>/.exec(html);
 check(!!f3&&/<span class="badge failed">Failed read<\/span>/.test(f3[1])&&/<blockquote>Failed read: this round asked for no rating; remove the RATING line and open with your critique\.<\/blockquote>/.test(f3[1]),'board: seat-3\'s frame should say failed read with the reason');
-check(!!f3&&/<div class="full"><div class="read failed">[^]*?<\/div><p class="fold">The failed read \(4 words\)<\/p><\/div>/.test(f3[1]),'board: seat-3\'s failed read is on the card, the fold line under it');
+check(!!f3&&/<div class="full"><div class="read failed">[^]*?<\/div><button type="button" class="fold" aria-expanded="false">\+ The failed read \(4 words\)<\/button><\/div>/.test(f3[1]),'board: seat-3\'s failed read is on the card, the fold button under it');
+// The fold (Part 117): the toggle opens the card over the whole hand with the read at reading width.
+check(/\.hand\{position:relative;/.test(html)&&/\.frame\.open\{position:absolute;top:0;left:0;right:0;bottom:0;height:auto;min-height:0;overflow:auto;z-index:2\}/.test(html)&&/\.frame\.open \.read\{overflow:visible;max-width:76ch/.test(html)&&/querySelectorAll\("\.frame \.fold"\)/.test(html)&&/classList\.toggle\("open",open\)/.test(html)&&/setAttribute\("aria-expanded",open\?"true":"false"\)/.test(html),'board: the fold button must open the card over the hand (the class, the CSS and the toggle)');
 check(!!f3&&/<p class="final">05-final: S\/N missing · red flags missing<\/p>/.test(f3[1]),'board: seat-3\'s frame should say its final reads are missing');
 
 // Under the Scoreboard tab: every round.
@@ -263,7 +265,7 @@ check(/data-seat="seat-2">[^]*?<span class="note-line">· your note: “Does the
 // The frame and the markdown subset (Part 106). The CSS: one screen on a 100dvh grid, rows auto 3fr 7fr
 // auto, the rows stacking under 1100 px; no page width cap and no character cap on the draft or the read;
 // the identity table keyed by company; the tokens for light and for dark; wrapping on.
-check(/main\.board\{height:100dvh;min-height:900px;[^}]*grid-template-rows:auto minmax\(0,3fr\) minmax\(0,7fr\) auto/.test(html)&&/@media \(max-width:1100px\)\{main\.board,main\.board\.norounds\{height:auto/.test(html)&&!/max-width:1360px/.test(html)&&!/76ch/.test(html)&&!/70ch/.test(html)&&!/minmax\(360px/.test(html),'board: the frame CSS is wrong or the old measure survives');
+check(/main\.board\{height:100dvh;min-height:900px;[^}]*grid-template-rows:auto minmax\(0,3fr\) minmax\(0,7fr\) auto/.test(html)&&/@media \(max-width:1100px\)\{main\.board,main\.board\.norounds\{height:auto/.test(html)&&!/max-width:1360px/.test(html)&&!/\.paper\{[^}]*76ch/.test(html)&&!/70ch/.test(html)&&!/minmax\(360px/.test(html),'board: the frame CSS is wrong or the old measure survives');
 check(/figure\.co-anthropic\{border:3px double var\(--c-anthropic\);border-radius:14px\}/.test(html)&&/figure\.co-alibaba\{border:2px solid var\(--c-alibaba\);border-radius:22px\}/.test(html)&&/figure\.co-openai\{border:4px solid var\(--c-openai\);border-radius:6px\}/.test(html)&&/figure\.co-anthropic blockquote\{font:600 25px\/1\.3 "Source Serif 4"/.test(html)&&/figure\.co-alibaba blockquote\{font:800 23px\/1\.3 Manrope/.test(html)&&/figure\.co-openai blockquote\{font:700 18px\/1\.4 "JetBrains Mono"/.test(html),'board: the identity table (the frame, the face and the accent per company) is missing an entry');
 check(/:root\{color-scheme:light;--surface:#ECE9E1;--paper:#FFFDF8;--surface-2:#F6F3EC;--ink:#111111;/.test(html)&&/--c-anthropic:#C2410C;--c-alibaba:#1D4ED8;--c-openai:#1F2937;/.test(html)&&/:root\[data-theme="dark"\]\{color-scheme:dark;--surface:#0F1114;--paper:#1B1E24;--surface-2:#171A1F;--ink:#F3F1EA;/.test(html)&&/--c-anthropic:#F09A74;--c-alibaba:#7FB0FF;--c-openai:#C9D4DE;/.test(html),'board: the light and dark tokens are not the pinned pages\' values');
 check((html.match(/overflow-wrap:anywhere/g)||[]).length>=5,'board: long words must wrap in the draft, the quote, the read, the cells and the strip');
@@ -276,7 +278,7 @@ write(path.join(md,'rounds','01-sparring','seat-1.answer.md'),'RATING: 6/10\nNot
 node('check-answer.js',[path.join(md,'rounds','01-sparring','seat-1.answer.md'),'--run',md]);
 node('render-board.js',['--run',md]);
 var mdHtml=fs.readFileSync(path.join(md,'board.html'),'utf8');
-var mdRead=(/<div class="read">([^]*?)<\/div><p class="fold">/.exec(mdHtml)||['',''])[1];
+var mdRead=(/<div class="read">([^]*?)<\/div><button type="button" class="fold"/.exec(mdHtml)||['',''])[1];
 check(mdRead.indexOf('<p>Not ready: <strong>the close</strong> is <em>soft</em> and <code>the ask</code> is late.</p>')>=0&&mdRead.indexOf('RATING:')<0,'board (markdown): bold, italic and code should render, the RATING line off the card (the index carries it); got '+mdRead.slice(0,200));
 check(mdRead.indexOf('<p><strong>What to fix</strong></p>')>=0,'board (markdown): a heading line should be a bold paragraph');
 check(mdRead.indexOf('<ul><li>First point</li><li>Second <strong>bold</strong> point &lt;script&gt;alert(2)&lt;/script&gt;</li></ul>')>=0,'board (markdown): bullets should be a list with the script tag as text; got '+mdRead);
@@ -312,6 +314,25 @@ check(!/\b(https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(shipHtml)&&!/<link\b/i.tes
 var shipHrefs=shipHtml.match(/href="[^"]*"/g)||[];
 check(shipHrefs.length===1&&shipHrefs[0]==='href="record.md"','board (canon): hrefs are '+JSON.stringify(shipHrefs)+', expected only record.md');
 check(!/<a /.test(shipHtml.replace(/<a href="record\.md">/,'')),'board (canon): the address must be text, never a link');
+
+// The strip and the side column condense a long text (Part 117, issue 180): a 300-character SN prompt is cut at a
+// sentence end before 160 with an ellipsis on the strip and kept whole in the history; a short prompt stays verbatim
+// (the SN run above); a 400-character brief is condensed in the side column and whole under Run details.
+var LONGSN='The first sentence asks whether the close asks for the vote. The second sentence asks whether the numbers in the second paragraph are the numbers the board will check against the deck. The third sentence asks whether the greeting is the one the chair uses in writing. The fourth sentence asks about the sign-off.';
+var LONGBRIEF='Chief executive of an invented company writing to an invented board. '+'The stakes are the vote on the letter of intent at the next meeting. '.repeat(5)+'Rules: one ask, one page.';
+write(path.join(proj,'longsn.md'),LONGSN+'\n'); write(path.join(proj,'longbrief.md'),LONGBRIEF+'\n');
+var ln=node('new-run.js',['--readers','1','--draft','draft.md','--brief','longbrief.md','--name','longsn','--stage','battle','--model','Test Model']).stdout.trim();
+node('packet.js',['--run',ln,'--round','01-battle','--seat','seat-1','--sn','longsn.md']);
+write(path.join(ln,'rounds','01-battle','seat-1.answer.md'),'Not ready: the ask is buried.\n');
+node('check-answer.js',[path.join(ln,'rounds','01-battle','seat-1.answer.md'),'--run',ln]);
+node('render-board.js',['--run',ln]);
+var lnHtml=fs.readFileSync(path.join(ln,'board.html'),'utf8');
+var lnStrip=(/<p class="round">([^]*?)<\/p>/.exec(lnHtml)||['',''])[1];
+check(/^<b>Round 01-battle<\/b> · SN: “The first sentence asks whether the close asks for the vote\.…” · no rating asked · 1 of 1 seat answered$/.test(lnStrip),'board (long prompt): the strip carries the prompt cut at a sentence end with an ellipsis; got '+lnStrip.slice(0,220));
+check(lnHtml.indexOf('<li><b>Round 01-battle</b> · SN: “'+LONGSN+'” · no rating asked · 1 of 1 seat answered</li>')>=0,'board (long prompt): the history keeps the whole prompt');
+var lnSide=(/<aside class="side"[^>]*>\s*<p><b>Brief\.<\/b> ([^<]*)<\/p>/.exec(lnHtml)||['',''])[1];
+check(lnSide.length<LONGBRIEF.length&&/…$/.test(lnSide)&&lnSide.indexOf('Chief executive of an invented company')===0&&lnHtml.indexOf('<strong>Brief:</strong> '+LONGBRIEF)>=0,'board (long brief): the side column is condensed with an ellipsis and Run details carries the whole brief; got '+lnSide.slice(-80));
+check(/<aside class="side"[^>]*>\s*<p><b>Brief\.<\/b> CEO\. Get a yes\.<\/p>/.test(html),'board (short brief): the side column stays verbatim');
 
 // The log and a refusal.
 var log=fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);});
