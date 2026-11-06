@@ -3,9 +3,9 @@
 # by the real plugin scripts. Pins: no command palette, no Textual Header or Footer; the title
 # strip carries the run id and the motto as written; the tab strip carries the five tabs and
 # the key hints; the freshness line says what it watches; the credit line is nowhere; the
-# dialogue shows the round, the seat, its rating and its verdict line from the state; the
-# Launch reads AUTHOR'S CALL, then BACK TO THE DRAWING BOARD naming the seat within a few sweeps after
-# a new answer lands on disk and is checked; Enter opens a read as plain text; a round the
+# dialogue shows the round, the seat, its rating and its verdict line from the state; there is
+# no Launch block (issue 175); a new answer landing on disk and checked shows in the dialogue
+# within a few sweeps; Enter opens a read as plain text; a round the
 # host announced shows as forming; a tab not yet built says so; a run folder that disappears
 # turns the freshness line stale with the time; a wrong plugin root is said on screen; a
 # newer run appearing is followed; --light takes the light palette; a tick after the screen
@@ -71,7 +71,7 @@ async def main():
         check("Round 01-sparring" in text and "a rating asked" in text and "1 of 2 seats answered" in text, "shell: the round line is wrong")
         check("seat-1 · Test Model (Anthropic), seat-1" in text and "8/10" in text and "The ask lands in the first line." in text, "shell: seat-1's entry is wrong")
         check("seat-2 · Test Model (Anthropic), seat-2" in text and "No answer this round. Nothing stands in for it." in text, "shell: seat-2 should be missing")
-        check("LAUNCH   AUTHOR'S CALL" in text and "8/10 seat-1" in text, "shell: the launch should read AUTHOR'S CALL over seat-1's 8")
+        check("LAUNCH" not in text, "shell: no Launch block (issue 175)")
         check("seat-1 · Test Model (Anthropic), seat-1 · the fresh reader" in text and "seated · served by test-fixture" in text, "shell: the available block is wrong")
         check("Mission  not set" in text and "Objective  not set" in text, "shell: mission and objective should read not set")
         check(("RAT" + "ING: 8/10") not in text, "shell: a closed read should not show its first line")
@@ -101,12 +101,12 @@ async def main():
         app.screen.apply(app.state, None)
         await pilot.pause(0.3)
 
-        # A new answer lands on disk and is checked: the entry and the launch follow within a few sweeps.
+        # A new answer lands on disk and is checked: the entry follows within a few sweeps.
         answer(run, proj, "01-sparring", "seat-2", "RAT" + "ING: 4/10\nNot ready. The close pleads.\n")
-        took = await wait_for(app, pilot, lambda t: "BACK TO THE DRAWING BOARD" in t)
+        took = await wait_for(app, pilot, lambda t: "4/10" in t and "Not ready. The close pleads." in t)
         text = app.screen_text()
         check(took is not None and took < 5, "shell: the new answer was not seen within 5 s")
-        check("4/10 seat-2 ← sends it back" in text and "Not ready. The close pleads." in text and "2 of 2 seats answered" in text, "shell: after seat-2's 4/10 the launch should name it:\n" + text)
+        check("seat-2 · Test Model (Anthropic), seat-2" in text and "4/10" in text and "Not ready. The close pleads." in text and "2 of 2 seats answered" in text and "LAUNCH" not in text, "shell: after seat-2's 4/10 the dialogue should carry it and no block should sit under it:\n" + text)
 
         # Enter opens the read as plain text.
         first = app.screen.query(Entry).first()
@@ -132,7 +132,7 @@ async def main():
         check("Sparring: this screen is built in Part 47" in text and run.name in text and "watching" in text, "shell: tab 3 should say it is not built yet, with the chrome")
         await pilot.press("1")
         await pilot.pause(0.3)
-        check("LAUNCH" in app.screen_text(), "shell: tab 1 should return to the briefing")
+        check("seated · served by test-fixture" in app.screen_text(), "shell: tab 1 should return to the briefing (the available block is its last region)")
 
         # A newer run appears: the screen follows it.
         (proj / "draft2.md").write_text("Second draft, new run.\n")

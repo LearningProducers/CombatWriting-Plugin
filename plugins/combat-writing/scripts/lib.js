@@ -1422,11 +1422,10 @@ function checkFlip(text,self,previousText,carried){
 
 
 // The run as one object (Part 43): every presentation over a run reads this,
-// the screen first, so the rules that make a cell, a latest rating or the band live once.
+// the screen first, so the rules that make a cell or a latest rating live once.
 // Built from the files and log.jsonl, like the record and the board; nothing is averaged. The
-// why-lines of the band and the no-rounds line are the board's words, pinned equal by
-// tests/state_check.js; render-board.js and render-record.js keep their own code until a
-// later cleanup moves them onto runState.
+// no-rounds line is the board's words, pinned equal by tests/state_check.js; render-board.js
+// and render-record.js keep their own code until a later cleanup moves them onto runState.
 var STATE_SCHEMA=1;
 var STATE_FILE='state.json';
 function pluginVersion(){ try{ return JSON.parse(readText(path.join(__dirname,'..','.claude-plugin','plugin.json'))).version||null; }catch(e){ return null; } }
@@ -1489,22 +1488,6 @@ function finalText(f){
   var rfT=f.redflag.missing?'red flags missing':f.redflag.ok?(f.redflag.value===0?'no red flags':f.redflag.value+' red flag'+(f.redflag.value===1?'':'s')):'red-flag read failed';
   return snT+' · '+rfT;
 }
-// The band: from every seat's own latest rating, nothing
-// averaged; every rated seat at 8 or more is AUTHOR'S CALL; any at 6 or less is BACK TO THE DRAWING
-// BOARD and the band names it; FINAL READS over each seat's two numbers when the run holds final
-// reads and no rating; no band at all otherwise. The words are the board's.
-function bandOf(seats,latest,finalRounds,finalCells){
-  var rated=seats.filter(function(s){return !!latest[s.id];});
-  var low=rated.filter(function(s){return latest[s.id].rating<=6;});
-  var lastFinal=finalRounds.length?finalRounds[finalRounds.length-1]:null;
-  if(!rated.length){
-    if(lastFinal)return {verdict:'FINAL READS',why:'No seat has rated this draft. These are the final reads of round '+lastFinal+', each seat\'s own S/N ratio and red-flag count. Nothing is averaged.',low:[],numbers:seats.map(function(s){return {seat:s.id,label:seatLabel(s),text:finalCells[s.id].text};}),final_round:lastFinal};
-    return {verdict:null,why:null,low:[],numbers:[],final_round:null};
-  }
-  var numbers=rated.map(function(s){return {seat:s.id,label:seatLabel(s),rating:latest[s.id].rating,round:latest[s.id].round};});
-  if(!low.length)return {verdict:"AUTHOR'S CALL",why:(rated.length===1?'The one rated seat':'Every rated seat')+' put it at 8 or more: a working document by '+(rated.length===1?'its':'each seat\'s')+' own number. Nothing is averaged.',low:[],numbers:numbers,final_round:lastFinal};
-  return {verdict:'BACK TO THE DRAWING BOARD',why:low.map(function(s){return seatLabel(s)+' rated it '+latest[s.id].rating+'/10';}).join('; ')+': a problem document by '+(low.length===1?'that seat\'s':'those seats\'')+' own number. Nothing is averaged; one seat at 6 or less sends it back.',low:low.map(function(s){return s.id;}),numbers:numbers,final_round:lastFinal};
-}
 function runState(runDir){
   runDir=path.resolve(runDir);
   var seats=readSeats(runDir).seats;
@@ -1551,8 +1534,6 @@ function runState(runDir){
     latest[s.id]=null; latestTurn[s.id]=null;
     tableRounds.forEach(function(r){ var c=grid[s.id][r]; if(c.rating!==null&&c.rating!==undefined)latest[s.id]={round:r,rating:c.rating}; if(c.kind!=='not-asked')latestTurn[s.id]={round:r,kind:c.kind}; });
   });
-  var lastFinalCells={}; if(finalRounds.length)seats.forEach(function(s){ lastFinalCells[s.id]=finals[s.id][finalRounds[finalRounds.length-1]]; });
-  var band=bandOf(seats,latest,finalRounds,lastFinalCells);
   var championOut={
     shipped:shipped.map(function(e){ return {at:e.at,when:whenUtc(e.at),line:shippedLine(e),canon:e.canon,canon_new:!!e.canon_new,draft:e.draft,url:e.url||null,address_text:e.url?stripScheme(e.url):null,host:e.host||null,channel:e.channel||null,live:e.live===undefined?null:e.live,digest:!!e.digest,page_kind:e.page_kind||null,match:e.match||null}; }),
     results:champ.filter(function(e){return e.event==='champion.result';}).map(function(e){ return {at:e.at,date:dateUtc(e.at),text:String(e.text||'').replace(/\s+/g,' ').trim()}; }),
@@ -1568,7 +1549,7 @@ function runState(runDir){
     canons:canons,newest_canon:latestCanon(runDir),
     seats:seatsOut,crew_line:crewLine,seats_lines:crewStateLines(runDir,seats,log),seat_key:seatKey(seats),name_sources:nameSources(seats),
     briefing:null,
-    rounds:roundsOut,latest:latest,latest_turn:latestTurn,band:band,champion:championOut,
+    rounds:roundsOut,latest:latest,latest_turn:latestTurn,champion:championOut,
     next_line:rounds.length?nextLine(seats,path.basename(runDir)):noRounds+thisRunLine(path.basename(runDir)),no_rounds_line:noRounds,legend:SCOREBOARD_LEGEND,
     board_file:BOARD_FILE,record_file:'record.md',board_present:fs.existsSync(path.join(runDir,BOARD_FILE)),record_present:fs.existsSync(path.join(runDir,'record.md')),
     gitignore_written:log.some(function(e){return e.event==='gitignore.written';}),log_lines:log.length
@@ -1592,5 +1573,5 @@ module.exports={
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
   capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,copyShare:copyShare,rewriteCopy:rewriteCopy,copyMark:copyMark,COPY_SHARE:COPY_SHARE,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,VOICE_ORDER:VOICE_ORDER,voiceTier:voiceTier,voiceBase:voiceBase,voiceRank:voiceRank,isFenceLine:isFenceLine,plainSpoken:plainSpoken,spokenPlain:spokenPlain,draftParts:draftParts,draftPartsLines:draftPartsLines,PARTS_HEADING:PARTS_HEADING,PARTS_LINE:PARTS_LINE,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
-  STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,roundCell:roundCell,finalCell:finalCell,finalText:finalText,bandOf:bandOf,runState:runState
+  STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,roundCell:roundCell,finalCell:finalCell,finalText:finalText,runState:runState
 };

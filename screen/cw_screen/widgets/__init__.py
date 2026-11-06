@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 """The widgets the design placed: the title strip, the tab strip, the freshness line, a
-line, a round line, a seat's entry, the launch block. Nothing else."""
+line, a round line, a seat's entry. Nothing else."""
 
 from __future__ import annotations
 
@@ -126,31 +126,3 @@ class Entry(Plain):
         def __init__(self, key: str, opened: bool) -> None:
             super().__init__()
             self.key, self.opened = key, opened
-
-
-class Launch(Plain):
-    """The Launch block: lit green on AUTHOR'S CALL, dark red on BACK TO THE DRAWING BOARD naming the
-    seat, grey over the two numbers on FINAL READS, dim with no rating. 7 is never a rating
-    in the state, so it is never shown."""
-
-    def set_band(self, band: dict | None) -> None:
-        verdict = (band or {}).get("verdict")
-        for c in ("send", "back", "final"):
-            self.remove_class(c)
-        t = Text("LAUNCH", style="bold")
-        if verdict == "AUTHOR'S CALL":
-            self.add_class("send")
-            t.append("   AUTHOR'S CALL", style="bold")
-            t.append("\n" + " · ".join(f"{n['rating']}/10 {n['seat']}" for n in band.get("numbers", [])))
-        elif verdict == "BACK TO THE DRAWING BOARD":
-            self.add_class("back")
-            t.append("   BACK TO THE DRAWING BOARD", style="bold")
-            lows = {s for s in band.get("low", [])}
-            t.append("\n" + " · ".join(f"{n['rating']}/10 {n['seat']}" + (" ← sends it back" if n["seat"] in lows else "") for n in band.get("numbers", [])))
-        elif verdict == "FINAL READS":
-            self.add_class("final")
-            t.append("   FINAL READS", style="bold")
-            t.append("\n" + " · ".join(f"{n['seat']} {n['text']}" for n in band.get("numbers", [])))
-        else:
-            t.append("   no rating yet", style="dim")
-        self.show(t)

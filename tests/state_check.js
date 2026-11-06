@@ -22,13 +22,11 @@
 //   - The cells: a sound rating, a missing seat, a valid flip with the earlier number and the
 //     cited seat, an invalid flip, Stand, a critique, a failed read with its reasons, a 7
 //     rendered as a failed read with rating null (never a rating anywhere), a not-asked seat.
-//   - latest is each seat's own newest sound rating; the band is BACK TO THE DRAWING BOARD
-//     naming the low seat, its why-line equal to the board's, its numbers every rated seat's
-//     own; AUTHOR'S CALL on a fixture with every seat at 8 or more; FINAL READS over the two numbers on
-//     a run with final reads and no rating; no band on a run with no number.
+//   - latest is each seat's own newest sound rating; there is no band field on any run
+//     (issue 175), measured on four fixtures.
 //   - The verdict line of a cell is lib.verdictLine; the draft's text and counts are present;
 //     the canon names the draft it froze; the champion's shipped line is lib.shippedLine.
-//   - A run with no round: rounds empty, band null, next_line the no-rounds line.
+//   - A run with no round: rounds empty, next_line the no-rounds line.
 //   - A folder with no seats.json exits 2; a 7 in an answer is never a rating.
 //
 // Run from the repo root:   node tests/state_check.js
@@ -95,7 +93,7 @@ check(rs.status===0,'render-state: exit '+rs.status+' '+rs.stderr);
 var st=null; try{ st=JSON.parse(rs.stdout); }catch(e){ st=null; }
 check(!!st,'render-state: stdout is not valid JSON');
 check(listing(run)===before&&fs.readFileSync(path.join(run,'log.jsonl'),'utf8')===logBefore,'render-state without --write changed the run folder or the log');
-if(!st){ st={rounds:[],seats:[],drafts:[],canons:[],latest:{},band:{},champion:{shipped:[],results:[],insights:[]}}; }
+if(!st){ st={rounds:[],seats:[],drafts:[],canons:[],latest:{},champion:{shipped:[],results:[],insights:[]}}; }
 check(rs.stdout.indexOf(CREDIT)<0,'state: carries the credit line');
 check(!/\b(average|averaged|mean|overall rating|consensus|total)\b/i.test(rs.stdout.replace(/Nothing (here )?is averaged|never averaged|averaged, summed or ranked/g,'')),'state: an averaging word appears');
 check(!/"rating":\s*\d+\.\d+/.test(rs.stdout),'state: a fractional rating appears');
@@ -141,13 +139,12 @@ check(c('05-final','seat-2').text==='S/N 55% · no red flags'&&f3.sn&&f3.sn.miss
 var anySeven=false; st.rounds.forEach(function(r){ Object.keys(r.cells).forEach(function(s){ if(r.cells[s].rating===7)anySeven=true; }); });
 check(!anySeven,'state: a 7 appears as a rating');
 
-// 5. latest, latest_turn, the band, equal to the board's words.
+// 5. latest, latest_turn; no band.
 check(st.latest['seat-1']&&st.latest['seat-1'].round==='03-battle'&&st.latest['seat-1'].rating===8&&st.latest['seat-2'].round==='03-battle'&&st.latest['seat-2'].rating===4&&st.latest['seat-3']===null,'state: latest wrong: '+JSON.stringify(st.latest));
 check(st.latest_turn['seat-1']&&st.latest_turn['seat-1'].round==='04-battle'&&st.latest_turn['seat-1'].kind==='critique'&&st.latest_turn['seat-2'].kind==='missing'&&st.latest_turn['seat-3'].kind==='failed','state: latest_turn wrong: '+JSON.stringify(st.latest_turn));
-check(st.band.verdict==='BACK TO THE DRAWING BOARD'&&st.band.low.join(',')==='seat-2'&&st.band.numbers.length===2&&st.band.numbers[0].rating===8&&st.band.numbers[1].rating===4&&st.band.final_round==='05-final','state: band wrong: '+JSON.stringify(st.band));
+check(!('band' in st),'state: no band field (issue 175)');
 var html=fs.readFileSync(path.join(run,'board.html'),'utf8');
-var why=(/<p class="why">([^<]*)<\/p>/.exec(html)||['',''])[1].replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&amp;/g,'&');
-check(why.length>0&&st.band.why===why,'state: the band\'s why-line differs from the board\'s: '+st.band.why+' | '+why);
+check(!/class="verdict/.test(html),'state: the board carries no verdict box');
 check(st.next_line===lib.nextLine(st.seats,st.run.id)&&/^Next: \/cw:battle fq:/.test(st.next_line)&&st.run.slug===lib.runSlug(st.run.id),'state: next_line wrong');
 check(st.legend===lib.SCOREBOARD_LEGEND&&st.board_file==='board.html'&&st.record_file==='record.md'&&st.board_present===true&&st.record_present===true&&st.briefing===null,'state: the tail fields are wrong');
 
@@ -155,35 +152,35 @@ check(st.legend===lib.SCOREBOARD_LEGEND&&st.board_file==='board.html'&&st.record
 var rw=node('render-state.js',['--run',run,'--write']);
 check(rw.status===0&&rw.stdout.trim()===path.join(run,'state.json'),'render-state --write: exit '+rw.status+' '+rw.stdout+rw.stderr);
 var fileState=JSON.parse(fs.readFileSync(path.join(run,'state.json'),'utf8'));
-check(fileState.schema===1&&fileState.band.verdict===st.band.verdict&&fileState.rounds.length===5,'render-state --write: state.json differs');
+check(fileState.schema===1&&!('band' in fileState)&&fileState.rounds.length===5,'render-state --write: state.json differs');
 var logLines=fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);});
 var sr=logLines[logLines.length-1];
 check(sr.event==='state.rendered'&&sr.file==='state.json'&&sr.rounds===5,'render-state --write: state.rendered not logged last: '+JSON.stringify(sr));
 
-// 7. AUTHOR'S CALL (SEND until issue 163) on a fixture where every rated seat is at 8 or more; FINAL READS with no rating; no band with no number; a run with no round.
+// 7. No band on any fixture: every rated seat at 8 or more; no rating; final reads; no round.
 var send=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--brief','brief.md','--name','send','--model','Test Model']).stdout.trim(),2,'Test Model');
 ['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',send,'--round','01-sparring','--seat',s]); });
 write(path.join(send,'rounds','01-sparring','seat-1.answer.md'),'RATING: 9/10\nShips as is.\n');
 write(path.join(send,'rounds','01-sparring','seat-2.answer.md'),'RATING: 8/10\nReady to send.\n');
 ['seat-1','seat-2'].forEach(function(s){ node('check-answer.js',[path.join(send,'rounds','01-sparring',s+'.answer.md'),'--run',send]); });
 var ss=JSON.parse(node('render-state.js',['--run',send]).stdout);
-check(ss.band.verdict==="AUTHOR'S CALL"&&ss.band.low.length===0&&ss.band.numbers.map(function(n){return n.rating;}).join(',')==='9,8'&&/^Every rated seat put it at 8 or more/.test(ss.band.why),'state (send): band wrong: '+JSON.stringify(ss.band));
+check(!('band' in ss)&&ss.latest['seat-1'].rating===9&&ss.latest['seat-2'].rating===8,'state (all 8 or more): no band; latest carries 9 and 8');
 var nr=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--name','norating','--stage','battle','--no-brief','--model','Test Model']).stdout.trim(),2,'Test Model');
 write(path.join(proj,'sn.md'),'Is this ready to go to the board?\n');
 ['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',nr,'--round','01-battle','--seat',s,'--sn','sn.md']); });
 write(path.join(nr,'rounds','01-battle','seat-1.answer.md'),'Not ready: the ask is buried.\n');
 node('check-answer.js',[path.join(nr,'rounds','01-battle','seat-1.answer.md'),'--run',nr]);
 var ns=JSON.parse(node('render-state.js',['--run',nr]).stdout);
-check(ns.band.verdict===null&&ns.rounds[0].task.kind==='SN'&&ns.rounds[0].task.n===1&&ns.rounds[0].task_line==='SN: “Is this ready to go to the board?”'&&ns.rounds[0].cells['seat-1'].kind==='critique'&&ns.rounds[0].task.first_round===true&&ns.run.stage_started==='battle'&&ns.brief.present===false,'state (no rating): wrong: '+JSON.stringify({band:ns.band,task:ns.rounds[0]&&ns.rounds[0].task_line}));
+check(!('band' in ns)&&ns.rounds[0].task.kind==='SN'&&ns.rounds[0].task.n===1&&ns.rounds[0].task_line==='SN: “Is this ready to go to the board?”'&&ns.rounds[0].cells['seat-1'].kind==='critique'&&ns.rounds[0].task.first_round===true&&ns.run.stage_started==='battle'&&ns.brief.present===false,'state (no rating): wrong: '+JSON.stringify({task:ns.rounds[0]&&ns.rounds[0].task_line}));
 ['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',nr,'--round','02-final','--seat',s,'--final','sn']); node('packet.js',['--run',nr,'--round','02-final','--seat',s,'--final','redflag']); });
 write(path.join(nr,'rounds','02-final','seat-1.sn.answer.md'),'S/N RATIO: 60%\nSome.\n');
 write(path.join(nr,'rounds','02-final','seat-1.redflag.answer.md'),'NO RED FLAGS\nNone.\n');
 ['seat-1.sn','seat-1.redflag'].forEach(function(f){ node('check-answer.js',[path.join(nr,'rounds','02-final',f+'.answer.md'),'--run',nr]); });
 var nf=JSON.parse(node('render-state.js',['--run',nr]).stdout);
-check(nf.band.verdict==='FINAL READS'&&nf.band.final_round==='02-final'&&nf.band.numbers.length===2&&nf.band.numbers[0].text==='S/N 60% · no red flags'&&nf.band.numbers[1].text==='S/N missing · red flags missing'&&nf.band.why==='No seat has rated this draft. These are the final reads of round 02-final, each seat\'s own S/N ratio and red-flag count. Nothing is averaged.','state (final reads): band wrong: '+JSON.stringify(nf.band));
+check(!('band' in nf)&&nf.rounds.length===2&&nf.rounds[1].round==='02-final'&&nf.rounds[1].final===true,'state (final reads): no band; the final round is on the record: '+JSON.stringify(nf.rounds.map(function(r){return r.round;})));
 var fresh=node('new-run.js',['--readers','1','--draft','draft.md','--brief','brief.md','--name','fresh','--stage','strategy','--model','Test Model']).stdout.trim();
 var fsz=JSON.parse(node('render-state.js',['--run',fresh]).stdout);
-check(fsz.rounds.length===0&&fsz.band.verdict===null&&fsz.run.first_round===null&&fsz.next_line===fsz.no_rounds_line+lib.thisRunLine(fsz.run.id)&&/^No rounds yet\. The draft and the brief are stored/.test(fsz.next_line)&&fsz.run.stage_started==='strategy'&&fsz.board_present===false,'state (no rounds): wrong: '+JSON.stringify({rounds:fsz.rounds.length,band:fsz.band,next:fsz.next_line}));
+check(fsz.rounds.length===0&&!('band' in fsz)&&fsz.run.first_round===null&&fsz.next_line===fsz.no_rounds_line+lib.thisRunLine(fsz.run.id)&&/^No rounds yet\. The draft and the brief are stored/.test(fsz.next_line)&&fsz.run.stage_started==='strategy'&&fsz.board_present===false,'state (no rounds): wrong: '+JSON.stringify({rounds:fsz.rounds.length,next:fsz.next_line}));
 check(Object.keys(fsz.latest).length===1&&fsz.latest['seat-1']===null&&fsz.latest_turn['seat-1']===null,'state (no rounds): latest should be null per seat');
 
 // 8. Refusals.

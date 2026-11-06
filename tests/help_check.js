@@ -14,8 +14,7 @@
 // and the `all` rule now say the reply's first characters are the motto's first word, with no
 // sentence before the card naming the command, the card, the picker or what is about to happen,
 // and this test pins both rule texts. The same issue carries the founder's three sentences: the
-// one-liner (the card and the guide), the rating line with AUTHOR'S CALL for the upper band (the
-// board and lib.js printed SEND until issue 163 renamed the band everywhere) and the crew sentence
+// one-liner (the card and the guide), the rating line (the band names it carried are gone since issue 175) and the crew sentence
 // with the chairs the add-on takes.
 // Issue 158: the card and the guide mixed rules, sample commands and a slogan in one voice, so a
 // first-time reader could not tell a rule from an example, and a 17-row word table mixed what you
@@ -149,7 +148,7 @@ check(/^\| `seat-N:` \| a note to one seat: `seat-1:`, `seat-2:`, or its short n
 check(/^A keyword line opens a block that runs to the next keyword; any order, any case\.$/m.test(guide),'guide: the Start a run sentence');
 check(/^In FQ and N each seat answers alone; in SN and SFQ they read each other first\.$/m.test(guide),'guide: the Run a round sentence');
 check(/^The terminal prints the crew line, the scoreboard, the board's path and the seat key; the board opens in your browser\. Then the picker\.$/m.test(guide),'guide: After every round names the four lines, the browser and the picker');
-check(/^Ratings are 1 to 10 with 7 forbidden, never averaged\. 8 and above is AUTHOR\'S CALL, 6 and under BACK TO THE DRAWING BOARD; a changed rating quotes who moved it\.$/m.test(guide),'guide: the rating sentence, the bands (AUTHOR\'S CALL, the name every surface prints since issue 163) and the flip rule');
+check(/^Ratings are 1 to 10 with 7 forbidden, never averaged; a changed rating quotes who moved it\.$/m.test(guide),'guide: the rating sentence and the flip rule, no band name (issue 175)');
 check(/^Two fresh readers by default\. The add-on, named combat-writing-crew, seats other companies' models on your keys and takes the second chair, third chair or more\.$/m.test(guide),'guide: the crew in two sentences, the chairs the add-on takes');
 check(/^Under combat-writing\/ in your project: runs\/, inbox\/, insight-vault\.md, brief\.md, briefs\/, seats\.json, voices\.json\.$/m.test(guide),'guide: where files land');
 check(/^`\/cw:help <topic>` prints one section: stages, order, commands, next; rounds, champion, briefs, runs; crew, where, voices; files, record, privacy; rating; method\.$/m.test(guide),'guide: the More line lists the topic words in groups');

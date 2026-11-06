@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 # state_check.py: the screen reads the run through the plugin's own render-state.js and
 # holds no rule of the method. Pins: render_state parses the JSON of a run built by the real
-# scripts (schema 1, the run id, the seats, the band); a folder with no seats.json and a wrong
+# scripts (schema 1, the run id, the seats, no band); a folder with no seats.json and a wrong
 # plugin root raise StateError with the reason; read_log parses the log; forming_round returns
 # the announced round that holds no answers yet and nothing once the round is built; the
 # plugin root is found by argument, by variable, in the cache layout and in the checkout.
@@ -39,7 +39,7 @@ st = render_state(PLUGIN_ROOT, run)
 check(st["schema"] == 1 and st["run"]["id"] == run.name and st["run"]["stage_started"] == "sparring", "state: wrong run block " + str(st.get("run")))
 check([s["id"] for s in st["seats"]] == ["seat-1", "seat-2"] and st["seats"][0]["fresh_reader"] is True, "state: seats wrong")
 check(len(st["rounds"]) == 1 and st["rounds"][0]["cells"]["seat-1"]["rating"] == 8 and st["rounds"][0]["cells"]["seat-2"]["kind"] == "missing", "state: round cells wrong")
-check(st["band"]["verdict"] == "AUTHOR'S CALL", "state: band should be AUTHOR'S CALL with one seat at 8, got " + str(st["band"].get("verdict")))
+check("band" not in st, "state: no band field (issue 175)")
 
 try:
     render_state(PLUGIN_ROOT, proj)

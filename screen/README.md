@@ -29,7 +29,7 @@ It follows the newest run under `combat-writing/runs/`; a newer run appearing sw
 
 ## What is on the first screen
 
-The title strip (the run id and the motto). Mission and Objective (set by the briefing, Part 45). The adjutant (Part 45). The dialogue: the seats in turn, round by round as the files land, each with its rating or its state and its verdict line in bold; Enter opens the full read as plain text at a 70-character measure. Available: the bench and who is seated, with the plugin's own next-command sentences when the crew is short. Launch: lit green on AUTHOR'S CALL, dark red on BACK TO THE DRAWING BOARD naming the seat, grey over the two numbers on final reads, dim with no rating; 7 is never a rating and never shown. The tab strip at the bottom with its key hints, and last the freshness line: `watching <run> · last change 00:04 ago · swept 0.3 s ago`. Stale is never silent: a folder that cannot be read, or a state the script could not render, turns that line red with the time and the reason.
+The title strip (the run id and the motto). Mission and Objective (set by the briefing, Part 45). The adjutant (Part 45). The dialogue: the seats in turn, round by round as the files land, each with its rating or its state and its verdict line in bold; Enter opens the full read as plain text at a 70-character measure. Available: the bench and who is seated, with the plugin's own next-command sentences when the crew is short. The tab strip at the bottom with its key hints, and last the freshness line: `watching <run> · last change 00:04 ago · swept 0.3 s ago`. Stale is never silent: a folder that cannot be read, or a state the script could not render, turns that line red with the time and the reason.
 
 ## Checks
 

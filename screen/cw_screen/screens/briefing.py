@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 """The Briefing, the first screen, in its read-only form (Part 44): Mission and Objective
 (not set until Part 45 writes them), the adjutant (Part 45), the dialogue of the seats
-round by round as the files land, the bench and who is seated, and the Launch block. Not a
+round by round as the files land, the bench and who is seated. Not a
 board, nothing a card, not a form."""
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from textual.containers import Vertical
 from textual.widgets import Static
 
 from cw_screen.screens import Chrome
-from cw_screen.widgets import Entry, Launch, Line, RoundLine
+from cw_screen.widgets import Entry, Line, RoundLine
 
 
 def seat_head(seat: dict) -> str:
@@ -61,14 +61,12 @@ class Briefing(Chrome):
         yield Vertical(id="dialogue")
         yield Static("AVAILABLE", classes="heading")
         yield Vertical(id="available")
-        yield Launch(id="launch")
 
     def on_mount(self) -> None:
         super().on_mount()
         self.query_one("#mission", Line).set_text("not set")
         self.query_one("#objective", Line).set_text("not set")
         self.query_one("#adjutant", Line).set_text("not set: the adjutant speaks when the briefing lands (Part 45)")
-        self.query_one("#launch", Launch).set_band(None)
 
     def on_entry_toggled(self, msg: Entry.Toggled) -> None:
         if msg.opened:
@@ -86,7 +84,6 @@ class Briefing(Chrome):
         self.query_one("#adjutant", Line).set_text(adj.get("frame") or "not set: the adjutant speaks when the briefing lands (Part 45)", dim=not adj.get("frame"))
         self._dialogue(state, forming)
         self._available(state)
-        self.query_one("#launch", Launch).set_band((state or {}).get("band"))
 
     def _dialogue(self, state: dict | None, forming: dict | None) -> None:
         box = self.query_one("#dialogue", Vertical)
