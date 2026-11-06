@@ -2,7 +2,8 @@
 // show_result_check.js: the result shown by the plugin itself (issue 70, 2026-10-26). The
 // PostToolUse hook on Bash, hooks/show-result.js, puts the short form on the person's screen
 // through systemMessage when the command ran render-record.js --short, opens the board outside
-// the sandbox when the opener's line says the shell could not, and is silent otherwise.
+// the sandbox when the opener's line says the shell could not or no line reached it (Part 116), re-runs
+// a silenced command from its --run path, and is silent on a command that ran none of the four.
 //
 // Runs the REAL hook as a child process with the hook's stdin JSON (the PostToolUse shape:
 // tool_name, tool_input.command, tool_response {stdout, stderr}), around the REAL short form
@@ -11,7 +12,8 @@
 //
 // What it pins:
 //   - Silent (no output, exit 0): another event, another tool, a command that ran neither script,
-//     stdin that does not parse, a --short result with no short form in it.
+//     stdin that does not parse. A --short result with no short form in it is re-rendered by the
+//     hook from the command's literal --run path (Part 116, THE SILENCED COMMAND below).
 //   - The short form: systemMessage is exactly the Crew line through the Seat key line of the
 //     script's stdout, nothing before it (an "Exit code 1" line, another script's output) and
 //     nothing after; the tool_response as an object with stdout and as a string both read.
@@ -28,7 +30,7 @@
 //     naming the voice, the seat and the length in seconds, the file on disk with voices.json and the
 //     log line by hook; with render-board.js in the same command the board is rebuilt and carries
 //     the file, and with the opener too the message says to reload; a render still silent says so;
-//     a speak.js that printed nothing is silent; the short form rides first and the voices line
+//     a speak.js that printed nothing is re-run when the round still owes voices (Part 116); the short form rides first and the voices line
 //     after it.
 //   - The run folder (Part 81.2, measured 2026-10-31): the hook reads the run from the script's own
 //     line (" owed for round <round> of <run folder>."), so a command written with a shell variable
@@ -68,6 +70,8 @@ var shortForm=node('render-record.js',['--run',run,'--short']).stdout;
 var board=path.join(run,'board.html');
 node('render-board.js',['--run',run]);
 var expected=shortForm.replace(/\n+$/,'');
+// The short form as the run stands now (the crew tests below add seats): what a re-render by the hook must equal.
+function freshShort(){ return node('render-record.js',['--run',run,'--short']).stdout.replace(/\n+$/,''); }
 check(/^\*\*Crew:\*\*/.test(expected)&&/\nSeat key: seat-1 [^\n]+$/.test(expected),'the real short form opens with the Crew line and ends with the Seat key line');
 var failer=path.join(tmp,'fail.js'); fs.writeFileSync(failer,'process.stderr.write("kLSNoExecutableErr: The executable is missing\\n");process.exit(1);\n');
 var failedLine=node('open-board.js',['--run',run,'--opener',process.execPath+' '+failer]).stdout.trim();
@@ -100,7 +104,10 @@ silent('another tool',call(post(S,shortForm,{tool_name:'Read'})));
 silent('neither script',call(post('ls '+run,'draft.md\n')));
 silent('a script only mentioned in an argument',call(post('grep -n short '+scripts+'/render-record.js','217: --short\n')));
 silent('stdin that does not parse',call('{not json'));
-silent('a --short result with no short form',call(post(S,'Error: no seats.json\n')));
+var m0=shown('a --short result with no short form: re-rendered from the run path (Part 116)',call(post(S,'Error: no seats.json\n')));
+var m0b=shown('a --short result with no short form on a path that is not a run',call(post('node '+scripts+'/render-record.js --run '+proj+' --short','Error: no seats.json\n')));
+check(/is not a run folder \(no seats\.json there\)/.test(m0b)&&m0b.indexOf('**Crew:**')<0,'a --short result on a non-run path: the miss names the path, not a shell variable, got '+JSON.stringify(m0b.slice(0,160)));
+check(m0===freshShort(),'a --short result with no short form: the hook renders the short form itself, got '+JSON.stringify(m0.slice(0,120)));
 
 // The short form.
 var m1=shown('the short form',call(post(S,shortForm)));
@@ -168,7 +175,8 @@ check(v3==='Voices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s). Th
 var v4=shown('the voices still silent outside',call(post(speakCmd,silencedLine+'\n'),null,{CW_SAY:sayEnv.CW_SAY,FAKE_M4A_SECONDS:'0'}));
 check(v4==='Voices: the speech engine wrote no sound outside the sandbox either; the board reads with the browser.','the voices still silent outside: the message, got '+JSON.stringify(v4));
 check(!fs.existsSync(voiceFile),'the voices still silent outside: no silent file left on disk');
-silent('speak.js that printed nothing',call(post(speakCmd,''),null,sayEnv));
+var v5=shown('speak.js that printed nothing: re-run while the round owes voices (Part 116)',call(post(speakCmd,''),null,sayEnv));
+check(/^Voices rendered by the plugin: /.test(v5),'speak.js that printed nothing: the hook renders when voices.json lists silenced seats, got '+JSON.stringify(v5.slice(0,120)));
 var v5=shown('the short form then the voices',call(post('node '+path.join(scripts,'render-record.js')+' --run '+run+' --short; '+speakCmd,shortForm+silencedLine+'\n'),null,sayEnv));
 check(v5===expected+'\n\nVoices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).','the short form then the voices: the order, got '+JSON.stringify(v5.slice(-120)));
 fs.unlinkSync(voiceFile);
@@ -211,6 +219,28 @@ var renderWait=parseInt((/var RENDER_WAIT_MS=(\d+)/.exec(srcForWait)||[])[1],10)
 check(renderWait===60000&&boardWait===15000,'show-result.js: the render window is 60 s and the board window 15 s (Part 82: twelve files at about 1.4 s each, measured 2026-10-31, three times over), got '+renderWait+' and '+boardWait);
 check(postEntries.length===1&&postEntries[0].matcher==='Bash'&&postEntries[0].hooks.length===1&&postEntries[0].hooks[0].type==='command'&&postEntries[0].hooks[0].command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js"'&&typeof postEntries[0].hooks[0].timeout==='number'&&postEntries[0].hooks[0].timeout*1000>=renderWait+boardWait&&postEntries[0].hooks[0].timeout<=90,'hooks.json: one PostToolUse entry on Bash running show-result.js with a timeout that covers the render window plus the board and stays at 90 s or under: '+JSON.stringify(postEntries));
 check(!(hooks.hooks.PreToolUse||[]).some(function(e){return e.matcher==='AskUserQuestion';}),'hooks.json: the refusing hook on AskUserQuestion must be gone');
+// THE SILENCED COMMAND (Part 116, issue 179; measured 2026-11-06 on the first round run on cw 0.9.0): the
+// host sent the four scripts' output to /dev/null and echoed "done". The hook re-renders the short form,
+// renders the voices when the round still owes them, and opens the board (the fake opener runs once,
+// board.opened by hook on the log); a shell variable for the run names the miss and opens nothing; a
+// round whose voices are on disk is not rendered again; a fresh success by the shell is not opened twice.
+fs.rmSync(marker,{force:true});
+var quiet=S+' 2>&1 >/dev/null\n'+speakCmd+' >/dev/null 2>&1\n'+B+' >/dev/null 2>&1\n'+O+' >/dev/null 2>&1; echo done';
+fs.rmSync(path.join(run,'rounds','01-sparring','voices.json'),{force:true}); fs.rmSync(voiceFile,{force:true});
+var q1=shown('the silenced command',call(post(quiet,'done\n'),okOpener,sayEnv));
+check(q1.indexOf(freshShort())===0&&/\n\nVoices rendered by the plugin: Ava \(Premium\) for seat-1 \(12\.5 s\)\./.test(q1)&&/\n\nBoard opened by the plugin: /.test(q1)&&q1.slice(-board.length)===board,'the silenced command: the short form, the voices and the opened board, got '+JSON.stringify(q1.slice(0,80))+' ... '+JSON.stringify(q1.slice(-120)));
+check(opens().length===1&&opens()[0]===board,'the silenced command: the opener ran once on the board, got '+JSON.stringify(opens()));
+var lastQ=logOf().filter(function(e){return e.event==='board.opened';}).slice(-1)[0];
+check(lastQ.event==='board.opened'&&lastQ.by==='hook'&&lastQ.ok===true,'the silenced command: board.opened by hook on the log, got '+JSON.stringify(lastQ));
+check(fs.existsSync(voiceFile)&&fs.statSync(voiceFile).size>300&&/data-audio="rounds\/01-sparring\/seat-1\.m4a"/.test(fs.readFileSync(board,'utf8')),'the silenced command: the voice file is on disk and the rebuilt board carries it');
+var q2=shown('the silenced command, voices already on disk',call(post(quiet,'done\n'),okOpener,sayEnv));
+check(q2.indexOf(freshShort())===0&&q2.indexOf('Voices')<0&&/Board opened by the plugin: /.test(q2)&&opens().length===2,'the silenced command: a round with its voices on disk is not rendered again, the board still opened, got '+JSON.stringify(q2.slice(0,60))+' ... '+JSON.stringify(q2.slice(-80)));
+var q3=shown('the silenced command with a shell variable for the run',call(post('S='+scripts+'; R='+run+'; node $S/render-record.js --run $R --short >/dev/null 2>&1; node $S/open-board.js --run $R >/dev/null 2>&1; echo done','done\n'),okOpener));
+check(/shell variable/.test(q3)&&q3.indexOf('**Crew:**')<0&&opens().length===2,'the silenced command with a variable: the miss is named, nothing rendered, nothing opened, got '+JSON.stringify(q3.slice(0,160)));
+fs.appendFileSync(path.join(run,'log.jsonl'),JSON.stringify({ts:new Date().toISOString(),event:'board.opened',file:'board.html',opener:'open',ok:true,reason:null})+'\n');
+var q4=call(post(O+' >/dev/null 2>&1; echo done','done\n'),okOpener);
+check(q4.status===0&&q4.out===''&&opens().length===2,'the silenced opener after a fresh success by the shell: silent, not opened twice, got '+JSON.stringify(q4.out.slice(0,120)));
+
 var src=fs.readFileSync(hook,'utf8');
 check(src.split('\n')[0]==='// SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0','show-result.js: no Shield header on line 1');
 check(!/writeFileSync|mkdirSync|\bfetch\(|https?:\/\/|execSync|execFile|cp\.exec\b|\bshell\s*:\s*true/.test(src.replace(/\/\/[^\n]*/g,'')),'show-result.js: must write no file but the log line, fetch nothing, run no shell');
