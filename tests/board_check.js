@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // board_check.js: board.html is the result (2026-10-14; one screen since Part 106): one
-// self-contained page, the newest draft across the top beside the brief and the reader, one card
+// self-contained page, the newest draft across the top beside the latest round's line, one card
 // per seat in its company identity with the full read on the card, the scoreboard and the run
 // details under the tabs; it averages nothing and fetches nothing (the four faces ride as data).
 //
@@ -16,8 +16,8 @@
 //     <iframe>; every url( is a data font (Part 106, the four embedded faces, one @font-face
 //     each) and nothing else; the only href is the relative link to record.md.
 //   - The newest draft is on the page in full, escaped, named as a revision when it is one,
-//     in the draft panel above the seats; the brief and the reader in the side column.
-//   - The round strip (ruled 2026-10-15): the latest round's task in words at the top of the
+//     in the draft panel above the seats; the brief and the reader on the strip's second line (Part 118).
+//   - The round line (ruled 2026-10-15; beside the draft since Part 118): the latest round's task in words in the side column of the
 //     page, from the packet (the prompt itself for SN, SFQ, N and FQ; the seat lines with each
 //     note; the final reads), whether a rating was asked, and how many seats answered; the same
 //     line for every round in the history under the scoreboard; the record's round line carries
@@ -49,7 +49,7 @@
 //   - The canon controls (ruled 2026-10-19): only when the run holds a canon, the draft panel
 //     carries read aloud (the browser's speech synthesis, with pause and stop), copy (the
 //     clipboard) and download (a .txt named for the run), the canon text in the page, the
-//     Shipped strip under the round strip, the heading naming the canon and the draft it froze,
+//     Shipped strip in the strip between the title row and the brief line, the heading naming the canon and the draft it froze,
 //     and the Champion heading under Run details; the page still has one href and makes no
 //     outside request; a run with no canon has none of it.
 //   - No chart, no chart point, no series: the board is simple (2026-10-14).
@@ -134,7 +134,10 @@ check(html.indexOf('<div class="paper">')<html.indexOf('<h2 class="sr">The seats
 // The frame (Part 106): the strip, the top box with its three panels and the side column, the hand, the bar.
 check(/<header class="strip">/.test(html)&&/<section class="top"><div class="panels">\s*<section class="panel" id="panel-draft" role="tabpanel" aria-labelledby="tab-draft">/.test(html)&&/<section class="panel" id="panel-scoreboard" role="tabpanel" aria-labelledby="tab-scoreboard" hidden>/.test(html)&&/<section class="panel" id="panel-details" role="tabpanel" aria-labelledby="tab-details" hidden>/.test(html)&&/<section class="hand" aria-label="The seats">/.test(html)&&/<footer class="bar">/.test(html),'board: the frame is the strip, the top box with three panels, the hand and the bar');
 check(/<div class="tabs" role="tablist"[^>]*><button type="button" role="tab" class="tab" id="tab-draft" aria-selected="true" aria-controls="panel-draft">Draft<\/button><button type="button" role="tab" class="tab" id="tab-scoreboard" aria-selected="false" aria-controls="panel-scoreboard">Scoreboard<\/button><button type="button" role="tab" class="tab" id="tab-details" aria-selected="false" aria-controls="panel-details">Run details<\/button><\/div>/.test(html)&&/tabs\[i\]\.addEventListener\("click"/.test(html),'board: the three tabs with the draft selected first, wired to the panels');
-check(/<aside class="side" aria-label="The brief and the reader">\s*<p><b>Brief\.<\/b> CEO\. Get a yes\.<\/p>\s*<p class="under">Measured facts, the full brief and the record are under Run details\.<\/p>\s*<\/aside>/.test(html),'board: the side column carries the brief and the pointer');
+check(/<div class="context"><p><b>Brief\.<\/b> CEO\. Get a yes\.<\/p><p class="under">Measured facts, the full brief and the record are under Run details\.<\/p><\/div>/.test(html)&&/<header class="strip"><div class="row"><div class="left"><p class="motto kicker">[^]*?<\/h1><\/div><div class="right"><div class="tabs"/.test(html),'board: the strip carries the tabs on the title line and the brief with the pointer under it (Part 118)');
+check(/<aside class="side" aria-label="The round">\s*<p class="round"><b>Round 05-final<\/b>/.test(html),'board: the side column carries the latest round\'s line (Part 118)');
+// The draft fold (Part 118): none on a five-word draft.
+check(!/class="fold draft-fold"/.test(html),'board: a short draft shows no fold button');
 
 // No verdict box (issue 175): seat-1's latest is 8 (03-battle), seat-2's is 4, and nothing sits over them.
 check(!/class="verdict/.test(html)&&!/aria-label="Verdict"/.test(html)&&!/<p class="word">/.test(html),'board: no verdict box anywhere');
@@ -198,7 +201,7 @@ check(/<p class="meta facts"><strong>Measured by code \(facts, not a judgment\):
 check(/<footer class="bar"><span class="kicker">Every round<\/span><span class="scores"><span class="score co-anthropic">seat-1 8\/10<\/span><span class="score co-anthropic">seat-2 4\/10<\/span><span class="score co-anthropic">seat-3 —<\/span><\/span>\s*<span class="kicker">Next<\/span><span class="cmd">\/cw:battle fq: a question for every seat<\/span><span class="cmd">\/cw:sparring debate<\/span><span class="cmd">\/cw:battle final<\/span><\/footer>/.test(html),'board: the bar should carry every seat\'s latest number and the next commands; got '+(/<footer class="bar">[^]*?<\/footer>/.exec(html)||[''])[0].slice(0,300));
 // The round strip and the history (2026-10-15).
 check(/<p class="round"><b>Round 05-final<\/b> · final reads: S\/N ratio and red flags · 2 of 3 seats answered<\/p>/.test(html),'board: the round strip should name the latest round and its task; got '+(/<p class="round">[^]*?<\/p>/.exec(html)||[''])[0]);
-check(html.indexOf('<p class="round">')<html.indexOf('<h2>The draft'),'board: the round strip must sit above the draft');
+check(html.indexOf('<p class="round">')>html.indexOf('<div class="paper">')&&html.indexOf('<p class="round">')<html.indexOf('<h2 class="sr">The seats</h2>'),'board: the round line sits beside the draft, in the side column (Part 118)');
 var hist=/<ul class="rounds">([^]*?)<\/ul>/.exec(html);
 check(!!hist&&(hist[1].match(/<li>/g)||[]).length===5,'board: the history should list five rounds');
 check(!!hist&&/<li><b>Round 02-battle<\/b> · the default prompt: “Read the other seats' latest answers\. Where do your interpretations overlap and where do they diverge\? Give a new critique and a new rating of the draft\.” · a new rating asked · 3 of 3 seats answered<\/li>/.test(hist[1]),'board: the history line for 02-battle is wrong');
@@ -289,7 +292,7 @@ check(/<blockquote>Not ready: the close is soft and the ask is late\.<\/blockquo
 // The canon controls (ruled 2026-10-19): only when the run holds a canon, three client-side
 // controls on the draft panel, read aloud (speech synthesis with pause and stop), copy (the
 // clipboard) and download (a .txt named for the run), the canon text in the page, the Shipped
-// strip under the round strip, the heading naming the canon and the draft it froze, the Champion
+// strip in the strip above the brief line, the heading naming the canon and the draft it froze, the Champion
 // lines under the Run details tab; the page still has one href and makes no outside request. The fresh run above has no
 // canon and none of it.
 ['canon-speak','canon-pause','canon-stop','canon-copy','canon-download','canon-text','round shipped','Champion: shipped'].forEach(function(id){ check(html.indexOf(id)<0&&freshHtml.indexOf(id)<0,'board (no canon): "'+id+'" must not be on the page'); });
@@ -301,7 +304,7 @@ check(sh.status===0&&sh.stdout.trim()==='Shipped 2026-10-19 14:02 UTC · example
 node('render-board.js',['--run',run]);
 var shipHtml=fs.readFileSync(path.join(run,'board.html'),'utf8');
 check(/<p class="round shipped"><b>Shipped<\/b> · 2026-10-19 14:02 UTC · example\.invalid \(LinkedIn post\) · canon\.md froze draft-2\.md · live: matches canon · www\.example\.invalid\/posts\/abc123 · 0 results · 0 insights<\/p>/.test(shipHtml),'board (canon): the Shipped strip is missing or wrong; got '+(/<p class="round shipped">[^]*?<\/p>/.exec(shipHtml)||[''])[0]);
-check(shipHtml.indexOf('<p class="round shipped">')>shipHtml.indexOf('<p class="round">')&&shipHtml.indexOf('<p class="round shipped">')<shipHtml.indexOf('<h2>The draft'),'board (canon): the Shipped strip sits under the round strip and above the draft');
+check(shipHtml.indexOf('<p class="round shipped">')<shipHtml.indexOf('<div class="context">')&&shipHtml.indexOf('<p class="round shipped">')<shipHtml.indexOf('<h2>The draft'),'board (canon): the Shipped strip sits in the strip, above the brief line and the draft');
 check(/<h2>The draft · draft-2\.md, a revision · shipped as canon\.md, which froze draft-2\.md<\/h2>/.test(shipHtml),'board (canon): the heading must name the canon and the draft it froze; got '+(/<h2>The draft[^<]*<\/h2>/.exec(shipHtml)||[''])[0]);
 check(/<div class="canon-controls"[^>]*><span class="meta">Canon: canon\.md froze draft-2\.md<\/span> <button type="button" id="canon-speak"[^>]*>🔊 Read aloud<\/button> <button type="button" id="canon-pause"[^>]*>Pause<\/button> <button type="button" id="canon-stop"[^>]*>Stop<\/button> <button type="button" id="canon-copy"[^>]*>Copy<\/button> <button type="button" id="canon-download"[^>]*>Download \.txt<\/button>/.test(shipHtml),'board (canon): the three controls (read aloud with pause and stop, copy, download) are missing or out of order');
 check(/<div id="canon-text" hidden>Dear board, buy the company\.\n<\/div>/.test(shipHtml),'board (canon): the canon text must be in the page, escaped, exactly');
@@ -317,7 +320,7 @@ check(!/<a /.test(shipHtml.replace(/<a href="record\.md">/,'')),'board (canon): 
 
 // The strip and the side column condense a long text (Part 117, issue 180): a 300-character SN prompt is cut at a
 // sentence end before 160 with an ellipsis on the strip and kept whole in the history; a short prompt stays verbatim
-// (the SN run above); a 400-character brief is condensed in the side column and whole under Run details.
+// (the SN run above); a 400-character brief is condensed on the strip's brief line and whole under Run details.
 var LONGSN='The first sentence asks whether the close asks for the vote. The second sentence asks whether the numbers in the second paragraph are the numbers the board will check against the deck. The third sentence asks whether the greeting is the one the chair uses in writing. The fourth sentence asks about the sign-off.';
 var LONGBRIEF='Chief executive of an invented company writing to an invented board. '+'The stakes are the vote on the letter of intent at the next meeting. '.repeat(5)+'Rules: one ask, one page.';
 write(path.join(proj,'longsn.md'),LONGSN+'\n'); write(path.join(proj,'longbrief.md'),LONGBRIEF+'\n');
@@ -330,9 +333,18 @@ var lnHtml=fs.readFileSync(path.join(ln,'board.html'),'utf8');
 var lnStrip=(/<p class="round">([^]*?)<\/p>/.exec(lnHtml)||['',''])[1];
 check(/^<b>Round 01-battle<\/b> · SN: “The first sentence asks whether the close asks for the vote\.…” · no rating asked · 1 of 1 seat answered$/.test(lnStrip),'board (long prompt): the strip carries the prompt cut at a sentence end with an ellipsis; got '+lnStrip.slice(0,220));
 check(lnHtml.indexOf('<li><b>Round 01-battle</b> · SN: “'+LONGSN+'” · no rating asked · 1 of 1 seat answered</li>')>=0,'board (long prompt): the history keeps the whole prompt');
-var lnSide=(/<aside class="side"[^>]*>\s*<p><b>Brief\.<\/b> ([^<]*)<\/p>/.exec(lnHtml)||['',''])[1];
-check(lnSide.length<LONGBRIEF.length&&/…$/.test(lnSide)&&lnSide.indexOf('Chief executive of an invented company')===0&&lnHtml.indexOf('<strong>Brief:</strong> '+LONGBRIEF)>=0,'board (long brief): the side column is condensed with an ellipsis and Run details carries the whole brief; got '+lnSide.slice(-80));
-check(/<aside class="side"[^>]*>\s*<p><b>Brief\.<\/b> CEO\. Get a yes\.<\/p>/.test(html),'board (short brief): the side column stays verbatim');
+var lnSide=(/<div class="context"><p><b>Brief\.<\/b> ([^<]*)<\/p>/.exec(lnHtml)||['',''])[1];
+// The draft fold (Part 118): a 150-word draft carries the button that opens the top box over the hand.
+write(path.join(proj,'longdraft.md'),('Dear board, buy the company. ').repeat(30).trim()+'\n');
+var ld=node('new-run.js',['--readers','1','--draft','longdraft.md','--name','longdraft','--model','Test Model']).stdout.trim();
+node('packet.js',['--run',ld,'--round','01-sparring','--seat','seat-1']);
+write(path.join(ld,'rounds','01-sparring','seat-1.answer.md'),'RATING: 8/10\nIt ships.\n');
+node('check-answer.js',[path.join(ld,'rounds','01-sparring','seat-1.answer.md'),'--run',ld]);
+node('render-board.js',['--run',ld]);
+var ldHtml=fs.readFileSync(path.join(ld,'board.html'),'utf8');
+check(/<\/div>\s*<button type="button" class="fold draft-fold" aria-expanded="false">\+ The full draft \(150 words\)<\/button>/.test(ldHtml)&&/main\.board\.norounds,main\.board\.draft-open\{grid-template-rows:auto minmax\(0,1fr\) auto\}main\.board\.draft-open \.hand\{display:none\}#panel-draft\{display:flex;flex-direction:column;min-height:0;height:100%\}#panel-draft \.paper\{overflow:auto;min-height:0;flex:1 1 auto\}/.test(ldHtml)&&/querySelector\("\.draft-fold"\)/.test(ldHtml)&&/classList\.toggle\("draft-open",open\)/.test(ldHtml),'board (long draft): the fold button under the draft, the CSS and the toggle; got '+(/<button type="button" class="fold draft-fold"[^<]*/.exec(ldHtml)||['none'])[0]);
+check(lnSide.length<LONGBRIEF.length&&/…$/.test(lnSide)&&lnSide.indexOf('Chief executive of an invented company')===0&&lnHtml.indexOf('<strong>Brief:</strong> '+LONGBRIEF)>=0,'board (long brief): the strip\'s brief line is condensed with an ellipsis and Run details carries the whole brief; got '+lnSide.slice(-80));
+check(/<div class="context"><p><b>Brief\.<\/b> CEO\. Get a yes\.<\/p>/.test(html),'board (short brief): the strip\'s brief line stays verbatim');
 
 // The log and a refusal.
 var log=fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);});

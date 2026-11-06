@@ -5,9 +5,11 @@
 //
 //   node render-board.js --run <run folder>
 //
-// The page (Part 106, one screen, the look as data): the strip at the top (the motto, the run,
-// the latest round's task in one line from lib.roundTask with whether a rating was asked and how
-// many seats answered, the tabs Draft, Scoreboard and Run details, the Light / dark button); the
+// The page (Part 106, one screen, the look as data; the strip's two lines since Part 118): the strip at
+// the top (the motto and the run with the tabs Draft, Scoreboard and Run details and the Light / dark
+// button on one line; the brief and the reader, condensed, under it); the latest round's task in one
+// line from lib.roundTask with whether a rating was asked and how many seats answered, in the column
+// beside the draft; the
 // top box with the newest draft in full at full width beside a column with the brief and the
 // reader (the scoreboard of every round and the run details sit under the tabs in the same box);
 // the hand, one card per seat side by side in its company's identity (the face, the frame's rule
@@ -32,7 +34,7 @@
 // scrolls. Rebuilt after every round from the files and log.jsonl.
 //
 // Champion: when the run holds a champion.shipped line, a Shipped strip sits
-// under the round strip (the Shipped line, the address as text with its scheme cut, never a
+// in the strip under the title line (the Shipped line, the address as text with its scheme cut, never a
 // link, and the counts of results and insights); the draft heading says whether the newest
 // draft is the canon or a revision after it; the draft panel gets three client-side controls on
 // the canon, like a canon piece in the Combat Writing app: read aloud (the browser's own speech
@@ -83,7 +85,9 @@ function withTrunc(mark,t){ return t?(mark?mark+' · ':'')+'truncated at '+t.at+
 function isFence(l){ var s=String(l).trim().replace(/^[`*_]+|[`*_]+$/g,'').trim(); return s===lib.REWRITE_BEGIN||s===lib.REWRITE_END; }
 function foldText(t){ return String(t||'').split(/\r?\n/).filter(function(l){return !isFence(l);}).join('\n'); }
 // The read on the card drops its own RATING line (the number is the corner index, Part 106); the file keeps it.
-function cardText(t){ var lines=foldText(t).split('\n'); if(lines.length&&/^RATING: \d+\/10\s*$/.test(lines[0].trim()))lines.shift(); return lines.join('\n').replace(/^\s*\n/,''); }
+// The rewrite block (the fences and the lines between them) leaves the read on the card when the card shows it above (Part 118): one copy.
+function withoutRewrite(t){ var out=[], inside=false; String(t||'').split(/\r?\n/).forEach(function(l){ var s=String(l).trim().replace(/^[`*_]+|[`*_]+$/g,'').trim(); if(s===lib.REWRITE_BEGIN){inside=true;return;} if(s===lib.REWRITE_END){inside=false;return;} if(!inside)out.push(l); }); return out.join('\n'); }
+function cardText(t,dropRewrite){ var lines=foldText(dropRewrite?withoutRewrite(t):t).split('\n'); if(lines.length&&/^RATING: \d+\/10\s*$/.test(lines[0].trim()))lines.shift(); return lines.join('\n').replace(/^\s*\n+/,''); }
 // The spoken text is lib.spokenPlain (Part 81): the board and speak.js read one rule.
 // THE MAC SPEAKS THE FILES (Part 81, issue 121): speak.js writes rounds/<round>/voices.json and one
 // audio file per answered seat; a frame whose seat has a file carries it, and the page plays the
@@ -206,22 +210,22 @@ var DARK='color-scheme:dark;--surface:#0F1114;--paper:#1B1E24;--surface-2:#171A1
 html.push('@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){'+DARK+'}}');
 html.push(':root[data-theme="dark"]{'+DARK+'}');
 // The frame.
-html.push('*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--surface);color:var(--ink);font-family:'+UI+';-webkit-font-smoothing:antialiased}main.board{height:100dvh;min-height:900px;padding:12px 24px;display:grid;grid-template-rows:auto minmax(0,3fr) minmax(0,7fr) auto;gap:12px;overflow:hidden}main.board.norounds{grid-template-rows:auto minmax(0,1fr) auto}');
+html.push('*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--surface);color:var(--ink);font-family:'+UI+';-webkit-font-smoothing:antialiased}main.board{height:100dvh;min-height:900px;padding:12px 24px;display:grid;grid-template-rows:auto minmax(0,3fr) minmax(0,7fr) auto;gap:12px;overflow:hidden}main.board.norounds,main.board.draft-open{grid-template-rows:auto minmax(0,1fr) auto}main.board.draft-open .hand{display:none}#panel-draft{display:flex;flex-direction:column;min-height:0;height:100%}#panel-draft .paper{overflow:auto;min-height:0;flex:1 1 auto}.panel .draft-fold{margin-top:10px;flex:0 0 auto}');
 html.push('@media (max-width:1100px){main.board,main.board.norounds{height:auto;min-height:100dvh;overflow:visible;grid-template-rows:auto auto auto auto}main.board .top{grid-template-columns:1fr}main.board .hand{grid-template-columns:1fr;overflow:visible}main.board .frame{max-height:80vh}}');
 // The strip.
-html.push('.strip{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;border-bottom:1px solid var(--rule);padding-bottom:10px}.strip .left{display:flex;align-items:baseline;gap:22px;flex-wrap:wrap;min-width:0}.strip .right{display:flex;gap:4px;align-items:center;flex-wrap:wrap}.kicker{font:700 11px/1.4 '+UI+';letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0}h1{margin:0;font:700 15px/1.3 '+UI+';letter-spacing:-.01em}.round{margin:0;font:13.5px/1.5 '+UI+';color:var(--ink-2);overflow-wrap:anywhere}.round b{color:var(--ink)}.round.shipped{flex-basis:100%}');
+html.push('.strip{display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--rule);padding-bottom:10px}.strip .row{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}.strip .left{display:flex;align-items:baseline;gap:22px;flex-wrap:wrap;min-width:0}.context{display:flex;gap:18px;flex-wrap:wrap;font:12.5px/1.45 '+UI+';color:var(--ink-2)}.context p{margin:0;flex:1 1 320px;overflow-wrap:anywhere}.context b{color:var(--ink)}.context .under{flex:1 1 100%;font-size:11.5px}.strip .right{display:flex;gap:4px;align-items:center;flex-wrap:wrap}.kicker{font:700 11px/1.4 '+UI+';letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0}h1{margin:0;font:700 15px/1.3 '+UI+';letter-spacing:-.01em}.round{margin:0;font:13.5px/1.5 '+UI+';color:var(--ink-2);overflow-wrap:anywhere}.round b{color:var(--ink)}.round.shipped{flex-basis:100%}');
 html.push('.tab{font:700 11px/1 '+UI+';letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);background:transparent;border:1px solid transparent;padding:8px 12px;border-radius:6px;cursor:pointer;min-height:36px}.tab[aria-selected="true"]{color:var(--ink);background:var(--btn);border-color:var(--rule)}button.plain,#theme{font:600 12px/1 '+UI+';color:var(--ink);background:var(--btn);border:1px solid var(--btn-rule);border-radius:6px;padding:9px 12px;cursor:pointer;min-height:36px;margin-left:10px}');
 // The top box: the panels under the tabs, the side column.
 html.push('.top{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;min-height:0;background:var(--surface-2);border:1px solid var(--rule);border-radius:8px;padding:16px 24px}.panels{overflow:auto;min-height:0}.panel[hidden]{display:none}h2{font:700 11px/1.4 '+UI+';letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}.panel h2+h2{margin-top:18px}.meta{color:var(--ink-2);font:13px/1.5 '+UI+';margin:8px 0}.note{font:12.5px/1.5 '+UI+';color:var(--ink-2)}');
 html.push('.paper{font-family:"Source Serif 4",Georgia,serif;font-size:17.5px;line-height:1.5;overflow-wrap:anywhere}.paper p{margin:0 0 .8em}.paper p:last-child{margin:0}.canon-controls{margin:0 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:13px/1.5 '+UI+';color:var(--ink-2)}.canon-controls button:disabled{opacity:.5;cursor:default}');
-html.push('.side{overflow:auto;min-height:0;display:flex;flex-direction:column;gap:8px;font:12.5px/1.45 '+UI+';border-left:1px solid var(--rule);padding-left:18px;color:var(--ink-2)}.side p{margin:0;overflow-wrap:anywhere}.side b{color:var(--ink)}.side .under{margin-top:auto;font-size:11.5px}');
+html.push('.side{overflow:auto;min-height:0;display:flex;flex-direction:column;gap:8px;font:12.5px/1.45 '+UI+';border-left:1px solid var(--rule);padding-left:18px;color:var(--ink-2)}.side p{margin:0;overflow-wrap:anywhere}.side b{color:var(--ink)}.side .round{font-size:13px}');
 // The hand: one card per seat in its company identity.
 html.push('.hand{position:relative;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px;min-height:0;overflow:auto}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.frame>.full{min-height:0;flex:1 1 auto}.frame>.suit,.frame>.badge,.frame>blockquote,.frame>figcaption,.frame>.final,.frame>.rewrite,.frame>.read-controls{flex:0 0 auto}');
 html.push('.frame{position:relative;margin:0;background:var(--paper);padding:46px 24px 20px;display:flex;flex-direction:column;gap:9px;color:var(--ink);min-height:0;overflow:hidden;border:2px solid var(--c-other);border-radius:10px}.frame .ix{position:absolute;font:800 40px/1 '+UI+';letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--c-other)}.frame .ix small{display:block;font:700 10px/1.2 '+UI+';letter-spacing:.12em;text-transform:uppercase}.frame .ix.tl{top:14px;left:18px}.frame .ix.br{right:18px;bottom:12px;transform:rotate(180deg)}.frame .suit{font:800 11px/1 '+UI+';letter-spacing:.22em;text-transform:uppercase;text-align:center;color:var(--c-other)}');
 html.push('.badge{font:600 11px/1.4 '+UI+';letter-spacing:.1em;text-transform:uppercase;text-align:center;color:var(--ink-2)}.badge.failed,.badge.missing{color:var(--bad)}.badge .mark{font-weight:400;letter-spacing:0;text-transform:none;margin-left:6px}.flip-valid .badge .mark{color:var(--good)}.flip-invalid .badge .mark{color:var(--bad)}');
 html.push('.frame blockquote{margin:0;padding:0;font:700 20px/1.3 '+UI+';text-align:center;overflow-wrap:anywhere}.frame figcaption{font:500 12px/1.5 '+UI+';color:var(--ink-2);text-align:center}.frame figcaption .seat{color:var(--ink-3)}.frame figcaption .note-line{display:block;margin-top:4px}.frame .final{font:12px/1.4 '+UI+';color:var(--ink-2);text-align:center;margin:0}');
 html.push('.frame .rewrite{font-size:14px;line-height:1.5;max-height:30%;overflow:auto;border-top:1px solid var(--rule-2);padding-top:8px}.read-controls{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;font:12px/1.4 '+UI+';color:var(--ink-2)}.read-controls button,.canon-controls button{font:600 12px/1 '+UI+';color:var(--ink);background:var(--btn);border:1px solid var(--btn-rule);border-radius:999px;padding:9px 12px;cursor:pointer;min-height:36px}.read-controls button:disabled{opacity:.5;cursor:default}.read-controls select.seat-voice{font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:2px 6px;max-width:18em}');
-html.push('.full{display:flex;flex-direction:column;min-height:0;margin:0}.full>.fold{font:600 12px/1.5 '+UI+';color:var(--ink-2);background:none;border:0;border-top:1px solid var(--rule-2);border-radius:0;padding:8px 44px 0;text-align:center;margin:8px 0 0;width:100%;cursor:pointer;min-height:0}.frame.open{position:absolute;top:0;left:0;right:0;bottom:0;height:auto;min-height:0;overflow:auto;z-index:2}.frame.open>.full{flex:0 0 auto}.frame.open .read{overflow:visible;max-width:76ch;margin:0 auto;width:100%}.frame.open>.rewrite{max-height:none}.read{text-align:left;font-size:14.5px;line-height:1.55;color:var(--read-ink);margin:0;overflow:auto;min-height:0;flex:1 1 auto;overflow-wrap:anywhere}.read p{margin:0 0 .7em}.read ul,.read ol{margin:0 0 .7em 1.3em;padding:0}.read li{margin:0 0 .3em}.read code{font-size:13px;background:var(--surface-2);padding:0 4px;border-radius:3px}.read.failed{color:var(--ink-2)}details.fold{margin-top:8px}details.fold>summary{cursor:pointer;font:13px/1.5 '+UI+';color:var(--ink-2)}');
+html.push('.full{display:flex;flex-direction:column;min-height:0;margin:0}.fold{font:600 12px/1.5 '+UI+';color:var(--ink-2);background:none;border:0;border-top:1px solid var(--rule-2);border-radius:0;padding:8px 44px 0;text-align:center;margin:8px 0 0;width:100%;cursor:pointer;min-height:0}.frame.open{position:absolute;top:0;left:0;right:0;bottom:0;height:auto;min-height:0;overflow:auto;z-index:2}.frame.open>.full{flex:0 0 auto}.frame.open .read{overflow:visible;max-width:76ch;margin:0 auto;width:100%}.frame.open>.rewrite{max-height:none}.read{text-align:left;font-size:14.5px;line-height:1.55;color:var(--read-ink);margin:0;overflow:auto;min-height:0;flex:1 1 auto;overflow-wrap:anywhere}.read p{margin:0 0 .7em}.read ul,.read ol{margin:0 0 .7em 1.3em;padding:0}.read li{margin:0 0 .3em}.read code{font-size:13px;background:var(--surface-2);padding:0 4px;border-radius:3px}.read.failed{color:var(--ink-2)}details.fold{margin-top:8px}details.fold>summary{cursor:pointer;font:13px/1.5 '+UI+';color:var(--ink-2)}');
 // The identity table, one entry per company: the face of the verdict and the read, the frame's
 // rule and shape, the accent on the index, the suit and the score.
 html.push('figure.co-anthropic{border:3px double var(--c-anthropic);border-radius:14px}figure.co-anthropic .ix,figure.co-anthropic .suit{color:var(--c-anthropic)}figure.co-anthropic blockquote{font:600 25px/1.3 "Source Serif 4",Georgia,serif;font-size:clamp(17px,1.75vw,25px)}figure.co-anthropic .read{font-family:"Source Serif 4",Georgia,serif;font-size:15.5px;line-height:1.55}');
@@ -233,7 +237,7 @@ html.push('.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-t
 html.push('table{border-collapse:collapse;width:100%;font:13px/1.45 '+UI+';margin-top:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top;overflow-wrap:anywhere}th{color:var(--ink-2);font-weight:600}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mark{color:var(--ink-2);font-size:12px}td.flip-valid .mark{color:var(--good)}td.flip-invalid .mark{color:var(--bad)}.missing,.failed{color:var(--ink-3);font-style:italic}.critique{color:var(--ink-2)}code{font-size:13px}.rounds{list-style:none;padding:0;margin:14px 0 0;font:13px/1.5 '+UI+';color:var(--ink-2)}.rounds li{padding:4px 0;border-bottom:1px solid var(--rule);overflow-wrap:anywhere}.rounds b{color:var(--ink)}a{color:inherit}');
 html.push('</style></head><body>');
 
-// The round strip: the latest round's task, visible with nothing opened.
+// The round line: the latest round's task, visible with nothing opened (beside the draft since Part 118; in the history under the Scoreboard tab for every round).
 // roundLine renders one round for the strip and for the history under the scoreboard tab.
 function answeredIn(round){
   var asked=lib.askedIn(runDir,round,log);
@@ -252,7 +256,7 @@ function condense(text,cap){
   if(cut<1)cut=cap;
   return text.slice(0,cut).replace(/[\s,;:]+$/,'')+'\u2026';
 }
-var STRIP_CAP=160, BRIEF_CAP=280, READER_CAP=200;
+var STRIP_CAP=160, BRIEF_CAP=280, READER_CAP=200, DRAFT_FOLD_WORDS=120;
 function roundLine(round,condensed){
   var task=lib.roundTask(runDir,round,log);
   if(condensed&&task.text)task=Object.assign({},task,{text:condense(task.text,STRIP_CAP)});
@@ -280,12 +284,13 @@ var canonText=canonFile?lib.readText(path.join(runDir,canonFile)):null;
 var canonFroze=null; shipped.forEach(function(e){ if(e.canon===canonFile&&e.canon_new)canonFroze=e.draft; });
 var canonCurrent=!!canonFile&&!!newestDraft&&lib.sha256(fs.readFileSync(path.join(runDir,canonFile)))===lib.sha256(fs.readFileSync(path.join(runDir,newestDraft)));
 
-// 1. The strip.
+// 1. The strip (Part 118, issue 183): the motto and the run with the tabs and the theme button on one line; under
+// it the brief and the reader, condensed, with the pointer to Run details; the shipped strip when the run holds one.
 html.push('<main class="board'+(tableRounds.length?'':' norounds')+'">');
-html.push('<header class="strip"><div class="left"><p class="motto kicker">Reading is Peace. Writing is War.</p><h1>Combat Writing board — '+esc(path.basename(runDir))+'</h1>');
-if(rounds.length)html.push('<p class="round">'+roundLine(rounds[rounds.length-1],true)+'</p>');
+html.push('<header class="strip"><div class="row"><div class="left"><p class="motto kicker">Reading is Peace. Writing is War.</p><h1>Combat Writing board — '+esc(path.basename(runDir))+'</h1></div><div class="right"><div class="tabs" role="tablist" aria-label="The board"><button type="button" role="tab" class="tab" id="tab-draft" aria-selected="true" aria-controls="panel-draft">Draft</button><button type="button" role="tab" class="tab" id="tab-scoreboard" aria-selected="false" aria-controls="panel-scoreboard">Scoreboard</button><button type="button" role="tab" class="tab" id="tab-details" aria-selected="false" aria-controls="panel-details">Run details</button></div><button type="button" id="theme" aria-label="Switch light and dark">Light / dark</button></div></div>');
 if(lastShip)html.push('<p class="round shipped"><b>Shipped</b> · '+esc(lib.shippedLine(lastShip).replace(/^Shipped /,''))+(lastShip.url?' · '+esc(lib.stripScheme(lastShip.url)):'')+' · '+nResults+' result'+(nResults===1?'':'s')+' · '+nInsights+' insight'+(nInsights===1?'':'s')+'</p>');
-html.push('</div><div class="right"><div class="tabs" role="tablist" aria-label="The board"><button type="button" role="tab" class="tab" id="tab-draft" aria-selected="true" aria-controls="panel-draft">Draft</button><button type="button" role="tab" class="tab" id="tab-scoreboard" aria-selected="false" aria-controls="panel-scoreboard">Scoreboard</button><button type="button" role="tab" class="tab" id="tab-details" aria-selected="false" aria-controls="panel-details">Run details</button></div><button type="button" id="theme" aria-label="Switch light and dark">Light / dark</button></div></header>');
+html.push('<div class="context">'+(hasBrief?'<p><b>Brief.</b> '+esc(condense(lib.readText(path.join(runDir,'brief.md')),BRIEF_CAP))+'</p>':'')+(readerText!==null?'<p><b>Reader.</b> '+esc(condense(readerText,READER_CAP))+'</p>':'')+(!hasBrief&&readerText===null?'<p>No brief and no reader on this run.</p>':'')+'<p class="under">Measured facts, the full brief and the record are under Run details.</p></div>');
+html.push('</header>');
 
 // 2. The top box: the draft panel, the scoreboard panel, the run details panel; the side column.
 html.push('<section class="top"><div class="panels">');
@@ -300,7 +305,10 @@ if(newestDraft){
     html.push('<div class="canon-controls" aria-label="The canon, '+esc(canonFile)+'"><span class="meta">Canon: '+esc(canonFile)+(canonFroze?' froze '+esc(canonFroze):'')+'</span> <button type="button" id="canon-speak" aria-label="Read the canon aloud">🔊 Read aloud</button> <button type="button" id="canon-pause" aria-label="Pause or resume the reading" disabled>Pause</button> <button type="button" id="canon-stop" aria-label="Stop the reading" disabled>Stop</button> <button type="button" id="canon-copy" aria-label="Copy the canon text">Copy</button> <button type="button" id="canon-download" aria-label="Download the canon as a text file">Download .txt</button> <span class="meta" id="canon-status" aria-live="polite"></span></div>');
     html.push('<div id="canon-text" hidden>'+esc(canonText)+'</div>');
   }
-  html.push('<div class="paper">'+paras(lib.readText(path.join(runDir,newestDraft)))+'</div>');
+  var draftText=lib.readText(path.join(runDir,newestDraft)), draftWords=lib.wordCount(draftText);
+  html.push('<div class="paper">'+paras(draftText)+'</div>');
+  // A long draft (Part 118): the fold under it opens the draft over the hand; a short one shows no button.
+  if(draftWords>DRAFT_FOLD_WORDS)html.push('<button type="button" class="fold draft-fold" aria-expanded="false">+ The full draft ('+draftWords+' words)</button>');
 }else{
   html.push('<h2>The draft</h2><p class="meta">None yet. The brief is stored; the draft joins the run when sparring or battle brings it.</p>');
   if(!rounds.length)html.push('<p class="meta">'+esc(noRoundsLine)+'</p>');
@@ -391,12 +399,9 @@ if(!rounds.length)html.push('<p class="note">'+esc(noRoundsLine)+'</p>');
 html.push('<p class="note">The full record, every answer in full and the log of what was sent, is <a href="record.md">record.md</a> in this folder.</p>');
 html.push('</section>');
 html.push('</div>');
-// The side column: the brief, the reader, the pointer.
-html.push('<aside class="side" aria-label="The brief and the reader">');
-if(hasBrief)html.push('<p><b>Brief.</b> '+esc(condense(lib.readText(path.join(runDir,'brief.md')),BRIEF_CAP))+'</p>');
-if(readerText!==null)html.push('<p><b>Reader.</b> '+esc(condense(readerText,READER_CAP))+'</p>');
-if(!hasBrief&&readerText===null)html.push('<p>No brief and no reader on this run.</p>');
-html.push('<p class="under">Measured facts, the full brief and the record are under Run details.</p>');
+// The side column: the latest round's task in one line (Part 118), beside the draft.
+html.push('<aside class="side" aria-label="The round">');
+if(rounds.length)html.push('<p class="round">'+roundLine(rounds[rounds.length-1],true)+'</p>');
 html.push('</aside></section>');
 
 // 3. The hand: one card per seat.
@@ -431,7 +436,7 @@ if(tableRounds.length){
       fold=(c.rewrite?'<div class="read rewrite"><p class="meta">The rewrite, in full:</p>'+read(c.rewrite)+'</div>':'')
         +'<div class="read-controls"><button type="button" class="seat-speak" aria-label="Read this seat\'s '+(c.kind==='critique'?'critique':'read')+' aloud">🔊 Read aloud</button> <button type="button" class="seat-pause" aria-label="Pause or resume the reading" disabled>Pause</button> <button type="button" class="seat-stop" aria-label="Stop the reading" disabled>Stop</button> <select class="seat-voice" aria-label="Voice for this seat" hidden><option value="">Voice: automatic</option></select> <span class="meta seat-status" aria-live="polite"></span></div>'
         +'<div class="seat-text" hidden>'+esc(spoken)+'</div>'
-        +'<div class="full"><div class="read">'+read(cardText(c.answer))+crewHtml+'</div><button type="button" class="fold" aria-expanded="false">+ The full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words'+(crew?', then '+crew.words+' to the crew':'')+')</button></div>';
+        +'<div class="full"><div class="read">'+read(cardText(c.answer,!!c.rewrite))+crewHtml+'</div><button type="button" class="fold" aria-expanded="false">+ The full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words'+(crew?', then '+crew.words+' to the crew':'')+')</button></div>';
     }
     var finalLine='';
     if(finalRounds.length){ var f=finalCell(s,finalRounds[finalRounds.length-1]); finalLine='<p class="final">'+esc(finalRounds[finalRounds.length-1])+': '+esc(finalText(f))+'</p>'; }
@@ -449,6 +454,8 @@ html.push('<script>');
 html.push('(function(){var b=document.getElementById("theme");var r=document.documentElement;b.addEventListener("click",function(){var dark=r.getAttribute("data-theme")==="dark"||(r.getAttribute("data-theme")!=="light"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches);r.setAttribute("data-theme",dark?"light":"dark");});})();');
 // The tabs: one panel shown at a time in the top box; the draft first.
 // The fold (Part 117, issue 180): the button under the read opens the card over the whole hand with the full read at reading width; the minus closes it.
+// The draft fold (Part 118): the button under a long draft opens the top box over the hand; the minus closes it.
+html.push('(function(){var b=document.querySelector(".draft-fold");if(!b)return;var m=document.querySelector("main.board");b.addEventListener("click",function(){var open=!m.classList.contains("draft-open");m.classList.toggle("draft-open",open);b.setAttribute("aria-expanded",open?"true":"false");b.textContent=(open?"\u2013 ":"+ ")+b.textContent.replace(/^[+\u2013] /,"");});})();');
 html.push('(function(){var folds=document.querySelectorAll(".frame .fold");for(var i=0;i<folds.length;i++)folds[i].addEventListener("click",function(e){var b=e.currentTarget,f=b.closest(".frame");if(!f)return;var open=!f.classList.contains("open");f.classList.toggle("open",open);b.setAttribute("aria-expanded",open?"true":"false");b.textContent=(open?"\u2013 ":"+ ")+b.textContent.replace(/^[+\u2013] /,"");if(open&&f.scrollIntoView)f.scrollIntoView({block:"start"});});})();');
 html.push('(function(){var tabs=document.querySelectorAll(".tab");function show(id){for(var i=0;i<tabs.length;i++){var t=tabs[i],on=t.getAttribute("aria-controls")===id;t.setAttribute("aria-selected",on?"true":"false");var p=document.getElementById(t.getAttribute("aria-controls"));if(p)p.hidden=!on;}}for(var i=0;i<tabs.length;i++)tabs[i].addEventListener("click",function(e){show(e.currentTarget.getAttribute("aria-controls"));});})();');
 // Read aloud on every read frame (issue 82): the browser's own speech synthesis, the seat's answer as the
