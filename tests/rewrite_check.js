@@ -104,7 +104,7 @@ var fr1=/<figure class="frame[^"]*" data-seat="seat-1">([^]*?)<\/figure>/.exec(h
 check(!!fr1&&/Critique · no rating asked/.test(fr1[1])&&fr1[1].indexOf('read rewrite')<0,'board: a seat that gave no rewrite keeps the critique badge and no rewrite block');
 // The fence lines leave the page (issue 108): not in the fold, not in the spoken text; the spoken text opens on the seat's words.
 var fold2=(/<div class="full"><div class="read">[^]*?<button type="button" class="fold" aria-expanded="false">\+ The full[^]*?<\/button><\/div>/.exec(fr2[1])||[''])[0];
-check(fold2.length>0&&fold2.indexOf('REWRITE BEGIN')<0&&fold2.indexOf('REWRITE END')<0&&/Vote yes before Friday/.test(fold2),'board: the fold carries the rewrite without its fence lines');
+check(fold2.length>0&&fold2.indexOf('REWRITE BEGIN')<0&&fold2.indexOf('REWRITE END')<0&&!/Vote yes before Friday/.test(fold2),'board: the read on the card carries the critique without the rewrite\'s lines or its fences; the rewrite block above is the one copy (Part 118)');
 var spoken2=(/<div class="seat-text" hidden>([^]*?)<\/div>/.exec(fr2[1])||['',''])[1];
 check(spoken2.indexOf('REWRITE')<0&&/^Dana,/.test(spoken2.trim()),'board: the spoken text drops the fence lines and opens on the rewrite; got '+JSON.stringify(spoken2.slice(0,60)));
 var fa=read(path.join(run,'rounds','01-battle','seat-2.answer.md'));
