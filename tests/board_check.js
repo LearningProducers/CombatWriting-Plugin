@@ -21,12 +21,8 @@
 //     note; the final reads), whether a rating was asked, and how many seats answered; the same
 //     line for every round in the history under the scoreboard; the record's round line carries
 //     the same task, never the inbox file name.
-//   - The verdict box, only over a number (ruled 2026-10-15): AUTHOR'S CALL when every rated seat's
-//     latest rating is 8 or more; BACK TO THE DRAWING BOARD when any seat's is 6 or less,
-//     naming that seat and its number; the band lists every rated seat's latest number, never
-//     an average; a failed read counts for nothing; FINAL READS over each seat's S/N and
-//     red-flag numbers when the run holds final reads and no rating; no box at all with no
-//     number, on a run with no round and on a run whose rounds asked for no rating.
+//   - No verdict box on any run (issue 175): no `class="verdict"` and no `aria-label="Verdict"`
+//     anywhere; the ratings are on the frames and in the scoreboard, never averaged.
 //   - One frame per seat, in seat order, from the seat's latest turn: the rating or its state
 //     (Critique, Failed read, Missing, Not yet read) on the frame with the flip or Stand mark,
 //     the one-line verdict (the first sentence after the first line, cut at a sentence end
@@ -124,15 +120,13 @@ check(!/<link\b/i.test(html)&&!/<script[^>]+src=/i.test(html)&&!/<img\b/i.test(h
 var hrefs=html.match(/href="[^"]*"/g)||[];
 check(hrefs.length===1&&hrefs[0]==='href="record.md"','board: hrefs are '+JSON.stringify(hrefs)+', expected only record.md');
 
-// The draft, in full, above the verdict.
+// The draft, in full, above the seats.
 check(/<h2>The draft · draft-2\.md, a revision<\/h2>/.test(html),'board: the newest draft must be named as a revision');
 check(/<div class="paper"><p>Dear board, buy the company\.<\/p><\/div>/.test(html),'board: the draft text is not on the page in full');
-check(html.indexOf('<div class="paper">')<html.indexOf('<section class="verdict'),'board: the draft must come before the verdict');
+check(html.indexOf('<div class="paper">')<html.indexOf('<h2>The seats</h2>'),'board: the draft must come before the seats');
 
-// The verdict: seat-1's latest is 8 (03-battle), seat-2's is 4, seat-3 has no sound rating.
-check(/<section class="verdict back"[^>]*><p class="word">BACK TO THE DRAWING BOARD<\/p>/.test(html),'board: the verdict should be BACK TO THE DRAWING BOARD');
-check(/<p class="why">Test Model \(Anthropic\), seat-2 rated it 4\/10: a problem document by that seat&#39;s own number\. Nothing is averaged; one seat at 6 or less sends it back\.<\/p>/.test(html.replace(/'/g,'&#39;')),'board: the verdict line must name seat-2 and its 4/10; got '+(/<p class="why">[^<]*/.exec(html)||[''])[0]);
-check(/<ul class="numbers"><li><b>8\/10<\/b>Test Model \(Anthropic\), seat-1<\/li><li><b>4\/10<\/b>Test Model \(Anthropic\), seat-2<\/li><\/ul>/.test(html),'board: the verdict band must list the two rated seats\' latest numbers and no third');
+// No verdict box (issue 175): seat-1's latest is 8 (03-battle), seat-2's is 4, and nothing sits over them.
+check(!/class="verdict/.test(html)&&!/aria-label="Verdict"/.test(html)&&!/<p class="word">/.test(html),'board: no verdict box anywhere');
 
 // One frame per seat, from the seat's latest turn (04-battle for all three).
 var frames=html.match(/<figure class="frame[^"]*" data-seat="seat-\d"/g)||[];
@@ -205,7 +199,7 @@ check(/<h2>The draft<\/h2>\s*<p class="meta">No rounds yet\. The draft and the b
 check(!/<p class="round">/.test(freshHtml),'board (no rounds): no round strip');
 
 // A run whose one round asked for no rating (a first battle round with an SN): no box, the
-// strip carries the SN and the count; then final reads with still no rating: a FINAL READS box.
+// strip carries the SN and the count; then final reads with still no rating: still no box.
 var nr=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--name','norating','--stage','battle','--model','Test Model']).stdout.trim(),3,'Test Model');
 write(path.join(proj,'sn.md'),'Is this ready to go to the board?\n');
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',nr,'--round','01-battle','--seat',s,'--sn','sn.md']); });
@@ -223,19 +217,18 @@ write(path.join(nr,'rounds','02-final','seat-1.redflag.answer.md'),'NO RED FLAGS
 ['seat-1.sn','seat-1.redflag'].forEach(function(f){ node('check-answer.js',[path.join(nr,'rounds','02-final',f+'.answer.md'),'--run',nr]); });
 node('render-board.js',['--run',nr]);
 var nrfHtml=fs.readFileSync(path.join(nr,'board.html'),'utf8');
-check(/<section class="verdict final"[^>]*><p class="word">FINAL READS<\/p><p class="why">No seat has rated this draft\. These are the final reads of round 02-final, each seat's own S\/N ratio and red-flag count\. Nothing is averaged\.<\/p>\s*<ul class="numbers"><li><b>S\/N 60% · no red flags<\/b>Test Model \(Anthropic\), seat-1<\/li><li><b>S\/N missing · red flags missing<\/b>Test Model \(Anthropic\), seat-2<\/li>/.test(nrfHtml),'board (final reads, no rating): the box should be FINAL READS over each seat\'s two numbers; got '+(/<section class="verdict[^>]*>[^]*?<\/ul>/.exec(nrfHtml)||[''])[0].slice(0,400));
+check(!/class="verdict/.test(nrfHtml)&&!/<p class="word">/.test(nrfHtml),'board (final reads, no rating): no box');
 check(/<p class="round"><b>Round 02-final<\/b> · final reads: S\/N ratio and red flags · 1 of 3 seats answered<\/p>/.test(nrfHtml),'board (final reads): the strip should name the final round');
 check(!/<figure class="frame/.test(freshHtml)&&!/Every round: the scoreboard/.test(freshHtml),'board (no rounds): no frames and no scoreboard fold');
 check(/<h2>The draft<\/h2>/.test(freshHtml)&&/<div class="paper"><p>Dear board, buy the company\.<\/p><\/div>/.test(freshHtml),'board (no rounds): the draft is still on the page');
 
 // A round of seat lines alone: round 2 goes to seat-2 only, with rerate. After round 1 every
-// seat is at 8: AUTHOR'S CALL (SEND until issue 163). After round 2 seat-2 is at 6: BACK, and the other frames cite round 1.
+// seat is at 8. After round 2 seat-2 is at 6, and the other frames cite round 1.
 var so=seatMore(node('new-run.js',['--readers','1','--draft','draft.md','--name','seatonly','--model','Test Model']).stdout.trim(),3,'Test Model');
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',so,'--round','01-sparring','--seat',s]); write(path.join(so,'rounds','01-sparring',s+'.answer.md'),'RATING: 8/10\nRound one. It ships as is.\n'); node('check-answer.js',[path.join(so,'rounds','01-sparring',s+'.answer.md'),'--run',so]); });
 node('render-board.js',['--run',so]);
 var sendHtml=fs.readFileSync(path.join(so,'board.html'),'utf8');
-check(/<section class="verdict send"[^>]*><p class="word">AUTHOR'S CALL<\/p><p class="why">Every rated seat put it at 8 or more: a working document by each seat's own number\. Nothing is averaged\.<\/p>/.test(sendHtml),"board (all 8): the verdict should be AUTHOR'S CALL, the apostrophe as written (issue 163); got "+(/<p class="word">[^<]*/.exec(sendHtml)||[''])[0]);
-check((sendHtml.match(/<li><b>8\/10<\/b>/g)||[]).length===3,'board (all 8): the band should list three 8/10');
+check(!/class="verdict/.test(sendHtml)&&(sendHtml.match(/<span class="badge">Rating 8\/10/g)||[]).length===3,'board (all 8): no box; the three 8/10 are on the frames');
 write(path.join(proj,'q2.md'),'Does the close ask for the vote?\n');
 node('packet.js',['--run',so,'--round','02-battle','--seat','seat-2','--question','q2.md','--rerate']);
 write(path.join(so,'rounds','02-battle','seat-2.answer.md'),'RATING: 6/10\nNot in so many words. <script>alert(1)</script> is text, not markup.\n');
@@ -245,7 +238,7 @@ node('render-board.js',['--run',so]);
 var soHtml=fs.readFileSync(path.join(so,'board.html'),'utf8');
 check((soHtml.match(/<span class="missing" title="the round was put to other seats only">not asked<\/span>/g)||[]).length===2,'board: a seat-only round should show two not-asked cells');
 check(!/<span class="missing">missing<\/span>/.test(soHtml)&&!/class="frame missing"/.test(soHtml),'board: an unasked seat must not be shown as missing in the table or a frame');
-check(/<p class="word">BACK TO THE DRAWING BOARD<\/p><p class="why">Test Model \(Anthropic\), seat-2 rated it 6\/10: a problem document/.test(soHtml),'board (seat-only round): seat-2 at 6 should send it back');
+check(!/class="verdict/.test(soHtml),'board (seat-only round): no box over seat-2\'s 6');
 check(/data-seat="seat-1">[\s\S]*?· round 01-sparring<\/span>/.test(soHtml)&&/data-seat="seat-2">[\s\S]*?· round 02-battle<\/span>/.test(soHtml),'board (seat-only round): the unasked seats cite round 1, seat-2 cites round 2');
 check(/<span class="badge">Rating 6\/10<span class="mark">flip from 8, INVALID<\/span><\/span>/.test(soHtml),'board: the frame badge should carry the rating and the flip mark');
 check(/<blockquote>Not in so many words\. &lt;script&gt;alert\(1\)&lt;\/script&gt; is text, not markup\.<\/blockquote>/.test(soHtml)&&soHtml.indexOf('<script>alert')<0,'board: a seat\'s words must be escaped, never markup');

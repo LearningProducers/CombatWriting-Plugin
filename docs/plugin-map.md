@@ -151,7 +151,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | Check | What it pins |
 |---|---|
 | `tests/announce_check.js` | the forming line and the per-seat line while a round runs |
-| `tests/board_check.js` | the board: one page, the box, the frames, the read-aloud controls, no outside request |
+| `tests/board_check.js` | the board: one page, no verdict box, the frames, the read-aloud controls, no outside request |
 | `tests/brief_check.js` | the brief travels: typed once, carried by later runs, grown by update |
 | `tests/briefs_check.js` | briefs by name |
 | `tests/budget_check.js` | the price of a round, measured before the seats run |

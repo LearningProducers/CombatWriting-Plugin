@@ -7,11 +7,7 @@
 //
 // The page, top to bottom: the motto; the round strip (the latest round's
 // prompt is visible at the top with nothing opened, from lib.roundTask, with whether a rating
-// was asked and how many seats answered); the newest draft, in full; the verdict box, only when
-// the run holds a number: AUTHOR'S CALL or BACK TO THE DRAWING BOARD from every
-// seat's own latest rating and nothing averaged (every seat 8 or more sends; any seat 6 or
-// less sends it back, and the band names that seat), or FINAL READS over each seat's S/N and
-// red-flag numbers when the run holds final reads and no rating, and no box at all otherwise;
+// was asked and how many seats answered); the newest draft, in full;
 // then one framed quote per seat, the seat's one-line verdict in bold, cited to the model by
 // name and company (and the provider that served an outside seat) with the round it came
 // from, and the seat's own note when that seat was asked something different (a seat line),
@@ -160,29 +156,8 @@ function latestRating(seat){
   return latest;
 }
 
-// The verdict across the top: from every seat's own latest rating, nothing
-// averaged. 8 to 10 is a working document and 1 to 6 a problem document, the seat's own rule;
-// every rated seat at 8 or more is AUTHOR'S CALL; any seat at 6 or less is BACK TO THE DRAWING BOARD,
-// and the band names that seat. The box shows only over a number: with
-// final reads and no rating it is FINAL READS over each seat's own two numbers; with neither
-// there is no box, and the round strip says what ran.
-var rated=seats.map(function(s){return {seat:s,latest:latestRating(s)};}).filter(function(x){return x.latest;});
-var low=rated.filter(function(x){return x.latest.rating<=6;});
 var noRoundsLine=newestDraft?'No rounds yet. The draft'+(hasBrief?' and the brief are':' is')+' stored; no seat has read it. Next: '+lib.CMD.sparring+' for the first reads and ratings, or '+lib.CMD.battle+' to start with the discussion.'
   :'No rounds yet. The brief is stored; there is no draft yet. Next: '+lib.CMD.sparring+' or '+lib.CMD.battle+' with the draft pasted; it joins this run.';
-var verdict=null, verdictClass=null, verdictWhy=null;
-if(!rated.length){
-  if(finalRounds.length){
-    verdict='FINAL READS'; verdictClass='final';
-    verdictWhy='No seat has rated this draft. These are the final reads of round '+finalRounds[finalRounds.length-1]+', each seat\'s own S/N ratio and red-flag count. Nothing is averaged.';
-  }
-}else if(!low.length){
-  verdict="AUTHOR'S CALL"; verdictClass='send';
-  verdictWhy=(rated.length===1?'The one rated seat':'Every rated seat')+' put it at 8 or more: a working document by '+(rated.length===1?'its':'each seat\'s')+' own number. Nothing is averaged.';
-}else{
-  verdict='BACK TO THE DRAWING BOARD'; verdictClass='back';
-  verdictWhy=low.map(function(x){return lib.seatLabel(x.seat)+' rated it '+x.latest.rating+'/10';}).join('; ')+': a problem document by '+(low.length===1?'that seat\'s':'those seats\'')+' own number. Nothing is averaged; one seat at 6 or less sends it back.';
-}
 
 // The page.
 var companies=seats.map(function(s){return s.company;}).filter(function(v,i,a){return a.indexOf(v)===i;});
@@ -191,16 +166,15 @@ html.push('<!doctype html>');
 html.push('<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">');
 html.push('<title>Combat Writing board — '+esc(path.basename(runDir))+'</title>');
 html.push('<style>');
-html.push(':root{color-scheme:light;--surface:#f7f5f0;--paper:#fffdf8;--surface-2:#efece5;--ink:#141311;--ink-2:#55524c;--ink-3:#8a877f;--rule:#dcd8cf;--frame:#2b2823;--send:#1a6b3a;--send-ink:#ffffff;--back:#9b1c1c;--back-ink:#ffffff;--none:#6b675f;--none-ink:#ffffff;--good:#1a7f37;--bad:#c62828;}');
-html.push('@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;--surface:#171614;--paper:#1f1e1b;--surface-2:#262522;--ink:#f3f1ea;--ink-2:#bdb9ae;--ink-3:#8b887f;--rule:#363430;--frame:#d9d4c7;--send:#2e8b57;--send-ink:#0b1a10;--back:#c83a3a;--back-ink:#1a0b0b;--none:#5f5c55;--none-ink:#f3f1ea;--good:#4caf6e;--bad:#ef6b6b;}}');
-html.push(':root[data-theme="dark"]{color-scheme:dark;--surface:#171614;--paper:#1f1e1b;--surface-2:#262522;--ink:#f3f1ea;--ink-2:#bdb9ae;--ink-3:#8b887f;--rule:#363430;--frame:#d9d4c7;--send:#2e8b57;--send-ink:#0b1a10;--back:#c83a3a;--back-ink:#1a0b0b;--none:#5f5c55;--none-ink:#f3f1ea;--good:#4caf6e;--bad:#ef6b6b;}');
+html.push(':root{color-scheme:light;--surface:#f7f5f0;--paper:#fffdf8;--surface-2:#efece5;--ink:#141311;--ink-2:#55524c;--ink-3:#8a877f;--rule:#dcd8cf;--frame:#2b2823;--send:#1a6b3a;--good:#1a7f37;--bad:#c62828;}');
+html.push('@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;--surface:#171614;--paper:#1f1e1b;--surface-2:#262522;--ink:#f3f1ea;--ink-2:#bdb9ae;--ink-3:#8b887f;--rule:#363430;--frame:#d9d4c7;--send:#2e8b57;--good:#4caf6e;--bad:#ef6b6b;}}');
+html.push(':root[data-theme="dark"]{color-scheme:dark;--surface:#171614;--paper:#1f1e1b;--surface-2:#262522;--ink:#f3f1ea;--ink-2:#bdb9ae;--ink-3:#8b887f;--rule:#363430;--frame:#d9d4c7;--send:#2e8b57;--good:#4caf6e;--bad:#ef6b6b;}');
 html.push('*{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--ink);font:16px/1.55 Georgia,"Iowan Old Style","Palatino Linotype",Palatino,"Times New Roman",serif;padding:0 16px 64px}main{max-width:1360px;margin:0 auto}');
 html.push('.motto{font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:22px 0 14px}h1{font:600 20px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0}h2{font:600 13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:36px 0 10px}p{margin:8px 0}.meta{color:var(--ink-2);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}');
 html.push('.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}button{font:13px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--rule);border-radius:6px;padding:4px 10px;cursor:pointer}');
 html.push('.facts{max-width:76ch;margin:10px auto 0}.paper{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:28px 32px;font-size:17px;line-height:1.65;box-shadow:0 1px 2px rgba(0,0,0,.06);max-width:76ch;margin:0 auto;overflow-wrap:anywhere}.paper p{margin:0 0 1em}.paper p:last-child{margin-bottom:0}');
 html.push('.round{margin:18px 0 0;padding:12px 16px;overflow-wrap:anywhere;border-left:4px solid var(--frame);background:var(--surface-2);border-radius:0 4px 4px 0;font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.round b{color:var(--ink)}.rounds{list-style:none;padding:0;margin:14px 0 0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.rounds li{padding:4px 0;border-bottom:1px solid var(--rule)}.rounds b{color:var(--ink)}.frame figcaption .note-line{display:block;margin-top:4px;color:var(--ink-2)}');
 html.push('.round.shipped{border-left-color:var(--send);margin-top:10px}.canon-controls{max-width:76ch;margin:0 auto 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.canon-controls button:disabled{opacity:.5;cursor:default}');
-html.push('.verdict{margin:28px 0 0;padding:34px 24px;border-radius:6px;text-align:center;color:var(--send-ink);background:var(--send)}.verdict.back{background:var(--back);color:var(--back-ink)}.verdict.final{background:var(--none);color:var(--none-ink)}.verdict .word{font:800 clamp(28px,6vw,64px)/1.05 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.06em;text-transform:uppercase;margin:0}.verdict .why{margin:14px auto 0;max-width:720px;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;opacity:.92}.verdict .numbers{list-style:none;padding:0;margin:18px 0 0;display:flex;gap:10px 22px;justify-content:center;flex-wrap:wrap;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}.verdict .numbers b{font-size:20px;margin-right:6px;font-variant-numeric:tabular-nums}');
 html.push('.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:28px;margin-top:4px}.frame:has(details[open]){grid-column:1/-1}.frame{margin:0;background:var(--paper);border:10px solid var(--frame);outline:1px solid var(--rule);box-shadow:inset 0 0 0 1px var(--rule),inset 0 0 0 6px var(--paper),inset 0 0 0 7px var(--frame),0 10px 24px rgba(0,0,0,.12);padding:34px 28px 26px;display:flex;flex-direction:column;align-items:center;text-align:center}');
 html.push('.badge{font:700 12px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:7px 12px;border:1px solid var(--frame);border-radius:999px;color:var(--ink)}.badge.failed,.badge.missing{color:var(--bad);border-color:var(--bad)}.badge.critique{color:var(--ink-2);border-color:var(--ink-3)}.badge .mark{font-weight:400;letter-spacing:0;text-transform:none;margin-left:6px;color:var(--ink-2)}.flip-valid .badge .mark{color:var(--good)}.flip-invalid .badge .mark{color:var(--bad)}');
 html.push('.frame blockquote{margin:22px 0 14px;padding:0;font-weight:700;font-style:italic;font-size:22px;line-height:1.35;quotes:"\\201C" "\\201D";overflow-wrap:anywhere}.frame blockquote:before{content:open-quote;display:block;font-size:52px;line-height:.4;color:var(--ink-3);margin-bottom:14px;font-style:normal}.frame figcaption{font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.frame figcaption .seat{color:var(--ink-3)}.frame .final{font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);margin-top:10px}');
@@ -269,15 +243,7 @@ if(newestDraft){
   if(!rounds.length)html.push('<p class="meta">'+esc(noRoundsLine)+'</p>');
 }
 
-// 2. The verdict across the page, only over a number.
-if(verdict){
-  html.push('<section class="verdict '+verdictClass+'" aria-label="Verdict"><p class="word">'+esc(verdict)+'</p><p class="why">'+esc(verdictWhy)+'</p>');
-  if(rated.length)html.push('<ul class="numbers">'+rated.map(function(x){return '<li><b>'+x.latest.rating+'/10</b>'+esc(lib.seatLabel(x.seat))+'</li>';}).join('')+'</ul>');
-  else html.push('<ul class="numbers">'+seats.map(function(s){return '<li><b>'+esc(finalText(finalCell(s,finalRounds[finalRounds.length-1])))+'</b>'+esc(lib.seatLabel(s))+'</li>';}).join('')+'</ul>');
-  html.push('</section>');
-}
-
-// 3. One framed quote per seat.
+// 2. One framed quote per seat.
 if(tableRounds.length){
   html.push('<h2>The seats</h2>');
   html.push('<div class="gallery">');
@@ -318,7 +284,7 @@ if(tableRounds.length){
   html.push('</div>');
 }
 
-// 4. Folded: every round, the scoreboard.
+// 3. Folded: every round, the scoreboard.
 if(rounds.length){
   html.push('<details class="fold"><summary>Every round: the scoreboard</summary>');
   html.push('<p class="note">'+esc(lib.SCOREBOARD_LEGEND).replace(/`rerate`/,'<code>rerate</code>')+'</p>');
@@ -383,7 +349,7 @@ if(champ.length){
   html.push('</details>');
 }
 
-// 5. Folded: the run details.
+// 4. Folded: the run details.
 html.push('<details class="fold"><summary>Run details</summary>');
 html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies: '+esc(companies.join(', '))+'.')+' '+esc(lib.nameSources(seats))+'</p>');
 lib.crewStateLines(runDir,seats,log).forEach(function(l){ html.push('<p class="meta"><strong>Seats:</strong> '+esc(l)+'</p>'); });

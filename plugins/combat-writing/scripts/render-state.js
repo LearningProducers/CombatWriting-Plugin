@@ -5,12 +5,12 @@
 //   node render-state.js --run <run folder> [--write]
 //
 // Built by lib.runState from the files and log.jsonl, with the functions the record and the
-// board use (the cells, the latest rating per seat, the band, the final reads, the round task
+// board use (the cells, the latest rating per seat, the final reads, the round task
 // in words, the draft's counts, the champion lines): nothing is averaged, a 7 or a number that
 // contradicts its words is a failed read and never a rating, and the credit line is nowhere.
 // The shape (schema 1): run, drafts, brief, reader (Part 84), canons, seats, crew_line,
 // seats_lines, seat_key, briefing (null until Part 45), rounds (each with its task, who it was
-// put to, who answered, the packets built and one cell per seat), latest, latest_turn, band,
+// put to, who answered, the packets built and one cell per seat), latest, latest_turn,
 // champion, next_line, legend, and where the board and the record are.
 //
 // Without --write it prints the JSON and touches nothing: no file, no log line, so a watcher
