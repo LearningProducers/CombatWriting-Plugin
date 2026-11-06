@@ -19,7 +19,8 @@
 //     with no permission to sell, and the brand statement granting no trademark
 //     license. The plugin folder's NOTICE and LICENSE.md are byte-identical to
 //     the root NOTICE and the root Shield text.
-//   - Both texts in LICENSES/ match the SHA-256 of their sources.
+//   - The three texts in LICENSES/ match the SHA-256 of their sources (the OFL for the four
+//     embedded faces, Part 106).
 //   - Every README contains the trademark sign and "source-available". No file
 //     the directory or a reader sees says "open source"; only CLAUDE.md, this
 //     file, readme_check.js and the license texts may contain the phrase,
@@ -42,7 +43,8 @@ var CC='CC-BY-NC-SA-4.0';
 var SIZE_LIMIT=256*1024;
 var LICENSE_HASHES={
   'LICENSES/LicenseRef-PolyForm-Shield-1.0.0.md':'56328093d57c87dcf2811ddcc824caf2723a07ffc332e6fbe4f9f108a2893a91', // polyformproject/polyform-licenses @ 76a278c
-  'LICENSES/CC-BY-NC-SA-4.0.txt':'600ca4e25fe11762b75a97e714707fab48bb778374e92d24c6ca068791661c11'                // spdx/license-list-data @ 31ba1a5
+  'LICENSES/CC-BY-NC-SA-4.0.txt':'600ca4e25fe11762b75a97e714707fab48bb778374e92d24c6ca068791661c11',               // spdx/license-list-data @ 31ba1a5
+  'LICENSES/OFL-1.1.txt':'3c17a8394f32ef59bcf50896331249c22a4a4b9c53a5c6d5b9b88464b1c77239'                       // google/fonts ofl/inter/OFL.txt from its third line (the license text; each font's copyright line is in NOTICE)
 };
 var IMAGE_OR_FONT=/\.(png|jpe?g|gif|webp|svg|ico|woff2?|ttf|otf|eot)$/i;
 var LOCKFILES=['package-lock.json','npm-shrinkwrap.json','yarn.lock','pnpm-lock.yaml','bun.lock','bun.lockb'];

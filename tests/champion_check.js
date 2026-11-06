@@ -17,7 +17,7 @@
 //     line with the full address; --short carries neither Shipped nor the address and still
 //     ends with the seat key.
 //   - board.html: the Shipped strip before the draft heading, the heading clause "shipped as
-//     canon.md", the Champion fold, no //host.tld on the page, the stripped address as text,
+//     canon.md", the Champion lines under Run details, no //host.tld on the page, the stripped address as text,
 //     one href.
 //   - A second shipped, "email to Dana Ruiz", no flags: no canon-2.md, canon's hash unchanged,
 //     canon_new false, "canon.md again (draft-2.md) · no page to check", two Shipped lines.
@@ -31,7 +31,7 @@
 //   - insight with a three-line text: the vault created at <project>/combat-writing/
 //     insight-vault.md with the heading, the one explanatory line and the entry on one line,
 //     first true; a second appends one line and no second heading, first false; the record and
-//     the board's fold show both; no file under combat-writing/ carries the credit line.
+//     the board's Champion lines show both; no file under combat-writing/ carries the credit line.
 //   - After shipped the open step runs: open-board.js --dry-run on the shipped run exits 0 and
 //     logs board.opened; the champion skill runs open-board.js after shipped and says result and
 //     insight do not open the board.
@@ -112,7 +112,7 @@ var html=read(path.join(run,'board.html'));
 check(html.indexOf('<p class="round shipped">')>0&&html.indexOf('<p class="round shipped">')<html.indexOf('<h2>The draft'),'board: the Shipped strip must sit above the draft heading');
 check(/<p class="round shipped"><b>Shipped<\/b> · 2026-10-19 14:02 UTC · linkedin\.com \(LinkedIn post\) · canon\.md froze draft-2\.md · live: matches canon · www\.linkedin\.com\/posts\/dana-ruiz_board-letter-abc123 · 0 results · 0 insights<\/p>/.test(html),'board: the Shipped strip is wrong; got '+(/<p class="round shipped">[^]*?<\/p>/.exec(html)||[''])[0]);
 check(/<h2>The draft · draft-2\.md, a revision · shipped as canon\.md, which froze draft-2\.md<\/h2>/.test(html),'board: the heading clause; got '+(/<h2>The draft[^<]*<\/h2>/.exec(html)||[''])[0]);
-check(/<details class="fold"><summary>Champion: shipped, results, insights<\/summary>/.test(html),'board: the Champion fold is missing');
+check(/<h2>Champion: shipped, results, insights<\/h2>/.test(html),'board: the Champion heading is missing');
 check(!/\b(https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(html),'board: an address with its scheme appears');
 check(html.indexOf('www.linkedin.com/posts/dana-ruiz_board-letter-abc123')>0,'board: the stripped address must be on the page as text');
 var hrefs=html.match(/href="[^"]*"/g)||[];
@@ -211,7 +211,7 @@ check(champLines(run).pop().first===false,'insight (2): first must be false');
 node('render-record.js',['--run',run]); node('render-board.js',['--run',run]);
 var rec7=read(path.join(run,'record.md')), html7=read(path.join(run,'board.html'));
 check(/\*\*Insight:\*\* 2026-10-19 · Signal first, context second: the seats punished every opener that explained itself\. · combat-writing\/insight-vault\.md\n/.test(rec7)&&/\*\*Insight:\*\* 2026-10-20 · "the ask" is the one sentence/.test(rec7),'record: the two Insight lines');
-check(/<strong>Insight:<\/strong> 2026-10-19 · Signal first, context second: the seats punished every opener that explained itself\. · combat-writing\/insight-vault\.md<\/p>/.test(html7)&&/<strong>Insight:<\/strong> 2026-10-20 · &quot;the ask&quot; is the one sentence/.test(html7),'board: the fold must show both insights, escaped');
+check(/<strong>Insight:<\/strong> 2026-10-19 · Signal first, context second: the seats punished every opener that explained itself\. · combat-writing\/insight-vault\.md<\/p>/.test(html7)&&/<strong>Insight:<\/strong> 2026-10-20 · &quot;the ask&quot; is the one sentence/.test(html7),'board: the Champion lines must show both insights, escaped');
 check(/· 2 results · 2 insights<\/p>/.test(html7),'board: the strip must count the results and the insights; got '+(/<p class="round shipped">[^]*?<\/p>/.exec(html7)||[''])[0]);
 var hits=[]; (function walk(d){ fs.readdirSync(d).forEach(function(n){ var p=path.join(d,n); if(fs.statSync(p).isDirectory())walk(p); else if(read(p).indexOf(CREDIT)>=0)hits.push(path.relative(proj,p)); }); })(path.join(proj,'combat-writing'));
 check(hits.length===0,'credit line found under combat-writing/: '+hits.join(', '));

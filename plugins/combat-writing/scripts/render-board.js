@@ -5,29 +5,31 @@
 //
 //   node render-board.js --run <run folder>
 //
-// The page, top to bottom: the motto; the round strip (the latest round's
-// prompt is visible at the top with nothing opened, from lib.roundTask, with whether a rating
-// was asked and how many seats answered); the newest draft, in full;
-// then one framed quote per seat, the seat's one-line verdict in bold, cited to the model by
-// name and company (and the provider that served an outside seat) with the round it came
-// from, and the seat's own note when that seat was asked something different (a seat line),
-// the seat's rating or its state (critique, failed read, missing) on the frame, a read-aloud
-// control on every read frame (issue 82: the browser's own speech synthesis with
-// pause and stop, the answer spoken as plain text with its markdown marks dropped, one seat at
-// a time, none on a missing or failed read), and the full read folded under a click; then,
-// folded, the scoreboard of every round (one row per seat,
-// one column per round, every rating on its own, flips marked valid or invalid with the
-// earlier number kept, Stand, missing, not asked, failed reads, truncated reads) with the
-// round history under it (every round's task in one line), the final reads when a final
-// round exists, and the run details (the crew line, the Seats line when the crew is short,
-// the seat key, the drafts, the brief, the reader (Part 84, who this piece is for, under the brief), where the run started, a link to record.md). Light and dark
-// follow the system setting, with a toggle. No external request of any kind: no script,
-// style, font or image is fetched. Nothing is averaged. Every seat's words are escaped: an
+// The page (Part 106, one screen, the look as data): the strip at the top (the motto, the run,
+// the latest round's task in one line from lib.roundTask with whether a rating was asked and how
+// many seats answered, the tabs Draft, Scoreboard and Run details, the Light / dark button); the
+// top box with the newest draft in full at full width beside a column with the brief and the
+// reader (the scoreboard of every round and the run details sit under the tabs in the same box);
+// the hand, one card per seat side by side in its company's identity (the face, the frame's rule
+// and shape, the accent; the seat's own number as the corner index; the company as the suit; the
+// seat's one-line verdict large; the citation to the model by name and company with the round;
+// the seat's own note when that seat was asked something different; its rating or its state
+// (critique, failed read, missing); a read-aloud control on every read card (issue 82: the
+// browser's own speech synthesis with pause and stop, the answer spoken as plain text, one seat
+// at a time, none on a missing or failed read); the full read open on the card, scrolling inside
+// it); the bar at the bottom (every seat's latest number in its company colour, the next
+// commands). The scoreboard (one row per seat, one column per round, every rating on its own,
+// flips marked valid or invalid with the earlier number kept, Stand, missing, not asked, failed
+// reads, truncated reads) carries the round history under it and the final reads when a final
+// round exists; the run details carry the crew line, the Seats line when the crew is short, the
+// seat key, the drafts, the measured facts, the brief, the reader (Part 84), where the run
+// started, the packets' price, and the one link, to record.md. Light and dark follow the system
+// setting, with a toggle; the dark set is designed, not inverted. No external request of any
+// kind: the four faces are embedded as data from plugins/combat-writing/fonts (OFL), and no
+// script, style or image is fetched. Nothing is averaged. Every seat's words are escaped: an
 // answer is text, never markup; a small markdown subset (lists, bold, italic, code) is then
-// rendered, no link among it (lib.renderLite). The measure: the page is 1360 px
-// wide, the cards sit three abreast at 45 to 50 characters a line on a laptop and two on a
-// tablet, an opened read spans the row at 70 characters, the draft panel is 76 characters,
-// and long words and addresses wrap. Rebuilt after every round from the files and log.jsonl.
+// rendered, no link among it (lib.renderLite). Under 1100 px wide the rows stack and the page
+// scrolls. Rebuilt after every round from the files and log.jsonl.
 //
 // Champion: when the run holds a champion.shipped line, a Shipped strip sits
 // under the round strip (the Shipped line, the address as text with its scheme cut, never a
@@ -35,8 +37,8 @@
 // draft is the canon or a revision after it; the draft panel gets three client-side controls on
 // the canon, like a canon piece in the Combat Writing app: read aloud (the browser's own speech
 // synthesis, with pause and stop), copy (the clipboard, the canon text exactly) and download (a
-// .txt named for the run), and nothing is fetched for any of them; a folded "Champion" section
-// before Run details carries the record's Shipped, Result and Insight lines. With no canon the
+// .txt named for the run), and nothing is fetched for any of them; a "Champion" heading under
+// the Run details tab carries the record's Shipped, Result and Insight lines. With no canon the
 // controls are not on the page.
 //
 // Prints the page's path on stdout and appends board.rendered to the log.
@@ -80,6 +82,8 @@ function withTrunc(mark,t){ return t?(mark?mark+' · ':'')+'truncated at '+t.at+
 // spoken text drops the bare Answer label too, so a reading opens on the seat's words.
 function isFence(l){ var s=String(l).trim().replace(/^[`*_]+|[`*_]+$/g,'').trim(); return s===lib.REWRITE_BEGIN||s===lib.REWRITE_END; }
 function foldText(t){ return String(t||'').split(/\r?\n/).filter(function(l){return !isFence(l);}).join('\n'); }
+// The read on the card drops its own RATING line (the number is the corner index, Part 106); the file keeps it.
+function cardText(t){ var lines=foldText(t).split('\n'); if(lines.length&&/^RATING: \d+\/10\s*$/.test(lines[0].trim()))lines.shift(); return lines.join('\n').replace(/^\s*\n/,''); }
 // The spoken text is lib.spokenPlain (Part 81): the board and speak.js read one rule.
 // THE MAC SPEAKS THE FILES (Part 81, issue 121): speak.js writes rounds/<round>/voices.json and one
 // audio file per answered seat; a frame whose seat has a file carries it, and the page plays the
@@ -159,36 +163,78 @@ function latestRating(seat){
 var noRoundsLine=newestDraft?'No rounds yet. The draft'+(hasBrief?' and the brief are':' is')+' stored; no seat has read it. Next: '+lib.CMD.sparring+' for the first reads and ratings, or '+lib.CMD.battle+' to start with the discussion.'
   :'No rounds yet. The brief is stored; there is no draft yet. Next: '+lib.CMD.sparring+' or '+lib.CMD.battle+' with the draft pasted; it joins this run.';
 
-// The page.
+// The page (Part 106): one screen, the look as data. The frame is a grid of four rows: the
+// strip (the motto, the run, the round line, the tabs, the theme button); the top box (the
+// draft at full width beside a column with the brief and the reader; the scoreboard and the
+// run details under the tabs in the same box); the hand (one card per seat, side by side, in
+// its company's identity: the rating as the corner index, the company as the suit, the verdict
+// large, the byline, the full read on the card scrolling inside it, the read-aloud controls);
+// the bar (every seat's latest number in its company colour, the next commands). Under
+// 1100 px the rows stack and the page scrolls. The tokens and the identity table below are the
+// data a theme changes; the markup never hard-wires a colour or a face.
 var companies=seats.map(function(s){return s.company;}).filter(function(v,i,a){return a.indexOf(v)===i;});
+// A company's identity: a class on the card and on its score in the bar, from the table in the
+// CSS below; a company not in the table takes the default identity (`co-other`).
+var IDENTITIES={anthropic:'anthropic',alibaba:'alibaba',openai:'openai'};
+function coClass(company){ var k=String(company||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,''); return 'co-'+(IDENTITIES[k]||'other'); }
+// The four faces, embedded as data so every user sees the same board with no network (the OFL
+// texts ride in LICENSES/ and NOTICE). A missing file falls back to the system face named in the CSS.
+var FONTS=[
+  {family:'Source Serif 4',file:'source-serif-4.woff2',weight:'400 700'},
+  {family:'Manrope',file:'manrope.woff2',weight:'400 800'},
+  {family:'JetBrains Mono',file:'jetbrains-mono.woff2',weight:'400 700'},
+  {family:'Inter',file:'inter.woff2',weight:'400 800'}
+];
+function fontFaces(){
+  return FONTS.map(function(f){
+    var p=path.join(__dirname,'..','fonts',f.file);
+    if(!fs.existsSync(p))return '';
+    return '@font-face{font-family:"'+f.family+'";font-style:normal;font-weight:'+f.weight+';font-display:swap;src:url(data:font/woff2;base64,'+fs.readFileSync(p).toString('base64')+')format("woff2")}';
+  }).join('');
+}
+var UI='Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
 var html=[];
 html.push('<!doctype html>');
 html.push('<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">');
 html.push('<title>Combat Writing board — '+esc(path.basename(runDir))+'</title>');
 html.push('<style>');
-html.push(':root{color-scheme:light;--surface:#f7f5f0;--paper:#fffdf8;--surface-2:#efece5;--ink:#141311;--ink-2:#55524c;--ink-3:#8a877f;--rule:#dcd8cf;--frame:#2b2823;--send:#1a6b3a;--good:#1a7f37;--bad:#c62828;}');
-html.push('@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;--surface:#171614;--paper:#1f1e1b;--surface-2:#262522;--ink:#f3f1ea;--ink-2:#bdb9ae;--ink-3:#8b887f;--rule:#363430;--frame:#d9d4c7;--send:#2e8b57;--good:#4caf6e;--bad:#ef6b6b;}}');
-html.push(':root[data-theme="dark"]{color-scheme:dark;--surface:#171614;--paper:#1f1e1b;--surface-2:#262522;--ink:#f3f1ea;--ink-2:#bdb9ae;--ink-3:#8b887f;--rule:#363430;--frame:#d9d4c7;--send:#2e8b57;--good:#4caf6e;--bad:#ef6b6b;}');
-html.push('*{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--ink);font:16px/1.55 Georgia,"Iowan Old Style","Palatino Linotype",Palatino,"Times New Roman",serif;padding:0 16px 64px}main{max-width:1360px;margin:0 auto}');
-html.push('.motto{font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:22px 0 14px}h1{font:600 20px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0}h2{font:600 13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:36px 0 10px}p{margin:8px 0}.meta{color:var(--ink-2);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}');
-html.push('.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}button{font:13px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--rule);border-radius:6px;padding:4px 10px;cursor:pointer}');
-html.push('.facts{max-width:76ch;margin:10px auto 0}.paper{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:28px 32px;font-size:17px;line-height:1.65;box-shadow:0 1px 2px rgba(0,0,0,.06);max-width:76ch;margin:0 auto;overflow-wrap:anywhere}.paper p{margin:0 0 1em}.paper p:last-child{margin-bottom:0}');
-html.push('.round{margin:18px 0 0;padding:12px 16px;overflow-wrap:anywhere;border-left:4px solid var(--frame);background:var(--surface-2);border-radius:0 4px 4px 0;font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.round b{color:var(--ink)}.rounds{list-style:none;padding:0;margin:14px 0 0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.rounds li{padding:4px 0;border-bottom:1px solid var(--rule)}.rounds b{color:var(--ink)}.frame figcaption .note-line{display:block;margin-top:4px;color:var(--ink-2)}');
-html.push('.round.shipped{border-left-color:var(--send);margin-top:10px}.canon-controls{max-width:76ch;margin:0 auto 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.canon-controls button:disabled{opacity:.5;cursor:default}');
-html.push('.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:28px;margin-top:4px}.frame:has(details[open]){grid-column:1/-1}.frame{margin:0;background:var(--paper);border:10px solid var(--frame);outline:1px solid var(--rule);box-shadow:inset 0 0 0 1px var(--rule),inset 0 0 0 6px var(--paper),inset 0 0 0 7px var(--frame),0 10px 24px rgba(0,0,0,.12);padding:34px 28px 26px;display:flex;flex-direction:column;align-items:center;text-align:center}');
-html.push('.badge{font:700 12px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:7px 12px;border:1px solid var(--frame);border-radius:999px;color:var(--ink)}.badge.failed,.badge.missing{color:var(--bad);border-color:var(--bad)}.badge.critique{color:var(--ink-2);border-color:var(--ink-3)}.badge .mark{font-weight:400;letter-spacing:0;text-transform:none;margin-left:6px;color:var(--ink-2)}.flip-valid .badge .mark{color:var(--good)}.flip-invalid .badge .mark{color:var(--bad)}');
-html.push('.frame blockquote{margin:22px 0 14px;padding:0;font-weight:700;font-style:italic;font-size:22px;line-height:1.35;quotes:"\\201C" "\\201D";overflow-wrap:anywhere}.frame blockquote:before{content:open-quote;display:block;font-size:52px;line-height:.4;color:var(--ink-3);margin-bottom:14px;font-style:normal}.frame figcaption{font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.frame figcaption .seat{color:var(--ink-3)}.frame .final{font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);margin-top:10px}');
-html.push('.read-controls select.seat-voice{font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:2px 6px;max-width:18em}');
-html.push('.read-controls{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px;font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}.read-controls button:disabled{opacity:.5;cursor:default}');
-html.push('details{margin-top:14px;width:100%}summary{cursor:pointer;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2);text-align:center;list-style:none}summary::-webkit-details-marker{display:none}summary:before{content:"+ ";color:var(--ink-3)}details[open]>summary:before{content:"– "}.read{text-align:left;font-size:16px;line-height:1.6;margin:12px auto 0;padding-top:12px;border-top:1px solid var(--rule);max-width:70ch;overflow-wrap:anywhere}.read p{margin:0 0 .9em}.read ul,.read ol{margin:0 0 .9em 1.3em;padding:0}.read li{margin:0 0 .3em}.read code{font-size:14px;background:var(--surface-2);padding:0 4px;border-radius:3px}.read.failed{color:var(--ink-2)}');
-html.push('.fold{margin-top:28px;border-top:1px solid var(--rule);padding-top:10px}.fold>summary{text-align:left;font-weight:600;color:var(--ink)}.fold>summary:before{content:"+ "}.fold[open]>summary:before{content:"– "}');
-html.push('table{border-collapse:collapse;width:100%;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin-top:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top;overflow-wrap:anywhere}th{color:var(--ink-2);font-weight:600}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mark{color:var(--ink-2);font-size:12px}td.flip-valid .mark{color:var(--good)}td.flip-invalid .mark{color:var(--bad)}.missing,.failed{color:var(--ink-3);font-style:italic}.critique{color:var(--ink-2)}code{font-size:13px}.note{font:13px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink-2)}a{color:inherit}');
-html.push('</style></head><body><main>');
-html.push('<p class="motto">Reading is Peace. Writing is War.</p>');
-html.push('<div class="bar"><h1>Combat Writing board — '+esc(path.basename(runDir))+'</h1><button type="button" id="theme" aria-label="Switch light and dark">Light / dark</button></div>');
+html.push(fontFaces());
+// The tokens: light, then dark under the system setting and under the toggle. The dark set is
+// designed for a dark surface, not inverted (the pinned pages, cw-crew-art comps/board/).
+html.push(':root{color-scheme:light;--surface:#ECE9E1;--paper:#FFFDF8;--surface-2:#F6F3EC;--ink:#111111;--ink-2:#4A4640;--ink-3:#5E5952;--read-ink:#111111;--rule:#CFC9BC;--rule-2:#D9D4C8;--btn:#FFFDF8;--btn-rule:#B5AFA2;--cmd:#FFFDF8;--cmd-rule:#CFC9BC;--send:#1a6b3a;--good:#1a7f37;--bad:#c62828;--c-anthropic:#C2410C;--c-alibaba:#1D4ED8;--c-openai:#1F2937;--c-other:#4A4640;}');
+var DARK='color-scheme:dark;--surface:#0F1114;--paper:#1B1E24;--surface-2:#171A1F;--ink:#F3F1EA;--ink-2:#B5B0A6;--ink-3:#A8A399;--read-ink:#E6E2D8;--rule:#2B3038;--rule-2:#343941;--btn:#23272E;--btn-rule:#3A404A;--cmd:#171A1F;--cmd-rule:#3A404A;--send:#2e8b57;--good:#4caf6e;--bad:#ef6b6b;--c-anthropic:#F09A74;--c-alibaba:#7FB0FF;--c-openai:#C9D4DE;--c-other:#B5B0A6;';
+html.push('@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){'+DARK+'}}');
+html.push(':root[data-theme="dark"]{'+DARK+'}');
+// The frame.
+html.push('*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--surface);color:var(--ink);font-family:'+UI+';-webkit-font-smoothing:antialiased}main.board{height:100dvh;min-height:900px;padding:12px 24px;display:grid;grid-template-rows:auto minmax(0,3fr) minmax(0,7fr) auto;gap:12px;overflow:hidden}main.board.norounds{grid-template-rows:auto minmax(0,1fr) auto}');
+html.push('@media (max-width:1100px){main.board,main.board.norounds{height:auto;min-height:100dvh;overflow:visible;grid-template-rows:auto auto auto auto}main.board .top{grid-template-columns:1fr}main.board .hand{grid-template-columns:1fr;overflow:visible}main.board .frame{max-height:80vh}}');
+// The strip.
+html.push('.strip{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;border-bottom:1px solid var(--rule);padding-bottom:10px}.strip .left{display:flex;align-items:baseline;gap:22px;flex-wrap:wrap;min-width:0}.strip .right{display:flex;gap:4px;align-items:center;flex-wrap:wrap}.kicker{font:700 11px/1.4 '+UI+';letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0}h1{margin:0;font:700 15px/1.3 '+UI+';letter-spacing:-.01em}.round{margin:0;font:13.5px/1.5 '+UI+';color:var(--ink-2);overflow-wrap:anywhere}.round b{color:var(--ink)}.round.shipped{flex-basis:100%}');
+html.push('.tab{font:700 11px/1 '+UI+';letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);background:transparent;border:1px solid transparent;padding:8px 12px;border-radius:6px;cursor:pointer;min-height:36px}.tab[aria-selected="true"]{color:var(--ink);background:var(--btn);border-color:var(--rule)}button.plain,#theme{font:600 12px/1 '+UI+';color:var(--ink);background:var(--btn);border:1px solid var(--btn-rule);border-radius:6px;padding:9px 12px;cursor:pointer;min-height:36px;margin-left:10px}');
+// The top box: the panels under the tabs, the side column.
+html.push('.top{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;min-height:0;background:var(--surface-2);border:1px solid var(--rule);border-radius:8px;padding:16px 24px}.panels{overflow:auto;min-height:0}.panel[hidden]{display:none}h2{font:700 11px/1.4 '+UI+';letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}.panel h2+h2{margin-top:18px}.meta{color:var(--ink-2);font:13px/1.5 '+UI+';margin:8px 0}.note{font:12.5px/1.5 '+UI+';color:var(--ink-2)}');
+html.push('.paper{font-family:"Source Serif 4",Georgia,serif;font-size:17.5px;line-height:1.5;overflow-wrap:anywhere}.paper p{margin:0 0 .8em}.paper p:last-child{margin:0}.canon-controls{margin:0 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:13px/1.5 '+UI+';color:var(--ink-2)}.canon-controls button:disabled{opacity:.5;cursor:default}');
+html.push('.side{overflow:auto;min-height:0;display:flex;flex-direction:column;gap:8px;font:12.5px/1.45 '+UI+';border-left:1px solid var(--rule);padding-left:18px;color:var(--ink-2)}.side p{margin:0;overflow-wrap:anywhere}.side b{color:var(--ink)}.side .under{margin-top:auto;font-size:11.5px}');
+// The hand: one card per seat in its company identity.
+html.push('.hand{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px;min-height:0;overflow:auto}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.frame>.full{min-height:0;flex:1 1 auto}.frame>.suit,.frame>.badge,.frame>blockquote,.frame>figcaption,.frame>.final,.frame>.rewrite,.frame>.read-controls{flex:0 0 auto}');
+html.push('.frame{position:relative;margin:0;background:var(--paper);padding:46px 24px 20px;display:flex;flex-direction:column;gap:9px;color:var(--ink);min-height:0;overflow:hidden;border:2px solid var(--c-other);border-radius:10px}.frame .ix{position:absolute;font:800 40px/1 '+UI+';letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--c-other)}.frame .ix small{display:block;font:700 10px/1.2 '+UI+';letter-spacing:.12em;text-transform:uppercase}.frame .ix.tl{top:14px;left:18px}.frame .ix.br{right:18px;bottom:12px;transform:rotate(180deg)}.frame .suit{font:800 11px/1 '+UI+';letter-spacing:.22em;text-transform:uppercase;text-align:center;color:var(--c-other)}');
+html.push('.badge{font:600 11px/1.4 '+UI+';letter-spacing:.1em;text-transform:uppercase;text-align:center;color:var(--ink-2)}.badge.failed,.badge.missing{color:var(--bad)}.badge .mark{font-weight:400;letter-spacing:0;text-transform:none;margin-left:6px}.flip-valid .badge .mark{color:var(--good)}.flip-invalid .badge .mark{color:var(--bad)}');
+html.push('.frame blockquote{margin:0;padding:0;font:700 20px/1.3 '+UI+';text-align:center;overflow-wrap:anywhere}.frame figcaption{font:500 12px/1.5 '+UI+';color:var(--ink-2);text-align:center}.frame figcaption .seat{color:var(--ink-3)}.frame figcaption .note-line{display:block;margin-top:4px}.frame .final{font:12px/1.4 '+UI+';color:var(--ink-2);text-align:center;margin:0}');
+html.push('.frame .rewrite{font-size:14px;line-height:1.5;max-height:30%;overflow:auto;border-top:1px solid var(--rule-2);padding-top:8px}.read-controls{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;font:12px/1.4 '+UI+';color:var(--ink-2)}.read-controls button,.canon-controls button{font:600 12px/1 '+UI+';color:var(--ink);background:var(--btn);border:1px solid var(--btn-rule);border-radius:999px;padding:9px 12px;cursor:pointer;min-height:36px}.read-controls button:disabled{opacity:.5;cursor:default}.read-controls select.seat-voice{font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:2px 6px;max-width:18em}');
+html.push('.full{display:flex;flex-direction:column;min-height:0;margin:0}.full>.fold{font:600 12px/1.5 '+UI+';color:var(--ink-2);border-top:1px solid var(--rule-2);padding:8px 44px 0;text-align:center;margin:8px 0 0}.read{text-align:left;font-size:14.5px;line-height:1.55;color:var(--read-ink);margin:0;overflow:auto;min-height:0;flex:1 1 auto;overflow-wrap:anywhere}.read p{margin:0 0 .7em}.read ul,.read ol{margin:0 0 .7em 1.3em;padding:0}.read li{margin:0 0 .3em}.read code{font-size:13px;background:var(--surface-2);padding:0 4px;border-radius:3px}.read.failed{color:var(--ink-2)}details.fold{margin-top:8px}details.fold>summary{cursor:pointer;font:13px/1.5 '+UI+';color:var(--ink-2)}');
+// The identity table, one entry per company: the face of the verdict and the read, the frame's
+// rule and shape, the accent on the index, the suit and the score.
+html.push('figure.co-anthropic{border:3px double var(--c-anthropic);border-radius:14px}figure.co-anthropic .ix,figure.co-anthropic .suit{color:var(--c-anthropic)}figure.co-anthropic blockquote{font:600 25px/1.3 "Source Serif 4",Georgia,serif;font-size:clamp(17px,1.75vw,25px)}figure.co-anthropic .read{font-family:"Source Serif 4",Georgia,serif;font-size:15.5px;line-height:1.55}');
+html.push('figure.co-alibaba{border:2px solid var(--c-alibaba);border-radius:22px}figure.co-alibaba .ix,figure.co-alibaba .suit{color:var(--c-alibaba)}figure.co-alibaba blockquote{font:800 23px/1.3 Manrope,system-ui,sans-serif;letter-spacing:-.01em;font-size:clamp(16px,1.6vw,23px)}figure.co-alibaba .read{font-family:Manrope,system-ui,sans-serif;font-size:14.5px;line-height:1.6}');
+html.push('figure.co-openai{border:4px solid var(--c-openai);border-radius:6px}figure.co-openai .ix,figure.co-openai .suit{color:var(--c-openai)}figure.co-openai blockquote{font:700 18px/1.4 "JetBrains Mono",ui-monospace,monospace;font-size:clamp(13px,1.3vw,18px)}figure.co-openai .read{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;line-height:1.55}');
+html.push('.score.co-anthropic{color:var(--c-anthropic)}.score.co-alibaba{color:var(--c-alibaba)}.score.co-openai{color:var(--c-openai)}.score.co-other{color:var(--c-other)}');
+// The bar, the tables.
+html.push('.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--rule);padding-top:10px;font:12px/1.5 '+UI+';color:var(--ink-2)}.scores{display:flex;gap:12px;flex-wrap:wrap;font:700 13px/1.4 '+UI+'}.bar .kicker+.kicker,.bar .scores+.kicker{margin-left:14px}.cmd{font:500 12.5px/1 "JetBrains Mono",ui-monospace,monospace;color:var(--ink);background:var(--cmd);border:1px solid var(--cmd-rule);padding:9px 11px;border-radius:4px}');
+html.push('table{border-collapse:collapse;width:100%;font:13px/1.45 '+UI+';margin-top:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top;overflow-wrap:anywhere}th{color:var(--ink-2);font-weight:600}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mark{color:var(--ink-2);font-size:12px}td.flip-valid .mark{color:var(--good)}td.flip-invalid .mark{color:var(--bad)}.missing,.failed{color:var(--ink-3);font-style:italic}.critique{color:var(--ink-2)}code{font-size:13px}.rounds{list-style:none;padding:0;margin:14px 0 0;font:13px/1.5 '+UI+';color:var(--ink-2)}.rounds li{padding:4px 0;border-bottom:1px solid var(--rule);overflow-wrap:anywhere}.rounds b{color:var(--ink)}a{color:inherit}');
+html.push('</style></head><body>');
 
 // The round strip: the latest round's task, visible with nothing opened.
-// roundLine renders one round for the strip and for the history in the scoreboard fold.
+// roundLine renders one round for the strip and for the history under the scoreboard tab.
 function answeredIn(round){
   var asked=lib.askedIn(runDir,round,log);
   var put=seats.filter(function(s){return !asked||asked[s.id];});
@@ -201,13 +247,12 @@ function roundLine(round){
   var a=answeredIn(round);
   var parts=[esc(lib.taskLine(task))];
   if(task.kind==='seat'||!a.all){
-    parts[0]=(task.kind==='seat'?'seat lines to ':esc(lib.taskLine(task))+' · put to ')+a.put.map(function(s){var n=seatNote(round,s.id);return esc(s.id)+(n?' (\u201c'+esc(n)+'\u201d)':'');}).join(', ');
+    parts[0]=(task.kind==='seat'?'seat lines to ':esc(lib.taskLine(task))+' · put to ')+a.put.map(function(s){var n=seatNote(round,s.id);return esc(s.id)+(n?' (“'+esc(n)+'”)':'');}).join(', ');
   }
   var r=lib.ratingLine(task,round); if(r)parts.push(esc(r));
   parts.push(a.done.length+' of '+a.put.length+' seat'+(a.put.length===1?'':'s')+' answered');
   return '<b>Round '+esc(round)+'</b> · '+parts.join(' · ');
 }
-if(rounds.length)html.push('<p class="round">'+roundLine(rounds[rounds.length-1])+'</p>');
 
 // The Shipped strip: the latest shipping, visible with nothing opened. The
 // address is text with its scheme cut, never an href: the page keeps its one link.
@@ -222,9 +267,17 @@ var canonText=canonFile?lib.readText(path.join(runDir,canonFile)):null;
 // canon is newest; the log says which draft it came from).
 var canonFroze=null; shipped.forEach(function(e){ if(e.canon===canonFile&&e.canon_new)canonFroze=e.draft; });
 var canonCurrent=!!canonFile&&!!newestDraft&&lib.sha256(fs.readFileSync(path.join(runDir,canonFile)))===lib.sha256(fs.readFileSync(path.join(runDir,newestDraft)));
-if(lastShip)html.push('<p class="round shipped"><b>Shipped</b> · '+esc(lib.shippedLine(lastShip).replace(/^Shipped /,''))+(lastShip.url?' · '+esc(lib.stripScheme(lastShip.url)):'')+' · '+nResults+' result'+(nResults===1?'':'s')+' · '+nInsights+' insight'+(nInsights===1?'':'s')+'</p>');
 
-// 1. The draft, in full.
+// 1. The strip.
+html.push('<main class="board'+(tableRounds.length?'':' norounds')+'">');
+html.push('<header class="strip"><div class="left"><p class="motto kicker">Reading is Peace. Writing is War.</p><h1>Combat Writing board — '+esc(path.basename(runDir))+'</h1>');
+if(rounds.length)html.push('<p class="round">'+roundLine(rounds[rounds.length-1])+'</p>');
+if(lastShip)html.push('<p class="round shipped"><b>Shipped</b> · '+esc(lib.shippedLine(lastShip).replace(/^Shipped /,''))+(lastShip.url?' · '+esc(lib.stripScheme(lastShip.url)):'')+' · '+nResults+' result'+(nResults===1?'':'s')+' · '+nInsights+' insight'+(nInsights===1?'':'s')+'</p>');
+html.push('</div><div class="right"><div class="tabs" role="tablist" aria-label="The board"><button type="button" role="tab" class="tab" id="tab-draft" aria-selected="true" aria-controls="panel-draft">Draft</button><button type="button" role="tab" class="tab" id="tab-scoreboard" aria-selected="false" aria-controls="panel-scoreboard">Scoreboard</button><button type="button" role="tab" class="tab" id="tab-details" aria-selected="false" aria-controls="panel-details">Run details</button></div><button type="button" id="theme" aria-label="Switch light and dark">Light / dark</button></div></header>');
+
+// 2. The top box: the draft panel, the scoreboard panel, the run details panel; the side column.
+html.push('<section class="top"><div class="panels">');
+html.push('<section class="panel" id="panel-draft" role="tabpanel" aria-labelledby="tab-draft">');
 if(newestDraft){
   var canonClause=!canonFile?'':canonCurrent?' · shipped as '+esc(canonFile)+(canonFroze?', which froze '+esc(canonFroze):''):' · '+esc(canonFile)+' froze '+esc(canonFroze||'an earlier draft')+'; this revision is not shipped';
   html.push('<h2>The draft'+(newestDraft!=='draft.md'?' · '+esc(newestDraft)+', a revision':'')+canonClause+'</h2>');
@@ -236,57 +289,16 @@ if(newestDraft){
     html.push('<div id="canon-text" hidden>'+esc(canonText)+'</div>');
   }
   html.push('<div class="paper">'+paras(lib.readText(path.join(runDir,newestDraft)))+'</div>');
-  // The counts every packet carries: the person sees what the seats were told.
-  html.push('<p class="meta facts"><strong>'+esc(lib.FACTS_HEADING)+':</strong> '+esc(lib.draftFactsFull(lib.draftFacts(lib.readText(path.join(runDir,newestDraft)))))+'.</p>');
 }else{
   html.push('<h2>The draft</h2><p class="meta">None yet. The brief is stored; the draft joins the run when sparring or battle brings it.</p>');
   if(!rounds.length)html.push('<p class="meta">'+esc(noRoundsLine)+'</p>');
 }
+html.push('</section>');
 
-// 2. One framed quote per seat.
-if(tableRounds.length){
-  html.push('<h2>The seats</h2>');
-  html.push('<div class="gallery">');
-  seats.forEach(function(s){
-    var t=latestTurn(s);
-    var c=t?t.cell:null;
-    var kind=c?c.kind:'unread';
-    var badge, quote, fold='';
-    if(!c){ badge='<span class="badge missing">Not yet read</span>'; quote='This seat has not been put to the draft yet.'; }
-    else if(c.kind==='missing'){ badge='<span class="badge missing">Missing</span>'; quote='No answer this round. Nothing stands in for it.'; }
-    else if(c.kind==='failed'){
-      badge='<span class="badge failed">Failed read'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
-      quote='Failed read: '+c.reasons[0]+'.';
-      fold='<details><summary>The failed read ('+c.words+' words)</summary><div class="read failed">'+read(c.answer)+'</div></details>';
-    }else{
-      badge=c.kind==='critique'
-        ?'<span class="badge critique">'+(c.rewrite?(c.copy?'Rewrite · a copy of '+esc(c.copy.model)+'\'s':'Rewrite · no rating asked'):'Critique · no rating asked')+(c.mark&&!c.copy?'<span class="mark">'+esc(c.mark)+'</span>':c.mark&&c.copy&&c.mark!==lib.copyMark(c.copy)?'<span class="mark">'+esc(c.mark.replace(lib.copyMark(c.copy),'').replace(/^ · | · $/g,''))+'</span>':'')+'</span>'
-        :'<span class="badge">Rating '+c.rating+'/10'+(c.rewrite?' · rewrite':'')+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
-      quote=lib.verdictLine(c.answer,c.contract)||'(no words after the first line)';
-      // The second pass of a first round (issue 88): under the read, in the fold and in the spoken text.
-      var crew=t?lib.crewPassOf(runDir,t.round,s.id,log):null;
-      var crewHtml=crew?'<p><strong>'+esc(lib.CREW_PASS_HEADING)+'</strong></p>'+read(crew.text):'';
-      var spoken=lib.spokenPlain(c.answer,crew?crew.text:null);
-      // Read aloud (issue 82): the answer as plain text in the page, the controls on the frame; the
-      // script below wires every frame to the browser's speech synthesis, one seat at a time.
-      // The rewrite (issue 103): the whole of it under the frame, open, before the fold; the quote above is its opening.
-      fold=(c.rewrite?'<div class="read rewrite"><p class="meta">The rewrite, in full:</p>'+read(c.rewrite)+'</div>':'')
-        +'<div class="read-controls"><button type="button" class="seat-speak" aria-label="Read this seat\'s '+(c.kind==='critique'?'critique':'read')+' aloud">🔊 Read aloud</button> <button type="button" class="seat-pause" aria-label="Pause or resume the reading" disabled>Pause</button> <button type="button" class="seat-stop" aria-label="Stop the reading" disabled>Stop</button> <select class="seat-voice" aria-label="Voice for this seat" hidden><option value="">Voice: automatic</option></select> <span class="meta seat-status" aria-live="polite"></span></div>'
-        +'<div class="seat-text" hidden>'+esc(spoken)+'</div>'
-        +'<details><summary>Read the full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words'+(crew?', then '+crew.words+' to the crew':'')+')</summary><div class="read">'+read(foldText(c.answer))+crewHtml+'</div></details>';
-    }
-    var finalLine='';
-    if(finalRounds.length){ var f=finalCell(s,finalRounds[finalRounds.length-1]); finalLine='<p class="final">'+esc(finalRounds[finalRounds.length-1])+': '+esc(finalText(f))+'</p>'; }
-    var note=t?seatNote(t.round,s.id):null;
-    var vf=t&&c&&c.kind!=='missing'&&c.kind!=='not-asked'?voiceFile(t.round,s.id):null;
-    html.push('<figure class="frame '+esc(kind)+'" data-seat="'+esc(s.id)+'"'+(vf?' data-audio="'+esc(vf.src)+'" data-voice="'+esc(vf.voice)+'" data-renders="'+esc(JSON.stringify(vf.renders))+'"':'')+'>'+badge+'<blockquote>'+esc(quote)+'</blockquote><figcaption>— '+esc(lib.seatLabel(s))+(t?' <span class="seat">· round '+esc(t.round)+'</span>':'')+(note?' <span class="note-line">· your note: \u201c'+esc(note)+'\u201d</span>':'')+'</figcaption>'+finalLine+fold+'</figure>');
-  });
-  html.push('</div>');
-}
-
-// 3. Folded: every round, the scoreboard.
+// The scoreboard panel: every round.
+html.push('<section class="panel" id="panel-scoreboard" role="tabpanel" aria-labelledby="tab-scoreboard" hidden>');
 if(rounds.length){
-  html.push('<details class="fold"><summary>Every round: the scoreboard</summary>');
+  html.push('<h2>Every round: the scoreboard</h2>');
   html.push('<p class="note">'+esc(lib.SCOREBOARD_LEGEND).replace(/`rerate`/,'<code>rerate</code>')+'</p>');
   html.push('<table><thead><tr><th>Seat</th>'+rounds.map(function(r){return '<th>'+esc(r)+'</th>';}).join('')+'<th>Latest</th></tr></thead><tbody>');
   seats.forEach(function(s){
@@ -328,17 +340,20 @@ if(rounds.length){
         var f=finalCell(s,r);
         f.forEach(function(x){
           if(x.missing)return;
-          html.push('<details><summary>'+esc(lib.seatLabel(s))+' · '+esc(r)+' · '+(x.c==='sn'?'S/N read':'red-flag read')+' ('+x.words+' words)</summary><div class="read">'+read(x.answer)+'</div></details>');
+          html.push('<details class="fold"><summary>'+esc(lib.seatLabel(s))+' · '+esc(r)+' · '+(x.c==='sn'?'S/N read':'red-flag read')+' ('+x.words+' words)</summary><div class="read">'+read(x.answer)+'</div></details>');
         });
       });
     });
   }
-  html.push('</details>');
+}else{
+  html.push('<h2>Every round: the scoreboard</h2><p class="meta">'+esc(noRoundsLine)+'</p>');
 }
+html.push('</section>');
 
-// 4b. Folded: champion, the record's lines, only when the log holds any.
+// The run details panel: the champion's lines when the log holds any, then the run details.
+html.push('<section class="panel" id="panel-details" role="tabpanel" aria-labelledby="tab-details" hidden>');
 if(champ.length){
-  html.push('<details class="fold"><summary>Champion: shipped, results, insights</summary>');
+  html.push('<h2>Champion: shipped, results, insights</h2>');
   html.push('<p class="note">What was shipped, what came back, and what the run taught. The live and match marks are measured by code against the page text the host saved, never by a seat.</p>');
   if(!shipped.length)html.push('<p class="meta"><strong>Shipped:</strong> not recorded.</p>');
   champ.forEach(function(e){
@@ -346,15 +361,14 @@ if(champ.length){
     else if(e.event==='champion.result')html.push('<p class="meta"><strong>Result:</strong> '+esc(lib.dateUtc(e.at))+' · '+esc(String(e.text||'').replace(/\s+/g,' ').trim())+'</p>');
     else if(e.event==='champion.insight')html.push('<p class="meta"><strong>Insight:</strong> '+esc(lib.dateUtc(e.at))+' · '+esc(e.text)+' · '+esc(e.vault)+'</p>');
   });
-  html.push('</details>');
 }
-
-// 4. Folded: the run details.
-html.push('<details class="fold"><summary>Run details</summary>');
+html.push('<h2>Run details</h2>');
 html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies: '+esc(companies.join(', '))+'.')+' '+esc(lib.nameSources(seats))+'</p>');
 lib.crewStateLines(runDir,seats,log).forEach(function(l){ html.push('<p class="meta"><strong>Seats:</strong> '+esc(l)+'</p>'); });
 html.push('<p class="meta"><strong>Seat key:</strong> '+esc(lib.seatKey(seats))+'</p>');
 html.push('<p class="meta"><strong>Drafts:</strong> '+(drafts.length?esc(drafts.map(function(d){return d+' ('+lib.draftFactsLine(lib.draftFacts(lib.readText(path.join(runDir,d))))+')';}).join(', '))+'.':'none yet; the draft joins the run when sparring or battle brings it.')+(hasBrief?' <strong>Brief'+(briefName?' ('+esc(briefName)+', combat-writing/briefs/'+esc(briefName)+'.md)':'')+':</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
+// The counts every packet carries: the person sees what the seats were told.
+if(newestDraft)html.push('<p class="meta facts"><strong>'+esc(lib.FACTS_HEADING)+':</strong> '+esc(lib.draftFactsFull(lib.draftFacts(lib.readText(path.join(runDir,newestDraft)))))+'.</p>');
 // The reader (Part 84): under the brief, this run's own, as every packet carries it.
 if(readerText!==null)html.push('<p class="meta reader"><strong>Reader:</strong> '+esc(readerText)+' <span class="note">(who this piece is for, from the author; this run\'s own, carried in every packet after the brief)</span></p>');
 html.push('<p class="meta"><strong>Started at:</strong> '+esc(lib.startedAtLine(runDir,log,rounds))+'</p>');
@@ -363,9 +377,66 @@ var budgetLines=lib.budgetLines(runDir,log);
 if(budgetLines.length)html.push('<p class="meta"><strong>Packets:</strong> '+esc('Tokens are estimated at four characters each, the add-on\'s rule. '+budgetLines.join(' '))+'</p>');
 if(!rounds.length)html.push('<p class="note">'+esc(noRoundsLine)+'</p>');
 html.push('<p class="note">The full record, every answer in full and the log of what was sent, is <a href="record.md">record.md</a> in this folder.</p>');
-html.push('</details>');
+html.push('</section>');
+html.push('</div>');
+// The side column: the brief, the reader, the pointer.
+html.push('<aside class="side" aria-label="The brief and the reader">');
+if(hasBrief)html.push('<p><b>Brief.</b> '+esc(lib.readText(path.join(runDir,'brief.md')).trim())+'</p>');
+if(readerText!==null)html.push('<p><b>Reader.</b> '+esc(readerText)+'</p>');
+if(!hasBrief&&readerText===null)html.push('<p>No brief and no reader on this run.</p>');
+html.push('<p class="under">Measured facts, the full brief and the record are under Run details.</p>');
+html.push('</aside></section>');
+
+// 3. The hand: one card per seat.
+if(tableRounds.length){
+  html.push('<h2 class="sr">The seats</h2>');
+  html.push('<section class="hand" aria-label="The seats">');
+  seats.forEach(function(s){
+    var t=latestTurn(s);
+    var c=t?t.cell:null;
+    var kind=c?c.kind:'unread';
+    var badge, quote, fold='', ix='';
+    if(!c){ badge='<span class="badge missing">Not yet read</span>'; quote='This seat has not been put to the draft yet.'; }
+    else if(c.kind==='missing'){ badge='<span class="badge missing">Missing</span>'; quote='No answer this round. Nothing stands in for it.'; }
+    else if(c.kind==='failed'){
+      badge='<span class="badge failed">Failed read'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
+      quote='Failed read: '+c.reasons[0]+'.';
+      fold='<div class="full"><div class="read failed">'+read(c.answer)+'</div><p class="fold">The failed read ('+c.words+' words)</p></div>';
+    }else{
+      badge=c.kind==='critique'
+        ?'<span class="badge critique">'+(c.rewrite?(c.copy?'Rewrite · a copy of '+esc(c.copy.model)+'\'s':'Rewrite · no rating asked'):'Critique · no rating asked')+(c.mark&&!c.copy?'<span class="mark">'+esc(c.mark)+'</span>':c.mark&&c.copy&&c.mark!==lib.copyMark(c.copy)?'<span class="mark">'+esc(c.mark.replace(lib.copyMark(c.copy),'').replace(/^ · | · $/g,''))+'</span>':'')+'</span>'
+        :'<span class="badge'+(c.rewrite||c.mark?'':' sr')+'">Rating '+c.rating+'/10'+(c.rewrite?' · rewrite':'')+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
+      // The corner index: the seat's own number, large, top-left and again bottom-right.
+      if(c.rating!==null&&c.rating!==undefined)ix='<span class="ix tl" aria-hidden="true">'+c.rating+'<small>of 10</small></span><span class="ix br" aria-hidden="true">'+c.rating+'<small>of 10</small></span>';
+      quote=lib.verdictLine(c.answer,c.contract)||'(no words after the first line)';
+      // The second pass of a first round (issue 88): under the read and in the spoken text.
+      var crew=t?lib.crewPassOf(runDir,t.round,s.id,log):null;
+      var crewHtml=crew?'<p><strong>'+esc(lib.CREW_PASS_HEADING)+'</strong></p>'+read(crew.text):'';
+      var spoken=lib.spokenPlain(c.answer,crew?crew.text:null);
+      // Read aloud (issue 82): the answer as plain text in the page, the controls on the card; the
+      // script below wires every card to the browser's speech synthesis, one seat at a time.
+      // The rewrite (issue 103): the whole of it on the card, before the read; the quote above is its opening.
+      fold=(c.rewrite?'<div class="read rewrite"><p class="meta">The rewrite, in full:</p>'+read(c.rewrite)+'</div>':'')
+        +'<div class="read-controls"><button type="button" class="seat-speak" aria-label="Read this seat\'s '+(c.kind==='critique'?'critique':'read')+' aloud">🔊 Read aloud</button> <button type="button" class="seat-pause" aria-label="Pause or resume the reading" disabled>Pause</button> <button type="button" class="seat-stop" aria-label="Stop the reading" disabled>Stop</button> <select class="seat-voice" aria-label="Voice for this seat" hidden><option value="">Voice: automatic</option></select> <span class="meta seat-status" aria-live="polite"></span></div>'
+        +'<div class="seat-text" hidden>'+esc(spoken)+'</div>'
+        +'<div class="full"><div class="read">'+read(cardText(c.answer))+crewHtml+'</div><p class="fold">The full '+(c.kind==='critique'?'critique':'read')+' ('+c.words+' words'+(crew?', then '+crew.words+' to the crew':'')+')</p></div>';
+    }
+    var finalLine='';
+    if(finalRounds.length){ var f=finalCell(s,finalRounds[finalRounds.length-1]); finalLine='<p class="final">'+esc(finalRounds[finalRounds.length-1])+': '+esc(finalText(f))+'</p>'; }
+    var note=t?seatNote(t.round,s.id):null;
+    var vf=t&&c&&c.kind!=='missing'&&c.kind!=='not-asked'?voiceFile(t.round,s.id):null;
+    html.push('<figure class="frame '+esc(kind)+' '+coClass(s.company)+'" data-seat="'+esc(s.id)+'"'+(vf?' data-audio="'+esc(vf.src)+'" data-voice="'+esc(vf.voice)+'" data-renders="'+esc(JSON.stringify(vf.renders))+'"':'')+'>'+ix+'<span class="suit">'+esc(s.company)+'</span>'+badge+'<blockquote>'+esc(quote)+'</blockquote><figcaption>— '+esc(lib.seatLabel(s))+(t?' <span class="seat">· round '+esc(t.round)+'</span>':'')+(note?' <span class="note-line">· your note: “'+esc(note)+'”</span>':'')+'</figcaption>'+finalLine+fold+'</figure>');
+  });
+  html.push('</section>');
+}
+
+// 4. The bar: every seat's latest number in its company colour, the next commands.
+html.push('<footer class="bar"><span class="kicker">Every round</span><span class="scores">'+seats.map(function(s){var lr=latestRating(s);return '<span class="score '+coClass(s.company)+'">'+esc(s.id)+' '+(lr?lr.rating+'/10':'—')+'</span>';}).join('')+'</span>');
+html.push('<span class="kicker">Next</span><span class="cmd">'+esc(lib.CMD.battle)+' fq: a question for every seat</span><span class="cmd">'+esc(lib.CMD.sparring)+' debate</span><span class="cmd">'+esc(lib.CMD.battle)+' final</span></footer>');
 html.push('<script>');
 html.push('(function(){var b=document.getElementById("theme");var r=document.documentElement;b.addEventListener("click",function(){var dark=r.getAttribute("data-theme")==="dark"||(r.getAttribute("data-theme")!=="light"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches);r.setAttribute("data-theme",dark?"light":"dark");});})();');
+// The tabs: one panel shown at a time in the top box; the draft first.
+html.push('(function(){var tabs=document.querySelectorAll(".tab");function show(id){for(var i=0;i<tabs.length;i++){var t=tabs[i],on=t.getAttribute("aria-controls")===id;t.setAttribute("aria-selected",on?"true":"false");var p=document.getElementById(t.getAttribute("aria-controls"));if(p)p.hidden=!on;}}for(var i=0;i<tabs.length;i++)tabs[i].addEventListener("click",function(e){show(e.currentTarget.getAttribute("aria-controls"));});})();');
 // Read aloud on every read frame (issue 82): the browser's own speech synthesis, the seat's answer as the
 // plain text in the page, one seat at a time (starting one cancels another). No request leaves the page.
 // A voice per seat (issue 101): seat-1 reads in
