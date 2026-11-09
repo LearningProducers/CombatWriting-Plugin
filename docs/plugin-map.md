@@ -18,7 +18,7 @@ Typed as `/cw:<name>` in Claude Code. Each is a skill file at `plugins/combat-wr
 | `/cw:battle` | a draft, or one of the round words below with your text; `rerate` for a new rating; `draft:` for a revision; `final` for the two final reads | the seats discuss structure and content; they read each other only when you share (`sn:`, `sfq:`); no rating unless `rerate` | the scoreboard, the board, a picker |
 | `/cw:champion` | `shipped <link or channel>`, `result: <what came back>`, `insight: <what you learned>` | freezes the shipped draft as canon; records each result; appends each insight to the project's vault | the script's line, the board's path, the text Next line |
 | `/cw:briefs` | nothing | lists the unnamed default brief and every brief saved by name, with its first line and the runs on it | the list |
-| `/cw:runs` | nothing, or a word of a run id | lists every run newest first (brief, reader, last round, drafts, OPEN or SHIPPED); the word finds one run | the list, or the one run |
+| `/cw:runs` | nothing, or a word of a run id | lists every run newest first (brief, reader, last round, drafts, OPEN or SHIPPED), then a picker of the four open runs touched last, any stage; the word finds one run | the list and the picker, or the one run |
 | `/cw:help` | nothing, `all`, or a topic word | bare: the card and a picker to begin, no tool called and nothing between them; `all`: the guide, under 450 words, opening with the motto and the one-liner, in three tables, with no example and one live line under The crew naming the seats that sit; a topic word: one section of the full guide | the card and a picker, or the guide |
 
 ## 2. The words the plugin reads
@@ -62,6 +62,7 @@ A missing keyword never errors. The host opens a one-keypress menu (the AskUserQ
 | sparring text with no keyword | Everyone / One seat / Draft / Brief, best guess marked | under One seat: the seat list |
 | bare `/cw:battle`, or text with no keyword | Everyone / One seat / Revised draft / Final (New run in place of Final when the text is draft-shaped), best guess marked | under Everyone: FQ / N / SN / SFQ; under One seat: the seat list |
 | bare `/cw:champion` | Shipped / Result / Insight, best guess marked | one line asks for the text |
+| bare `/cw:runs`, after the listing | the four open runs touched last, any stage, by last activity (no picker when none is open) | the pick continues in that run's own stage: battle's or sparring's picker, or the first round on a strategy-made run |
 | after every sparring and battle result | Battle: everyone / Battle: one seat / Debate: seats re-read and rerate / More | under Battle: everyone: FQ / N / SN / SFQ; under More: Final reads / Champion / Help / Done for now; then one line for your text and one yes or no for rerate |
 
 Done for now prints the text Next line, which names the run, the word that returns to it (`run: <word>`), and the line that starts a new piece.
@@ -127,7 +128,7 @@ Nineteen files in `plugins/combat-writing/scripts/`, plain Node, no dependencies
 | `add-draft.js` | `draft:` or `reader:` on an existing run | `draft-N.md`, `reader.md` |
 | `brief.js` | `brief update:` | one dated line on the project's or the named brief, and on the run's |
 | `briefs.js` | `/cw:briefs` | nothing; prints the list |
-| `runs.js` | `/cw:runs`, `run:` | nothing; prints the list or the one folder |
+| `runs.js` | `/cw:runs`, `run:` | nothing; prints the list, the one folder, or under `--pick` the JSON array the runs picker reads |
 | `seats.js` | "seat-2 on <model>", "seat-2 back to the list" | `combat-writing/seats.json` |
 | `crew-state.js` | the add-on is absent or down | one log line saying which, for the Seats line |
 | `announce.js` | the round's kind and seats are known | one log line; prints the forming line |
