@@ -282,3 +282,11 @@ Issue 186, the founder on a project with two dozen runs (cw 0.9.3, 2026-11-09): 
 Delivers (cw 0.9.4): `scripts/runs.js`, `tests/runs_check.js`, the runs and help skills, both manifests, PLAN.md.
 
 Status: delivered — 2026-11-09 — draft pull request open; `node tests/run_all.js` run in the build session, the counts in the pull request body.
+
+## Part 120 — The draft panel hides on a tab switch; THE SMOKE's tab line reads the pixels (cw 0.9.5)
+
+Issue 185, measured 2026-11-06 evening on a real round on cw 0.9.3 in a browser: clicking Scoreboard or Run details sets `hidden` on the draft panel and clears it on the chosen panel, but the draft panel's own rule from Part 118 (`#panel-draft{display:flex;flex-direction:column;min-height:0;height:100%}`) outranks the page's own `.panel[hidden]{display:none}` and the browser's `[hidden]{display:none}` by specificity, an id against a class and an attribute, so the draft stays in the box and the chosen panel renders under it, out of view; THE SMOKE's tab line read the attribute, which had moved, and passed. The cure is one rule written after the flex rule, `#panel-draft[hidden]{display:none}`, and `tests/board_check.js` pins it in the page. THE SMOKE's tab line in CLAUDE.md now measures the chosen panel's rectangle starting inside the top box with its heading in view, a taller panel scrolling in the panels' box, and the other panels' rectangles as empty, never the attribute. The defect reproduced on the fixture round in the build session before the fix, at 1360 by 900: with Scoreboard chosen the draft panel read hidden and still stood 173 px tall inside the box, the scoreboard panel ran from 321 to 646 under a box ending at 338, and its table from 456 to 584; the numbers after the fix ride in the pull request body.
+
+Delivers (cw 0.9.5): `scripts/render-board.js`, `tests/board_check.js`, CLAUDE.md, both manifests, PLAN.md.
+
+Status: delivered — 2026-11-09 — draft pull request open; `node tests/run_all.js` run in the build session and THE SMOKE measured in a browser, the numbers in the pull request body.
