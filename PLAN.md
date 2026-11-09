@@ -274,3 +274,11 @@ Issue 183, the founder's second look at the board (cw 0.9.2, 2026-11-06). The st
 Delivers (cw 0.9.3): `scripts/render-board.js`, `tests/board_check.js`, `tests/rewrite_check.js`, `method/combat-writing.md` and `docs/combat-writing.md`, the battle, sparring, combat-writing, help and champion skills, CLAUDE.md, both manifests, PLAN.md.
 
 Status: delivered — 2026-11-06 — draft pull request open; `node tests/run_all.js` run in the build session and THE SMOKE measured in a browser, the numbers in the pull request body.
+
+## Part 119 — The runs picker: the four runs touched last, any stage, by arrow and enter (cw 0.9.4)
+
+Issue 186, the founder on a project with two dozen runs (cw 0.9.3, 2026-11-09): "Can we make it so we can select at least 3 or 4 of the most recent sessions with arrow then enter instead of typing stuff?" and "it should apply to any session going by activity not stage for example sparring session, battle session, it doesn't matter it opens up the four most recent sessions". `/cw:runs` keeps its listing and then opens a picker of the four open runs touched last, whatever their stage, ordered by the latest line in each run's log (a run made earlier and worked this morning sorts first); the pick says `Returning to <id>.` and continues in that run's own stage, exactly as `/cw:battle run: <id>` or `/cw:sparring run: <id>` would bare, or the first round on a strategy-made run. The options come from `runs.js --pick [N]`, one JSON array (id, slug, dir, label, description, stage, active), a shipped run never among them, `[]` on an empty project; `/cw:runs <word>` is unchanged, and the text line stays for a host without the tool. THE SMOKE is not owed: no board, hook or post-round script changes.
+
+Delivers (cw 0.9.4): `scripts/runs.js`, `tests/runs_check.js`, the runs and help skills, both manifests, PLAN.md.
+
+Status: delivered — 2026-11-09 — draft pull request open; `node tests/run_all.js` run in the build session, the counts in the pull request body.

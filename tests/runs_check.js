@@ -8,6 +8,10 @@
 //   - runs.js lists every run newest first, one line each: the id, the brief by name (default, or
 //     none), the reader's first words, the last round or "no round", the drafts, and OPEN or
 //     SHIPPED <date> once champion.js froze a canon; then the closing line; with no run, one line.
+//   - runs.js --pick [N] (issue 186): the N open runs touched last, any stage, as JSON for the
+//     picker, ordered by the latest ts in each run's log (an older run worked later sorts first),
+//     each with its stage (sparring, battle, none) and the listing line as its description;
+//     shipped runs absent; [] on an empty project; it writes and logs nothing.
 //   - runs.js --match <word>: one match prints the folder alone (exit 0); several print the count
 //     and their lines (exit 3); none prints "No run matches" and the listing (exit 1); the match is
 //     case-insensitive on the id; it writes and logs nothing.
@@ -82,6 +86,32 @@ var other=fs.mkdtempSync(path.join(os.tmpdir(),'cw-runs-root-'));
 check(node('runs.js',['--root',proj],other).stdout===l.stdout,'runs.js --root reads another project');
 fs.rmSync(other,{recursive:true,force:true});
 
+// 2b. runs.js --pick (issue 186): the runs touched last, any stage, for the picker.
+var r3=node('new-run.js',['--draft','draft.md','--name','third','--stage','battle','--model','Test Model']);
+var run3=r3.stdout.trim();
+node('packet.js',['--run',run3,'--round','01-battle','--seat','seat-1']);
+var r4=node('new-run.js',['--draft','draft.md','--name','fourth','--stage','sparring','--model','Test Model']);
+var run4=r4.stdout.trim();
+node('packet.js',['--run',run4,'--round','01-sparring','--seat','seat-1']);
+var pk=node('runs.js',['--pick']);
+var picked=JSON.parse(pk.stdout);
+check(pk.status===0&&picked.length===3&&picked.every(function(e){return e.id&&e.slug&&e.dir&&e.label===e.slug&&typeof e.description==='string'&&e.stage&&e.active;}),'runs.js --pick: a JSON array of the open runs with id, slug, dir, label, description, stage, active: '+pk.stdout);
+check(picked.map(function(e){return e.id;}).indexOf(path.basename(run2))<0,'runs.js --pick leaves the shipped run out');
+check(picked[0].id===path.basename(run4)&&picked[0].stage==='sparring'&&picked[1].id===path.basename(run3)&&picked[1].stage==='battle'&&picked[2].id===path.basename(run1)&&picked[2].stage==='none','runs.js --pick: by last activity, the stage from the last round or none: '+picked.map(function(e){return e.slug+':'+e.stage;}).join(' '));
+check(picked[2].description===lib.runsLine(lib.runSummary(run1)).slice(path.basename(run1).length+3)&&/^brief: cold-email · reader: /.test(picked[2].description),'runs.js --pick: the description is the listing line without the id');
+fs.appendFileSync(path.join(run1,'log.jsonl'),JSON.stringify({ts:new Date(Date.now()+60000).toISOString(),event:'reader.set'})+'\n');
+var pk2=JSON.parse(node('runs.js',['--pick']).stdout);
+check(pk2[0].id===path.basename(run1)&&pk2[0].stage==='none','runs.js --pick: an older run touched later sorts first (activity, not creation): '+pk2.map(function(e){return e.slug;}).join(' '));
+var pk1=JSON.parse(node('runs.js',['--pick','2']).stdout);
+check(pk1.length===2&&pk1[0].id===path.basename(run1)&&pk1[1].id===path.basename(run4),'runs.js --pick 2: two, the same order');
+check(node('runs.js',['--pick','0']).status===2&&node('runs.js',['--pick','x']).status===2,'runs.js --pick with no count is refused');
+var emptyRoot=fs.mkdtempSync(path.join(os.tmpdir(),'cw-runs-empty-'));
+var pe=node('runs.js',['--pick'],emptyRoot);
+check(pe.status===0&&pe.stdout==='[]\n','runs.js --pick on an empty project: [] and exit 0: '+JSON.stringify(pe.stdout));
+fs.rmSync(emptyRoot,{recursive:true,force:true});
+var before3=read(path.join(run3,'log.jsonl')); node('runs.js',['--pick']);
+check(read(path.join(run3,'log.jsonl'))===before3,'runs.js --pick logs nothing');
+
 // 3. The Next line names the run.
 var n2=node('render-record.js',['--run',run2,'--next']);
 check(n2.status===0&&n2.stdout.trim().split('\n').length===1&&/^Next: \/cw:battle fq:/.test(n2.stdout)&&n2.stdout.trim().slice(-lib.thisRunLine(s2.id).trim().length)===lib.thisRunLine(s2.id).trim(),'--next on a run with rounds ends with This run: '+n2.stdout);
@@ -105,6 +135,8 @@ check(runs.split('\n')[0]==='---'&&/^name: runs$/m.test(runs)&&/^argument-hint: 
 check(/`run: <folder or word>` names the run \(Part 85: a folder path, or a word of a run id matched by `runs\.js --match <word>`/.test(champion)&&/\[run: <folder or word>\]$/m.test(champion),'champion: run: reads a folder or a word');
 check(/^## Returning and starting fresh$/m.test(help)&&/Any number of runs stay open at once\./.test(help)&&/a run is open until `\/cw:champion shipped` freezes its canon, and nothing else closes it/.test(help)&&/^- `\/cw:runs` — lists every run in the project/m.test(help)&&/champion, briefs, runs, voices, files/.test(help)&&/that line names the run you are on, the word that returns to it and the line that starts a new piece/.test(help),'help: the section, the command, the topic, the picker sentence');
 check(/`\/cw:briefs` and `\/cw:runs` \(each a skill/.test(rules)&&/scripts\/runs\.js \[--match <word>\]/.test(rules)&&/that line names the run it is on, the word that returns to it \(`run: <word>`\) and the line that leaves it \(Part 85\)/.test(rules),'the rules skill: the seventh command, the script row, the Next line');
+check(/scripts\/runs\.js --pick$/m.test(runs)&&/AskUserQuestion/.test(runs)&&/`Which run do you want back\? \/cw:help for the full guide\.`/.test(runs)&&/the four open runs touched last, any stage/.test(runs)&&/`Returning to <id>\.`/.test(runs)&&/`battle`, do exactly what `\/cw:battle run: <id>` does bare/.test(runs)&&/`sparring`, exactly what `\/cw:sparring run: <id>` does bare/.test(runs)&&/`none`, exactly what a bare `\/cw:sparring` does on a run strategy made/.test(runs)&&!/"Other"/.test(runs),'the runs skill: --pick, the picker question, the four runs touched last any stage, the pick continues in the run\'s own stage, no extra row named (issue 186)');
+check(/then a picker of the four runs you touched last, any stage: arrow, enter, and you are back in it where you left it\./.test(help),'the help: the runs bullet says arrow, enter, any stage (issue 186)');
 check(/^- `\/cw:runs` lists every run in the project/m.test(read(path.join(plugin,'README.md')))&&/`\/cw:briefs` and `\/cw:runs`, which list your briefs and your runs/.test(read(path.join(plugin,'README.md'))),'the plugin README names /cw:runs');
 var claude=read(path.join(root,'CLAUDE.md'));
 check(/`\/cw:help`, `\/cw:briefs` and `\/cw:runs`;/.test(claude)&&/The seven commands are skills/.test(claude)&&/briefs\.js, runs\.js,/.test(claude)&&/The runs and the way back \(Part 85, 2026-10-31/.test(claude),'CLAUDE.md: the seventh command, the script, the ruling');
