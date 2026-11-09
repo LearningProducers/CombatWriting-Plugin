@@ -133,7 +133,7 @@ The method lists the stages in order; the plugin does not hold you to it. Strate
   Example: `/cw:champion insight: "the ask" is the one sentence the reader can say yes to; lead with it.`
 - `/cw:briefs` — lists your briefs: the unnamed default and every brief saved by name, each with its first line and the runs on it. Bare; it takes nothing.
   Example: `/cw:briefs`
-- `/cw:runs` — lists every run in the project, newest first: its brief, its reader, its last round, the drafts it holds, and OPEN or SHIPPED with the date. A word after it finds the run whose id holds it.
+- `/cw:runs` — lists every run in the project, newest first: its brief, its reader, its last round, the drafts it holds, and OPEN or SHIPPED with the date; then a picker of the four runs you touched last, any stage: arrow, enter, and you are back in it where you left it. A word after it finds the run whose id holds it.
   Example: `/cw:runs`
   Example: `/cw:runs first-piece`
 - `/cw:help` — bare, the card and a picker to begin (the terminal's `/cw` completes to it); `help all` is the short guide; `help rounds` shows one section of this one.
