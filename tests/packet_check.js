@@ -466,7 +466,7 @@ var tk1=lib.roundTask(run,'01-sparring');
 check(tk1.kind==='plain'&&tk1.text===lib.DEFAULT_READ_PROMPT&&lib.taskLine(tk1).indexOf('the default prompt: “')===0&&lib.ratingLine(tk1,'01-sparring')==='a rating asked','roundTask: 01-sparring should be plain with the default read prompt: '+JSON.stringify(tk1));
 node('packet.js',['--run',run,'--round','11-battle','--seat','seat-2','--n','n.md']);
 var tkn=lib.roundTask(run,'11-battle');
-check(tkn.kind==='N'&&tkn.text==='Answer the close first, then the ask.'&&tkn.contract==='critique'&&lib.ratingLine(tkn,'11-battle')==='no rating asked','roundTask: an N round: '+JSON.stringify(tkn));
+check(tkn.kind==='N'&&tkn.text==='Answer the close first, then the ask.'&&tkn.contract==='critique'&&lib.ratingLine(tkn,'11-battle')==='','roundTask: an N round: '+JSON.stringify(tkn));
 node('packet.js',['--run',run,'--round','12-battle','--seat','seat-2','--question','q2.md']);
 var tks=lib.roundTask(run,'12-battle');
 check(tks.kind==='seat'&&tks.text===null&&lib.taskLine(tks)==='seat lines','roundTask: a seat-line round: '+JSON.stringify(tks));

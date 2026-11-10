@@ -1,5 +1,5 @@
 ---
-description: 'A run that starts at battle: no strategy, no sparring, a draft pasted into /cw:battle with an SN prompt. The first round is 01-battle, with no other seat to read and no rating asked.'
+description: 'A run that starts at battle: no strategy, no sparring, a draft pasted into /cw:battle with an SN prompt. The first round is 01-battle, with no other seat to read and no rating.'
 expected_outcome: 'The host starts a run from the pasted draft, runs round 01-battle, shows the scoreboard with that column marked critique, no seat writes a RATING line, the result says this is the first round of the run and that no other seat''s answer was carried, and the record says the run started at battle.'
 runs: 1
 max_turns: 40

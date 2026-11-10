@@ -108,6 +108,9 @@ out.push('**Crew:** '+seats.map(lib.seatLabel).join('; ')+'. '+(companies.length
 out.push('');
 // Fewer seats than expected: the reason and the next command, from the log.
 lib.crewStateLines(runDir,seats,log).forEach(function(l){ out.push('**Seats:** '+l); out.push(''); });
+// A fresh reader on a model other than the session's own is named, in one line (issue 189).
+var modelsLine=lib.modelsLine(seats,log);
+if(modelsLine){ out.push('**Models:** '+modelsLine); out.push(''); }
 out.push('**Seat key:** '+lib.seatKey(seats));
 out.push('');
 // Each draft with its hash and its counts: words, paragraphs, lines, measured from the file.
@@ -226,6 +229,8 @@ if(args.next===true){
   var createdLine=log.filter(function(e){return e.event==='run.created';})[0]||null;
   var briefText=fs.existsSync(path.join(runDir,'brief.md'))?lib.readText(path.join(runDir,'brief.md')):null;
   out.filter(function(l){return l.indexOf('**Seats:**')===0;}).forEach(function(l){ s.push(l,''); });
+  // Under the crew line and the Seats line, above the scoreboard, where it is read first (issue 189).
+  if(modelsLine)s.push('**Models:** '+modelsLine,'');
   // The ignore file, said once (issue 36): the run that wrote combat-writing/.gitignore says so in
   // its first short form and never again, like the legend.
   if(log.some(function(e){return e.event==='gitignore.written';})&&!log.some(function(e){return e.event==='gitignore.printed';})){ s.push(lib.GITIGNORE_LINE,''); lib.appendLog(runDir,{event:'gitignore.printed'}); }

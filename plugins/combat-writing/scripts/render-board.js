@@ -8,7 +8,7 @@
 // The page (Part 106, one screen, the look as data; the strip's two lines since Part 118): the strip at
 // the top (the motto and the run with the tabs Draft, Scoreboard and Run details and the Light / dark
 // button on one line; the brief and the reader, condensed, under it); the latest round's task in one
-// line from lib.roundTask with whether a rating was asked and how many seats answered, in the column
+// line from lib.roundTask with a rating asked said when one was and how many seats answered, in the column
 // beside the draft; the
 // top box with the newest draft in full at full width beside a column with the brief and the
 // reader (the scoreboard of every round and the run details sit under the tabs in the same box);
@@ -289,6 +289,9 @@ var canonCurrent=!!canonFile&&!!newestDraft&&lib.sha256(fs.readFileSync(path.joi
 html.push('<main class="board'+(tableRounds.length?'':' norounds')+'">');
 html.push('<header class="strip"><div class="row"><div class="left"><p class="motto kicker">Reading is Peace. Writing is War.</p><h1>Combat Writing board — '+esc(path.basename(runDir))+'</h1></div><div class="right"><div class="tabs" role="tablist" aria-label="The board"><button type="button" role="tab" class="tab" id="tab-draft" aria-selected="true" aria-controls="panel-draft">Draft</button><button type="button" role="tab" class="tab" id="tab-scoreboard" aria-selected="false" aria-controls="panel-scoreboard">Scoreboard</button><button type="button" role="tab" class="tab" id="tab-details" aria-selected="false" aria-controls="panel-details">Run details</button></div><button type="button" id="theme" aria-label="Switch light and dark">Light / dark</button></div></div>');
 if(lastShip)html.push('<p class="round shipped"><b>Shipped</b> · '+esc(lib.shippedLine(lastShip).replace(/^Shipped /,''))+(lastShip.url?' · '+esc(lib.stripScheme(lastShip.url)):'')+' · '+nResults+' result'+(nResults===1?'':'s')+' · '+nInsights+' insight'+(nInsights===1?'':'s')+'</p>');
+// A fresh reader on a model other than the session's own, in the strip, seen with nothing opened (issue 189).
+var modelsLine=lib.modelsLine(seats,log);
+if(modelsLine)html.push('<p class="round models"><b>Models</b> · '+esc(modelsLine)+'</p>');
 html.push('<div class="context">'+(hasBrief?'<p><b>Brief.</b> '+esc(condense(lib.readText(path.join(runDir,'brief.md')),BRIEF_CAP))+'</p>':'')+(readerText!==null?'<p><b>Reader.</b> '+esc(condense(readerText,READER_CAP))+'</p>':'')+(!hasBrief&&readerText===null?'<p>No brief and no reader on this run.</p>':'')+'<p class="under">Measured facts, the full brief and the record are under Run details.</p></div>');
 html.push('</header>');
 
@@ -385,6 +388,7 @@ if(champ.length){
 html.push('<h2>Run details</h2>');
 html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies: '+esc(companies.join(', '))+'.')+' '+esc(lib.nameSources(seats))+'</p>');
 lib.crewStateLines(runDir,seats,log).forEach(function(l){ html.push('<p class="meta"><strong>Seats:</strong> '+esc(l)+'</p>'); });
+if(modelsLine)html.push('<p class="meta"><strong>Models:</strong> '+esc(modelsLine)+'</p>');
 html.push('<p class="meta"><strong>Seat key:</strong> '+esc(lib.seatKey(seats))+'</p>');
 html.push('<p class="meta"><strong>Drafts:</strong> '+(drafts.length?esc(drafts.map(function(d){return d+' ('+lib.draftFactsLine(lib.draftFacts(lib.readText(path.join(runDir,d))))+')';}).join(', '))+'.':'none yet; the draft joins the run when sparring or battle brings it.')+(hasBrief?' <strong>Brief'+(briefName?' ('+esc(briefName)+', combat-writing/briefs/'+esc(briefName)+'.md)':'')+':</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
 // The counts every packet carries: the person sees what the seats were told.
@@ -421,7 +425,7 @@ if(tableRounds.length){
       fold='<div class="full"><div class="read failed">'+read(c.answer)+'</div><button type="button" class="fold" aria-expanded="false">+ The failed read ('+c.words+' words)</button></div>';
     }else{
       badge=c.kind==='critique'
-        ?'<span class="badge critique">'+(c.rewrite?(c.copy?'Rewrite · a copy of '+esc(c.copy.model)+'\'s':'Rewrite · no rating asked'):'Critique · no rating asked')+(c.mark&&!c.copy?'<span class="mark">'+esc(c.mark)+'</span>':c.mark&&c.copy&&c.mark!==lib.copyMark(c.copy)?'<span class="mark">'+esc(c.mark.replace(lib.copyMark(c.copy),'').replace(/^ · | · $/g,''))+'</span>':'')+'</span>'
+        ?'<span class="badge critique">'+(c.rewrite?(c.copy?'Rewrite · a copy of '+esc(c.copy.model)+'\'s':'Rewrite'):'Critique')+(c.mark&&!c.copy?'<span class="mark">'+esc(c.mark)+'</span>':c.mark&&c.copy&&c.mark!==lib.copyMark(c.copy)?'<span class="mark">'+esc(c.mark.replace(lib.copyMark(c.copy),'').replace(/^ · | · $/g,''))+'</span>':'')+'</span>'
         :'<span class="badge'+(c.rewrite||c.mark?'':' sr')+'">Rating '+c.rating+'/10'+(c.rewrite?' · rewrite':'')+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
       // The corner index: the seat's own number, large, top-left and again bottom-right.
       if(c.rating!==null&&c.rating!==undefined)ix='<span class="ix tl" aria-hidden="true">'+c.rating+'<small>of 10</small></span><span class="ix br" aria-hidden="true">'+c.rating+'<small>of 10</small></span>';

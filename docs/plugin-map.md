@@ -93,7 +93,7 @@ Nothing is fetched by any script. The one outside connection is the host opening
 | `seat-scope.js` | before every tool call | for a fresh reader alone: allows Read inside its run folder and Write to its own answer file, denies the rest; touches nobody else |
 | `show-result.js` | after every shell command | when the command printed the short form, puts it on your screen as the plugin's own line; when the opener failed in the sandbox, opens the board itself; when the speech engine was silenced, renders the voices itself |
 
-**The seats.** Two fresh readers by default, seat-1 and seat-2: separate agents started for one job each, on the first and second model the host's own agent tool lists, with no memory of your conversation. The agent file is `plugins/combat-writing/agents/seat.md` (`model: inherit`, tools Read and Write). Where the host can start no agent, the host is the one seat and says so.
+**The seats.** Two fresh readers by default, seat-1 and seat-2: separate agents started for one job each, seat-1 on the session's own model and seat-2 on the second model the host's own agent tool lists (a result's Models line names a fresh reader that is not on the session's model), with no memory of your conversation. The agent file is `plugins/combat-writing/agents/seat.md` (`model: inherit`, tools Read and Write). Where the host can start no agent, the host is the one seat and says so.
 
 **The add-on**, `plugins/combat-writing-crew/`, a local MCP server (`server.js`) installed from this repository's marketplace, never listed in the directory. The moment it seats one outside model, the second chair is the outside seats' and the fresh seat-2 leaves.
 
@@ -166,6 +166,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/help_check.js` | the card, the bare rule with no tool call, the guide's opening and its one live line, the picker, the README's copy of the card |
 | `tests/hook_check.js` | the three hooks are declared as ruled |
 | `tests/license_check.js` | the right license header on every file by path |
+| `tests/lists_check.js` | the board shows the numbers a seat wrote, blank lines between the items or not |
 | `tests/links_check.js` | links are unread: the packet says so when one is present |
 | `tests/map_check.js` | this page: every row set equals the folder it describes |
 | `tests/marketplace_check.js` | the marketplace names both plugins and the add-on rides as cw's dependency |
@@ -178,7 +179,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/pr_body_check.js` | the four-section gate script |
 | `tests/rating_contract_check.js` | `RATING: X/10`, 7 forbidden, the number against the words |
 | `tests/reader_check.js` | the reader rides in the run, not in the project's brief |
-| `tests/readers_check.js` | two fresh readers, the second chair the add-on's, the provider table in the help |
+| `tests/readers_check.js` | two fresh readers, seat-1 on the session's own model, the Models line, the second chair the add-on's, the provider table in the help |
 | `tests/readme_check.js` | the two READMEs say what the directory requires |
 | `tests/record_check.js` | `record.md` from the files and the log |
 | `tests/release_notes_check.js` | the Release notes cut from a merged pull request |

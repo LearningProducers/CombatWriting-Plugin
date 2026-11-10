@@ -40,22 +40,28 @@
 // add-draft.js, which writes draft.md when there is none. --stage names the command that made
 // the run; the record and the board say where the run started.
 //
-// The crew (Part 87): two fresh readers by default, seat-1 and seat-2, the first and the second model
-// the host's own agent tool lists (--model and --model-2, the names the host passes; the list is
-// the host's, so the seats move with it and no model name is written here), plus one seat per
+// The crew (Part 87; seat-1's default since issue 189): two fresh readers by default, seat-1 and
+// seat-2. Seat-1 starts on the session's own model: the host passes no model at start and names
+// the session's model with --session-model, which is the name the seat record carries; --model
+// for seat-1 is a pick alone. Seat-2 starts on the second model the host's own agent tool lists
+// (--model-2, the name the host passes; the list is the host's, so the seat moves with it and no
+// model name is written here), plus one seat per
 // outside model the crew add-on has a key for; the add-on's crew_register appends those and,
 // when it seats at least one, drops the fresh seat-2 that no round has read, so the second chair
 // is the outside seats' (Qwen as seat-2 and gpt-oss as seat-3 on a Groq key). --readers 1 seats
 // one fresh reader, for a host whose agent tool offers one model; run.created says so. Never
 // padded beyond that: a --seats flag is refused, and packet.js refuses a fresh reader past the
 // second. A person's pick for a reader (seats.js --set) is read by the host before this runs and
-// arrives here as the model name.
+// arrives here as the model name (--model for seat-1, --model-2 for seat-2). Each seat record
+// carries start: session (no model passed at start) or named (the host passes the model), and
+// run.created carries session_model, so every result can name a reader that is not on the
+// session's own model (lib.modelsLine).
 //
 // The run id is the UTC date and time plus the slug: 2026-10-08-1930-board-letter.
 // The slug comes from --name, else from the draft's file name.
 //
 // Seats: every seat is named by model and company. The model name is what the host
-// knows about the agent it will run (--model, --model-2); when the host cannot tell, the seat
+// knows about the agent it will run (--session-model, --model, --model-2); when the host cannot tell, the seat
 // is recorded as "model unreported". The company defaults to Anthropic, because the
 // listed plugin's fresh readers are Claude agents. seats.json records that the name
 // comes from the agent configuration, not from an API field. No model name is
@@ -105,8 +111,15 @@ if(args.readers!==undefined){
   readers=parseInt(String(args.readers),10);
   if(args.readers===true||!(readers===1||readers===2))lib.die('--readers takes 1 or 2: two fresh readers by default, one when the host\'s agent tool offers one model');
 }
-var model=(args.model&&args.model!==true)?String(args.model).trim():lib.MODEL_UNREPORTED;
-var model2=(args['model-2']&&args['model-2']!==true)?String(args['model-2']).trim():lib.MODEL_UNREPORTED;
+function given(v){ return v&&v!==true&&String(v).trim()?String(v).trim():null; }
+var sessionModel=given(args['session-model']);
+var pick1=given(args.model), pick2=given(args['model-2']);
+// Seat-1 with no --model is on the session's own model; a model named for it is a pick, unless it is the session's own.
+function sameModel(a,b){ return !!a&&!!b&&a.toLowerCase()===b.toLowerCase(); }
+if(sameModel(pick1,sessionModel))pick1=null;
+var model=pick1||sessionModel||lib.MODEL_UNREPORTED;
+// Seat-2 with no model named starts with none passed, so it too is on the session's own model.
+var model2=pick2||sessionModel||lib.MODEL_UNREPORTED;
 if(args['model-2']!==undefined&&readers===1)lib.die('--model-2 names the second fresh reader, and --readers 1 seats one');
 var company=(args.company&&args.company!==true)?String(args.company).trim():lib.DEFAULT_COMPANY;
 
@@ -164,18 +177,20 @@ if(hasReader){
   reader={file:lib.READER_FILE,sha256:lib.sha256(fs.readFileSync(lib.readerPath(runDir))),words:lib.wordCount(readerText)};
 }
 
-var SOURCE='agent configuration (model: inherit, the model named at start winning over it); the model name was supplied by the host from the list its agent tool offers or the person\'s pick, not read from an API field';
-var seats=[{id:'seat-1',model:model,company:company,source:SOURCE}];
-if(readers===2)seats.push({id:'seat-2',model:model2,company:company,source:SOURCE});
+var SOURCE_NAMED='agent configuration (model: inherit, the model named at start winning over it); the model name was supplied by the host from the list its agent tool offers or the person\'s pick, not read from an API field';
+var SOURCE_SESSION='agent configuration (model: inherit, no model passed at start, so the seat runs on the session\'s own model); the model name was supplied by the host as the model its session runs on, not read from an API field';
+var seats=[{id:'seat-1',model:model,company:company,start:pick1?'named':'session',source:pick1?SOURCE_NAMED:SOURCE_SESSION}];
+if(readers===2)seats.push({id:'seat-2',model:model2,company:company,start:pick2?'named':'session',source:pick2?SOURCE_NAMED:SOURCE_SESSION});
 fs.writeFileSync(path.join(runDir,'seats.json'),JSON.stringify({seats:seats},null,2)+'\n');
 
 lib.appendLog(runDir,{event:'run.created',run:path.basename(runDir),stage:stage,
   draft:draft?Object.assign({file:'draft.md',sha256:lib.sha256(draft)},lib.draftFacts(draft.toString('utf8'))):null,
   brief:briefHash?{file:'brief.md',sha256:briefHash,source:briefSource.source,from:briefSource.source==='named'?null:briefSource.from,name:briefName}:null,
   reader:reader,
-  seats:seats.map(function(s){return {id:s.id,model:s.model,company:s.company};}),
+  seats:seats.map(function(s){return {id:s.id,model:s.model,company:s.company,start:s.start};}),
+  session_model:sessionModel,
   readers:readers,
-  crew_note:(readers===2?'two fresh readers, seat-1 and seat-2, the first and the second model the host\'s agent tool lists':'one fresh reader, seat-1: the host\'s agent tool offers one model')+', every seat is '+company+'\'s models until the crew add-on registers outside seats, which take the second chair; the plugin never fakes a seat and never pads the crew'});
+  crew_note:(readers===2?'two fresh readers, seat-1 on the session\'s own model unless a pick names another and seat-2 on the second model the host\'s agent tool lists':'one fresh reader, seat-1: the host\'s agent tool offers one model')+', every seat is '+company+'\'s models until the crew add-on registers outside seats, which take the second chair; the plugin never fakes a seat and never pads the crew'});
 if(ignore.state==='written')lib.appendLog(runDir,{event:'gitignore.written',file:path.join('combat-writing',lib.GITIGNORE_FILE).split(path.sep).join('/'),lines:lib.GITIGNORE_LINES});
 if(kept)lib.appendLog(runDir,{event:'brief.kept',file:kept.file,name:kept.name||null,sha256:kept.sha256,replaced:kept.replaced});
 process.stdout.write(runDir+'\n');

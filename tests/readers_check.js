@@ -30,6 +30,15 @@
 //     the rules skill, the battle and sparring skills say the second chair and the pick.
 //   - Docs: CLAUDE.md, both READMEs, the add-on README and the method text say two fresh readers
 //     and the second chair; no "one fresh reader plus one seat" sentence survives in them.
+//   - Seat-1's default (issue 189, reversing Part 87's default for seat-1 alone): with no pick,
+//     seat-1 is on the session's own model: named from --session-model, start: session, its
+//     source note saying no model is passed at start; --model for seat-1 is a pick (start:
+//     named), and a pick that is the session's own model is no pick; seat-2 from --model-2 is
+//     start: named; run.created carries session_model and each seat's start. lib.seatStart reads
+//     a record written before the field from its source note. lib.modelsLine names every fresh
+//     reader that is not on the session's model, and nothing when all are; an outside seat is
+//     never on it. The short form carries the Models line between the crew line and the
+//     scoreboard, the record, the board's strip and state.json carry it too.
 // Run from the repository root:   node tests/readers_check.js
 // Exit 0 on pass, 1 on any failure, one line per failure.
 
@@ -58,11 +67,50 @@ check(seats[0].source===seats[1].source&&/model named at start/.test(seats[1].so
 check(lib.freshReaders(seats).length===2&&lib.isFreshReader(seats[1])&&!lib.isPaddedSeat(seats,seats[1]),'lib: seat-2 is a fresh reader and not padded');
 var created=logOf(run)[0];
 check(created.event==='run.created'&&created.readers===2&&created.seats.length===2,'run.created: readers 2 and two seats, got '+JSON.stringify({readers:created.readers,seats:created.seats}));
-check(/two fresh readers, seat-1 and seat-2/.test(created.crew_note)&&/second chair/.test(created.crew_note)&&/never fakes a seat/.test(created.crew_note),'run.created: crew_note should name two fresh readers and the second chair, got '+created.crew_note);
+check(/two fresh readers, seat-1 on the session's own model unless a pick names another and seat-2 on the second model/.test(created.crew_note)&&/second chair/.test(created.crew_note)&&/never fakes a seat/.test(created.crew_note),'run.created: crew_note should name two fresh readers and the second chair, got '+created.crew_note);
 // Unreported second model.
 var ru=node('new-run.js',['--draft','draft.md','--stage','battle','--name','unreported','--model','Test Model A']);
 var su=JSON.parse(read(path.join(ru.stdout.trim(),'seats.json'))).seats;
 check(ru.status===0&&su.length===2&&su[1].model===lib.MODEL_UNREPORTED,'two readers: seat-2 with no --model-2 is model unreported, got '+JSON.stringify(su.map(function(s){return s.model;})));
+
+// Seat-1's default (issue 189): the session's own model, no model passed at start.
+var rd=node('new-run.js',['--draft','draft.md','--stage','battle','--name','default','--session-model','Test Session Model','--model-2','Test Model B']);
+check(rd.status===0,'default: exit '+rd.status+' '+rd.stderr.slice(0,120));
+var runD=rd.stdout.trim();
+var sd=JSON.parse(read(path.join(runD,'seats.json'))).seats;
+check(sd[0].model==='Test Session Model'&&sd[0].start==='session'&&/no model passed at start/.test(sd[0].source)&&!/model named at start/.test(sd[0].source),'default: seat-1 is on the session\'s model with start session, got '+JSON.stringify(sd[0]));
+check(sd[1].model==='Test Model B'&&sd[1].start==='named'&&/model named at start/.test(sd[1].source),'default: seat-2 is named at start from --model-2, got '+JSON.stringify(sd[1]));
+var cd=logOf(runD)[0];
+check(cd.session_model==='Test Session Model'&&cd.seats[0].start==='session'&&cd.seats[1].start==='named','default: run.created carries session_model and each start, got '+JSON.stringify({m:cd.session_model,s:cd.seats}));
+check(lib.seatStart(sd[0])==='session'&&lib.seatStart(sd[1])==='named'&&lib.sessionModelOf(logOf(runD))==='Test Session Model','lib: seatStart and sessionModelOf read the run');
+var ML='Not on this session\'s model (Test Session Model): seat-2 on Test Model B.';
+check(lib.modelsLine(sd,logOf(runD))===ML,'modelsLine: the default crew names seat-2, got '+lib.modelsLine(sd,logOf(runD)));
+var shD=node('render-record.js',['--run',runD,'--short']).stdout.split('\n');
+var iCrew=shD.findIndex(function(l){return l.indexOf('**Crew:**')===0;}), iMod=shD.indexOf('**Models:** '+ML), iKey=shD.findIndex(function(l){return l.indexOf('Seat key:')===0;});
+check(iCrew===0&&iMod>iCrew&&iMod<iKey,'short form: the Models line sits between the crew line and the seat key, got '+JSON.stringify({crew:iCrew,models:iMod,key:iKey}));
+check(read(path.join(runD,'record.md')).indexOf('**Models:** '+ML)>=0,'record: carries the Models line');
+node('render-board.js',['--run',runD]);
+var bD=read(path.join(runD,'board.html'));
+check(bD.indexOf('<p class="round models"><b>Models</b> · '+lib.escapeHtml(ML)+'</p>')>=0&&bD.indexOf('<strong>Models:</strong> '+lib.escapeHtml(ML))>=0,'board: the strip and Run details carry the Models line');
+var stD=JSON.parse(node('render-state.js',['--run',runD]).stdout);
+check(stD.models_line===ML&&stD.session_model==='Test Session Model'&&stD.seats[0].start==='session'&&stD.seats[1].start==='named','state: models_line, session_model and each start, got '+JSON.stringify({l:stD.models_line,m:stD.session_model}));
+// Seat-2 with no model named starts with none passed: the session's own model, start session, no line.
+var rn=node('new-run.js',['--draft','draft.md','--stage','battle','--name','nomodel2','--session-model','Test Session Model']);
+var sn=JSON.parse(read(path.join(rn.stdout.trim(),'seats.json'))).seats;
+check(sn[1].model==='Test Session Model'&&sn[1].start==='session'&&/no model passed at start/.test(sn[1].source)&&lib.modelsLine(sn,logOf(rn.stdout.trim()))===null,'no --model-2: seat-2 is on the session\'s model, got '+JSON.stringify(sn[1]));
+// A pick for seat-1 is named at start; a pick that is the session's own model is no pick.
+var rp=node('new-run.js',['--draft','draft.md','--stage','battle','--name','pick','--session-model','Test Session Model','--model','Test Model A','--model-2','Test Model B']);
+var sp=JSON.parse(read(path.join(rp.stdout.trim(),'seats.json'))).seats;
+check(sp[0].model==='Test Model A'&&sp[0].start==='named'&&lib.modelsLine(sp,logOf(rp.stdout.trim()))==='Not on this session\'s model (Test Session Model): seat-1 on Test Model A, seat-2 on Test Model B.','pick: seat-1 on its pick is named on the line, got '+lib.modelsLine(sp,logOf(rp.stdout.trim())));
+var rs=node('new-run.js',['--draft','draft.md','--stage','battle','--name','same','--session-model','Test Session Model','--model','test session model','--readers','1']);
+var runS=rs.stdout.trim(), ss=JSON.parse(read(path.join(runS,'seats.json'))).seats;
+check(ss[0].model==='Test Session Model'&&ss[0].start==='session'&&lib.modelsLine(ss,logOf(runS))===null,'same: a pick that is the session\'s model is no pick and no line, got '+JSON.stringify(ss[0]));
+check(node('render-record.js',['--run',runS,'--short']).stdout.indexOf('Models:')<0,'same: no Models line when every fresh reader is on the session\'s model');
+// A record written before the field: the Part 87 source note reads as named, an earlier note as session; no session model on the run.
+var OLD87='agent configuration (model: inherit, the model named at start winning over it); the model name was supplied by the host';
+var legacy=[{id:'seat-1',model:'Old Model',company:'Anthropic',source:OLD87},{id:'seat-2',model:'Outside Model',company:'Example',provider:'example',source:'the model field'}];
+check(lib.seatStart(legacy[0])==='named'&&lib.seatStart(legacy[1])==='outside'&&lib.modelsLine(legacy,[{event:'run.created'}])==='Not left on the session\'s own model: seat-1 on Old Model, named at start.','legacy: a Part 87 record is named and the line says so with no session model, got '+lib.modelsLine(legacy,[{event:'run.created'}]));
+check(lib.seatStart({id:'seat-1',model:'Older',source:'agent configuration, not an API field'})==='session'&&lib.modelsLine([{id:'seat-1',model:'Older',source:'agent configuration, not an API field'}],[])===null,'legacy: a record from before Part 87 is on the session\'s model');
 
 // One reader on a host that offers one model.
 var r1=node('new-run.js',['--draft','draft.md','--stage','battle','--name','one','--model','Test Model A','--readers','1']);
@@ -121,7 +169,7 @@ check(/so the crew is the two fresh readers/.test(st.seats_lines.join('\n')),'st
 // seats.js: the person's pick.
 var picksFile=path.join(proj,'combat-writing','seats.json');
 var s0=node('seats.js',['--root',proj]);
-check(s0.status===0&&/^No reader picked: seat-1 and seat-2 start on the first and the second model the host lists\. Pick one with seats\.js --set seat-2 "<model>"\.$/m.test(s0.stdout)&&!fs.existsSync(picksFile),'seats.js bare with no file: the no-pick line, nothing written; got '+s0.stdout);
+check(s0.status===0&&/^No reader picked: seat-1 starts on the session's own model and seat-2 on the second model the host lists\. Pick one with seats\.js --set seat-2 "<model>"\.$/m.test(s0.stdout)&&!fs.existsSync(picksFile),'seats.js bare with no file: the no-pick line, nothing written; got '+s0.stdout);
 check(JSON.stringify(lib.readReaderPicks(proj))==='{}','lib.readReaderPicks: {} with no file');
 var s1=node('seats.js',['--root',proj,'--set','seat-2','Test Model Z']);
 check(s1.status===0&&/^Reader kept: seat-2 starts on Test Model Z from the next run when the host offers it \(combat-writing\/seats\.json\); --clear seat-2 returns it to the host's list\.$/m.test(s1.stdout),'seats.js --set: the kept line, got '+s1.stdout+s1.stderr);
@@ -167,16 +215,18 @@ check(/The crew is the two fresh readers\. Next:/.test(help),'help: the not-inst
 // The skills.
 ['battle','sparring','strategy'].forEach(function(s){
   var skill=read(path.join(plugin,'skills',s,'SKILL.md'));
-  check(/new-run\.js [^\n]*--model "<the first model your agent tool lists, or the pick for seat-1>" --model-2 "<the second, or the pick for seat-2>" \[--readers 1\]/.test(skill),s+': the new-run line should carry --model, --model-2 and --readers 1');
+  check(/new-run\.js [^\n]*--session-model "<the model this session runs on>" \[--model "<the pick for seat-1>"\] --model-2 "<the second model your agent tool lists, or the pick for seat-2>" \[--readers 1\]/.test(skill),s+': the new-run line should carry --session-model, the seat-1 pick, --model-2 and --readers 1');
+  check(skill.indexOf('the first model your agent tool lists')<0,s+': the old seat-1 default is gone');
 });
 ['battle','sparring'].forEach(function(s){
   var skill=read(path.join(plugin,'skills',s,'SKILL.md'));
   check(/Two fresh readers by default \(Part 87\)/.test(skill)&&/seats\.js --root <project>/.test(skill)&&/--readers 1/.test(skill),s+': the two readers and the pick are explained');
-  check(/on the model its seat record names \(passed as the agent tool's model choice; the agent file's `model: inherit` yields to the model named at start\)/.test(skill),s+': each reader starts on the model its seat record names');
+  check(/as its seat record's `start` says: `session`, with no model choice passed, so the agent file's `model: inherit` leaves it on this session's own model; `named`, on the model its record names, passed as the agent tool's model choice/.test(skill),s+': each reader starts as its record\'s start says');
+  check(/seat-1 on this session's own model \(pass no model when you start it/.test(skill)&&/Models line/.test(skill),s+': seat-1\'s default is the session\'s model and the Models line is named');
 });
 var rules=read(path.join(plugin,'skills','combat-writing','SKILL.md'));
 check(/- The crew \(Part 87\) is two fresh readers by default/.test(rules)&&/seats\.js \[--root <project>\] \[--set seat-1\\\|seat-2 "<model>"\] \[--clear <seat>\]/.test(rules)&&/--model-2 "<name>"\] \[--readers 1\]/.test(rules),'rules skill: the crew rule, the seats.js row and the new-run row');
-check(/and pass the names to `new-run\.js --model` and `--model-2`/.test(rules),'rules skill: naming the seats passes both models');
+check(/seat-1 runs on this session's own model: start it with no model choice/.test(rules)&&/passed as `new-run\.js --session-model`/.test(rules)&&/passed as `--model-2`/.test(rules)&&/a pick that is the session's own model is no pick/.test(rules),'rules skill: seat-1 on the session\'s model, seat-2 named, the pick');
 
 // Docs.
 var docs={'CLAUDE.md':read(path.join(root,'CLAUDE.md')),'README.md':read(path.join(root,'README.md')),'plugin README':read(path.join(plugin,'README.md')),'add-on README':read(path.join(root,'plugins','combat-writing-crew','README.md')),'method':read(path.join(plugin,'method','combat-writing.md')),'docs mirror':read(path.join(root,'docs','combat-writing.md'))};

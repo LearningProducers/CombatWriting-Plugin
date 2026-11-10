@@ -25,7 +25,7 @@ def badge_of(cell: dict) -> str:
     if kind == "failed":
         return "failed read" + (f" · {cell['mark']}" if cell.get("mark") else "")
     if kind == "critique":
-        return "critique, no rating asked" + (f" · {cell['mark']}" if cell.get("mark") else "")
+        return "critique" + (f" · {cell['mark']}" if cell.get("mark") else "")
     return f"{cell.get('rating')}/10" + (f" · {cell['mark']}" if cell.get("mark") else "")
 
 
@@ -134,7 +134,10 @@ class Briefing(Chrome):
         for s in (state or {}).get("seats", []):
             where = "the fresh reader" if s.get("fresh_reader") else f"seated · served by {s.get('served_by') or s.get('provider')}"
             lines.append(Line().set_text_and_return(f"{s['id']} · {s['label']} · {where}"))
-        for extra in (state or {}).get("seats_lines", []):
+        extras = list((state or {}).get("seats_lines", []))
+        if (state or {}).get("models_line"):
+            extras.append("Models: " + state["models_line"])
+        for extra in extras:
             lines.append(Line(dim=True).set_text_and_return(extra))
         if not lines:
             lines.append(Line(dim=True).set_text_and_return("no run yet"))

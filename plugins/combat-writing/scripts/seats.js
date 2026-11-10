@@ -5,11 +5,11 @@
 //   node seats.js [--root <dir>] --clear <seat-1|seat-2>
 //   node seats.js [--root <dir>]            (the picks, one line each, or that there is none)
 //
-// By default the two fresh readers are the first and the second model the host's own agent tool
-// lists, so the seats move with the host and no model name lives in the plugin. A pick written
-// here wins over that list for the seat it names: the host reads this file before new-run.js and
-// starts the reader on the model picked when its tool offers it, else on the list's model, saying
-// so in one line. The file is <root>/combat-writing/seats.json, the seventh write location beside
+// By default seat-1 starts on the session's own model and seat-2 on the second model the host's
+// own agent tool lists, so the seats move with the host and no model name lives in the plugin. A
+// pick written here wins over that default for the seat it names: the host reads this file before
+// new-run.js and starts the reader on the model picked when its tool offers it, else on the
+// seat's default, saying so in one line. The file is <root>/combat-writing/seats.json, the seventh write location beside
 // voices.json, which it mirrors: the person's own data, kept with the project, never a key, never
 // read by any seat. Shape: {"readers": {"seat-2": "<model>"}}. Nothing is validated against a
 // model list here, because the list is the host's and changes with it; the name is kept as typed.
@@ -43,6 +43,6 @@ if(args.set!==undefined){
 }else{
   var picks=readAll().readers;  // a broken file is named here, where the person looks; lib.readReaderPicks reads {} for the host
   var ids=Object.keys(picks).filter(function(id){return SEAT_RE.test(id);}).sort();
-  if(!ids.length)process.stdout.write('No reader picked: seat-1 and seat-2 start on the first and the second model the host lists. Pick one with seats.js --set seat-2 "<model>".\n');
+  if(!ids.length)process.stdout.write('No reader picked: seat-1 starts on the session\'s own model and seat-2 on the second model the host lists. Pick one with seats.js --set seat-2 "<model>".\n');
   else ids.forEach(function(id){ process.stdout.write(id+': '+picks[id]+' (picked; '+rel+')\n'); });
 }
