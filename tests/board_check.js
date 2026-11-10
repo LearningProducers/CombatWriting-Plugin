@@ -151,7 +151,7 @@ var frames=html.match(/<figure class="frame[^"]*" data-seat="seat-\d"/g)||[];
 check(frames.length===3&&frames[0].indexOf('seat-1')>0&&frames[1].indexOf('seat-2')>0&&frames[2].indexOf('seat-3')>0,'board: expected one frame per seat in seat order, got '+JSON.stringify(frames));
 var f1=/<figure class="frame critique co-anthropic" data-seat="seat-1">([\s\S]*?)<\/figure>/.exec(html);
 check(!!f1&&/^<span class="suit">Anthropic<\/span><span class="badge critique">/.test(f1[1]),'board: the card opens with the company as the suit, then the badge; got '+(f1?f1[1].slice(0,120):''));
-check(!!f1&&/<span class="badge critique">Critique · no rating asked<\/span>/.test(f1[1]),'board: seat-1\'s frame should carry the critique badge');
+check(!!f1&&/<span class="badge critique">Critique<\/span>/.test(f1[1]),'board: seat-1\'s frame should carry the critique badge');
 check(!!f1&&/<blockquote>The close is the problem, as seat-2 said\.<\/blockquote>/.test(f1[1]),'board: seat-1\'s frame should quote its verdict sentence');
 check(!!f1&&/<figcaption>— Test Model \(Anthropic\), seat-1 <span class="seat">· round 04-battle<\/span><\/figcaption>/.test(f1[1]),'board: seat-1\'s citation is wrong');
 check(!!f1&&/<p class="final">05-final: S\/N 70% · 1 red flag<\/p>/.test(f1[1]),'board: seat-1\'s frame should carry its final numbers');
@@ -209,7 +209,7 @@ check(html.indexOf('<p class="round">')>html.indexOf('<div class="paper">')&&htm
 var hist=/<ul class="rounds">([^]*?)<\/ul>/.exec(html);
 check(!!hist&&(hist[1].match(/<li>/g)||[]).length===5,'board: the history should list five rounds');
 check(!!hist&&/<li><b>Round 02-battle<\/b> · the default prompt: “Read the other seats' latest answers\. Where do your interpretations overlap and where do they diverge\? Give a new critique and a new rating of the draft\.” · a new rating asked · 3 of 3 seats answered<\/li>/.test(hist[1]),'board: the history line for 02-battle is wrong');
-check(!!hist&&/<li><b>Round 04-battle<\/b> · the default prompt: “[^”]*” · no rating asked · 2 of 3 seats answered<\/li>/.test(hist[1]),'board: the history line for 04-battle should say no rating asked and 2 of 3');
+check(!!hist&&/<li><b>Round 04-battle<\/b> · the default prompt: “[^”]*” · 2 of 3 seats answered<\/li>/.test(hist[1]),'board: the history line for 04-battle should say no rating asked and 2 of 3');
 check(html.indexOf('<ul class="rounds">')>html.indexOf('Every round: the scoreboard'),'board: the history belongs in the scoreboard panel');
 check(!/<span class="note-line">/.test(html),'board: no seat was asked something different, so no frame carries a note');
 
@@ -232,8 +232,8 @@ write(path.join(nr,'rounds','01-battle','seat-2.answer.md'),'Not ready. The clos
 node('render-board.js',['--run',nr]);
 var nrHtml=fs.readFileSync(path.join(nr,'board.html'),'utf8');
 check(!/class="verdict/.test(nrHtml)&&!/NO RATING/.test(nrHtml),'board (no rating): there must be no verdict box; got '+(/<section class="verdict[^>]*>[^]*?<\/p>/.exec(nrHtml)||[''])[0]);
-check(/<p class="round"><b>Round 01-battle<\/b> · SN: “Is this ready to go to the board\?” · no rating asked · 2 of 3 seats answered<\/p>/.test(nrHtml),'board (no rating): the strip should carry the SN, no rating asked and 2 of 3; got '+(/<p class="round">[^]*?<\/p>/.exec(nrHtml)||[''])[0]);
-check(/<blockquote>Not ready: the ask is buried\.<\/blockquote>/.test(nrHtml)&&/<span class="badge critique">Critique · no rating asked<\/span>/.test(nrHtml),'board (no rating): the frames still carry the critiques');
+check(/<p class="round"><b>Round 01-battle<\/b> · SN: “Is this ready to go to the board\?” · 2 of 3 seats answered<\/p>/.test(nrHtml)&&nrHtml.indexOf('no rating asked')<0,'board (no rating): the strip should carry the SN, no rating asked and 2 of 3; got '+(/<p class="round">[^]*?<\/p>/.exec(nrHtml)||[''])[0]);
+check(/<blockquote>Not ready: the ask is buried\.<\/blockquote>/.test(nrHtml)&&/<span class="badge critique">Critique<\/span>/.test(nrHtml),'board (no rating): the frames still carry the critiques');
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',nr,'--round','02-final','--seat',s,'--final','sn']); node('packet.js',['--run',nr,'--round','02-final','--seat',s,'--final','redflag']); });
 write(path.join(nr,'rounds','02-final','seat-1.sn.answer.md'),'S/N RATIO: 60%\nSome.\n');
 write(path.join(nr,'rounds','02-final','seat-1.redflag.answer.md'),'NO RED FLAGS\nNone.\n');
@@ -289,7 +289,7 @@ var mdRead=(/<div class="read">([^]*?)<\/div><button type="button" class="fold"/
 check(mdRead.indexOf('<p>Not ready: <strong>the close</strong> is <em>soft</em> and <code>the ask</code> is late.</p>')>=0&&mdRead.indexOf('RATING:')<0,'board (markdown): bold, italic and code should render, the RATING line off the card (the index carries it); got '+mdRead.slice(0,200));
 check(mdRead.indexOf('<p><strong>What to fix</strong></p>')>=0,'board (markdown): a heading line should be a bold paragraph');
 check(mdRead.indexOf('<ul><li>First point</li><li>Second <strong>bold</strong> point &lt;script&gt;alert(2)&lt;/script&gt;</li></ul>')>=0,'board (markdown): bullets should be a list with the script tag as text; got '+mdRead);
-check(mdRead.indexOf('<ol><li>Step one</li><li>Step two with '+LONG+'</li></ol>')>=0,'board (markdown): numbered lines should be an ordered list with the address as text');
+check(mdRead.indexOf('<ol><li value="1">Step one</li><li value="2">Step two with '+LONG+'</li></ol>')>=0,'board (markdown): numbered lines should be an ordered list with the address as text');
 check(mdRead.indexOf('<p>A line<br>with a break and a [link](https://example.invalid/x) and 2 * 3 * 4 and a_snake_case_word.</p>')>=0,'board (markdown): a link stays text, lone stars and underscores are left alone; got '+mdRead.slice(-200));
 check(mdHtml.indexOf('<script>alert')<0&&!/<a /.test(mdRead)&&(mdHtml.match(/href=/g)||[]).length===1,'board (markdown): no markup from the seat, no new href');
 check(/<blockquote>Not ready: the close is soft and the ask is late\.<\/blockquote>/.test(mdHtml),'board (markdown): the framed verdict line drops the marks');
@@ -335,8 +335,8 @@ node('check-answer.js',[path.join(ln,'rounds','01-battle','seat-1.answer.md'),'-
 node('render-board.js',['--run',ln]);
 var lnHtml=fs.readFileSync(path.join(ln,'board.html'),'utf8');
 var lnStrip=(/<p class="round">([^]*?)<\/p>/.exec(lnHtml)||['',''])[1];
-check(/^<b>Round 01-battle<\/b> · SN: “The first sentence asks whether the close asks for the vote\.…” · no rating asked · 1 of 1 seat answered$/.test(lnStrip),'board (long prompt): the strip carries the prompt cut at a sentence end with an ellipsis; got '+lnStrip.slice(0,220));
-check(lnHtml.indexOf('<li><b>Round 01-battle</b> · SN: “'+LONGSN+'” · no rating asked · 1 of 1 seat answered</li>')>=0,'board (long prompt): the history keeps the whole prompt');
+check(/^<b>Round 01-battle<\/b> · SN: “The first sentence asks whether the close asks for the vote\.…” · 1 of 1 seat answered$/.test(lnStrip),'board (long prompt): the strip carries the prompt cut at a sentence end with an ellipsis; got '+lnStrip.slice(0,220));
+check(lnHtml.indexOf('<li><b>Round 01-battle</b> · SN: “'+LONGSN+'” · 1 of 1 seat answered</li>')>=0,'board (long prompt): the history keeps the whole prompt');
 var lnSide=(/<div class="context"><p><b>Brief\.<\/b> ([^<]*)<\/p>/.exec(lnHtml)||['',''])[1];
 // The draft fold (Part 118): a 150-word draft carries the button that opens the top box over the hand.
 write(path.join(proj,'longdraft.md'),('Dear board, buy the company. ').repeat(30).trim()+'\n');

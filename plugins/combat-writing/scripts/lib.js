@@ -549,10 +549,13 @@ function readSeats(runDir){
   if(!fs.existsSync(p))die('no seats.json in '+runDir);
   return JSON.parse(readText(p));
 }
-// The crew (Part 87):
-// two fresh readers by default, seat-1 and seat-2, the first and the second model the host's own
-// agent tool lists (no model name in this code: the list is the host's, and the seats move with
-// it), plus one seat per outside model the add-on registers; the moment the add-on seats one, the
+// The crew (Part 87; seat-1's default since issue 189):
+// two fresh readers by default, seat-1 and seat-2. Seat-1 starts on the session's own model: no
+// model is passed at start, so the seat agent's model: inherit leaves it where the person chose
+// to work, and the first reader is never a smaller model than the session (the first model the
+// host's agent tool lists, the earlier default, sat below the session's on a host whose list
+// opens with a smaller one). Seat-2 starts on the second model the host's own agent tool lists
+// (no model name in this code: the list is the host's, and the seats move with it), plus one seat per outside model the add-on registers; the moment the add-on seats one, the
 // second chair is the outside seats' and the fresh seat-2 leaves (crew_register drops it when no
 // round has read it). A fresh reader is a seat with no provider field. Never padded beyond that:
 // isPaddedSeat says whether a seat is a fresh reader past the second, which packet.js refuses to
@@ -566,6 +569,32 @@ function freshReaders(seats){ return seats.filter(isFreshReader); }
 function isPaddedSeat(seats,seat){
   var fresh=freshReaders(seats);
   return isFreshReader(seat)&&fresh.indexOf(seat)>=MAX_FRESH_READERS;
+}
+// How a fresh reader starts (issue 189): 'session' when no model is passed at start (the agent's
+// model: inherit leaves it on the session's own), 'named' when the host passes a model (seat-2's
+// default, or a pick). The seat record carries it as `start`; a record written before it did is
+// read from its source note, which said the model was named at start from Part 87 on.
+function seatStart(seat){
+  if(seat.provider)return 'outside';
+  if(seat.start==='session'||seat.start==='named')return seat.start;
+  return /model named at start/.test(seat.source||'')?'named':'session';
+}
+// The session's model as the run recorded it (run.created's session_model), or null.
+function sessionModelOf(log){
+  var c=(log||[]).filter(function(e){return e.event==='run.created';})[0];
+  return c&&c.session_model?String(c.session_model):null;
+}
+// The Models line: one plain line naming every fresh reader that starts on a model other than
+// the session's own, for the short form, the record, the board and the state. Null when every
+// fresh reader is on the session's model. An outside seat is another company's model by design
+// and is named on the crew line, never here.
+function modelsLine(seats,log){
+  var sm=sessionModelOf(log);
+  function same(a,b){ return String(a).trim().toLowerCase()===String(b).trim().toLowerCase(); }
+  var off=(seats||[]).filter(function(s){ return seatStart(s)==='named'&&!(sm&&same(s.model,sm)); });
+  if(!off.length)return null;
+  var names=off.map(function(s){return s.id+' on '+s.model;}).join(', ');
+  return sm?'Not on this session\'s model ('+sm+'): '+names+'.':'Not left on the session\'s own model: '+names+', named at start.';
 }
 // The crew a run is left with when no outside seat is registered, in words for the Seats line.
 function crewAloneWords(seats){
@@ -869,10 +898,11 @@ function taskLine(task){
   if(task.kind==='plain')return task.text?'the default prompt: “'+task.text+'”':'no task recorded';
   return kindLabel(task)+': “'+task.text+'”';
 }
-// What the round asked for, in three words: no rating, a new rating, or a rating.
+// What the round asked for, in words: a new rating or a rating; nothing when no rating was asked
+// (issue 189: a round with no rating says nothing about ratings on the board, the record or the state).
 function ratingLine(task,round){
   if(task.contract==='final')return '';
-  if(task.contract==='critique')return 'no rating asked';
+  if(task.contract==='critique')return '';
   return task.rerate&&roundKind(round)==='battle'?'a new rating asked':'a rating asked';
 }
 
@@ -1221,7 +1251,8 @@ function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt
 // A markdown subset for a seat's read on the board (outside seats write markdown
 // and it printed raw). Escaped first, then only: paragraphs (blank-line separated; a single
 // newline inside one is a line break), bullet lines (* - •) and numbered lines (1. or 1))
-// grouped into lists, **bold**, __bold__, *italic*, `code`, and a # heading line as a bold
+// grouped into lists (blank lines between items keep one list; a numbered item shows the number
+// the seat wrote), **bold**, __bold__, *italic*, `code`, and a # heading line as a bold
 // paragraph. No link is rendered (an address stays text, so the page keeps its one href), no
 // image, no raw HTML, nothing else. The draft itself is not run through this: it is the
 // author's text as pasted.
@@ -1235,20 +1266,23 @@ function renderLite(text){
   }
   var src=String(text||'').replace(/\r\n/g,'\n').replace(/^﻿/,'').trim();
   if(!src)return '';
-  return src.split(/\n\s*\n/).map(function(block){
-    var out=[], para=[], list=null;
-    function flushPara(){ if(para.length){out.push('<p>'+para.map(inline).join('<br>')+'</p>');para=[];} }
-    function flushList(){ if(list){out.push('<'+list.tag+'>'+list.items.map(function(i){return '<li>'+inline(i)+'</li>';}).join('')+'</'+list.tag+'>');list=null;} }
-    block.split('\n').forEach(function(line){
-      var bul=/^\s*[*\-•]\s+(.*)$/.exec(line), num=/^\s*\d+[.)]\s+(.*)$/.exec(line), head=/^\s*#{1,6}\s+(.*)$/.exec(line);
-      if(bul||num){ var tag=num?'ol':'ul'; flushPara(); if(list&&list.tag!==tag)flushList(); if(!list)list={tag:tag,items:[]}; list.items.push((bul||num)[1]); return; }
-      flushList();
-      if(head){ flushPara(); out.push('<p><strong>'+inline(head[1])+'</strong></p>'); return; }
-      para.push(line);
-    });
-    flushPara(); flushList();
-    return out.join('');
-  }).join('');
+  // One pass over the lines, never a list per blank-line block: a blank line ends a paragraph and
+  // leaves a list open, so items a seat spaced apart stay one list, and every numbered item carries
+  // the number the seat wrote (value), so an item after a paragraph, or a list that opens at 3,
+  // reads as written and never restarts at 1 (issue 189).
+  var out=[], para=[], list=null;
+  function flushPara(){ if(para.length){out.push('<p>'+para.map(inline).join('<br>')+'</p>');para=[];} }
+  function flushList(){ if(list){out.push('<'+list.tag+'>'+list.items.map(function(i){return '<li'+(i.n===null?'':' value="'+i.n+'"')+'>'+inline(i.text)+'</li>';}).join('')+'</'+list.tag+'>');list=null;} }
+  src.split('\n').forEach(function(line){
+    if(!line.trim()){ flushPara(); return; }
+    var bul=/^\s*[*\-•]\s+(.*)$/.exec(line), num=/^\s*(\d+)[.)]\s+(.*)$/.exec(line), head=/^\s*#{1,6}\s+(.*)$/.exec(line);
+    if(bul||num){ var tag=num?'ol':'ul'; flushPara(); if(list&&list.tag!==tag)flushList(); if(!list)list={tag:tag,items:[]}; list.items.push(num?{n:parseInt(num[1],10),text:num[2]}:{n:null,text:bul[1]}); return; }
+    flushList();
+    if(head){ flushPara(); out.push('<p><strong>'+inline(head[1])+'</strong></p>'); return; }
+    para.push(line);
+  });
+  flushPara(); flushList();
+  return out.join('');
 }
 
 // The one-line verdict the board frames: the first sentence or two of the answer after its
@@ -1511,7 +1545,7 @@ function runState(runDir){
     var buf=fs.readFileSync(path.join(runDir,c));
     return {file:c,n:numberOf(c,'canon'),froze_draft:froze,current:!!newestDraft&&sha256(buf)===sha256(fs.readFileSync(path.join(runDir,newestDraft))),text:buf.toString('utf8')};
   });
-  var seatsOut=seats.map(function(s){ return {id:s.id,model:s.model,company:s.company,served_by:s.served_by||null,provider:s.provider||null,short:seatShortName(s),label:seatLabel(s),fresh_reader:isFreshReader(s),source:s.source||null}; });
+  var seatsOut=seats.map(function(s){ return {id:s.id,model:s.model,company:s.company,served_by:s.served_by||null,provider:s.provider||null,short:seatShortName(s),label:seatLabel(s),fresh_reader:isFreshReader(s),start:seatStart(s),source:s.source||null}; });
   var companies=seats.map(function(s){return s.company;}).filter(function(v,i,a){return a.indexOf(v)===i;});
   var crewLine=seats.map(seatLabel).join('; ')+'. '+(companies.length===1?'One company\'s models ('+companies[0]+').':companies.length+' companies: '+companies.join(', ')+'.')+' '+nameSources(seats);
   var grid={}, finals={};
@@ -1547,7 +1581,7 @@ function runState(runDir){
     brief:{present:hasBrief,file:hasBrief?'brief.md':null,name:(created&&created.brief&&created.brief.name)||null,text:hasBrief?readText(path.join(runDir,'brief.md')).trim():null},
     reader:{present:readerText!==null,file:readerText!==null?READER_FILE:null,text:readerText,line:readerWords(readerText)},
     canons:canons,newest_canon:latestCanon(runDir),
-    seats:seatsOut,crew_line:crewLine,seats_lines:crewStateLines(runDir,seats,log),seat_key:seatKey(seats),name_sources:nameSources(seats),
+    seats:seatsOut,crew_line:crewLine,seats_lines:crewStateLines(runDir,seats,log),models_line:modelsLine(seats,log),session_model:sessionModelOf(log),seat_key:seatKey(seats),name_sources:nameSources(seats),
     briefing:null,
     rounds:roundsOut,latest:latest,latest_turn:latestTurn,champion:championOut,
     next_line:rounds.length?nextLine(seats,path.basename(runDir)):noRounds+thisRunLine(path.basename(runDir)),no_rounds_line:noRounds,legend:SCOREBOARD_LEGEND,
@@ -1562,6 +1596,7 @@ module.exports={
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
   DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,runSlug:runSlug,thisRunLine:thisRunLine,runSummary:runSummary,runsLine:runsLine,listRunSummaries:listRunSummaries,matchRuns:matchRuns,NO_RATING_LINE:NO_RATING_LINE,
   SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,addonStateLine:addonStateLine,crewStateLines:crewStateLines,
+  seatStart:seatStart,sessionModelOf:sessionModelOf,modelsLine:modelsLine,
   MAX_FRESH_READERS:MAX_FRESH_READERS,READERS_FILE:READERS_FILE,READERS_REL:READERS_REL,freshReaders:freshReaders,crewAloneWords:crewAloneWords,readersPicksPath:readersPicksPath,readReaderPicks:readReaderPicks,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,

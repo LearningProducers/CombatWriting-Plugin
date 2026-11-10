@@ -97,11 +97,13 @@ var rb=node('render-board.js',['--run',run]);
 check(rb.status===0,'render-board: '+rb.stderr);
 var html=read(path.join(run,'board.html'));
 var fr2=/<figure class="frame[^"]*" data-seat="seat-2">([^]*?)<\/figure>/.exec(html);
-check(!!fr2&&/<span class="badge critique">Rewrite · no rating asked<\/span>/.test(fr2[1]),'board: seat-2 carries the Rewrite badge; got '+(fr2?fr2[1].slice(0,200):'no frame'));
+check(!!fr2&&/<span class="badge critique">Rewrite<\/span>/.test(fr2[1]),'board: seat-2 carries the Rewrite badge; got '+(fr2?fr2[1].slice(0,200):'no frame'));
 check(!!fr2&&/<blockquote>Vote yes before Friday: the deal dies at the quarter close\.<\/blockquote>/.test(fr2[1]),'board: the frame quotes the rewrite\'s opening');
 check(!!fr2&&/<div class="read rewrite"><p class="meta">The rewrite, in full:<\/p>[^]*?Vote yes before Friday[^]*?The rest holds\.[^]*?<\/div>/.test(fr2[1]),'board: the whole rewrite sits under the frame');
 var fr1=/<figure class="frame[^"]*" data-seat="seat-1">([^]*?)<\/figure>/.exec(html);
-check(!!fr1&&/Critique · no rating asked/.test(fr1[1])&&fr1[1].indexOf('read rewrite')<0,'board: a seat that gave no rewrite keeps the critique badge and no rewrite block');
+check(!!fr1&&/<span class="badge critique">Critique<\/span>/.test(fr1[1])&&fr1[1].indexOf('read rewrite')<0,'board: a seat that gave no rewrite keeps the critique badge and no rewrite block');
+// The phrase the badge and the round line carried is gone from the page (issue 189).
+check(html.indexOf('no rating asked')<0,'board: no "no rating asked" anywhere on the page');
 // The fence lines leave the page (issue 108): not in the fold, not in the spoken text; the spoken text opens on the seat's words.
 var fold2=(/<div class="full"><div class="read">[^]*?<button type="button" class="fold" aria-expanded="false">\+ The full[^]*?<\/button><\/div>/.exec(fr2[1])||[''])[0];
 check(fold2.length>0&&fold2.indexOf('REWRITE BEGIN')<0&&fold2.indexOf('REWRITE END')<0&&!/Vote yes before Friday/.test(fold2),'board: the read on the card carries the critique without the rewrite\'s lines or its fences; the rewrite block above is the one copy (Part 118)');
