@@ -100,7 +100,7 @@ compare('checks',rowSpans(seven,/^(tests|screen\/tests)\//),tests.concat(screenT
 var evalsDir=path.join(plugin,'evals');
 var evals=listDir(evalsDir,function(f,p){ return fs.statSync(p).isDirectory()&&f!=='results'; });
 var evalLine=seven.filter(function(l){ return l.indexOf('eval cases')>=0; })[0]||'';
-var evalNames=[], er=/`([a-z-]+)`/g;
+var evalNames=[], er=/`([a-z0-9-]+)`/g;
 while((m=er.exec(evalLine)))evalNames.push(m[1]);
 compare('evals',evalNames,evals);
 

@@ -43,9 +43,11 @@
 // The crew (Part 87; seat-1's default since issue 189): two fresh readers by default, seat-1 and
 // seat-2. Seat-1 starts on the session's own model: the host passes no model at start and names
 // the session's model with --session-model, which is the name the seat record carries; --model
-// for seat-1 is a pick alone. Seat-2 starts on the second model the host's own agent tool lists
-// (--model-2, the name the host passes; the list is the host's, so the seat moves with it and no
-// model name is written here), plus one seat per
+// for seat-1 is a pick alone. Seat-2 starts on the second most capable model the host's agent
+// tool offers, ranked by the host from what it knows of the models and never by the order of the
+// list (--model-2, the name the host passes; the rank is the host's, so the seat moves with it
+// and no model name is written here); when that is the session's own model, no model is passed:
+// a --model-2 that is the session's own model is no pick, as for seat-1. Plus one seat per
 // outside model the crew add-on has a key for; the add-on's crew_register appends those and,
 // when it seats at least one, drops the fresh seat-2 that no round has read, so the second chair
 // is the outside seats' (Qwen as seat-2 and gpt-oss as seat-3 on a Groq key). --readers 1 seats
@@ -118,7 +120,8 @@ var pick1=given(args.model), pick2=given(args['model-2']);
 function sameModel(a,b){ return !!a&&!!b&&a.toLowerCase()===b.toLowerCase(); }
 if(sameModel(pick1,sessionModel))pick1=null;
 var model=pick1||sessionModel||lib.MODEL_UNREPORTED;
-// Seat-2 with no model named starts with none passed, so it too is on the session's own model.
+// Seat-2 with no model named, or named as the session's own, starts with none passed, so it too is on the session's own model.
+if(sameModel(pick2,sessionModel))pick2=null;
 var model2=pick2||sessionModel||lib.MODEL_UNREPORTED;
 if(args['model-2']!==undefined&&readers===1)lib.die('--model-2 names the second fresh reader, and --readers 1 seats one');
 var company=(args.company&&args.company!==true)?String(args.company).trim():lib.DEFAULT_COMPANY;
@@ -177,8 +180,7 @@ if(hasReader){
   reader={file:lib.READER_FILE,sha256:lib.sha256(fs.readFileSync(lib.readerPath(runDir))),words:lib.wordCount(readerText)};
 }
 
-var SOURCE_NAMED='agent configuration (model: inherit, the model named at start winning over it); the model name was supplied by the host from the list its agent tool offers or the person\'s pick, not read from an API field';
-var SOURCE_SESSION='agent configuration (model: inherit, no model passed at start, so the seat runs on the session\'s own model); the model name was supplied by the host as the model its session runs on, not read from an API field';
+var SOURCE_NAMED=lib.SOURCE_NAMED, SOURCE_SESSION=lib.SOURCE_SESSION;
 var seats=[{id:'seat-1',model:model,company:company,start:pick1?'named':'session',source:pick1?SOURCE_NAMED:SOURCE_SESSION}];
 if(readers===2)seats.push({id:'seat-2',model:model2,company:company,start:pick2?'named':'session',source:pick2?SOURCE_NAMED:SOURCE_SESSION});
 fs.writeFileSync(path.join(runDir,'seats.json'),JSON.stringify({seats:seats},null,2)+'\n');
@@ -190,7 +192,7 @@ lib.appendLog(runDir,{event:'run.created',run:path.basename(runDir),stage:stage,
   seats:seats.map(function(s){return {id:s.id,model:s.model,company:s.company,start:s.start};}),
   session_model:sessionModel,
   readers:readers,
-  crew_note:(readers===2?'two fresh readers, seat-1 on the session\'s own model unless a pick names another and seat-2 on the second model the host\'s agent tool lists':'one fresh reader, seat-1: the host\'s agent tool offers one model')+', every seat is '+company+'\'s models until the crew add-on registers outside seats, which take the second chair; the plugin never fakes a seat and never pads the crew'});
+  crew_note:(readers===2?'two fresh readers, seat-1 on the session\'s own model unless a pick names another and seat-2 on the second most capable model the host\'s agent tool offers, ranked by the host and never by the order of the list':'one fresh reader, seat-1: the host\'s agent tool offers one model')+', every seat is '+company+'\'s models until the crew add-on registers outside seats, which take the second chair; the plugin never fakes a seat and never pads the crew'});
 if(ignore.state==='written')lib.appendLog(runDir,{event:'gitignore.written',file:path.join('combat-writing',lib.GITIGNORE_FILE).split(path.sep).join('/'),lines:lib.GITIGNORE_LINES});
 if(kept)lib.appendLog(runDir,{event:'brief.kept',file:kept.file,name:kept.name||null,sha256:kept.sha256,replaced:kept.replaced});
 process.stdout.write(runDir+'\n');

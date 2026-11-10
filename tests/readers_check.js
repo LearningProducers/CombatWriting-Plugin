@@ -39,6 +39,14 @@
 //     reader that is not on the session's model, and nothing when all are; an outside seat is
 //     never on it. The short form carries the Models line between the crew line and the
 //     scoreboard, the record, the board's strip and state.json carry it too.
+//   - Seat-2's default (issue 194): the second most capable model the host's agent tool offers,
+//     ranked by the host from what it knows of the models and never by the order of the list;
+//     when that is the session's own model, no model is passed. The five skills that state the
+//     default (battle, sparring, strategy, the rules skill, the help) carry that sentence, and
+//     "the second model your agent tool lists" and its variants are gone from every skill, both
+//     READMEs, the method text and its mirror, the plugin map and the scripts' printed lines; a
+//     --model-2 that is the session's own model is no pick (start: session, no Models line); the
+//     crew_note and the three lines seats.js prints say the default the same way.
 // Run from the repository root:   node tests/readers_check.js
 // Exit 0 on pass, 1 on any failure, one line per failure.
 
@@ -67,7 +75,7 @@ check(seats[0].source===seats[1].source&&/model named at start/.test(seats[1].so
 check(lib.freshReaders(seats).length===2&&lib.isFreshReader(seats[1])&&!lib.isPaddedSeat(seats,seats[1]),'lib: seat-2 is a fresh reader and not padded');
 var created=logOf(run)[0];
 check(created.event==='run.created'&&created.readers===2&&created.seats.length===2,'run.created: readers 2 and two seats, got '+JSON.stringify({readers:created.readers,seats:created.seats}));
-check(/two fresh readers, seat-1 on the session's own model unless a pick names another and seat-2 on the second model/.test(created.crew_note)&&/second chair/.test(created.crew_note)&&/never fakes a seat/.test(created.crew_note),'run.created: crew_note should name two fresh readers and the second chair, got '+created.crew_note);
+check(/two fresh readers, seat-1 on the session's own model unless a pick names another and seat-2 on the second most capable model the host's agent tool offers, ranked by the host and never by the order of the list, every seat is/.test(created.crew_note)&&/second chair/.test(created.crew_note)&&/never fakes a seat/.test(created.crew_note),'run.created: crew_note should name two fresh readers and the second chair, got '+created.crew_note);
 // Unreported second model.
 var ru=node('new-run.js',['--draft','draft.md','--stage','battle','--name','unreported','--model','Test Model A']);
 var su=JSON.parse(read(path.join(ru.stdout.trim(),'seats.json'))).seats;
@@ -98,6 +106,10 @@ check(stD.models_line===ML&&stD.session_model==='Test Session Model'&&stD.seats[
 var rn=node('new-run.js',['--draft','draft.md','--stage','battle','--name','nomodel2','--session-model','Test Session Model']);
 var sn=JSON.parse(read(path.join(rn.stdout.trim(),'seats.json'))).seats;
 check(sn[1].model==='Test Session Model'&&sn[1].start==='session'&&/no model passed at start/.test(sn[1].source)&&lib.modelsLine(sn,logOf(rn.stdout.trim()))===null,'no --model-2: seat-2 is on the session\'s model, got '+JSON.stringify(sn[1]));
+// Seat-2 named as the session's own model (issue 194: the second most capable model is the session's): no model is passed, start session, no line.
+var r2s=node('new-run.js',['--draft','draft.md','--stage','battle','--name','model2same','--session-model','Test Session Model','--model-2','test session MODEL']);
+var s2s=JSON.parse(read(path.join(r2s.stdout.trim(),'seats.json'))).seats;
+check(r2s.status===0&&s2s[1].model==='Test Session Model'&&s2s[1].start==='session'&&/no model passed at start/.test(s2s[1].source)&&!/model named at start/.test(s2s[1].source)&&lib.modelsLine(s2s,logOf(r2s.stdout.trim()))===null&&logOf(r2s.stdout.trim())[0].seats[1].start==='session','--model-2 that is the session\'s model: no pick, start session, no Models line, got '+JSON.stringify(s2s[1]));
 // A pick for seat-1 is named at start; a pick that is the session's own model is no pick.
 var rp=node('new-run.js',['--draft','draft.md','--stage','battle','--name','pick','--session-model','Test Session Model','--model','Test Model A','--model-2','Test Model B']);
 var sp=JSON.parse(read(path.join(rp.stdout.trim(),'seats.json'))).seats;
@@ -169,10 +181,10 @@ check(/so the crew is the two fresh readers/.test(st.seats_lines.join('\n')),'st
 // seats.js: the person's pick.
 var picksFile=path.join(proj,'combat-writing','seats.json');
 var s0=node('seats.js',['--root',proj]);
-check(s0.status===0&&/^No reader picked: seat-1 starts on the session's own model and seat-2 on the second model the host lists\. Pick one with seats\.js --set seat-2 "<model>"\.$/m.test(s0.stdout)&&!fs.existsSync(picksFile),'seats.js bare with no file: the no-pick line, nothing written; got '+s0.stdout);
+check(s0.status===0&&/^No reader picked: seat-1 starts on the session's own model and seat-2 on the second most capable model the host's agent tool offers, ranked by the host and never by the order of the list\. Pick one with seats\.js --set seat-2 "<model>"\.$/m.test(s0.stdout)&&!fs.existsSync(picksFile),'seats.js bare with no file: the no-pick line, nothing written; got '+s0.stdout);
 check(JSON.stringify(lib.readReaderPicks(proj))==='{}','lib.readReaderPicks: {} with no file');
 var s1=node('seats.js',['--root',proj,'--set','seat-2','Test Model Z']);
-check(s1.status===0&&/^Reader kept: seat-2 starts on Test Model Z from the next run when the host offers it \(combat-writing\/seats\.json\); --clear seat-2 returns it to the host's list\.$/m.test(s1.stdout),'seats.js --set: the kept line, got '+s1.stdout+s1.stderr);
+check(s1.status===0&&/^Reader kept: seat-2 starts on Test Model Z from the next run when the host offers it \(combat-writing\/seats\.json\); --clear seat-2 returns it to its default\.$/m.test(s1.stdout),'seats.js --set: the kept line, got '+s1.stdout+s1.stderr);
 check(fs.existsSync(picksFile)&&JSON.stringify(JSON.parse(read(picksFile)))==='{"readers":{"seat-2":"Test Model Z"}}','seats.js --set: the file shape, got '+(fs.existsSync(picksFile)?read(picksFile):'no file'));
 check(lib.readReaderPicks(proj)['seat-2']==='Test Model Z'&&lib.readersPicksPath(proj)===picksFile,'lib.readReaderPicks reads the pick');
 var s2=node('seats.js',['--root',proj]);
@@ -180,7 +192,7 @@ check(s2.status===0&&s2.stdout.trim()==='seat-2: Test Model Z (picked; combat-wr
 var s3=node('seats.js',['--root',proj,'--set','seat-1','Test Model Y']);
 check(s3.status===0&&lib.readReaderPicks(proj)['seat-1']==='Test Model Y'&&lib.readReaderPicks(proj)['seat-2']==='Test Model Z','seats.js --set seat-1 keeps seat-2\'s pick');
 var s4=node('seats.js',['--root',proj,'--clear','seat-2']);
-check(s4.status===0&&/^Reader cleared: seat-2 starts on the host's list from the next run \(combat-writing\/seats\.json\)\.$/m.test(s4.stdout)&&!('seat-2' in lib.readReaderPicks(proj))&&lib.readReaderPicks(proj)['seat-1']==='Test Model Y','seats.js --clear: drops one pick and keeps the other, got '+s4.stdout);
+check(s4.status===0&&/^Reader cleared: seat-2 starts on its default from the next run \(combat-writing\/seats\.json\)\.$/m.test(s4.stdout)&&!('seat-2' in lib.readReaderPicks(proj))&&lib.readReaderPicks(proj)['seat-1']==='Test Model Y','seats.js --clear: drops one pick and keeps the other, got '+s4.stdout);
 var s5=node('seats.js',['--root',proj,'--clear','seat-2']);
 check(s5.status===0&&s5.stdout.trim()==='No pick kept for seat-2.','seats.js --clear twice: says no pick, got '+s5.stdout);
 check(node('seats.js',['--root',proj,'--set','seat-3','X']).status===2,'seats.js --set seat-3: refused');
@@ -215,8 +227,23 @@ check(/The crew is the two fresh readers\. Next:/.test(help),'help: the not-inst
 // The skills.
 ['battle','sparring','strategy'].forEach(function(s){
   var skill=read(path.join(plugin,'skills',s,'SKILL.md'));
-  check(/new-run\.js [^\n]*--session-model "<the model this session runs on>" \[--model "<the pick for seat-1>"\] --model-2 "<the second model your agent tool lists, or the pick for seat-2>" \[--readers 1\]/.test(skill),s+': the new-run line should carry --session-model, the seat-1 pick, --model-2 and --readers 1');
+  check(/new-run\.js [^\n]*--session-model "<the model this session runs on>" \[--model "<the pick for seat-1>"\] --model-2 "<the second most capable model your agent tool offers, or the pick for seat-2>" \[--readers 1\]/.test(skill),s+': the new-run line should carry --session-model, the seat-1 pick, --model-2 and --readers 1');
   check(skill.indexOf('the first model your agent tool lists')<0,s+': the old seat-1 default is gone');
+});
+// Seat-2's default (issue 194): the sentence in every skill that states it; the list's order gone from every surface.
+var BY_RANK=/the second most capable model (?:your|the host's) agent tool offers, ranked by (?:you from what you know|the host from what it knows) of the models and never by the order of the list/;
+var NO_MODEL=/when that is (?:this|the|your) session's own model, no model is passed/;
+var BY_LIST=/second model (?:your|the|your host's|the host's)(?: own)? (?:agent tool|host) lists|the second model your agent tool lists|in the (?:tool's|host's)(?: own)? order|returns it to the host's list|starts on the host's list|on the list's model/;
+['battle','sparring','strategy','combat-writing','help'].forEach(function(s){
+  var skill=read(path.join(plugin,'skills',s,'SKILL.md'));
+  check(BY_RANK.test(skill)&&NO_MODEL.test(skill),s+': seat-2\'s default should be the second most capable model the tool offers, ranked and never by the list\'s order, with no model passed when that is the session\'s own');
+});
+fs.readdirSync(path.join(plugin,'skills')).forEach(function(s){
+  var skill=read(path.join(plugin,'skills',s,'SKILL.md'));
+  check(skill.indexOf('the second model your agent tool lists')<0&&!BY_LIST.test(skill),s+': "the second model your agent tool lists" and the list\'s order should be gone');
+});
+['seats.js','new-run.js','lib.js'].forEach(function(f){
+  check(!BY_LIST.test(read(path.join(scripts,f))),f+': the list\'s order should be gone from seat-2\'s default');
 });
 ['battle','sparring'].forEach(function(s){
   var skill=read(path.join(plugin,'skills',s,'SKILL.md'));
@@ -237,6 +264,11 @@ Object.keys(docs).forEach(function(k){
 check(/reversing the one-reader ruling of 2026-10-09/.test(docs['CLAUDE.md'])&&/seventh write location/.test(docs['CLAUDE.md'])&&/scripts\/seats\.js --set/.test(docs['CLAUDE.md']),'CLAUDE.md: the ruling, the seventh write location and seats.js');
 check(/seats\.js/.test(docs['CLAUDE.md'].split('## Layout')[1]||''),'CLAUDE.md: seats.js in the layout');
 check(docs.method.split('## Where the plugin departs')[1]===docs['docs mirror'].split('## Where the plugin departs')[1],'method: the departures match the docs mirror');
+docs['plugin map']=read(path.join(root,'docs','plugin-map.md'));
+['README.md','plugin README','method','docs mirror','plugin map'].forEach(function(k){
+  check(/second most capable model/.test(docs[k])&&/never by the order of (?:the|its) list/.test(docs[k])&&!BY_LIST.test(docs[k]),k+': seat-2\'s default should be by rank, never by the list\'s order');
+});
+check(/issue 194/.test(docs['CLAUDE.md'])&&BY_RANK.test(docs['CLAUDE.md'])&&NO_MODEL.test(docs['CLAUDE.md'])&&/seat-fallback\.js/.test(docs['CLAUDE.md']),'CLAUDE.md: the crew bullet carries the issue 194 ruling, the sentence and the fallback script');
 
 if(failures.length){ failures.forEach(function(f){console.log('FAIL '+f);}); console.log('readers_check: '+failures.length+' failure(s), '+checks+' checks'); process.exit(1); }
 console.log('readers_check: all passed ('+checks+' checks)');

@@ -2,8 +2,11 @@
 // seat_scope_check.js: the seat's reach (ruled 2026-10-16). hooks/seat-scope.js is a PreToolUse
 // hook on every tool: a seat (agent_type cw:seat) uses Read and Write only, reads only inside its
 // run folder and writes only its own answer file, judged on the resolved path; any other tool and
-// any path the hook cannot place is denied; every other caller is left alone. The live proof,
-// which needs a running Claude Code, is tests/seat_scope_live.js, not part of CI.
+// any path the hook cannot place is denied; every other caller is left alone but for one call,
+// the one that starts a seat (issue 194): the Agent tool with subagent_type cw:seat is held to
+// the seat record's start. The live proof, which needs a running Claude Code, is
+// tests/seat_scope_live.js, not part of CI; it covers the seat's own calls, not the start call,
+// whose shape was read from transcripts (the hook's START_READ_ON constant).
 //
 // Runs the REAL hook as a child process with a hook input on stdin, against a real run made by
 // new-run.js and packet.js in a temporary project, and a fake session layout: the seat's task as
@@ -12,7 +15,19 @@
 //
 // What it pins:
 //   - The host (no agent_type) and another agent: no output, exit 0, whatever the path or tool,
-//     and whatever the size of the input (2 MB).
+//     and whatever the size of the input (2 MB), the start of a seat excepted.
+//   - The start of a seat (tool Agent, tool_input.subagent_type cw:seat or seat, the prompt
+//     opening with the two task lines), from the host or another agent: a record that says
+//     session with a model passed is denied, telling the host to start the seat again with no
+//     model choice; with no model (or an empty one) allowed; a record that says named with a
+//     model passed is allowed, whatever the string (the two are never compared); with none,
+//     denied, naming the record's model; a start with no task lines, a packet that does not
+//     exist, a packet outside a rounds folder, an answer file outside the run, a run with no
+//     seats.json or a broken one, a seat id with no record: denied with the reason; an outside
+//     seat: denied, pointing at crew_answer; the crew-pass and final packets name their seat; a
+//     relative packet path resolves against cwd. An Agent call with any other subagent_type, and
+//     a host call of any other tool that carries the same input: no output. The hook's reading
+//     of a record's start equals lib.seatStart over records with and without the field.
 //   - A seat calling Grep, Glob, Bash, WebFetch, Edit or Agent: denied, naming the tool; a seat's
 //     Write of 2 MB outside the run: denied; input that does not parse but names a seat: denied.
 //   - A seat reading the packet, the draft, the brief, a file in a subfolder of the run: allowed
@@ -143,6 +158,71 @@ denied('seat with input that does not parse',call('Read','','{"hook_event_name":
 denied('seat call with no file_path',call('Read',undefined),/names no file/);
 denied('seat with a hostile agent id',call('Read',packet,{agent_id:'../../x'}),/a session or agent id the hook will not use in a path/);
 denied('seat with array content task',(function(){ fs.writeFileSync(path.join(sdir,sid,'subagents','agent-agent6.jsonl'),JSON.stringify({type:'user',message:{role:'user',content:[{type:'text',text:'Packet: nowhere.md\nAnswer file: '+answer}]}})+'\n'); return call('Read',packet,{agent_id:'agent6'}); })(),/packet named in the task cannot be placed/);
+
+// The start of a seat (issue 194): the host's Agent call is held to the seat record's start.
+// The run's records: seat-1 named (a pick), seat-2 on the session's own model.
+node('packet.js',['--run',run,'--round','01-sparring','--seat','seat-2']);
+var packet2=path.join(run,'rounds','01-sparring','seat-2.packet.md'), answer2=path.join(run,'rounds','01-sparring','seat-2.answer.md');
+var recs=JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats;
+check(recs[0].start==='named'&&recs[0].model==='Test Model'&&recs[1].start==='session','the run should seat seat-1 named and seat-2 on the session\'s model, got '+JSON.stringify(recs.map(function(r){return r.start;})));
+function taskText(pk,an){ return 'Packet: '+pk+'\nAnswer file: '+an+'\nRead the packet, write your answer to the answer file, reply with one line.'; }
+function start(prompt,model,extra){
+  var ti={description:'a seat reads',prompt:prompt,subagent_type:'cw:seat'};
+  if(model!==undefined)ti.model=model;
+  return call('Agent','',Object.assign({agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:ti},extra||{}));
+}
+denied('start: session record, a model passed',start(taskText(packet2,answer2),'a-choice-string'),/^Combat Writing seat scope: seat-2's record says it runs on the session's own model; start seat-2 again with no model choice$/);
+allowed('start: session record, no model',start(taskText(packet2,answer2)));
+allowed('start: session record, an empty model is no model',start(taskText(packet2,answer2),'  '));
+allowed('start: named record, a model passed (never compared to the record)',start(taskText(packet,answer),'a-choice-string'));
+denied('start: named record, no model',start(taskText(packet,answer)),/^Combat Writing seat scope: seat-1's record names Test Model; start seat-1 again and pass that model as the agent tool's model choice$/);
+denied('start: named record, an empty model',start(taskText(packet,answer),''),/seat-1's record names Test Model/);
+allowed('start: a relative packet path',start(taskText(path.relative(proj,packet2),path.relative(proj,answer2))));
+allowed('start: the bare seat type',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'seat'}}));
+denied('start: the bare seat type, a model on a session record',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'seat',model:'x'}}),/start seat-2 again with no model choice/);
+denied('start: from another agent, a model on a session record',start(taskText(packet2,answer2),'x',{agent_type:'Explore',agent_id:'other'}),/start seat-2 again with no model choice/);
+var readOn=(/^var START_READ_ON='([^']+)';$/m.exec(fs.readFileSync(hook,'utf8'))||[])[1];
+check(typeof readOn==='string'&&/^\d+\.\d+\.\d+ to \d+\.\d+\.\d+$/.test(readOn)&&fs.readFileSync(hook,'utf8').split(readOn).length===2,'seat-scope.js: START_READ_ON must be one constant on its own line, the versions once, got '+readOn);
+denied('start: no Packet line',start('Read the draft and rate it.'),new RegExp('^Combat Writing seat scope: the call that starts a seat names no packet or answer file \\(its task opens with the two lines `Packet: <path>` and `Answer file: <path>`, the start call as Claude Code '+String(readOn).replace(/\./g,'\\.')+' writes it\\); the seat is not started$'));
+denied('start: no prompt at all',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{subagent_type:'cw:seat'}}),/names no packet or answer file/);
+denied('start: a packet that does not exist',start(taskText(path.join(run,'rounds','01-sparring','seat-9.packet.md'),answer)),/packet named in the seat's task cannot be placed; the seat is not started/);
+denied('start: a packet outside a rounds folder',start(taskText(path.join(run,'draft.md'),answer)),/not a seat's packet inside a run's rounds folder; the seat is not started/);
+denied('start: an answer file outside the run',start(taskText(packet2,path.join(elsewhere,'seat-2.answer.md'))),/answer file named in the seat's task is not inside the run folder; the seat is not started/);
+// A second run folder written by hand: no seats.json, then a broken one, then records of every kind.
+var fake=path.join(tmp,'fake','combat-writing','runs','hand'), fround=path.join(fake,'rounds','02-battle');
+fs.mkdirSync(fround,{recursive:true});
+function fpk(name){ var f=path.join(fround,name); fs.writeFileSync(f,'a packet\n'); return f; }
+function fstart(seatId,model,file){ return start(taskText(file||fpk(seatId+'.packet.md'),path.join(fround,seatId+'.answer.md')),model); }
+denied('start: a run with no seats.json',fstart('seat-1'),/the run folder holds no seats\.json the hook can read, so the seat's record cannot be placed; the seat is not started/);
+fs.writeFileSync(path.join(fake,'seats.json'),'{not json');
+denied('start: a run with a broken seats.json',fstart('seat-1'),/holds no seats\.json the hook can read/);
+var OLD87='agent configuration (model: inherit, the model named at start winning over it); the model name was supplied by the host';
+var kinds=[
+  {id:'seat-1',model:'Test Session Model',company:'Anthropic',start:'session',source:'x'},
+  {id:'seat-2',model:'Test Model B',company:'Anthropic',start:'named',source:'x'},
+  {id:'seat-3',model:'Outside Model',company:'Example',provider:'example',source:'the model field'},
+  {id:'seat-4',model:'Old Model',company:'Anthropic',source:OLD87},
+  {id:'seat-5',model:'Older Model',company:'Anthropic',source:'agent configuration, not an API field'},
+  {id:'seat-6',model:'Odd Model',company:'Anthropic',start:'other',source:OLD87}
+];
+fs.writeFileSync(path.join(fake,'seats.json'),JSON.stringify({seats:kinds},null,2)+'\n');
+var lib=require(path.join(scripts,'lib.js'));
+kinds.forEach(function(k){
+  var how=lib.seatStart(k), bare=fstart(k.id), named=fstart(k.id,'a-choice-string');
+  var got=(bare.out===''?'allow':'deny')+'/'+(named.out===''?'allow':'deny');
+  var want=how==='session'?'allow/deny':how==='named'?'deny/allow':'deny/deny';
+  check(got===want,'start: '+k.id+' reads as '+how+' in lib.seatStart, so no model/model should be '+want+', got '+got);
+});
+denied('start: an outside seat',fstart('seat-3'),/^Combat Writing seat scope: seat-3 is an outside seat \(its record carries a provider\) and is never started through the agent tool; call the add-on's crew_answer with the run, the round and the seat$/);
+denied('start: a seat id with no record',fstart('seat-9'),/^Combat Writing seat scope: seat-9 has no record in the run's seats\.json; the seat is not started$/);
+allowed('start: the crew-pass packet names its seat',fstart('seat-1',undefined,fpk('seat-1.crew.packet.md')));
+denied('start: the final packet names its seat',fstart('seat-1','x',fpk('seat-1.sn.packet.md')),/start seat-1 again with no model choice/);
+denied('start: a packet file that names no seat',fstart('seat-1',undefined,fpk('notes.packet.md')),/not a seat's packet inside a run's rounds folder/);
+// Every other Agent call, and every other tool, from a caller that is not a seat: untouched.
+allowed('host starts another agent type',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'Explore',model:'x'}}));
+allowed('host starts an agent with no type',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{description:'d',prompt:'Read the draft.',model:'x'}}));
+allowed('host calls another tool with the same input',call('Bash','',{agent_type:undefined,agent_id:undefined,tool_name:'Bash',tool_input:{command:'ls',prompt:taskText(packet2,answer2),subagent_type:'cw:seat',model:'x'}}));
+allowed('host start call with no tool_input',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:undefined}));
 
 // The hook wrote nothing anywhere in the run or the project beyond what the test wrote.
 var written=fs.readdirSync(run).sort().join(',');
