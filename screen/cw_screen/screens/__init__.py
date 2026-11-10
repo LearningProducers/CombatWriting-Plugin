@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.containers import Vertical, VerticalScroll
+from textual.css.query import NoMatches
 from textual.screen import Screen
 
 from cw_screen.widgets import Freshness, TabStrip, TitleStrip
@@ -38,11 +39,20 @@ class Chrome(Screen):
         self.apply(self.app.state, self.app.forming)
         self.app._fresh()
 
+    # Issue 191: the sweep tick can land while the screen still reads as mounted and its
+    # widgets are already removed (the teardown window at the end of run_test, measured on
+    # CI). There is nothing left to draw on, so the two setters return instead of raising.
     def set_run(self, run_id: str | None) -> None:
-        self.query_one("#title", TitleStrip).set_run(run_id)
+        try:
+            self.query_one("#title", TitleStrip).set_run(run_id)
+        except NoMatches:
+            return
 
     def set_fresh(self, line: str, stale: bool) -> None:
-        self.query_one("#fresh", Freshness).set_line(line, stale)
+        try:
+            self.query_one("#fresh", Freshness).set_line(line, stale)
+        except NoMatches:
+            return
 
     def apply(self, state: dict | None, forming: dict | None) -> None:
         """A new state from the disk. Subclasses redraw from it."""

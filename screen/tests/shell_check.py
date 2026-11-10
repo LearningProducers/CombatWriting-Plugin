@@ -9,7 +9,8 @@
 # host announced shows as forming; a tab not yet built says so; a run folder that disappears
 # turns the freshness line stale with the time; a wrong plugin root is said on screen; a
 # newer run appearing is followed; --light takes the light palette; a tick after the screen
-# stack is empty returns instead of reading self.screen (issue 64); the package's own
+# stack is empty returns instead of reading self.screen (issue 64); a tick on a screen that
+# is still mounted with its widgets already removed returns too (issue 191); the package's own
 # __version__, the string --version prints, equals the version in pyproject.toml (issue 149).
 #
 # Run from screen/:   uv run python tests/shell_check.py        Exit 0 on pass, 1 on failure.
@@ -168,6 +169,28 @@ async def main():
         check(True, "")
     except Exception as e:  # noqa: BLE001
         check(False, f"shell: a tick on an empty screen stack should return, not raise: {type(e).__name__}: {e}")
+
+    # Issue 191: a tick that lands while the screen is still mounted and its widgets are
+    # already removed (the window issue 64's guard does not cover; on CI it raised NoMatches
+    # for #fresh from the sweep timer as run_test closed). The widgets are removed by hand
+    # here and the tick is fired on what is left.
+    proj4, _run4 = make_run("tick")
+    app4 = CwScreen(project=proj4, plugin_root=PLUGIN_ROOT, interval=0.2)
+    async with app4.run_test(size=(100, 30)) as pilot:
+        # The first state is drawn before anything is removed, so no render is in flight.
+        await wait_for(app4, pilot, lambda t: "8/10" in t and not app4.rendering)
+        screen = app4.screen
+        await screen.remove_children()
+        gone = screen.is_mounted and len(screen.query("#fresh")) == 0 and len(screen.query("#title")) == 0
+        check(gone, "shell: the issue 191 case needs a mounted screen with its widgets removed")
+        try:
+            app4._fresh()
+            screen.set_run(app4.run_id)
+            screen.set_fresh("a line with nowhere to go", False)
+            check(True, "")
+        except Exception as e:  # noqa: BLE001
+            check(False, f"shell: a tick on a mounted screen with no widgets should return, not raise: {type(e).__name__}: {e}")
+    shutil.rmtree(proj4, ignore_errors=True)
     shutil.rmtree(proj, ignore_errors=True)
 
 
