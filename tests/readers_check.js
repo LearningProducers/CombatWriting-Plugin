@@ -94,6 +94,10 @@ var bD=read(path.join(runD,'board.html'));
 check(bD.indexOf('<p class="round models"><b>Models</b> · '+lib.escapeHtml(ML)+'</p>')>=0&&bD.indexOf('<strong>Models:</strong> '+lib.escapeHtml(ML))>=0,'board: the strip and Run details carry the Models line');
 var stD=JSON.parse(node('render-state.js',['--run',runD]).stdout);
 check(stD.models_line===ML&&stD.session_model==='Test Session Model'&&stD.seats[0].start==='session'&&stD.seats[1].start==='named','state: models_line, session_model and each start, got '+JSON.stringify({l:stD.models_line,m:stD.session_model}));
+// Seat-2 with no model named starts with none passed: the session's own model, start session, no line.
+var rn=node('new-run.js',['--draft','draft.md','--stage','battle','--name','nomodel2','--session-model','Test Session Model']);
+var sn=JSON.parse(read(path.join(rn.stdout.trim(),'seats.json'))).seats;
+check(sn[1].model==='Test Session Model'&&sn[1].start==='session'&&/no model passed at start/.test(sn[1].source)&&lib.modelsLine(sn,logOf(rn.stdout.trim()))===null,'no --model-2: seat-2 is on the session\'s model, got '+JSON.stringify(sn[1]));
 // A pick for seat-1 is named at start; a pick that is the session's own model is no pick.
 var rp=node('new-run.js',['--draft','draft.md','--stage','battle','--name','pick','--session-model','Test Session Model','--model','Test Model A','--model-2','Test Model B']);
 var sp=JSON.parse(read(path.join(rp.stdout.trim(),'seats.json'))).seats;
@@ -165,7 +169,7 @@ check(/so the crew is the two fresh readers/.test(st.seats_lines.join('\n')),'st
 // seats.js: the person's pick.
 var picksFile=path.join(proj,'combat-writing','seats.json');
 var s0=node('seats.js',['--root',proj]);
-check(s0.status===0&&/^No reader picked: seat-1 and seat-2 start on the first and the second model the host lists\. Pick one with seats\.js --set seat-2 "<model>"\.$/m.test(s0.stdout)&&!fs.existsSync(picksFile),'seats.js bare with no file: the no-pick line, nothing written; got '+s0.stdout);
+check(s0.status===0&&/^No reader picked: seat-1 starts on the session's own model and seat-2 on the second model the host lists\. Pick one with seats\.js --set seat-2 "<model>"\.$/m.test(s0.stdout)&&!fs.existsSync(picksFile),'seats.js bare with no file: the no-pick line, nothing written; got '+s0.stdout);
 check(JSON.stringify(lib.readReaderPicks(proj))==='{}','lib.readReaderPicks: {} with no file');
 var s1=node('seats.js',['--root',proj,'--set','seat-2','Test Model Z']);
 check(s1.status===0&&/^Reader kept: seat-2 starts on Test Model Z from the next run when the host offers it \(combat-writing\/seats\.json\); --clear seat-2 returns it to the host's list\.$/m.test(s1.stdout),'seats.js --set: the kept line, got '+s1.stdout+s1.stderr);

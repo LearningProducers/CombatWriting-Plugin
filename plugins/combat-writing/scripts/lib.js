@@ -1275,7 +1275,7 @@ function renderLite(text){
   function flushList(){ if(list){out.push('<'+list.tag+'>'+list.items.map(function(i){return '<li'+(i.n===null?'':' value="'+i.n+'"')+'>'+inline(i.text)+'</li>';}).join('')+'</'+list.tag+'>');list=null;} }
   src.split('\n').forEach(function(line){
     if(!line.trim()){ flushPara(); return; }
-    var bul=/^\s*[*\-•]\s+(.*)$/.exec(line), num=/^\s*(\d+)[.)]\s+(.*)$/.exec(line), head=/^\s*#{1,6}\s+(.*)$/.exec(line);
+    var bul=/^\s*[*\-•]\s+(.*)$/.exec(line), num=/^\s*(\d{1,9})[.)]\s+(.*)$/.exec(line), head=/^\s*#{1,6}\s+(.*)$/.exec(line);
     if(bul||num){ var tag=num?'ol':'ul'; flushPara(); if(list&&list.tag!==tag)flushList(); if(!list)list={tag:tag,items:[]}; list.items.push(num?{n:parseInt(num[1],10),text:num[2]}:{n:null,text:bul[1]}); return; }
     flushList();
     if(head){ flushPara(); out.push('<p><strong>'+inline(head[1])+'</strong></p>'); return; }

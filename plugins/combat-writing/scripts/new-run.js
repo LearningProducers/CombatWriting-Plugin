@@ -118,7 +118,8 @@ var pick1=given(args.model), pick2=given(args['model-2']);
 function sameModel(a,b){ return !!a&&!!b&&a.toLowerCase()===b.toLowerCase(); }
 if(sameModel(pick1,sessionModel))pick1=null;
 var model=pick1||sessionModel||lib.MODEL_UNREPORTED;
-var model2=pick2||lib.MODEL_UNREPORTED;
+// Seat-2 with no model named starts with none passed, so it too is on the session's own model.
+var model2=pick2||sessionModel||lib.MODEL_UNREPORTED;
 if(args['model-2']!==undefined&&readers===1)lib.die('--model-2 names the second fresh reader, and --readers 1 seats one');
 var company=(args.company&&args.company!==true)?String(args.company).trim():lib.DEFAULT_COMPANY;
 

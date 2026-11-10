@@ -8,7 +8,7 @@
 // The page (Part 106, one screen, the look as data; the strip's two lines since Part 118): the strip at
 // the top (the motto and the run with the tabs Draft, Scoreboard and Run details and the Light / dark
 // button on one line; the brief and the reader, condensed, under it); the latest round's task in one
-// line from lib.roundTask with whether a rating was asked and how many seats answered, in the column
+// line from lib.roundTask with a rating asked said when one was and how many seats answered, in the column
 // beside the draft; the
 // top box with the newest draft in full at full width beside a column with the brief and the
 // reader (the scoreboard of every round and the run details sit under the tabs in the same box);

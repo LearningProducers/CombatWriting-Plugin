@@ -19,7 +19,7 @@
 //     in the draft panel above the seats; the brief and the reader on the strip's second line (Part 118).
 //   - The round line (ruled 2026-10-15; beside the draft since Part 118): the latest round's task in words in the side column of the
 //     page, from the packet (the prompt itself for SN, SFQ, N and FQ; the seat lines with each
-//     note; the final reads), whether a rating was asked, and how many seats answered; the same
+//     note; the final reads), a rating asked said when one was (nothing about ratings on a round that asked for none), and how many seats answered; the same
 //     line for every round in the history under the scoreboard; the record's round line carries
 //     the same task, never the inbox file name. The tabs Draft, Scoreboard and Run details switch
 //     the top box's panel; the draft panel shows first.
@@ -209,7 +209,7 @@ check(html.indexOf('<p class="round">')>html.indexOf('<div class="paper">')&&htm
 var hist=/<ul class="rounds">([^]*?)<\/ul>/.exec(html);
 check(!!hist&&(hist[1].match(/<li>/g)||[]).length===5,'board: the history should list five rounds');
 check(!!hist&&/<li><b>Round 02-battle<\/b> · the default prompt: “Read the other seats' latest answers\. Where do your interpretations overlap and where do they diverge\? Give a new critique and a new rating of the draft\.” · a new rating asked · 3 of 3 seats answered<\/li>/.test(hist[1]),'board: the history line for 02-battle is wrong');
-check(!!hist&&/<li><b>Round 04-battle<\/b> · the default prompt: “[^”]*” · 2 of 3 seats answered<\/li>/.test(hist[1]),'board: the history line for 04-battle should say no rating asked and 2 of 3');
+check(!!hist&&/<li><b>Round 04-battle<\/b> · the default prompt: “[^”]*” · 2 of 3 seats answered<\/li>/.test(hist[1]),'board: the history line for 04-battle should carry its prompt and 2 of 3, and nothing about ratings');
 check(html.indexOf('<ul class="rounds">')>html.indexOf('Every round: the scoreboard'),'board: the history belongs in the scoreboard panel');
 check(!/<span class="note-line">/.test(html),'board: no seat was asked something different, so no frame carries a note');
 
@@ -232,7 +232,7 @@ write(path.join(nr,'rounds','01-battle','seat-2.answer.md'),'Not ready. The clos
 node('render-board.js',['--run',nr]);
 var nrHtml=fs.readFileSync(path.join(nr,'board.html'),'utf8');
 check(!/class="verdict/.test(nrHtml)&&!/NO RATING/.test(nrHtml),'board (no rating): there must be no verdict box; got '+(/<section class="verdict[^>]*>[^]*?<\/p>/.exec(nrHtml)||[''])[0]);
-check(/<p class="round"><b>Round 01-battle<\/b> · SN: “Is this ready to go to the board\?” · 2 of 3 seats answered<\/p>/.test(nrHtml)&&nrHtml.indexOf('no rating asked')<0,'board (no rating): the strip should carry the SN, no rating asked and 2 of 3; got '+(/<p class="round">[^]*?<\/p>/.exec(nrHtml)||[''])[0]);
+check(/<p class="round"><b>Round 01-battle<\/b> · SN: “Is this ready to go to the board\?” · 2 of 3 seats answered<\/p>/.test(nrHtml)&&nrHtml.indexOf('no rating asked')<0,'board (no rating): the strip should carry the SN and 2 of 3, and nothing about ratings; got '+(/<p class="round">[^]*?<\/p>/.exec(nrHtml)||[''])[0]);
 check(/<blockquote>Not ready: the ask is buried\.<\/blockquote>/.test(nrHtml)&&/<span class="badge critique">Critique<\/span>/.test(nrHtml),'board (no rating): the frames still carry the critiques');
 ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',nr,'--round','02-final','--seat',s,'--final','sn']); node('packet.js',['--run',nr,'--round','02-final','--seat',s,'--final','redflag']); });
 write(path.join(nr,'rounds','02-final','seat-1.sn.answer.md'),'S/N RATIO: 60%\nSome.\n');

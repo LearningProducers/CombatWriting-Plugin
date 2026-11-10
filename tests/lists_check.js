@@ -69,6 +69,8 @@ check(hu==='<ul><li>First point.</li><li>Second point.</li><li>Third point.</li>
 check(lib.renderLite('1. Only item.\nA line under it.')==='<ol><li value="1">Only item.</li></ol><p>A line under it.</p>','a line under an item: a paragraph after the list');
 check(lib.renderLite('One line.\nA second line.\n\nA new paragraph.')==='<p>One line.<br>A second line.</p><p>A new paragraph.</p>','paragraphs: a single newline is a break, a blank line a new paragraph');
 check(lib.renderLite('1. One.\n\n- A bullet.\n\n2. Two.')==='<ol><li value="1">One.</li></ol><ul><li>A bullet.</li></ul><ol><li value="2">Two.</li></ol>','a bullet between two numbered items: the second still reads 2');
+check(lib.renderLite('1. a\n2. b\n\n1. x\n2. y')==='<ol><li value="1">a</li><li value="2">b</li><li value="1">x</li><li value="2">y</li></ol>','two lists with only a blank line between them: one list, each item its own number');
+check(lib.renderLite('12345678901. Not an item.')==='<p>12345678901. Not an item.</p>','a number past nine digits is text, never an item');
 check(lib.renderLite('')===''&&lib.renderLite('  \n\n ')==='','empty text renders nothing');
 
 // 6. The real board on a temporary run: the seat's card carries the four numbers.
