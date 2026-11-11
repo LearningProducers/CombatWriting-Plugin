@@ -298,3 +298,13 @@ Issue 189, three defects seen on one real round on cw 0.9.5 (the run of 2026-11-
 Delivers (cw 0.9.6, screen 0.1.8): `scripts/lib.js`, `scripts/new-run.js`, `scripts/render-board.js`, `scripts/render-record.js`, the battle, sparring, strategy, rules and help skills, both READMEs, the method text and its mirror, `docs/plugin-map.md`, the eval's wording, `screen/cw_screen/screens/briefing.py` and the screen's three version sites, `tests/lists_check.js` (new), `tests/readers_check.js`, `tests/board_check.js`, `tests/rewrite_check.js`, `tests/state_check.js`, `tests/packet_check.js`, CLAUDE.md, both manifests, PLAN.md.
 
 Status: delivered — 2026-11-10 — draft pull request open; `node tests/run_all.js` run in the build session, 50 passed, and THE SMOKE measured in a browser on the fixture round, the defect first and then the fix, the numbers in the pull request body.
+
+## Part 122 — A sweep tick on a screen whose widgets are gone returns (screen 0.1.9)
+
+Issue 191, measured 2026-11-10 on pull request 190's `screen` job: `screen/tests/shell_check.py` died with `NoMatches: No nodes match '#fresh' on Briefing()`, raised from the sweep timer as `run_test` closed (`app.tick`, `app._fresh`, `Chrome.set_fresh`, `query_one`); the same commit passed 12 of 12 runs on a Mac, and pull request 190 touched neither file on that path. Issue 64's guard (commit 840e821) returns when the screen stack is empty or the screen is not mounted; a tick can still land while the screen reads as mounted and its widgets are already removed. `Chrome.set_fresh` and `Chrome.set_run` now return when the widget they write to is gone. The check removes a mounted screen's widgets by hand and fires `_fresh` and both setters on what is left; run against main's screen code it fails with the error CI printed, word for word.
+
+Found on the way and not in this part: the screen started on a run with no rounds crashes on a duplicate widget id in the briefing's dialogue (issue 192, measured 3 of 3 runs on main); the new check first met it by starting on the no-rounds run the earlier steps leave behind, and now builds its own run with a round.
+
+Delivers (screen 0.1.9): `screen/cw_screen/screens/__init__.py`, `screen/tests/shell_check.py`, the screen's three version sites, PLAN.md.
+
+Status: delivered — 2026-11-10 — draft pull request open; `screen/tests/shell_check.py` run 50 times in a row in the build session and `node tests/run_all.js` once, the counts in the pull request body.
