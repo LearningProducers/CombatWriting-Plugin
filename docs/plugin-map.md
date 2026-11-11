@@ -90,10 +90,10 @@ Nothing is fetched by any script. The one outside connection is the host opening
 | Hook | When | What it does |
 |---|---|---|
 | `session-start.js` | every session start and resume | prints nothing to the person: hands the host "Combat Writing ready. /cw:help for the guide." as context it reads and never shows (`hookSpecificOutput.additionalContext`, no `systemMessage`); on the first session only, adds what the install still lacks (the crew add-on, the Mac's voices) and never again |
-| `seat-scope.js` | before every tool call | for a fresh reader alone: allows Read inside its run folder and Write to its own answer file, denies the rest; touches nobody else |
+| `seat-scope.js` | before every tool call | for a fresh reader: allows Read inside its run folder and Write to its own answer file, denies the rest; for the call that starts a fresh reader: holds it to the seat's record (no model choice for a seat recorded on the session's own model, one for a seat recorded on a named model) and denies a start it cannot place; touches nothing else |
 | `show-result.js` | after every shell command | when the command printed the short form, puts it on your screen as the plugin's own line; when the opener failed in the sandbox, opens the board itself; when the speech engine was silenced, renders the voices itself |
 
-**The seats.** Two fresh readers by default, seat-1 and seat-2: separate agents started for one job each, seat-1 on the session's own model and seat-2 on the second model the host's own agent tool lists (a result's Models line names a fresh reader that is not on the session's model), with no memory of your conversation. The agent file is `plugins/combat-writing/agents/seat.md` (`model: inherit`, tools Read and Write). Where the host can start no agent, the host is the one seat and says so.
+**The seats.** Two fresh readers by default, seat-1 and seat-2: separate agents started for one job each, seat-1 on the session's own model and seat-2 on the second most capable model the host's agent tool offers, ranked by the host from what it knows of the models and never by the order of the list; when that is the session's own model, no model is passed (a result's Models line names a fresh reader that is not on the session's model, and one that fell back to another model, with the time and the reason), with no memory of your conversation. The agent file is `plugins/combat-writing/agents/seat.md` (`model: inherit`, tools Read and Write). Where the host can start no agent, the host is the one seat and says so.
 
 **The add-on**, `plugins/combat-writing-crew/`, a local MCP server (`server.js`) installed from this repository's marketplace, never listed in the directory. The moment it seats one outside model, the second chair is the outside seats' and the fresh seat-2 leaves.
 
@@ -119,7 +119,7 @@ A key comes from the masked prompt (`/plugin configure combat-writing-crew`), el
 
 ## 6. The scripts
 
-Nineteen files in `plugins/combat-writing/scripts/`, plain Node, no dependencies. The host runs them; a person never types them. They are the only writers inside a run folder.
+Twenty files in `plugins/combat-writing/scripts/`, plain Node, no dependencies. The host runs them; a person never types them. They are the only writers inside a run folder.
 
 | Script | Called when | What it writes |
 |---|---|---|
@@ -129,7 +129,8 @@ Nineteen files in `plugins/combat-writing/scripts/`, plain Node, no dependencies
 | `brief.js` | `brief update:` | one dated line on the project's or the named brief, and on the run's |
 | `briefs.js` | `/cw:briefs` | nothing; prints the list |
 | `runs.js` | `/cw:runs`, `run:` | nothing; prints the list, the one folder, or under `--pick` the JSON array the runs picker reads |
-| `seats.js` | "seat-2 on <model>", "seat-2 back to the list" | `combat-writing/seats.json` |
+| `seats.js` | "seat-2 on <model>", "seat-2 back to the default" | `combat-writing/seats.json` |
+| `seat-fallback.js` | the host's tool refused a fresh reader's start or does not offer its model | one log line, `seat.fallback` (from, to, the reason; its time is the when), and that seat's record in the run's `seats.json` |
 | `crew-state.js` | the add-on is absent or down | one log line saying which, for the Seats line |
 | `announce.js` | the round's kind and seats are known | one log line; prints the forming line |
 | `budget.js` | every packet of a round is built | one log line with each packet's size and each provider's room; prints a warning only when a packet is over a wall |
@@ -161,6 +162,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/crew_state_check.js` | the Seats line when the crew is short, with the next command |
 | `tests/draft_facts_check.js` | the draft's counts, measured by code |
 | `tests/draft_parts_check.js` | the labeled draft: greeting, opening sentence, body, closer |
+| `tests/fallback_check.js` | a fresh reader's start that fell to another model: the log line, the seat record, the Models line naming when and why, the hook allowing the new start |
 | `tests/flip_check.js` | a flip must quote who moved it |
 | `tests/gitignore_check.js` | the two-line gitignore on the first run in a git repository |
 | `tests/help_check.js` | the card, the bare rule with no tool call, the guide's opening and its one live line, the picker, the README's copy of the card |
@@ -179,7 +181,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/pr_body_check.js` | the four-section gate script |
 | `tests/rating_contract_check.js` | `RATING: X/10`, 7 forbidden, the number against the words |
 | `tests/reader_check.js` | the reader rides in the run, not in the project's brief |
-| `tests/readers_check.js` | two fresh readers, seat-1 on the session's own model, the Models line, the second chair the add-on's, the provider table in the help |
+| `tests/readers_check.js` | two fresh readers, seat-1 on the session's own model, seat-2 by rank and never by the list's order, the Models line, the second chair the add-on's, the provider table in the help |
 | `tests/readme_check.js` | the two READMEs say what the directory requires |
 | `tests/record_check.js` | `record.md` from the files and the log |
 | `tests/release_notes_check.js` | the Release notes cut from a merged pull request |
@@ -187,7 +189,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/run_all.js` | not a check: the runner of the whole suite |
 | `tests/runs_check.js` | open runs and the way back |
 | `tests/second_copy_check.js` | a fact with a home is never copied: no version string in the root README or docs/, the listing README's card equal to the skill's |
-| `tests/seat_scope_check.js` | the seat's reach, the real hook on a real run |
+| `tests/seat_scope_check.js` | the seat's reach and the start of a seat held to its record, the real hook on a real run |
 | `tests/seat_scope_live.js` | not in CI: one real seat through a throwaway plugin, rerun after every Claude Code update |
 | `tests/sections_check.js` | Answer, then To the crew, when the round shares |
 | `tests/session_start_check.js` | the first-session line |
@@ -202,7 +204,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `screen/tests/state_check.py` | the screen reads the run through `render-state.js` |
 | `screen/tests/sweep_check.py` | the screen sees a file land within one sweep |
 
-The six eval cases, `plugins/combat-writing/evals/`, each one draft through the plugin and a grade: `buried-unsupported-claim`, `instruction-in-draft`, `date-after-cutoff`, `start-at-battle`, `n-rewrite-to-every-seat`, `one-seat-line-only`.
+The seven eval cases, `plugins/combat-writing/evals/`, each one draft through the plugin and a grade: `buried-unsupported-claim`, `instruction-in-draft`, `date-after-cutoff`, `start-at-battle`, `n-rewrite-to-every-seat`, `one-seat-line-only`, `seat-2-by-rank`.
 
 ## What is not in the plugin
 

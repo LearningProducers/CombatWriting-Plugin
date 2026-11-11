@@ -554,8 +554,12 @@ function readSeats(runDir){
 // model is passed at start, so the seat agent's model: inherit leaves it where the person chose
 // to work, and the first reader is never a smaller model than the session (the first model the
 // host's agent tool lists, the earlier default, sat below the session's on a host whose list
-// opens with a smaller one). Seat-2 starts on the second model the host's own agent tool lists
-// (no model name in this code: the list is the host's, and the seats move with it), plus one seat per outside model the add-on registers; the moment the add-on seats one, the
+// opens with a smaller one). Seat-2 starts on the second most capable model the host's agent
+// tool offers, ranked by the host from what it knows of the models and never by the order of the
+// list; when that is the session's own model, no model is passed (no model name in this code:
+// the rank is the host's, and the seats move with it). A start the host's tool refuses falls to
+// the next most capable model it offers, else to the session's own, and seat-fallback.js records
+// when and why (the log's seat.fallback line, said on the Models line). Plus one seat per outside model the add-on registers; the moment the add-on seats one, the
 // second chair is the outside seats' and the fresh seat-2 leaves (crew_register drops it when no
 // round has read it). A fresh reader is a seat with no provider field. Never padded beyond that:
 // isPaddedSeat says whether a seat is a fresh reader past the second, which packet.js refuses to
@@ -579,22 +583,49 @@ function seatStart(seat){
   if(seat.start==='session'||seat.start==='named')return seat.start;
   return /model named at start/.test(seat.source||'')?'named':'session';
 }
+// The source note a fresh reader's record carries, by how it starts: one wording for new-run.js
+// and seat-fallback.js, so seatStart reads a record of either the same way.
+var SOURCE_NAMED='agent configuration (model: inherit, the model named at start winning over it); the model name was supplied by the host from the models its agent tool offers or the person\'s pick, not read from an API field';
+var SOURCE_SESSION='agent configuration (model: inherit, no model passed at start, so the seat runs on the session\'s own model); the model name was supplied by the host as the model its session runs on, not read from an API field';
+// The fallbacks a run recorded (seat-fallback.js, the log's seat.fallback lines): the latest per
+// seat, in seat order, for the fresh readers the run still seats. The line's own ts is the when.
+function seatFallbacks(seats,log){
+  var latest={};
+  (log||[]).forEach(function(e){ if(e&&e.event==='seat.fallback'&&e.seat)latest[e.seat]=e; });
+  return (seats||[]).filter(function(s){ return !s.provider&&latest[s.id]; }).map(function(s){ return latest[s.id]; });
+}
+// One fallback in words: "seat-2 fell back from <from> to <to> at 2026-10-19 14:02 UTC: <reason>."
+// The log line keeps the reason whole; the sentence cuts a long one at a word, so the line stays a line.
+var FALLBACK_REASON_SHOWN=160;
+function fallbackWords(e){
+  var reason=String(e.reason||'').replace(/\s+/g,' ').trim().replace(/[.\s]+$/,'')||'no reason given';
+  var cut=reason.length>FALLBACK_REASON_SHOWN;
+  if(cut)reason=reason.slice(0,FALLBACK_REASON_SHOWN).replace(/\s+\S*$/,'')+'…';
+  return e.seat+' fell back from '+(e.from||MODEL_UNREPORTED)+' to '+(e.to||'the session\'s own model')+(e.ts&&!isNaN(new Date(e.ts))?' at '+whenUtc(e.ts):'')+': '+reason+(cut?'':'.');
+}
 // The session's model as the run recorded it (run.created's session_model), or null.
 function sessionModelOf(log){
   var c=(log||[]).filter(function(e){return e.event==='run.created';})[0];
   return c&&c.session_model?String(c.session_model):null;
 }
 // The Models line: one plain line naming every fresh reader that starts on a model other than
-// the session's own, for the short form, the record, the board and the state. Null when every
-// fresh reader is on the session's model. An outside seat is another company's model by design
-// and is named on the crew line, never here.
+// the session's own, for the short form, the record, the board and the state, and after it one
+// sentence per fresh reader that fell back, its latest fallback: from which model to which, when
+// (UTC, to the minute) and why, so the work after that point can be reviewed. A fallback is
+// always named, also when it left every fresh reader on the session's model. Null when every
+// fresh reader is on the session's model and none fell back. An outside seat is another
+// company's model by design and is named on the crew line, never here.
 function modelsLine(seats,log){
   var sm=sessionModelOf(log);
   function same(a,b){ return String(a).trim().toLowerCase()===String(b).trim().toLowerCase(); }
   var off=(seats||[]).filter(function(s){ return seatStart(s)==='named'&&!(sm&&same(s.model,sm)); });
-  if(!off.length)return null;
-  var names=off.map(function(s){return s.id+' on '+s.model;}).join(', ');
-  return sm?'Not on this session\'s model ('+sm+'): '+names+'.':'Not left on the session\'s own model: '+names+', named at start.';
+  var parts=[];
+  if(off.length){
+    var names=off.map(function(s){return s.id+' on '+s.model;}).join(', ');
+    parts.push(sm?'Not on this session\'s model ('+sm+'): '+names+'.':'Not left on the session\'s own model: '+names+', named at start.');
+  }
+  seatFallbacks(seats,log).forEach(function(e){ parts.push(fallbackWords(e)); });
+  return parts.length?parts.join(' '):null;
 }
 // The crew a run is left with when no outside seat is registered, in words for the Seats line.
 function crewAloneWords(seats){
@@ -1596,7 +1627,7 @@ module.exports={
   SN_PROMPT:SN_PROMPT,REDFLAG_PROMPT:REDFLAG_PROMPT,DEFAULT_READ_PROMPT:DEFAULT_READ_PROMPT,DEFAULT_SYNTHESIS_PROMPT:DEFAULT_SYNTHESIS_PROMPT,
   DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,runSlug:runSlug,thisRunLine:thisRunLine,runSummary:runSummary,runsLine:runsLine,listRunSummaries:listRunSummaries,matchRuns:matchRuns,NO_RATING_LINE:NO_RATING_LINE,
   SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,addonStateLine:addonStateLine,crewStateLines:crewStateLines,
-  seatStart:seatStart,sessionModelOf:sessionModelOf,modelsLine:modelsLine,
+  seatStart:seatStart,sessionModelOf:sessionModelOf,modelsLine:modelsLine,SOURCE_NAMED:SOURCE_NAMED,SOURCE_SESSION:SOURCE_SESSION,seatFallbacks:seatFallbacks,fallbackWords:fallbackWords,FALLBACK_REASON_SHOWN:FALLBACK_REASON_SHOWN,
   MAX_FRESH_READERS:MAX_FRESH_READERS,READERS_FILE:READERS_FILE,READERS_REL:READERS_REL,freshReaders:freshReaders,crewAloneWords:crewAloneWords,readersPicksPath:readersPicksPath,readReaderPicks:readReaderPicks,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,

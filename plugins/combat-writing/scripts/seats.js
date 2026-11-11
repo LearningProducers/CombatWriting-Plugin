@@ -5,14 +5,16 @@
 //   node seats.js [--root <dir>] --clear <seat-1|seat-2>
 //   node seats.js [--root <dir>]            (the picks, one line each, or that there is none)
 //
-// By default seat-1 starts on the session's own model and seat-2 on the second model the host's
-// own agent tool lists, so the seats move with the host and no model name lives in the plugin. A
+// By default seat-1 starts on the session's own model and seat-2 on the second most capable
+// model the host's agent tool offers, ranked by the host from what it knows of the models and
+// never by the order of the list (when that is the session's own model, no model is passed), so
+// the seats move with the host and no model name lives in the plugin. A
 // pick written here wins over that default for the seat it names: the host reads this file before
 // new-run.js and starts the reader on the model picked when its tool offers it, else on the
 // seat's default, saying so in one line. The file is <root>/combat-writing/seats.json, the seventh write location beside
 // voices.json, which it mirrors: the person's own data, kept with the project, never a key, never
 // read by any seat. Shape: {"readers": {"seat-2": "<model>"}}. Nothing is validated against a
-// model list here, because the list is the host's and changes with it; the name is kept as typed.
+// model list here, because the models are the host's and change with it; the name is kept as typed.
 // Nothing is logged: there is no run; the run's seats.json records what the host passed.
 
 var fs=require('fs'), path=require('path');
@@ -34,15 +36,15 @@ if(args.set!==undefined){
   var seatId=String(args.set), model=(args._||[]).join(' ').trim();
   if(args.set===true||!SEAT_RE.test(seatId)||!model)lib.die('usage: --set seat-1|seat-2 "<model>" (a fresh reader\'s seat; the outside seats are the add-on\'s)');
   var j=readAll(); j.readers[seatId]=model; writeAll(j);
-  process.stdout.write('Reader kept: '+seatId+' starts on '+model+' from the next run when the host offers it ('+rel+'); --clear '+seatId+' returns it to the host\'s list.\n');
+  process.stdout.write('Reader kept: '+seatId+' starts on '+model+' from the next run when the host offers it ('+rel+'); --clear '+seatId+' returns it to its default.\n');
 }else if(args.clear!==undefined){
   var cid=String(args.clear);
   if(args.clear===true||!SEAT_RE.test(cid))lib.die('usage: --clear seat-1|seat-2');
   var k=readAll(); var had=k.readers[cid]; delete k.readers[cid]; writeAll(k);
-  process.stdout.write(had?('Reader cleared: '+cid+' starts on the host\'s list from the next run ('+rel+').\n'):('No pick kept for '+cid+'.\n'));
+  process.stdout.write(had?('Reader cleared: '+cid+' starts on its default from the next run ('+rel+').\n'):('No pick kept for '+cid+'.\n'));
 }else{
   var picks=readAll().readers;  // a broken file is named here, where the person looks; lib.readReaderPicks reads {} for the host
   var ids=Object.keys(picks).filter(function(id){return SEAT_RE.test(id);}).sort();
-  if(!ids.length)process.stdout.write('No reader picked: seat-1 starts on the session\'s own model and seat-2 on the second model the host lists. Pick one with seats.js --set seat-2 "<model>".\n');
+  if(!ids.length)process.stdout.write('No reader picked: seat-1 starts on the session\'s own model and seat-2 on the second most capable model the host\'s agent tool offers, ranked by the host and never by the order of the list. Pick one with seats.js --set seat-2 "<model>".\n');
   else ids.forEach(function(id){ process.stdout.write(id+': '+picks[id]+' (picked; '+rel+')\n'); });
 }

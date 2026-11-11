@@ -3,7 +3,8 @@
 // reader (the `seat` agent, agent_type `cw:seat`) uses Read and Write only, reads only inside
 // its run folder and writes only its own answer file, both judged on the resolved path; any
 // other tool, and any path the hook cannot place, is denied. Every other caller, the host and
-// any other agent, is left alone: the hook prints nothing and exits 0, in about 20 ms.
+// any other agent, is left alone but for one call, the one that starts a seat (below): the hook
+// prints nothing and exits 0, in about 20 ms.
 //
 // How the hook places the seat: the host starts a seat with a task of two lines, `Packet:
 // <path>` and `Answer file: <path>` (the sparring and battle skills). That task is the first
@@ -17,6 +18,24 @@
 // no run folder, a symlink out, a path that does not exist, malformed input: denied, with
 // the reason, so a seat the hook cannot place does nothing rather than anything.
 //
+// How a seat starts: the one judgment on a caller that is not a seat. The call that starts a
+// fresh reader is the Agent tool (Task, its earlier name, is judged the same way) with
+// subagent_type `cw:seat` (or `seat`), its prompt opening
+// with the same two lines, and a model choice only when one is passed (the shape read from the
+// host's transcripts on the Claude Code versions in START_READ_ON below; the live proof does
+// not cover it). The hook resolves the packet to its run folder, takes the seat id from the
+// packet's file name, reads that seat's record in the run's seats.json and holds the call to
+// the record's `start` (the rule of lib.seatStart in scripts/lib.js, mirrored here so the hook
+// requires nothing but fs and path; tests/seat_scope_check.js keeps the two equal): a record
+// that says `session` is started with no model choice, so the agent file's model: inherit
+// leaves the seat on the session's own model; a record that says `named` is started with one.
+// The model passed is not compared to the record's name: the host records the name it reports
+// and passes the tool's own choice string, and the two differ by design. A start the hook
+// cannot place (no task lines, a packet outside a run's rounds folder, an answer file outside
+// the run, no seats.json, no record for the seat) and the start of an outside seat, which goes
+// through the add-on and never the agent tool, are denied with the reason. Any other call of
+// those two tools, and every other tool from a caller that is not a seat, is untouched.
+//
 // Output on deny: one JSON line, hookSpecificOutput.permissionDecision "deny" with the reason,
 // exit 0 (the documented form). On allow: nothing, exit 0, so the session's own permission
 // rules still apply. The hook reads the transcript record and the file system; it writes
@@ -27,6 +46,9 @@ var fs=require('fs'), path=require('path');
 
 // The Claude Code version the live proof last ran on (tests/seat_scope_live.js). One copy.
 var PROVED_ON='2.1.301';
+// The Claude Code versions the start call's shape was read on, from the host's transcripts. One copy.
+var START_READ_ON='2.1.319 to 2.1.322';
+var START_TOOLS=['Agent','Task'];
 var SEAT_TYPES=['cw:seat','seat'];
 var SEAT_TOOLS=['Read','Write'];
 var ISSUES='github.com/LearningProducers/CombatWriting-Plugin/issues';
@@ -81,6 +103,38 @@ function pathsOf(task){
   return packet&&answer?{packet:packet[1],answer:answer[1]}:null;
 }
 
+// How the record says a seat starts: the rule of lib.seatStart (scripts/lib.js), kept equal by the test.
+function startOf(seat){
+  if(seat.provider)return 'outside';
+  if(seat.start==='session'||seat.start==='named')return seat.start;
+  return /model named at start/.test(seat.source||'')?'named':'session';
+}
+// The call that starts a seat, from a caller that is not one: held to the seat record's start.
+function judgeStart(input){
+  var ti=input.tool_input;
+  var cwd=typeof input.cwd==='string'&&input.cwd?input.cwd:process.cwd();
+  var paths=pathsOf(typeof ti.prompt==='string'?ti.prompt:'');
+  if(!paths)return deny('the call that starts a seat names no packet or answer file (its task opens with the two lines `Packet: <path>` and `Answer file: <path>`, the start call as Claude Code '+START_READ_ON+' writes it); the seat is not started');
+  var packet=placeExisting(paths.packet,cwd);
+  if(!packet)return deny('the packet named in the seat\'s task cannot be placed; the seat is not started');
+  var runDir=path.dirname(path.dirname(packet)), m=/^(seat-\d+)\.(?:[a-z0-9-]+\.)?packet\.md$/.exec(path.basename(packet));
+  if(path.basename(runDir)!=='rounds'||!m)return deny('the packet named in the seat\'s task is not a seat\'s packet inside a run\'s rounds folder; the seat is not started');
+  runDir=path.dirname(runDir);
+  var answer=placeTarget(paths.answer,cwd);
+  if(!answer||!inside(answer,runDir))return deny('the answer file named in the seat\'s task is not inside the run folder; the seat is not started');
+  var seats=null;
+  try{ seats=JSON.parse(fs.readFileSync(path.join(runDir,'seats.json'),'utf8')).seats; }catch(e){}
+  if(!Array.isArray(seats))return deny('the run folder holds no seats.json the hook can read, so the seat\'s record cannot be placed; the seat is not started');
+  var id=m[1], seat=seats.filter(function(s){ return s&&s.id===id; })[0];
+  if(!seat)return deny(id+' has no record in the run\'s seats.json; the seat is not started');
+  var start=startOf(seat);
+  if(start==='outside')return deny(id+' is an outside seat (its record carries a provider) and is never started through the agent tool; call the add-on\'s crew_answer with the run, the round and the seat');
+  var passed=typeof ti.model==='string'&&ti.model.trim()!=='';
+  if(start==='session'&&passed)return deny(id+'\'s record says it runs on the session\'s own model; start '+id+' again with no model choice');
+  if(start==='named'&&!passed)return deny(id+'\'s record names '+(typeof seat.model==='string'&&seat.model?seat.model:'a model')+'; start '+id+' again and pass that model as the agent tool\'s model choice');
+  return allow();
+}
+
 var raw='';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data',function(c){ raw+=c; });
@@ -92,7 +146,12 @@ process.stdin.on('end',function(){
     return allow();
   }
   if(!input||input.hook_event_name!=='PreToolUse')return allow();
-  if(SEAT_TYPES.indexOf(input.agent_type)<0)return allow();  // the host or another agent: untouched
+  if(SEAT_TYPES.indexOf(input.agent_type)<0){
+    // The host or another agent: one judgment, the call that starts a seat; everything else untouched.
+    var ti=input.tool_input;
+    if(START_TOOLS.indexOf(input.tool_name)>=0&&ti&&typeof ti==='object'&&SEAT_TYPES.indexOf(ti.subagent_type)>=0)return judgeStart(input);
+    return allow();
+  }
   // From here on the caller is a seat: anything the hook cannot place is denied.
   var tool=input.tool_name;
   if(SEAT_TOOLS.indexOf(tool)<0)return deny('a seat uses '+SEAT_TOOLS.join(' and ')+' only; '+tool+' is not open to it');
