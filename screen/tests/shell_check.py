@@ -10,7 +10,9 @@
 # turns the freshness line stale with the time; a wrong plugin root is said on screen; a
 # newer run appearing is followed; --light takes the light palette; a tick after the screen
 # stack is empty returns instead of reading self.screen (issue 64); a tick on a screen that
-# is still mounted with its widgets already removed returns too (issue 191); the package's own
+# is still mounted with its widgets already removed returns too (issue 191); the screen
+# started on a run with no rounds (new-run.js --stage strategy) shows the "No rounds yet" line
+# once and survives two draws in a row with no rounds (issue 192); the package's own
 # __version__, the string --version prints, equals the version in pyproject.toml (issue 149).
 #
 # Run from screen/:   uv run python tests/shell_check.py        Exit 0 on pass, 1 on failure.
@@ -20,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import shutil
 import sys
+import tempfile
 import time
 import tomllib
 from pathlib import Path
@@ -192,6 +195,39 @@ async def main():
             check(False, f"shell: a tick on a mounted screen with no widgets should return, not raise: {type(e).__name__}: {e}")
     shutil.rmtree(proj4, ignore_errors=True)
     shutil.rmtree(proj, ignore_errors=True)
+
+    # Issue 192: the screen started on a run with no rounds, the state right after strategy,
+    # built here with new-run.js --stage strategy. The briefing draws once when it is shown,
+    # before any state, and again when the first state arrives: two draws with no rounds, each
+    # mounting the "no rounds" line while the line of the draw before is still in the box. A
+    # second widget under one fixed id raised DuplicateIds from the render worker and took the
+    # screen with it. Every other block of this file starts on a run that has a round.
+    proj5 = Path(tempfile.mkdtemp(prefix="cw-screen-"))
+    (proj5 / "draft.md").write_text("Dear board, buy the company.\n")
+    (proj5 / "brief.md").write_text("CEO. Get a yes.\n")
+    r = node("new-run.js", ["--readers", "1", "--draft", "draft.md", "--brief", "brief.md", "--name", "norounds", "--stage", "strategy", "--model", "Test Model"], proj5)
+    check(r.returncode == 0, "shell: new-run.js --stage strategy failed: " + r.stderr.strip())
+    run5 = Path(r.stdout.strip())
+    check(not any((run5 / "rounds").iterdir()), "shell: the issue 192 case needs a run with no rounds")
+    app5 = CwScreen(project=proj5, plugin_root=PLUGIN_ROOT, interval=0.2)
+    try:
+        async with app5.run_test(size=(110, 44)) as pilot:
+            from textual.containers import Vertical
+            took = await wait_for(app5, pilot, lambda t: "No rounds yet" in t and not app5.rendering)
+            text = app5.screen_text()
+            check(took is not None and run5.name in text, "shell: started on a run with no rounds, the screen should read \"No rounds yet\"; it reads:\n" + text)
+            check(app5.state is not None and app5.state.get("rounds") == [], "shell: the issue 192 case needs a state with no rounds")
+            check(text.count("No rounds yet") == 1, f"shell: the \"No rounds yet\" line should show once, shows {text.count('No rounds yet')} times")
+            # Two draws in a row with no rounds, nothing awaited between them.
+            app5.screen.apply(app5.state, None)
+            app5.screen.apply(app5.state, None)
+            await pilot.pause(0.3)
+            text = app5.screen_text()
+            dialogue = app5.screen.query_one("#dialogue", Vertical)
+            check(text.count("No rounds yet") == 1 and len(dialogue.children) == 1, f"shell: after two draws in a row with no rounds the dialogue should hold the one \"No rounds yet\" line; it holds {len(dialogue.children)} widgets and the line shows {text.count('No rounds yet')} times")
+    except Exception as e:  # noqa: BLE001
+        check(False, f"shell: the screen started on a run with no rounds should draw, not raise: {type(e).__name__}: {e}")
+    shutil.rmtree(proj5, ignore_errors=True)
 
 
 asyncio.run(main())
