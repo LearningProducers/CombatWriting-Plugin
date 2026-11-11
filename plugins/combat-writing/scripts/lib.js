@@ -615,9 +615,17 @@ function sessionModelOf(log){
 // record, its label and its seat key are never rewritten from it: the seats quote each other by
 // the labels their packets carry, and a label that changed between rounds would break the
 // attribution the flip check holds. The measured id is shown beside the label instead.
+// The log is a file a hand can edit, and what it holds is printed on every result, so a line is
+// read only when its seat is a seat id, its round a round folder's name and its model a model
+// id by MODEL_ID_RE (letters, digits, dot, dash, underscore, slash, colon and square brackets,
+// at most 120: no space, no line break); the hook writes ids of that class alone and carries
+// the same pattern (hooks/show-result.js, kept equal by the test). A session, a start choice or
+// a list of ids on a line that is anything else is read as not there.
+var MODEL_ID_RE=/^[A-Za-z0-9._\/:\[\]-]{1,120}$/;
+function isModelId(v){ return typeof v==='string'&&MODEL_ID_RE.test(v); }
 function seatModels(log){
   var out={};
-  (log||[]).forEach(function(e){ if(e&&e.event==='seat.model'&&e.seat&&typeof e.round==='string'&&e.model)(out[e.seat]=out[e.seat]||{})[e.round]=e; });
+  (log||[]).forEach(function(e){ if(e&&e.event==='seat.model'&&typeof e.seat==='string'&&/^seat-\d+$/.test(e.seat)&&typeof e.round==='string'&&/^\d\d-[a-z][a-z0-9-]*$/.test(e.round)&&isModelId(e.model))(out[e.seat]=out[e.seat]||{})[e.round]=e; });
   return out;
 }
 // The latest round the log names, by the round folders' own order (nn-kind sorts as text).
@@ -638,7 +646,7 @@ function measuredModels(seats,log){
   if(!round||!fresh.some(function(s){ return by[s.id]&&by[s.id][round]; }))return null;
   var ids={}; fresh.forEach(function(s){ ids[s.id]=true; });
   var session=null;
-  (log||[]).forEach(function(e){ if(e&&e.event==='seat.model'&&e.round===round&&ids[e.seat]&&by[e.seat]&&by[e.seat][round]===e&&typeof e.session==='string'&&e.session)session=e.session; });
+  (log||[]).forEach(function(e){ if(e&&e.event==='seat.model'&&e.round===round&&ids[e.seat]&&by[e.seat]&&by[e.seat][round]===e&&isModelId(e.session))session=e.session; });
   var latest={}, changes=[];
   fresh.forEach(function(s){
     var rounds=Object.keys(by[s.id]||{}).sort();
@@ -652,13 +660,15 @@ function measuredModels(seats,log){
   return {round:round,session:session,latest:latest,changes:changes};
 }
 // One change in words: "seat-1 answered on <id> from round <round> (<YYYY-MM-DD HH:MM UTC>), where it answered on <earlier id> before."
+// A time that is no date is left out, as fallbackWords leaves it out: the sentence is said without it.
 function modelChangeWords(c){
-  return c.seat+' answered on '+c.model+' from round '+c.round+(c.ts?' ('+whenUtc(c.ts)+')':'')+', where it answered on '+c.before+' before.';
+  return c.seat+' answered on '+c.model+' from round '+c.round+(c.ts&&!isNaN(new Date(c.ts))?' ('+whenUtc(c.ts)+')':'')+', where it answered on '+c.before+' before.';
 }
 // The measured lines for the record and the board's Run details: one per fresh reader per round
 // with a measured model, in round order: the id that answered (and every id its replies carry,
 // in order, when more than one), the model choice passed at its start or that none was, the
-// session's own id, and where the line was read from. Empty when nothing was measured.
+// session's own id, and where the line was read from (and that it was the end of a long
+// transcript, when the hook's read was partial). Empty when nothing was measured.
 var MEASURED_HEADING='Models measured';
 var MEASURED_NOTE='A seat\'s label is the name the run recorded, the host\'s word; the model that answered is read from the model id on the seat\'s own replies, one line per fresh reader per round.';
 var MEASURED_SOURCE='read from the seat\'s own transcript';
@@ -669,10 +679,11 @@ function measuredLines(seats,log){
   });
   out.sort(function(a,b){ return a.round<b.round?-1:a.round>b.round?1:0; });
   return out.map(function(e){
-    var many=Array.isArray(e.models)&&e.models.length>1;
+    var many=Array.isArray(e.models)&&e.models.length>1&&e.models.every(isModelId);
+    var unread=e.meta===false||(e.passed!==null&&e.passed!==undefined&&!isModelId(e.passed));
     return e.seat+', round '+e.round+': answered on '+e.model+(many?' (its replies carry '+e.models.join(', then ')+')':'')+'; '
-      +(e.passed?'passed at start: '+e.passed:e.meta===false?'the start choice could not be read':'none passed at start')+'; '
-      +(e.session?'the session on '+e.session:'the session\'s own model could not be read')+'; '+MEASURED_SOURCE+'.';
+      +(isModelId(e.passed)?'passed at start: '+e.passed:unread?'the start choice could not be read':'none passed at start')+'; '
+      +(isModelId(e.session)?'the session on '+e.session:'the session\'s own model could not be read')+'; '+MEASURED_SOURCE+(e.partial===true?', the end of a long one':'')+'.';
   });
 }
 // The Models line: one plain line naming every fresh reader that is not on the session's own
@@ -1715,7 +1726,7 @@ module.exports={
   DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,runSlug:runSlug,thisRunLine:thisRunLine,runSummary:runSummary,runsLine:runsLine,listRunSummaries:listRunSummaries,matchRuns:matchRuns,NO_RATING_LINE:NO_RATING_LINE,
   SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,addonStateLine:addonStateLine,crewStateLines:crewStateLines,
   seatStart:seatStart,sessionModelOf:sessionModelOf,modelsLine:modelsLine,SOURCE_NAMED:SOURCE_NAMED,SOURCE_SESSION:SOURCE_SESSION,seatFallbacks:seatFallbacks,fallbackWords:fallbackWords,FALLBACK_REASON_SHOWN:FALLBACK_REASON_SHOWN,
-  seatModels:seatModels,measuredModels:measuredModels,modelChangeWords:modelChangeWords,measuredLines:measuredLines,MEASURED_HEADING:MEASURED_HEADING,MEASURED_NOTE:MEASURED_NOTE,MEASURED_SOURCE:MEASURED_SOURCE,
+  MODEL_ID_RE:MODEL_ID_RE,isModelId:isModelId,seatModels:seatModels,measuredModels:measuredModels,modelChangeWords:modelChangeWords,measuredLines:measuredLines,MEASURED_HEADING:MEASURED_HEADING,MEASURED_NOTE:MEASURED_NOTE,MEASURED_SOURCE:MEASURED_SOURCE,
   MAX_FRESH_READERS:MAX_FRESH_READERS,READERS_FILE:READERS_FILE,READERS_REL:READERS_REL,freshReaders:freshReaders,crewAloneWords:crewAloneWords,readersPicksPath:readersPicksPath,readReaderPicks:readReaderPicks,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,

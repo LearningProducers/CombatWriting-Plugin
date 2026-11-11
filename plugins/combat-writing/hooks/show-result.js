@@ -46,30 +46,58 @@
 // seat's replies. The seat id and the round come from the answer file's place in the run
 // (rounds/<round>/<seat>.answer.md, and the final reads' and the second pass's own names); both
 // paths are literal or the hook does nothing (a token holding `$` or a backtick is no path, the
-// rule above). The seat's own transcript is the newest of
-// <session dir>/<session_id>/subagents/agent-*.jsonl whose first user record, the seat's task,
-// names that seat's packet for that round on its `Packet:` line (a seat sent back once has two).
-// From it the hook reads the model id on each assistant record, and from the file beside it,
-// agent-<id>.meta.json, the model choice the host passed when it started the seat; from the
-// session's own transcript, the model id on its newest reply that is not a subagent's. It
-// appends one line to the run's log, `seat.model` {seat, round, model, passed, session, by:
+// rule above), the run's seats.json must hold the seat and the seat's packet for that round must
+// be a file in the run, so a folder that only looks like a run gets no line.
+//
+// What the hook opens for it, all of it: to find the seat's transcript it lists
+// <session dir>/<session_id>/subagents/agent-*.jsonl, every subagent's transcript of that
+// session, asks each its time, and opens up to 200 of them, newest first, reading the first
+// 64 KiB of each for its task (the first user record) and in the task the first lines alone:
+// the transcript whose `Packet:` line names that seat's packet for that round is the seat's (a
+// seat sent back once has two; the newest is read). Of the match it reads the replies' model id
+// field and nothing else, from the END of the file (the whole of it under 8 MiB, its last 8 MiB
+// past that), so the id named as the one that answered is the last reply's. It reads the small
+// file beside the match, agent-<id>.meta.json, for the model choice the host passed when it
+// started the seat. It reads the last 2 MiB of the session's own transcript for the model id
+// on its newest reply that is not a subagent's. None of that text reaches any output: the line
+// below holds ids and places, and the hook prints nothing for it and tells the host nothing.
+//
+// It appends one line to the run's log, `seat.model` {seat, round, model, passed, session, by:
 // "hook"}: model is the id that answered (the last when the replies carry more than one, with
 // `models` listing them in order), passed the choice string or null, session the session's id
-// or null. Nothing is written twice: a log whose latest seat.model line for that seat and round
-// holds the same model is left as it is. An outside seat (its record carries a provider) has no
-// transcript here and is never measured. A transcript the hook cannot place (another host, a
-// moved layout) means no line and no word on the screen: the run keeps the recorded name, as
-// before. The work is bounded: at most eight checks from one command; the first 64 KiB of at
-// most 200 transcripts, newest first, for the task; the first 8 MiB of the one matching
-// transcript for its model fields; the last 2 MiB of the session's (a session whose last 2 MiB
-// holds no reply of its own gives session null).
-// Of those files it reads the task's lines and the model id fields, and nothing of the
-// conversation reaches any output. For this the hook prints nothing and tells the host nothing.
+// or null; `partial: true` rides when the transcript was longer than the read, and `meta:
+// false` when the start choice could not be read (no file beside the transcript, or a choice
+// that is no model id), so "none passed" is never said of a start nobody read. An id is taken
+// only when it is of the class a model id is written in (MODEL_ID_RE: letters, digits, dot,
+// dash, underscore, slash, colon, square brackets, at most 120, no space and no line break): a
+// reply whose id is anything else means no line, and a session's or a start choice's that is
+// anything else is null. Nothing is written twice: a log whose latest seat.model line for that
+// seat and round holds the same model is left as it is. An outside seat (its record carries a
+// provider) has no transcript here and is never measured. A transcript the hook cannot place
+// (another host, a moved layout) means no line and no word on the screen: the run keeps the
+// recorded name, as before.
+//
+// Every read of the measurement goes through one reader (bytesOf): the file is opened without
+// blocking and must be a regular file, so a pipe or a device in a file's place is passed over
+// and never waited on, and the read is capped: at most eight checks from one command; 64 KiB
+// for the run's seats.json and for the meta file (one over the cap is passed over); 64 KiB of a
+// transcript for its task, a `Packet:` line read by splitting and trimming, never by a pattern
+// that can backtrack, and no longer than 4,096 characters; 8 MiB of the match; 2 MiB of the
+// session's (a session whose last 2 MiB holds no reply of its own gives session null); the last
+// 8 MiB of the run's log for the line already there. Up to 5,000 agent files are asked their
+// time before the list is cut, so the newest is found in a folder of more than 200.
+//
+// Named and not cured: two checks run at the same instant can each write the line (the output
+// reads the latest per seat and round, so it shows once); a command that only mentions
+// check-answer.js with both real paths writes the line (true to the transcript, and written
+// once); an agent-*.jsonl that is a symlink inside the session's folder is followed. The older
+// reads of this hook (the round's voices.json, the log's board.opened lines) are as they were.
 // The transcript shape was read on the Claude Code versions in MODEL_READ_ON, from the host's
 // own files, not proved on a live round.
 //
 // Silent (no output, exit 0) on any other event, tool or command, and on input it cannot read.
-// It reads the hook input and, from the run folder, seats.json's existence and one seat's record,
+// It reads the hook input and, from the run folder, seats.json (its existence, and one seat's record),
+// the seat's packet's existence,
 // the round's voices.json, the log's board.opened and seat.model lines and board.html's existence;
 // from the session's folder, the files named under THE MEASURED MODEL; it writes log lines to the
 // run and nothing else, one when it opened the board and one per seat's model it measured; it
@@ -89,9 +117,16 @@ var AGENT_FILE_RE=/^agent-[A-Za-z0-9_-]+\.jsonl$/, ID_RE=/^[A-Za-z0-9_-]+$/;
 var SEAT_TYPES=['cw:seat','seat'];
 // A record that is no reply carries this in place of a model id.
 var NOT_A_REPLY='<synthetic>';
-// The bounds of the measurement: checks read from one command, transcripts listed and opened,
-// bytes read for a task, from the seat's transcript and from the end of the session's, ids kept.
-var CHECKS_MAX=8, AGENTS_LISTED_MAX=2000, AGENTS_READ_MAX=200, TASK_BYTES=65536, SEAT_BYTES=8388608, SESSION_BYTES=2097152, MODEL_ID_MAX=120, MODELS_MAX=12;
+// The class a model id is written in: letters, digits, dot, dash, underscore, slash, colon and
+// square brackets, at most 120, no space and no line break. The rule of lib.MODEL_ID_RE in
+// scripts/lib.js, mirrored here so the hook requires nothing of the plugin's; the test keeps the two equal.
+var MODEL_ID_RE=/^[A-Za-z0-9._\/:\[\]-]{1,120}$/;
+// The bounds of the measurement: checks read from one command, agent files asked their time and
+// opened, bytes read for a task, from the end of the seat's transcript and of the session's, for a
+// small JSON file and from the end of the run's log, characters of a Packet line, ids kept.
+var CHECKS_MAX=8, AGENTS_STAT_MAX=5000, AGENTS_READ_MAX=200, TASK_BYTES=65536, SEAT_BYTES=8388608, SESSION_BYTES=2097152, SMALL_BYTES=65536, LOG_BYTES=8388608, PACKET_LINE_MAX=4096, MODELS_MAX=12;
+// Opened for reading without blocking: a pipe in a file's place returns at once and is then refused by its kind.
+var OPEN_FLAGS=fs.constants.O_RDONLY|(fs.constants.O_NONBLOCK||0);
 var SHORT_RE=/render-record\.js\b.*--short\b/, OPENER_RE=/open-board\.js\b/;
 var SPEAK_RE=/speak\.js\b.*--run\b/, BOARD_RE=/render-board\.js\b/;
 var SILENCED=/^Voices: the speech engine wrote no sound in this shell[^;]*; .* owed for round (\S+?)(?: of (.+?))?\.$/m;
@@ -213,6 +248,30 @@ function logOpened(board,ok,reason,cmd){
 function wordsOf(s){ var out=[], re=/"([^"]*)"|'([^']*)'|(\S+)/g, m; while((m=re.exec(s)))out.push(m[1]!==undefined?m[1]:m[2]!==undefined?m[2]:m[3]); return out; }
 function real(p){ try{ return fs.realpathSync(p); }catch(e){ return path.resolve(p); } }
 function samePath(a,b){ return process.platform==='win32'?a.toLowerCase()===b.toLowerCase():a===b; }
+function isModelId(v){ return typeof v==='string'&&MODEL_ID_RE.test(v); }
+// The one reader of the measurement: a regular file only, at most `max` bytes, from the head or
+// from the end. The file is opened without blocking and asked what it is before a byte is read,
+// so a pipe or a device in a file's place is never waited on. {text, size, partial} or null.
+function bytesOf(file,max,fromEnd){
+  var fd=null;
+  try{
+    fd=fs.openSync(file,OPEN_FLAGS);
+    var st=fs.fstatSync(fd); if(!st.isFile())return null;
+    var length=Math.min(st.size,max), start=fromEnd?st.size-length:0, buf=Buffer.alloc(length), got=0, n;
+    while(got<length&&(n=fs.readSync(fd,buf,got,length-got,start+got))>0)got+=n;
+    return {text:buf.toString('utf8',0,got),size:st.size,partial:st.size>length};
+  }catch(e){ return null; }
+  finally{ if(fd!==null)try{ fs.closeSync(fd); }catch(e){} }
+}
+// A small JSON file, read through the same reader: {absent} when nothing is there, {refused} when
+// what is there is no regular file or is over SMALL_BYTES, {unread} when it does not parse to an
+// object, {value} otherwise.
+function smallJson(file){
+  var st; try{ st=fs.statSync(file); }catch(e){ return e&&e.code==='ENOENT'?{absent:true}:{refused:true}; }
+  if(!st.isFile()||st.size>SMALL_BYTES)return {refused:true};
+  var part=bytesOf(file,SMALL_BYTES,false); if(!part||part.partial)return {refused:true};
+  try{ var v=JSON.parse(part.text); return v&&typeof v==='object'?{value:v}:{unread:true}; }catch(e){ return {unread:true}; }
+}
 // The checks a command ran: the answer file (the first word that is no option, as check-answer.js
 // reads its arguments) and the --run folder of each check-answer.js segment, literal paths only.
 function checksOf(command,cwd){
@@ -231,27 +290,24 @@ function checksOf(command,cwd){
 }
 // The seat, the round and the packet an answer file belongs to, from its place in the run; null
 // when it is not a seat's answer two levels under the run's rounds folder, when the run holds no
-// log or no record for the seat, and for an outside seat.
+// record for the seat, for an outside seat, and when the seat's packet for that round is not a
+// file in the run (a folder that only looks like a run gets no line).
 function seatOf(check){
   var rel=path.relative(check.run,check.answer).split(path.sep);
   if(rel.length!==3||rel[0]!=='rounds'||!ROUND_RE.test(rel[1]))return null;
   var m=ANSWER_RE.exec(rel[2]); if(!m)return null;
-  if(!fs.existsSync(path.join(check.run,'log.jsonl')))return null;
-  var seats=null; try{ seats=JSON.parse(fs.readFileSync(path.join(check.run,'seats.json'),'utf8')).seats; }catch(e){}
-  var seat=Array.isArray(seats)?seats.filter(function(s){ return s&&s.id===m[1]; })[0]:null;
+  var seats=smallJson(path.join(check.run,'seats.json')).value;
+  seats=seats&&Array.isArray(seats.seats)?seats.seats:null;
+  var seat=seats?seats.filter(function(s){ return s&&s.id===m[1]; })[0]:null;
   if(!seat||seat.provider)return null;
-  return {seat:m[1],round:rel[1],packet:path.join(check.run,'rounds',rel[1],m[1]+m[2]+'.packet.md')};
-}
-function bytesOf(file,start,length){
-  var fd=null;
-  try{ fd=fs.openSync(file,'r'); var buf=Buffer.alloc(length), n=fs.readSync(fd,buf,0,length,start); return buf.toString('utf8',0,n); }
-  catch(e){ return null; }
-  finally{ if(fd!==null)try{ fs.closeSync(fd); }catch(e){} }
+  var packet=path.join(check.run,'rounds',rel[1],m[1]+m[2]+'.packet.md');
+  try{ if(!fs.statSync(packet).isFile())return null; }catch(e){ return null; }
+  return {seat:m[1],round:rel[1],packet:packet};
 }
 // A transcript's task: its first user record, from the file's first bytes (the rule of seat-scope.js).
 function taskOf(file){
-  var text=bytesOf(file,0,TASK_BYTES); if(text===null)return null;
-  var lines=text.split('\n');
+  var part=bytesOf(file,TASK_BYTES,false); if(!part)return null;
+  var lines=part.text.split('\n');
   for(var i=0;i<lines.length;i++){
     if(!lines[i].trim())continue;
     var rec; try{ rec=JSON.parse(lines[i]); }catch(e){ return null; }
@@ -263,52 +319,73 @@ function taskOf(file){
   }
   return null;
 }
-function modelIdOf(rec){
-  var id=rec&&rec.type==='assistant'&&rec.message?rec.message.model:null;
-  return typeof id==='string'&&id.trim()&&id!==NOT_A_REPLY&&id.length<=MODEL_ID_MAX?id.trim():null;
+// The path on a task's `Packet:` line: the first line that opens with the word, split and trimmed
+// with string methods (no pattern that can backtrack: the hook reads every agent's task of the
+// session, and a pattern's cost on one long line of spaces was measured in seconds). A line past
+// PACKET_LINE_MAX characters is no path.
+function packetLineOf(task){
+  var lines=task.split('\n');
+  for(var i=0;i<lines.length;i++){
+    if(lines[i].indexOf('Packet:')!==0)continue;
+    if(lines[i].length>PACKET_LINE_MAX)return null;
+    return lines[i].slice(7).trim()||null;
+  }
+  return null;
 }
-// The seat's own transcript for a packet: the newest agent file of the session whose task names it.
+// The seat's own transcript for a packet: the newest agent file of the session whose task names
+// it. Every agent file is asked its time first (up to AGENTS_STAT_MAX), the list is put newest
+// first, and only then cut to the AGENTS_READ_MAX that are opened.
 function transcriptOf(input,packet,cwd){
   var tp=input.transcript_path, sid=input.session_id;
   if(typeof tp!=='string'||typeof sid!=='string'||!ID_RE.test(sid))return null;
   var dir=path.join(path.dirname(tp),sid,'subagents'), names;
   try{ names=fs.readdirSync(dir); }catch(e){ return null; }
   var files=[];
-  names.filter(function(n){ return AGENT_FILE_RE.test(n); }).slice(0,AGENTS_LISTED_MAX).forEach(function(n){
-    try{ var st=fs.statSync(path.join(dir,n)); if(st.isFile())files.push({file:path.join(dir,n),mtime:st.mtimeMs,size:st.size}); }catch(e){}
+  names.filter(function(n){ return AGENT_FILE_RE.test(n); }).slice(0,AGENTS_STAT_MAX).forEach(function(n){
+    try{ var st=fs.statSync(path.join(dir,n)); if(st.isFile())files.push({file:path.join(dir,n),mtime:st.mtimeMs}); }catch(e){}
   });
   files.sort(function(a,b){ return b.mtime-a.mtime||(a.file<b.file?1:-1); });
+  files=files.slice(0,AGENTS_READ_MAX);
   var want=real(packet);
-  for(var i=0;i<files.length&&i<AGENTS_READ_MAX;i++){
-    var task=taskOf(files[i].file), m=task?/^Packet:[ \t]*(.+?)[ \t]*$/m.exec(task):null;
-    if(!m||!samePath(real(path.resolve(cwd,m[1])),want))continue;
-    var meta=null; try{ meta=JSON.parse(fs.readFileSync(files[i].file.replace(/\.jsonl$/,'.meta.json'),'utf8')); }catch(e){}
-    if(meta&&typeof meta.agentType==='string'&&SEAT_TYPES.indexOf(meta.agentType)<0)continue; // another agent handed the same packet is no seat
-    return {file:files[i].file,size:files[i].size,meta:meta&&typeof meta==='object'?meta:null};
+  for(var i=0;i<files.length;i++){
+    var task=taskOf(files[i].file), named=task?packetLineOf(task):null;
+    if(!named||!samePath(real(path.resolve(cwd,named)),want))continue;
+    var meta=smallJson(files[i].file.replace(/\.jsonl$/,'.meta.json'));
+    if(meta.refused)continue; // something that is no small file sits where the start choice is kept: not a transcript to trust
+    if(meta.value&&typeof meta.value.agentType==='string'&&SEAT_TYPES.indexOf(meta.value.agentType)<0)continue; // another agent handed the same packet is no seat
+    return {file:files[i].file,meta:meta.value||null};
   }
   return null;
 }
-// The model ids on a transcript's replies, in order, a run of one id counted once; null when it holds none.
-function modelsOf(file,size){
-  var text=bytesOf(file,0,Math.min(size,SEAT_BYTES)); if(text===null)return null;
-  var ids=[];
-  text.split('\n').forEach(function(l){
-    if(l.indexOf('"assistant"')<0)return;
-    var rec; try{ rec=JSON.parse(l); }catch(e){ return; }
-    var id=modelIdOf(rec); if(id&&ids[ids.length-1]!==id)ids.push(id);
-  });
-  return ids.length?ids:null;
+// The model ids on a transcript's replies, in order, a run of one id counted once, read from the
+// END of the file (the whole of it when it is under SEAT_BYTES), so the last id is the last
+// reply's; partial says the file was longer than the read. Null when it holds no reply, and
+// when a reply's id is not of the class a model id is written in: nothing is measured from it.
+function modelsOf(file){
+  var part=bytesOf(file,SEAT_BYTES,true); if(!part)return null;
+  var lines=part.text.split('\n'), ids=[]; if(part.partial)lines.shift(); // the first line of a tail is a cut one
+  for(var i=0;i<lines.length;i++){
+    if(lines[i].indexOf('"assistant"')<0)continue;
+    var rec; try{ rec=JSON.parse(lines[i]); }catch(e){ continue; }
+    var id=rec&&rec.type==='assistant'&&rec.message?rec.message.model:null;
+    if(typeof id!=='string'||id===NOT_A_REPLY)continue;
+    if(!isModelId(id))return null;
+    if(ids[ids.length-1]!==id)ids.push(id);
+  }
+  return ids.length?{ids:ids,partial:part.partial}:null;
 }
-// The session's own model: the id on the newest reply of the session's transcript that is not a subagent's.
+// The session's own model: the id on the newest reply of the session's transcript that is not a
+// subagent's, from the file's last SESSION_BYTES; null when there is none or it is no model id.
 function sessionModelOf(tp){
-  var size; try{ size=fs.statSync(tp).size; }catch(e){ return null; }
-  var start=Math.max(0,size-SESSION_BYTES), text=bytesOf(tp,start,size-start); if(text===null)return null;
-  var lines=text.split('\n'); if(start>0)lines.shift(); // the first line of a tail is a cut one
+  var part=typeof tp==='string'?bytesOf(tp,SESSION_BYTES,true):null; if(!part)return null;
+  var lines=part.text.split('\n'); if(part.partial)lines.shift(); // the first line of a tail is a cut one
   for(var i=lines.length-1;i>=0;i--){
     if(lines[i].indexOf('"assistant"')<0)continue;
     var rec; try{ rec=JSON.parse(lines[i]); }catch(e){ continue; }
-    if(rec&&rec.isSidechain)continue;
-    var id=modelIdOf(rec); if(id)return id;
+    if(!rec||rec.type!=='assistant'||rec.isSidechain||!rec.message)continue;
+    var id=rec.message.model;
+    if(typeof id!=='string'||id===NOT_A_REPLY)continue;
+    return isModelId(id)?id:null;
   }
   return null;
 }
@@ -316,16 +393,19 @@ function measureSeats(input,command){
   var cwd=typeof input.cwd==='string'&&input.cwd?input.cwd:process.cwd(), session;
   checksOf(command,cwd).forEach(function(check){ try{
     var place=seatOf(check); if(!place)return;
+    var logFile=path.join(check.run,'log.jsonl'), log=bytesOf(logFile,LOG_BYTES,true); if(!log)return;
     var found=transcriptOf(input,place.packet,cwd); if(!found)return;
-    var ids=modelsOf(found.file,found.size); if(!ids)return;
-    var model=ids[ids.length-1], logFile=path.join(check.run,'log.jsonl'), last=null;
-    fs.readFileSync(logFile,'utf8').split('\n').forEach(function(l){ if(l.indexOf('seat.model')<0)return; try{ var e=JSON.parse(l); if(e.event==='seat.model'&&e.seat===place.seat&&e.round===place.round)last=e; }catch(x){} });
+    var read=modelsOf(found.file); if(!read)return;
+    var model=read.ids[read.ids.length-1], last=null, logLines=log.text.split('\n'); if(log.partial)logLines.shift();
+    logLines.forEach(function(l){ if(l.indexOf('seat.model')<0)return; try{ var e=JSON.parse(l); if(e.event==='seat.model'&&e.seat===place.seat&&e.round===place.round)last=e; }catch(x){} });
     if(last&&last.model===model)return; // measured already: nothing is written twice
     if(session===undefined)session=sessionModelOf(input.transcript_path);
     var line={ts:new Date().toISOString(),event:'seat.model',seat:place.seat,round:place.round,model:model};
-    if(ids.length>1)line.models=ids.slice(-MODELS_MAX);
-    line.passed=found.meta&&typeof found.meta.model==='string'&&found.meta.model.trim()?found.meta.model.trim().slice(0,MODEL_ID_MAX):null;
-    if(!found.meta)line.meta=false; // the file that holds the start choice could not be read: passed is unknown, not none
+    if(read.ids.length>1)line.models=read.ids.slice(-MODELS_MAX);
+    if(read.partial)line.partial=true; // the transcript was longer than the read: the ids are its end's
+    var passed=found.meta&&typeof found.meta.model==='string'?found.meta.model.trim():'';
+    line.passed=isModelId(passed)?passed:null;
+    if(!found.meta||(passed&&!isModelId(passed)))line.meta=false; // the start choice could not be read: passed is unknown, not none
     line.session=session; line.by='hook';
     fs.appendFileSync(logFile,JSON.stringify(line)+'\n');
   }catch(e){} });

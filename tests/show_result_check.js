@@ -64,6 +64,20 @@
 //     only names the script. The line carries the listed keys alone and none of the
 //     transcript's text. One command carrying a check and the short form yields both the line
 //     and the message.
+//   - THE MEASURED MODEL, hardened (issue 196): a pipe named as the meta file, as seats.json, as
+//     the run's log, as an agent transcript and as the session's transcript each return within a
+//     second (the legs are skipped by name where there is no mkfifo), nothing written but for the
+//     last, where the seat is measured and the session is null; a meta file or a seats.json over
+//     the small cap is passed over; a folder with a log, a seats.json and no packet gets no line
+//     and the same folder with its packet gets one; twenty tasks whose Packet line is 62,000
+//     spaces between two letters finish within a second and the seat's own transcript behind
+//     them is read; a reply's id holding a line break, a space, an angle bracket or 121
+//     characters is no measurement, an id of the class is taken, a start choice or a session id
+//     outside it is null; a transcript past the bytes read is logged with its LAST reply's id
+//     and `partial: true`; among 2,100 agent files the newest is found though the folder lists
+//     it last. The source: the id pattern equals lib.js's, every read of the measurement goes
+//     through the one bounded reader, which opens without blocking and reads a regular file
+//     alone, and the Packet line is read with no pattern.
 //   - hooks.json carries the PostToolUse entry on Bash with a timeout that covers the render; the source has
 //     the Shield header, the one PROVED_ON constant, the one MODEL_READ_ON constant, and spawns only the opener.
 //
@@ -276,8 +290,8 @@ var hostDir=path.join(tmp,'host'), SID='sess-1', sessionFile=path.join(hostDir,S
 fs.mkdirSync(agentsDir,{recursive:true});
 var SECRET='A reply the hook never reads.';
 function rec(type,extra,message){ return JSON.stringify(Object.assign({type:type,timestamp:'2026-11-10T14:00:00.000Z'},extra,{message:message})); }
-// The session's own transcript: a reply on claude-test-1, then a subagent's reply and a synthetic record, neither the session's.
-fs.writeFileSync(sessionFile,[rec('user',{},{role:'user',content:'spar this'}),rec('assistant',{},{role:'assistant',model:'claude-test-0',content:[{type:'text',text:SECRET}]}),rec('assistant',{},{role:'assistant',model:'claude-test-1',content:[{type:'text',text:SECRET}]}),rec('assistant',{isSidechain:true},{role:'assistant',model:'claude-test-9',content:[]}),rec('assistant',{},{role:'assistant',model:'<synthetic>',content:[]})].join('\n')+'\n');
+// The session's own transcript: a reply on test-id-1, then a subagent's reply and a synthetic record, neither the session's.
+fs.writeFileSync(sessionFile,[rec('user',{},{role:'user',content:'spar this'}),rec('assistant',{},{role:'assistant',model:'test-id-0',content:[{type:'text',text:SECRET}]}),rec('assistant',{},{role:'assistant',model:'test-id-1',content:[{type:'text',text:SECRET}]}),rec('assistant',{isSidechain:true},{role:'assistant',model:'test-id-9',content:[]}),rec('assistant',{},{role:'assistant',model:'<synthetic>',content:[]})].join('\n')+'\n');
 // One agent transcript: the task as the host writes it, one assistant record per id given, the meta file unless null, the file's time secondsAgo back.
 function agent(id,packet,answer,ids,meta,secondsAgo){
   var lines=[rec('user',{isSidechain:true,agentId:id},{role:'user',content:'Packet: '+packet+'\nAnswer file: '+answer+'\nRead the packet, write your answer to the answer file, reply with one line.'})];
@@ -294,41 +308,41 @@ function mute(name,r,lines){ check(r.status===0&&r.out===''&&r.stderr===''&&meas
 // No transcript: nothing written, nothing printed.
 mute('measured: no transcript for the seat',call(postM(checkCmd(answerM('01-sparring','seat-1')))),0);
 // seat-1: no model passed at start, its replies on the session's id; the real check's own output is what the hook is handed.
-agent('a1',packetM('01-sparring','seat-1'),answerM('01-sparring','seat-1'),['claude-test-1','claude-test-1'],{agentType:'cw:seat'},60);
+agent('a1',packetM('01-sparring','seat-1'),answerM('01-sparring','seat-1'),['test-id-1','test-id-1'],{agentType:'cw:seat'},60);
 var realCheck=node('check-answer.js',[answerM('01-sparring','seat-1'),'--run',runM]).stdout;
 check(/^seat-1 \S.* finished round 01-sparring: OK rating 8\/10/.test(realCheck),'measured: the real check-answer.js line, got '+JSON.stringify(realCheck.slice(0,120)));
 var filesBefore=fs.readdirSync(runM).sort().join(',');
 mute('measured: seat-1 after its check',call(postM(checkCmd(answerM('01-sparring','seat-1')),realCheck)),1);
 var l1=measuredM()[0]||{};
-check(l1.seat==='seat-1'&&l1.round==='01-sparring'&&l1.model==='claude-test-1'&&l1.passed===null&&l1.session==='claude-test-1'&&l1.by==='hook'&&!isNaN(Date.parse(l1.ts)),'measured: seat-1\'s line names the seat, the round, the id that answered, none passed, the session\'s id and the hook, got '+JSON.stringify(l1));
+check(l1.seat==='seat-1'&&l1.round==='01-sparring'&&l1.model==='test-id-1'&&l1.passed===null&&l1.session==='test-id-1'&&l1.by==='hook'&&!isNaN(Date.parse(l1.ts)),'measured: seat-1\'s line names the seat, the round, the id that answered, none passed, the session\'s id and the hook, got '+JSON.stringify(l1));
 check(Object.keys(l1).join(',')==='ts,event,seat,round,model,passed,session,by','measured: the line carries the listed keys alone (no models for one id, no meta when the file was read), got '+Object.keys(l1).join(','));
 check(logM().slice(-1)[0].event==='seat.model','measured: the line is the log\'s last, appended and nothing after it');
 // A second identical call writes nothing.
 mute('measured: a second identical call',call(postM(checkCmd(answerM('01-sparring','seat-1')),realCheck)),1);
 // seat-2 sent back: three transcripts for one packet; the newest by the file's time is read, and by name it is neither the first nor the last.
-agent('aa-first',packetM('01-sparring','seat-2'),answerM('01-sparring','seat-2'),['claude-test-3'],{agentType:'cw:seat',model:'test-c'},50);
-agent('zz-second',packetM('01-sparring','seat-2'),answerM('01-sparring','seat-2'),['claude-test-3'],{agentType:'cw:seat',model:'test-c'},45);
+agent('aa-first',packetM('01-sparring','seat-2'),answerM('01-sparring','seat-2'),['test-id-3'],{agentType:'cw:seat',model:'test-c'},50);
+agent('zz-second',packetM('01-sparring','seat-2'),answerM('01-sparring','seat-2'),['test-id-3'],{agentType:'cw:seat',model:'test-c'},45);
 // Its task names the packet through a link to the run folder: the two paths are compared resolved.
 var alias=path.join(tmp,'alias'); fs.symlinkSync(runM,alias);
-agent('mm-third',path.join(alias,'rounds','01-sparring','seat-2.packet.md'),answerM('01-sparring','seat-2'),['claude-test-2'],{agentType:'cw:seat',model:'test-b'},40);
+agent('mm-third',path.join(alias,'rounds','01-sparring','seat-2.packet.md'),answerM('01-sparring','seat-2'),['test-id-2'],{agentType:'cw:seat',model:'test-b'},40);
 // Another agent handed the same packet, newer still, is no seat.
-agent('other',packetM('01-sparring','seat-2'),answerM('01-sparring','seat-2'),['claude-test-8'],{agentType:'general-purpose'},30);
+agent('other',packetM('01-sparring','seat-2'),answerM('01-sparring','seat-2'),['test-id-8'],{agentType:'general-purpose'},30);
 mute('measured: seat-2 sent back, quoted paths',call(postM('node "'+scripts+'/check-answer.js" "'+answerM('01-sparring','seat-2')+'" --run \''+runM+'\'')),2);
 var l2=measuredM()[1]||{};
-check(l2.seat==='seat-2'&&l2.model==='claude-test-2'&&l2.passed==='test-b'&&l2.session==='claude-test-1'&&l2.models===undefined,'measured: a seat sent back reads its newest transcript and the choice passed at that start, never another agent\'s, got '+JSON.stringify(l2));
+check(l2.seat==='seat-2'&&l2.model==='test-id-2'&&l2.passed==='test-b'&&l2.session==='test-id-1'&&l2.models===undefined,'measured: a seat sent back reads its newest transcript and the choice passed at that start, never another agent\'s, got '+JSON.stringify(l2));
 // An outside seat has a record with a provider: never measured, even with a transcript naming its packet.
-agent('outside',packetM('01-sparring','seat-3'),answerM('01-sparring','seat-3'),['claude-test-7'],{agentType:'cw:seat'},20);
+agent('outside',packetM('01-sparring','seat-3'),answerM('01-sparring','seat-3'),['test-id-7'],{agentType:'cw:seat'},20);
 mute('measured: an outside seat',call(postM(checkCmd(answerM('01-sparring','seat-3')))),2);
 // Round 02: the replies carry two ids; a shell variable is no path.
 ['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',runM,'--round','02-battle','--seat',s]); fs.writeFileSync(answerM('02-battle',s),'The close asks for a vote and never says on what.\n'); });
-agent('b2',packetM('02-battle','seat-2'),answerM('02-battle','seat-2'),['claude-test-2','claude-test-2','<synthetic>','claude-test-4'],{agentType:'cw:seat',model:'test-b'},15);
-agent('b1',packetM('02-battle','seat-1'),answerM('02-battle','seat-1'),['claude-test-1'],null,10);
+agent('b2',packetM('02-battle','seat-2'),answerM('02-battle','seat-2'),['test-id-2','test-id-2','<synthetic>','test-id-4'],{agentType:'cw:seat',model:'test-b'},15);
+agent('b1',packetM('02-battle','seat-1'),answerM('02-battle','seat-1'),['test-id-1'],null,10);
 mute('measured: a shell variable for the run',call(postM('R='+runM+'; node '+scripts+'/check-answer.js '+answerM('02-battle','seat-2')+' --run $R')),2);
 mute('measured: a shell variable in the answer file\'s path',call(postM('R='+runM+'; node '+scripts+'/check-answer.js $R/rounds/02-battle/seat-2.answer.md --run '+runM)),2);
 var dollar=path.join(proj,'$R'), dollarRound=path.join(dollar,'rounds','02-battle');
 fs.mkdirSync(dollarRound,{recursive:true}); fs.writeFileSync(path.join(dollar,'seats.json'),JSON.stringify({seats:[{id:'seat-2',model:'Test Model B',company:'Anthropic',start:'named'}]})); fs.writeFileSync(path.join(dollar,'log.jsonl'),JSON.stringify({ts:new Date().toISOString(),event:'run.created'})+'\n');
 fs.writeFileSync(path.join(dollarRound,'seat-2.packet.md'),'a packet\n'); fs.writeFileSync(path.join(dollarRound,'seat-2.answer.md'),'an answer\n');
-agent('dollar',path.join(dollarRound,'seat-2.packet.md'),path.join(dollarRound,'seat-2.answer.md'),['claude-test-7'],{agentType:'cw:seat'},12);
+agent('dollar',path.join(dollarRound,'seat-2.packet.md'),path.join(dollarRound,'seat-2.answer.md'),['test-id-7'],{agentType:'cw:seat'},12);
 mute('measured: a folder really named for the variable',call(postM('R='+runM+'; node '+scripts+'/check-answer.js $R/rounds/02-battle/seat-2.answer.md --run $R')),2);
 check(fs.readFileSync(path.join(dollar,'log.jsonl'),'utf8').indexOf('seat.model')<0,'measured: a token holding $ is no path, also when a folder of that name exists and holds a run');
 mute('measured: a substitution for the run',call(postM('node '+scripts+'/check-answer.js '+answerM('02-battle','seat-2')+' --run `pwd`')),2);
@@ -340,27 +354,178 @@ mute('measured: no --run on the command',call(postM('node '+scripts+'/check-answ
 // Two checks in one command: both seats measured, in the command's order.
 mute('measured: two checks in one command',call(postM(checkCmd(answerM('02-battle','seat-2'))+' && '+checkCmd(answerM('02-battle','seat-1')))),4);
 var l3=measuredM()[2]||{}, l4=measuredM()[3]||{};
-check(l3.seat==='seat-2'&&l3.round==='02-battle'&&l3.model==='claude-test-4'&&JSON.stringify(l3.models)==='["claude-test-2","claude-test-4"]'&&l3.passed==='test-b','measured: replies carrying two ids list both in order, the last the model, the synthetic record no reply, got '+JSON.stringify(l3));
-check(l4.seat==='seat-1'&&l4.round==='02-battle'&&l4.model==='claude-test-1'&&l4.passed===null&&l4.meta===false,'measured: a transcript with no meta file beside it says the start choice was not read, got '+JSON.stringify(l4));
+check(l3.seat==='seat-2'&&l3.round==='02-battle'&&l3.model==='test-id-4'&&JSON.stringify(l3.models)==='["test-id-2","test-id-4"]'&&l3.passed==='test-b','measured: replies carrying two ids list both in order, the last the model, the synthetic record no reply, got '+JSON.stringify(l3));
+check(l4.seat==='seat-1'&&l4.round==='02-battle'&&l4.model==='test-id-1'&&l4.passed===null&&l4.meta===false,'measured: a transcript with no meta file beside it says the start choice was not read, got '+JSON.stringify(l4));
 // The session's transcript missing: the seat is still measured, the session null.
 var hostDir2=path.join(tmp,'host2'); fs.mkdirSync(path.join(hostDir2,SID),{recursive:true}); fs.cpSync(agentsDir,path.join(hostDir2,SID,'subagents'),{recursive:true});
 node('packet.js',['--run',runM,'--round','03-final','--seat','seat-1','--final','sn']); fs.writeFileSync(answerM('03-final','seat-1','sn'),'S/N RATIO: 80%\nMostly signal.\n');
 var snFile=path.join(hostDir2,SID,'subagents','agent-f1.jsonl');
-fs.writeFileSync(snFile,[rec('user',{isSidechain:true},{role:'user',content:[{type:'text',text:'Packet: '+packetM('03-final','seat-1','sn')+'\nAnswer file: '+answerM('03-final','seat-1','sn')}]}),rec('assistant',{isSidechain:true},{role:'assistant',model:'claude-test-5',content:[]})].join('\n')+'\n');
+fs.writeFileSync(snFile,[rec('user',{isSidechain:true},{role:'user',content:[{type:'text',text:'Packet: '+packetM('03-final','seat-1','sn')+'\nAnswer file: '+answerM('03-final','seat-1','sn')}]}),rec('assistant',{isSidechain:true},{role:'assistant',model:'test-id-5',content:[]})].join('\n')+'\n');
 fs.writeFileSync(snFile.replace(/\.jsonl$/,'.meta.json'),JSON.stringify({agentType:'cw:seat'}));
 check(fs.existsSync(packetM('03-final','seat-1','sn')),'measured: the real packet.js built the final read\'s packet');
 mute('measured: a final read, the session\'s transcript missing',call(postM(checkCmd(answerM('03-final','seat-1','sn')),undefined,{transcript_path:path.join(hostDir2,SID+'.jsonl')})),5);
 var l5=measuredM()[4]||{};
-check(l5.seat==='seat-1'&&l5.round==='03-final'&&l5.model==='claude-test-5'&&l5.session===null&&l5.passed===null&&l5.meta===undefined,'measured: a final read\'s answer file finds its own packet; with no session transcript the session is null, got '+JSON.stringify(l5));
+check(l5.seat==='seat-1'&&l5.round==='03-final'&&l5.model==='test-id-5'&&l5.session===null&&l5.passed===null&&l5.meta===undefined,'measured: a final read\'s answer file finds its own packet; with no session transcript the session is null, got '+JSON.stringify(l5));
 // The line holds ids and places, never the transcript's words; the run folder gained no file.
 check(fs.readFileSync(path.join(runM,'log.jsonl'),'utf8').indexOf(SECRET)<0&&fs.readFileSync(path.join(runM,'log.jsonl'),'utf8').indexOf('Read the packet')<0,'measured: no text of a transcript reaches the log');
 check(fs.readdirSync(runM).sort().join(',')===filesBefore,'measured: the hook wrote no file in the run but the log lines, got '+fs.readdirSync(runM).sort().join(','));
 // One command carrying a check and the short form: the line is written and the message is the short form alone.
-fs.rmSync(path.join(agentsDir,'agent-b1.jsonl')); agent('b1b',packetM('02-battle','seat-1'),answerM('02-battle','seat-1'),['claude-test-6'],{agentType:'cw:seat'},5);
+fs.rmSync(path.join(agentsDir,'agent-b1.jsonl')); agent('b1b',packetM('02-battle','seat-1'),answerM('02-battle','seat-1'),['test-id-6'],{agentType:'cw:seat'},5);
 var shortM=node('render-record.js',['--run',runM,'--short']).stdout;
 var mm=shown('measured: a check and the short form in one command',call(postM(checkCmd(answerM('02-battle','seat-1'))+'; node '+scripts+'/render-record.js --run '+runM+' --short',shortM)));
 var l6=measuredM()[5]||{};
-check(mm===shortM.replace(/\n+$/,'')&&measuredM().length===6&&l6.seat==='seat-1'&&l6.round==='02-battle'&&l6.model==='claude-test-6'&&l6.session==='claude-test-1','measured: a seat whose newest transcript carries another id gets a new line for the round, and the message is the short form alone, got '+JSON.stringify(l6));
+check(mm===shortM.replace(/\n+$/,'')&&measuredM().length===6&&l6.seat==='seat-1'&&l6.round==='02-battle'&&l6.model==='test-id-6'&&l6.session==='test-id-1','measured: a seat whose newest transcript carries another id gets a new line for the round, and the message is the short form alone, got '+JSON.stringify(l6));
+
+// THE MEASURED MODEL, hardened (issue 196, the read before the pull request opened): every read of
+// the measurement is bounded and refuses what is no regular file, the task's Packet line is read
+// without a backtracking pattern, an id is taken only when it is of a model id's class, the ids
+// come from the END of a long transcript, the newest transcript is found past the opened count,
+// and a folder with no packet is no run. A third run and one session folder per leg.
+var runH=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','harden','--session-model','Test Session Model','--model-2','Test Model B']).stdout.trim();
+['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',runH,'--round','01-sparring','--seat',s]); fs.writeFileSync(path.join(runH,'rounds','01-sparring',s+'.answer.md'),'RATING: 8/10\nThe ask lands in the first line.\n'); });
+function packetH(seat){ return path.join(runH,'rounds','01-sparring',seat+'.packet.md'); }
+function answerH(seat){ return path.join(runH,'rounds','01-sparring',seat+'.answer.md'); }
+function linesOf(runDir){ return fs.readFileSync(path.join(runDir,'log.jsonl'),'utf8').split('\n').filter(Boolean).map(function(l){ try{ return JSON.parse(l); }catch(e){ return {}; } }).filter(function(e){ return e.event==='seat.model'; }); }
+var SESSION_LINES=[rec('user',{},{role:'user',content:'spar this'}),rec('assistant',{},{role:'assistant',model:'test-id-1',content:[]})];
+// One session folder: its transcript (the lines given, or the plain two) and its subagents folder.
+function hostAt(name,sessionLines){
+  var dir=path.join(tmp,name), h={sid:'sess-h',file:path.join(dir,'sess-h.jsonl'),agents:path.join(dir,'sess-h','subagents')};
+  fs.mkdirSync(h.agents,{recursive:true}); fs.writeFileSync(h.file,(sessionLines||SESSION_LINES).join('\n')+'\n');
+  return h;
+}
+// One agent transcript in it: the task's text as given, one reply per id, the meta file unless null, the file's time secondsAgo back.
+function agentAt(h,id,taskText,ids,meta,secondsAgo,between){
+  var lines=[rec('user',{isSidechain:true},{role:'user',content:taskText})];
+  ids.forEach(function(m,i){ lines.push(rec('assistant',{isSidechain:true},{role:'assistant',model:m,content:[]})); if(between&&i===0)lines.push(between); });
+  var file=path.join(h.agents,'agent-'+id+'.jsonl'); fs.writeFileSync(file,lines.join('\n')+'\n');
+  if(meta)fs.writeFileSync(file.replace(/\.jsonl$/,'.meta.json'),typeof meta==='string'?meta:JSON.stringify(meta));
+  var when=new Date(Date.now()-(secondsAgo||0)*1000); fs.utimesSync(file,when,when);
+  return file;
+}
+function taskFor(packet,answer){ return 'Packet: '+packet+'\nAnswer file: '+answer+'\nRead the packet, write your answer to the answer file, reply with one line.'; }
+// The hook after a check, timed, killed when it has not returned within the limit.
+function timed(h,answer,runDir,limitMs,extra){
+  var input=post('node '+scripts+'/check-answer.js '+answer+' --run '+runDir,'ok\n',Object.assign({session_id:h.sid,transcript_path:h.file},extra||{}));
+  var t0=Date.now(), r=cp.spawnSync(process.execPath,[hook],{input:JSON.stringify(input),encoding:'utf8',cwd:proj,timeout:limitMs,killSignal:'SIGKILL'});
+  return {status:r.status,out:String(r.stdout||''),err:String(r.stderr||''),ms:Date.now()-t0};
+}
+function swift(name,r,limitMs){ check(r.status===0&&r.out===''&&r.err===''&&r.ms<limitMs,name+': expected exit 0, no output and under '+limitMs+' ms, got exit '+r.status+' in '+r.ms+' ms, out '+JSON.stringify(r.out.slice(0,120))); }
+// A hand-made folder shaped like a run: a log, a seats.json holding seat-1, the answer file, and the packet when asked.
+function handRun(name,withPacket){
+  var dir=path.join(tmp,name), round=path.join(dir,'rounds','01-sparring'); fs.mkdirSync(round,{recursive:true});
+  fs.writeFileSync(path.join(dir,'log.jsonl'),JSON.stringify({ts:new Date().toISOString(),event:'run.created'})+'\n');
+  fs.writeFileSync(path.join(dir,'seats.json'),JSON.stringify({seats:[{id:'seat-1',model:'Test Session Model',company:'Anthropic',start:'session'}]}));
+  fs.writeFileSync(path.join(round,'seat-1.answer.md'),'an answer\n');
+  if(withPacket)fs.writeFileSync(path.join(round,'seat-1.packet.md'),'a packet\n');
+  return {dir:dir,packet:path.join(round,'seat-1.packet.md'),answer:path.join(round,'seat-1.answer.md')};
+}
+var LIMIT=1000;
+
+// 1. Every read bounded. A pipe where a file is expected would hold an unguarded read until the hook's timeout.
+var fifoProbe=path.join(tmp,'probe.fifo'), haveFifo=cp.spawnSync('mkfifo',[fifoProbe]).status===0;
+function fifo(p){ fs.rmSync(p,{force:true}); return cp.spawnSync('mkfifo',[p]).status===0; }
+if(!haveFifo)console.log('skip measured: the five pipe legs (no mkfifo on this platform)');
+else{
+  var hF1=hostAt('h-fifo-meta'), fMeta=agentAt(hF1,'pipe',taskFor(packetH('seat-1'),answerH('seat-1')),['test-id-1'],null,5);
+  fifo(fMeta.replace(/\.jsonl$/,'.meta.json'));
+  swift('measured: a pipe named as the meta file',timed(hF1,answerH('seat-1'),runH,5000),LIMIT);
+  check(linesOf(runH).length===0,'measured: a pipe named as the meta file: the agent is passed over and nothing is written, got '+JSON.stringify(linesOf(runH)));
+  var pipeRun=handRun('pipe-seats',true); fifo(path.join(pipeRun.dir,'seats.json'));
+  var hF2=hostAt('h-fifo-seats'); agentAt(hF2,'a',taskFor(pipeRun.packet,pipeRun.answer),['test-id-1'],{agentType:'cw:seat'},5);
+  swift('measured: a pipe named seats.json',timed(hF2,pipeRun.answer,pipeRun.dir,5000),LIMIT);
+  check(linesOf(pipeRun.dir).length===0,'measured: a pipe named seats.json: nothing is written');
+  var pipeLog=handRun('pipe-log',true); fifo(path.join(pipeLog.dir,'log.jsonl'));
+  var hF3=hostAt('h-fifo-log'); agentAt(hF3,'a',taskFor(pipeLog.packet,pipeLog.answer),['test-id-1'],{agentType:'cw:seat'},5);
+  swift('measured: a pipe named log.jsonl',timed(hF3,pipeLog.answer,pipeLog.dir,5000),LIMIT);
+  var hF4=hostAt('h-fifo-session'); fifo(hF4.file); agentAt(hF4,'a',taskFor(packetH('seat-1'),answerH('seat-1')),['test-id-1'],{agentType:'cw:seat'},5);
+  var hF5=hostAt('h-fifo-agent'); fifo(path.join(hF5.agents,'agent-pipe.jsonl'));
+  swift('measured: a pipe named as an agent transcript',timed(hF5,answerH('seat-1'),runH,5000),LIMIT);
+  check(linesOf(runH).length===0,'measured: a pipe named as an agent transcript is never opened and nothing is written');
+  swift('measured: a pipe named as the session\'s transcript',timed(hF4,answerH('seat-1'),runH,5000),LIMIT);
+  var lF=linesOf(runH);
+  check(lF.length===1&&lF[0].seat==='seat-1'&&lF[0].model==='test-id-1'&&lF[0].session===null,'measured: a pipe named as the session\'s transcript: the seat is measured and the session is null, got '+JSON.stringify(lF));
+}
+// A meta file or a seats.json over the small cap is passed over.
+var hBig=hostAt('h-big-meta'), bigMeta=JSON.stringify({agentType:'cw:seat',model:'test-b',pad:new Array(70000).join('x')});
+agentAt(hBig,'big',taskFor(packetH('seat-2'),answerH('seat-2')),['test-id-2'],bigMeta,5);
+swift('measured: a meta file over the small cap',timed(hBig,answerH('seat-2'),runH,5000),LIMIT);
+check(linesOf(runH).filter(function(e){ return e.seat==='seat-2'; }).length===0,'measured: a meta file over the small cap: the agent is passed over, nothing written for seat-2');
+var bigSeats=handRun('big-seats',true); fs.writeFileSync(path.join(bigSeats.dir,'seats.json'),JSON.stringify({seats:[{id:'seat-1',model:'Test Session Model',company:'Anthropic',start:'session'}],pad:new Array(70000).join('x')}));
+var hBigS=hostAt('h-big-seats'); agentAt(hBigS,'a',taskFor(bigSeats.packet,bigSeats.answer),['test-id-1'],{agentType:'cw:seat'},5);
+swift('measured: a seats.json over the small cap',timed(hBigS,bigSeats.answer,bigSeats.dir,5000),LIMIT);
+check(linesOf(bigSeats.dir).length===0,'measured: a seats.json over the small cap: nothing is written');
+
+// 6. A folder that is not a run: a log and a seats.json and no packet gets no line, though an agent's task names the path.
+var noPacket=handRun('no-packet',false), hNo=hostAt('h-no-packet');
+agentAt(hNo,'a',taskFor(noPacket.packet,noPacket.answer),['test-id-1'],{agentType:'cw:seat'},5);
+swift('measured: a folder with a log, a seats.json and no packet',timed(hNo,noPacket.answer,noPacket.dir,5000),LIMIT);
+check(linesOf(noPacket.dir).length===0,'measured: a folder with no packet is no run: nothing is written, got '+JSON.stringify(linesOf(noPacket.dir)));
+var withPacket=handRun('with-packet',true), hYes=hostAt('h-with-packet');
+agentAt(hYes,'a',taskFor(withPacket.packet,withPacket.answer),['test-id-1'],null,5);
+swift('measured: the same folder with its packet',timed(hYes,withPacket.answer,withPacket.dir,5000),LIMIT);
+var lY=linesOf(withPacket.dir);
+check(lY.length===1&&lY[0].model==='test-id-1'&&lY[0].meta===false&&lY[0].passed===null,'measured: the same folder with its packet is measured, an absent meta file said on the line, got '+JSON.stringify(lY));
+
+// 2. The task line, linear: twenty transcripts whose Packet line is 62,000 spaces between two letters, then the seat's own, the oldest.
+var hLong=hostAt('h-long-line'), spaces=new Array(62001).join(' ');
+for(var li=0;li<20;li++)agentAt(hLong,'long'+li,'Packet:x'+spaces+'y\nAnswer file: z',['test-id-9'],{agentType:'cw:seat'},10+li);
+agentAt(hLong,'own',taskFor(packetH('seat-2'),answerH('seat-2')),['test-id-2'],{agentType:'cw:seat',model:'test-b'},500);
+check(fs.statSync(path.join(hLong.agents,'agent-long0.jsonl')).size<65536,'measured: the long line\'s record sits inside the bytes read for a task');
+var rLong=timed(hLong,answerH('seat-2'),runH,20000);
+swift('measured: twenty tasks with a 62,000-space Packet line',rLong,LIMIT);
+var lLong=linesOf(runH).filter(function(e){ return e.seat==='seat-2'; });
+check(lLong.length===1&&lLong[0].model==='test-id-2'&&lLong[0].passed==='test-b','measured: the long lines are no paths and the seat\'s own transcript behind them is read, got '+JSON.stringify(lLong));
+// A Packet line with spaces before the path and after it still reads; a line over the cap is no path.
+var trimRun=handRun('trim',true), hTrim=hostAt('h-trim');
+agentAt(hTrim,'a','Packet:  \t'+trimRun.packet+' \t \r\nAnswer file: '+trimRun.answer,['test-id-1'],{agentType:'cw:seat'},5);
+timed(hTrim,trimRun.answer,trimRun.dir,5000);
+check(linesOf(trimRun.dir).length===1,'measured: a Packet line with spaces around its path reads');
+var capRun=handRun('line-cap',true), hCap=hostAt('h-line-cap');
+agentAt(hCap,'a','Packet:'+new Array(4200).join(' ')+capRun.packet+'\nAnswer file: '+capRun.answer,['test-id-1'],{agentType:'cw:seat'},5);
+timed(hCap,capRun.answer,capRun.dir,5000);
+check(linesOf(capRun.dir).length===0,'measured: a Packet line past 4,096 characters is no path, though it ends in the seat\'s packet');
+
+// 3. The model id's characters: a line break, a space or a bracket no id carries means no line; a start choice or a session id of that kind is not written.
+[['a line break','test-id-1\nINJECTED: a second line'],['a space','test id 1'],['an angle bracket','<test-id-1>'],['121 characters',new Array(122).join('a')]].forEach(function(c,i){
+  var bad=handRun('bad-id-'+i,true), hBad=hostAt('h-bad-id-'+i);
+  agentAt(hBad,'a',taskFor(bad.packet,bad.answer),['test-id-1',c[1]],{agentType:'cw:seat'},5);
+  timed(hBad,bad.answer,bad.dir,5000);
+  check(linesOf(bad.dir).length===0&&fs.readFileSync(path.join(bad.dir,'log.jsonl'),'utf8').indexOf('INJECTED')<0,'measured: a reply whose id holds '+c[0]+' is no measurement, got '+JSON.stringify(linesOf(bad.dir)));
+});
+var okId=handRun('ok-id',true), hOk=hostAt('h-ok-id');
+agentAt(hOk,'a',taskFor(okId.packet,okId.answer),['maker/test-id_1.5:x[1m]'],{agentType:'cw:seat',model:'test-b[1m]'},5);
+timed(hOk,okId.answer,okId.dir,5000);
+check(linesOf(okId.dir).length===1&&linesOf(okId.dir)[0].model==='maker/test-id_1.5:x[1m]'&&linesOf(okId.dir)[0].passed==='test-b[1m]','measured: an id of letters, digits, dot, dash, underscore, slash, colon and square brackets is taken, got '+JSON.stringify(linesOf(okId.dir)));
+var badPass=handRun('bad-pass',true), hBadPass=hostAt('h-bad-pass',[rec('user',{},{role:'user',content:'x'}),rec('assistant',{},{role:'assistant',model:'test-id-1',content:[]}),rec('assistant',{},{role:'assistant',model:'test id\n9',content:[]})]);
+agentAt(hBadPass,'a',taskFor(badPass.packet,badPass.answer),['test-id-1'],{agentType:'cw:seat',model:'test b\nINJECTED'},5);
+timed(hBadPass,badPass.answer,badPass.dir,5000);
+var lBP=linesOf(badPass.dir)[0]||{};
+check(lBP.model==='test-id-1'&&lBP.passed===null&&lBP.meta===false&&lBP.session===null&&fs.readFileSync(path.join(badPass.dir,'log.jsonl'),'utf8').indexOf('INJECTED')<0,'measured: a start choice that is no model id is null with meta false, a session id that is none is null, got '+JSON.stringify(lBP));
+
+// 4. The last reply of a long transcript: past the bytes read, the ids come from the END of the file.
+var longRun=handRun('long-transcript',true), hEnd=hostAt('h-long-transcript');
+var filler=JSON.stringify({type:'attachment',blob:new Array(65000).join('x')}), fillerLines=[]; for(var fi=0;fi<135;fi++)fillerLines.push(filler);
+var endFile=agentAt(hEnd,'a',taskFor(longRun.packet,longRun.answer),['test-id-3','test-id-4'],{agentType:'cw:seat'},5,fillerLines.join('\n'));
+check(fs.statSync(endFile).size>8388608,'measured: the long transcript is past the bytes read, got '+fs.statSync(endFile).size);
+swift('measured: a transcript past the bytes read',timed(hEnd,longRun.answer,longRun.dir,5000),LIMIT);
+var lEnd=linesOf(longRun.dir)[0]||{};
+check(lEnd.model==='test-id-4'&&lEnd.partial===true&&lEnd.models===undefined,'measured: a long transcript is logged with its last reply\'s id and marked partial, got '+JSON.stringify(lEnd));
+check(Object.keys(linesOf(withPacket.dir)[0]||{}).indexOf('partial')<0,'measured: a transcript read whole carries no partial mark');
+
+// 5. Newest first past the list: 2,100 agent files, more than are opened and more than the list once
+// held before its sort; the seat's own is the newest, and it is the file the folder lists LAST (the
+// folder's own order is read here, so the leg does not lean on how a file system orders names),
+// while the file the folder lists first is an older transcript of the same packet.
+var hMany=hostAt('h-many'), manyRun=handRun('many',true), hourAgo=new Date(Date.now()-3600000);
+for(var mi=0;mi<2100;mi++){ var mf=path.join(hMany.agents,'agent-f'+('0000'+mi).slice(-4)+'.jsonl'); fs.writeFileSync(mf,'{"type":"user","message":{"content":"Packet: /nowhere/rounds/01-sparring/seat-1.packet.md"}}\n'); fs.utimesSync(mf,hourAgo,hourAgo); }
+var listed=fs.readdirSync(hMany.agents).filter(function(n){ return /^agent-.*\.jsonl$/.test(n); });
+function ownAt(name,id,when){ var file=path.join(hMany.agents,name); fs.writeFileSync(file,[rec('user',{isSidechain:true},{role:'user',content:taskFor(manyRun.packet,manyRun.answer)}),rec('assistant',{isSidechain:true},{role:'assistant',model:id,content:[]})].join('\n')+'\n'); fs.utimesSync(file,when,when); }
+ownAt(listed[0],'test-id-6',new Date(Date.now()-5*3600000));
+ownAt(listed[listed.length-1],'test-id-5',new Date(Date.now()-1000));
+check(fs.readdirSync(hMany.agents).filter(function(n){ return /^agent-.*\.jsonl$/.test(n); }).join(',')===listed.join(','),'measured: the folder lists its files in the order read before the seat\'s own were written');
+swift('measured: 2,100 agent files',timed(hMany,manyRun.answer,manyRun.dir,10000),LIMIT);
+var lMany=linesOf(manyRun.dir)[0]||{};
+check(lMany.model==='test-id-5','measured: the newest transcript is found among more files than are opened, though the folder lists it last, got '+JSON.stringify(lMany));
 
 var src=fs.readFileSync(hook,'utf8');
 check(src.split('\n')[0]==='// SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0','show-result.js: no Shield header on line 1');
@@ -378,6 +543,18 @@ check((src.match(/require\('[^']+'\)/g)||[]).join(',')==="require('fs'),require(
 check(!/claude-(?!plugin)|\b(opus|sonnet|haiku|fable)\b/i.test(src.replace(/\/\/.*$/gm,'')),'show-result.js: no model name in the code');
 var readers=['taskOf','modelsOf','sessionModelOf'].map(function(n){ return (new RegExp('\\nfunction '+n+'\\([\\s\\S]*?\\n}\\n').exec(src)||[''])[0]; });
 check(readers.every(function(body){ return /bytesOf\(/.test(body)&&!/readFileSync/.test(body); }),'show-result.js: a transcript is read through the bounded reader, never whole');
+// Hardened: every function of the measurement reads through the one reader, which opens without blocking and reads a regular file alone.
+function bodyOf(n){ return (new RegExp('\\nfunction '+n+'\\([\\s\\S]*?\\n}\\n').exec(src)||[''])[0]; }
+var measuring=['smallJson','seatOf','packetLineOf','transcriptOf','modelsOf','sessionModelOf','measureSeats'].map(bodyOf);
+check(measuring.every(function(body){ return body.length>0&&!/readFileSync/.test(body); }),'show-result.js: no function of the measurement reads a file whole (smallJson, seatOf, packetLineOf, transcriptOf, modelsOf, sessionModelOf, measureSeats)');
+check(/fstatSync\(fd\)/.test(bodyOf('bytesOf'))&&/isFile\(\)/.test(bodyOf('bytesOf'))&&/openSync\(file,OPEN_FLAGS\)/.test(bodyOf('bytesOf'))&&/^var OPEN_FLAGS=fs\.constants\.O_RDONLY\|\(fs\.constants\.O_NONBLOCK\|\|0\);$/m.test(src),'show-result.js: the bounded reader opens without blocking and reads a regular file alone');
+check(bodyOf('packetLineOf').length>0&&!/\.exec\(|\.match\(|\.replace\(|RegExp|\/\^/.test(bodyOf('packetLineOf'))&&!/Packet:\[ /.test(src.replace(/\/\/.*$/gm,'')),'show-result.js: the Packet line is read by splitting and trimming, with no pattern');
+var caps=/AGENTS_STAT_MAX=(\d+), AGENTS_READ_MAX=(\d+),[^;]*SMALL_BYTES=(\d+), LOG_BYTES=(\d+), PACKET_LINE_MAX=(\d+)/.exec(src)||[];
+check(+caps[1]>=2000&&+caps[1]>+caps[2]&&+caps[3]>0&&+caps[3]<=65536&&+caps[4]>0&&+caps[4]<=8388608&&+caps[5]>0&&+caps[5]<=4096,'show-result.js: more agent files are asked their time than are opened, and the small files, the log and the Packet line are capped, got '+caps.slice(1).join(', '));
+var idRe=(/^var MODEL_ID_RE=(\/.*\/);$/m.exec(src)||[])[1], libRe=(/^var MODEL_ID_RE=(\/.*\/);$/m.exec(fs.readFileSync(path.join(scripts,'lib.js'),'utf8'))||[])[1];
+check(typeof idRe==='string'&&idRe===libRe,'show-result.js: the model id pattern equals lib.js\'s, got '+idRe+' and '+libRe);
+var idTest=idRe?new RegExp(idRe.slice(1,-1)):/$^/;
+check(['test-id-0','test-id-9','maker/name-1.5:x[1m]_y',new Array(121).join('a')].every(function(s){ return idTest.test(s); })&&['','a b','a\nb','a\tb','<synthetic>','a"b','a\u0007b',new Array(122).join('a')].every(function(s){ return !idTest.test(s); }),'show-result.js: the model id pattern takes letters, digits, dot, dash, underscore, slash, colon and square brackets up to 120 and nothing else');
 
 fs.rmSync(tmp,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
