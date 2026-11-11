@@ -91,9 +91,9 @@ Nothing is fetched by any script. The one outside connection is the host opening
 |---|---|---|
 | `session-start.js` | every session start and resume | prints nothing to the person: hands the host "Combat Writing ready. /cw:help for the guide." as context it reads and never shows (`hookSpecificOutput.additionalContext`, no `systemMessage`); on the first session only, adds what the install still lacks (the crew add-on, the Mac's voices) and never again |
 | `seat-scope.js` | before every tool call | for a fresh reader: allows Read inside its run folder and Write to its own answer file, denies the rest; for the call that starts a fresh reader: holds it to the seat's record (no model choice for a seat recorded on the session's own model, one for a seat recorded on a named model) and denies a start it cannot place; touches nothing else |
-| `show-result.js` | after every shell command | when the command printed the short form, puts it on your screen as the plugin's own line; when the opener failed in the sandbox, opens the board itself; when the speech engine was silenced, renders the voices itself |
+| `show-result.js` | after every shell command | when the command printed the short form, puts it on your screen as the plugin's own line; when the opener failed in the sandbox, opens the board itself; when the speech engine was silenced, renders the voices itself; when the command checked a seat's answer, reads which model wrote that seat's replies from the seat's own transcript and logs it to the run (`seat.model`), printing nothing |
 
-**The seats.** Two fresh readers by default, seat-1 and seat-2: separate agents started for one job each, seat-1 on the session's own model and seat-2 on the second most capable model the host's agent tool offers, ranked by the host from what it knows of the models and never by the order of the list; when that is the session's own model, no model is passed (a result's Models line names a fresh reader that is not on the session's model, and one that fell back to another model, with the time and the reason), with no memory of your conversation. The agent file is `plugins/combat-writing/agents/seat.md` (`model: inherit`, tools Read and Write). Where the host can start no agent, the host is the one seat and says so.
+**The seats.** Two fresh readers by default, seat-1 and seat-2: separate agents started for one job each, seat-1 on the session's own model and seat-2 on the second most capable model the host's agent tool offers, ranked by the host from what it knows of the models and never by the order of the list; when that is the session's own model, no model is passed (a result's Models line names a fresh reader that is not on the session's model, and one that fell back to another model, with the time and the reason; a reader's label is the name the host gave, and the model that answered is measured from the seat's own transcript and shown on that line, in the record and under Run details), with no memory of your conversation. The agent file is `plugins/combat-writing/agents/seat.md` (`model: inherit`, tools Read and Write). Where the host can start no agent, the host is the one seat and says so.
 
 **The add-on**, `plugins/combat-writing-crew/`, a local MCP server (`server.js`) installed from this repository's marketplace, never listed in the directory. The moment it seats one outside model, the second chair is the outside seats' and the fresh seat-2 leaves.
 
@@ -172,6 +172,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/links_check.js` | links are unread: the packet says so when one is present |
 | `tests/map_check.js` | this page: every row set equals the folder it describes |
 | `tests/marketplace_check.js` | the marketplace names both plugins and the add-on rides as cw's dependency |
+| `tests/measured_check.js` | the model that answered, measured: the Models line from the log's `seat.model` lines, the change between two rounds, the record's and Run details' lines, the label never rewritten |
 | `tests/method_check.js` | the step text is the app's, with the departures listed |
 | `tests/open_board_check.js` | the opener: its exit read, the failed line named |
 | `tests/order_check.js` | any stage may be skipped |
@@ -193,7 +194,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/seat_scope_live.js` | not in CI: one real seat through a throwaway plugin, rerun after every Claude Code update |
 | `tests/sections_check.js` | Answer, then To the crew, when the round shares |
 | `tests/session_start_check.js` | the first-session line |
-| `tests/show_result_check.js` | the result shown by the plugin itself |
+| `tests/show_result_check.js` | the result shown by the plugin itself; the model that answered read from the seat's own transcript after its check |
 | `tests/speak_check.js` | the Mac speaks the files |
 | `tests/state_check.js` | the run as one JSON object |
 | `tests/strategy_check.js` | strategy stores and names the next move |

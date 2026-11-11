@@ -44,8 +44,28 @@
 //     the default, 12.5 s)"), the second file is on disk, voices.json's renders names both, and the
 //     rebuilt board's frame carries both in data-renders; the render window is 60 s and hooks.json's
 //     timeout covers it plus the board.
+//   - THE MEASURED MODEL (issue 196, measured 2026-11-10: the name on every result was the host's
+//     word and nothing in the run measured it): after a check-answer.js command the hook finds the
+//     seat's own transcript in a fake session layout (<session dir>/<session_id>/subagents/
+//     agent-<id>.jsonl, its first user record naming the seat's packet, its assistant records
+//     carrying an invented model id, agent-<id>.meta.json beside it) and appends exactly one
+//     seat.model line to the run's log: seat, round, model, passed (the meta file's model, or
+//     null), session (the id on the session's newest reply that is no subagent's and no synthetic
+//     record), by hook; it prints nothing and exits 0. A second identical call writes nothing; a
+//     seat sent back (several transcripts for one packet) reads the newest by the file's time,
+//     never by its name, its packet path compared resolved (a link to the run folder reads);
+//     replies carrying two ids give `models` in order and `model` the last; another agent's
+//     transcript naming the same packet is passed over; a missing meta file gives meta:false; a
+//     final read's answer file finds its own packet; quoted paths read; two checks in one
+//     command measure both seats. Nothing is written and nothing printed: with no transcript,
+//     with a `$` in the --run path or in the answer file's (also when a folder of that name
+//     holds a run), with a substitution, with no --run, for an outside seat, for an answer file
+//     outside the run's rounds folder, for a session id that is no id, and for a command that
+//     only names the script. The line carries the listed keys alone and none of the
+//     transcript's text. One command carrying a check and the short form yields both the line
+//     and the message.
 //   - hooks.json carries the PostToolUse entry on Bash with a timeout that covers the render; the source has
-//     the Shield header, the one PROVED_ON constant, and spawns only the opener.
+//     the Shield header, the one PROVED_ON constant, the one MODEL_READ_ON constant, and spawns only the opener.
 //
 // Run from the repo root:   node tests/show_result_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -241,12 +261,123 @@ fs.appendFileSync(path.join(run,'log.jsonl'),JSON.stringify({ts:new Date().toISO
 var q4=call(post(O+' >/dev/null 2>&1; echo done','done\n'),okOpener);
 check(q4.status===0&&q4.out===''&&opens().length===2,'the silenced opener after a fresh success by the shell: silent, not opened twice, got '+JSON.stringify(q4.out.slice(0,120)));
 
+// THE MEASURED MODEL (issue 196): the model that wrote a fresh reader's replies, read from the
+// seat's own transcript after its answer is checked. A second run, two fresh readers and one
+// outside seat; a fake session layout beside a fake session transcript. Invented ids only.
+var runM=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','measured','--session-model','Test Session Model','--model-2','Test Model B']).stdout.trim();
+var seatsFileM=path.join(runM,'seats.json'), sjM=JSON.parse(fs.readFileSync(seatsFileM,'utf8'));
+sjM.seats.push({id:'seat-3',model:'outside-test',company:'Example',provider:'test-fixture',source:'test fixture: an outside seat as the add-on would register it'});
+fs.writeFileSync(seatsFileM,JSON.stringify(sjM,null,2)+'\n');
+['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',runM,'--round','01-sparring','--seat',s]); });
+function packetM(round,seat,kind){ return path.join(runM,'rounds',round,seat+(kind?'.'+kind:'')+'.packet.md'); }
+function answerM(round,seat,kind){ return path.join(runM,'rounds',round,seat+(kind?'.'+kind:'')+'.answer.md'); }
+['seat-1','seat-2','seat-3'].forEach(function(s){ fs.writeFileSync(answerM('01-sparring',s),'RATING: 8/10\nThe ask lands in the first line.\n'); });
+var hostDir=path.join(tmp,'host'), SID='sess-1', sessionFile=path.join(hostDir,SID+'.jsonl'), agentsDir=path.join(hostDir,SID,'subagents');
+fs.mkdirSync(agentsDir,{recursive:true});
+var SECRET='A reply the hook never reads.';
+function rec(type,extra,message){ return JSON.stringify(Object.assign({type:type,timestamp:'2026-11-10T14:00:00.000Z'},extra,{message:message})); }
+// The session's own transcript: a reply on claude-test-1, then a subagent's reply and a synthetic record, neither the session's.
+fs.writeFileSync(sessionFile,[rec('user',{},{role:'user',content:'spar this'}),rec('assistant',{},{role:'assistant',model:'claude-test-0',content:[{type:'text',text:SECRET}]}),rec('assistant',{},{role:'assistant',model:'claude-test-1',content:[{type:'text',text:SECRET}]}),rec('assistant',{isSidechain:true},{role:'assistant',model:'claude-test-9',content:[]}),rec('assistant',{},{role:'assistant',model:'<synthetic>',content:[]})].join('\n')+'\n');
+// One agent transcript: the task as the host writes it, one assistant record per id given, the meta file unless null, the file's time secondsAgo back.
+function agent(id,packet,answer,ids,meta,secondsAgo){
+  var lines=[rec('user',{isSidechain:true,agentId:id},{role:'user',content:'Packet: '+packet+'\nAnswer file: '+answer+'\nRead the packet, write your answer to the answer file, reply with one line.'})];
+  ids.forEach(function(m){ lines.push(rec('assistant',{isSidechain:true,agentId:id},{role:'assistant',model:m,content:[{type:'text',text:SECRET}]})); });
+  var file=path.join(agentsDir,'agent-'+id+'.jsonl'); fs.writeFileSync(file,lines.join('\n')+'\n');
+  if(meta)fs.writeFileSync(path.join(agentsDir,'agent-'+id+'.meta.json'),JSON.stringify(meta));
+  var when=new Date(Date.now()-(secondsAgo||0)*1000); fs.utimesSync(file,when,when);
+}
+function logM(){ return fs.readFileSync(path.join(runM,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);}); }
+function measuredM(){ return logM().filter(function(e){return e.event==='seat.model';}); }
+function checkCmd(answer,runArg){ return 'node '+scripts+'/check-answer.js '+answer+' --run '+(runArg||runM); }
+function postM(command,stdout,extra){ return post(command,stdout===undefined?'seat-1 finished round 01-sparring: OK rating 8/10, 9 words\n{}\n':stdout,Object.assign({session_id:SID,transcript_path:sessionFile},extra||{})); }
+function mute(name,r,lines){ check(r.status===0&&r.out===''&&r.stderr===''&&measuredM().length===lines,name+': expected no output, exit 0 and '+lines+' seat.model line(s), got exit '+r.status+' out '+JSON.stringify(r.out.slice(0,160))+' err '+r.stderr.slice(0,160)+' lines '+measuredM().length); }
+// No transcript: nothing written, nothing printed.
+mute('measured: no transcript for the seat',call(postM(checkCmd(answerM('01-sparring','seat-1')))),0);
+// seat-1: no model passed at start, its replies on the session's id; the real check's own output is what the hook is handed.
+agent('a1',packetM('01-sparring','seat-1'),answerM('01-sparring','seat-1'),['claude-test-1','claude-test-1'],{agentType:'cw:seat'},60);
+var realCheck=node('check-answer.js',[answerM('01-sparring','seat-1'),'--run',runM]).stdout;
+check(/^seat-1 \S.* finished round 01-sparring: OK rating 8\/10/.test(realCheck),'measured: the real check-answer.js line, got '+JSON.stringify(realCheck.slice(0,120)));
+var filesBefore=fs.readdirSync(runM).sort().join(',');
+mute('measured: seat-1 after its check',call(postM(checkCmd(answerM('01-sparring','seat-1')),realCheck)),1);
+var l1=measuredM()[0]||{};
+check(l1.seat==='seat-1'&&l1.round==='01-sparring'&&l1.model==='claude-test-1'&&l1.passed===null&&l1.session==='claude-test-1'&&l1.by==='hook'&&!isNaN(Date.parse(l1.ts)),'measured: seat-1\'s line names the seat, the round, the id that answered, none passed, the session\'s id and the hook, got '+JSON.stringify(l1));
+check(Object.keys(l1).join(',')==='ts,event,seat,round,model,passed,session,by','measured: the line carries the listed keys alone (no models for one id, no meta when the file was read), got '+Object.keys(l1).join(','));
+check(logM().slice(-1)[0].event==='seat.model','measured: the line is the log\'s last, appended and nothing after it');
+// A second identical call writes nothing.
+mute('measured: a second identical call',call(postM(checkCmd(answerM('01-sparring','seat-1')),realCheck)),1);
+// seat-2 sent back: three transcripts for one packet; the newest by the file's time is read, and by name it is neither the first nor the last.
+agent('aa-first',packetM('01-sparring','seat-2'),answerM('01-sparring','seat-2'),['claude-test-3'],{agentType:'cw:seat',model:'test-c'},50);
+agent('zz-second',packetM('01-sparring','seat-2'),answerM('01-sparring','seat-2'),['claude-test-3'],{agentType:'cw:seat',model:'test-c'},45);
+// Its task names the packet through a link to the run folder: the two paths are compared resolved.
+var alias=path.join(tmp,'alias'); fs.symlinkSync(runM,alias);
+agent('mm-third',path.join(alias,'rounds','01-sparring','seat-2.packet.md'),answerM('01-sparring','seat-2'),['claude-test-2'],{agentType:'cw:seat',model:'test-b'},40);
+// Another agent handed the same packet, newer still, is no seat.
+agent('other',packetM('01-sparring','seat-2'),answerM('01-sparring','seat-2'),['claude-test-8'],{agentType:'general-purpose'},30);
+mute('measured: seat-2 sent back, quoted paths',call(postM('node "'+scripts+'/check-answer.js" "'+answerM('01-sparring','seat-2')+'" --run \''+runM+'\'')),2);
+var l2=measuredM()[1]||{};
+check(l2.seat==='seat-2'&&l2.model==='claude-test-2'&&l2.passed==='test-b'&&l2.session==='claude-test-1'&&l2.models===undefined,'measured: a seat sent back reads its newest transcript and the choice passed at that start, never another agent\'s, got '+JSON.stringify(l2));
+// An outside seat has a record with a provider: never measured, even with a transcript naming its packet.
+agent('outside',packetM('01-sparring','seat-3'),answerM('01-sparring','seat-3'),['claude-test-7'],{agentType:'cw:seat'},20);
+mute('measured: an outside seat',call(postM(checkCmd(answerM('01-sparring','seat-3')))),2);
+// Round 02: the replies carry two ids; a shell variable is no path.
+['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',runM,'--round','02-battle','--seat',s]); fs.writeFileSync(answerM('02-battle',s),'The close asks for a vote and never says on what.\n'); });
+agent('b2',packetM('02-battle','seat-2'),answerM('02-battle','seat-2'),['claude-test-2','claude-test-2','<synthetic>','claude-test-4'],{agentType:'cw:seat',model:'test-b'},15);
+agent('b1',packetM('02-battle','seat-1'),answerM('02-battle','seat-1'),['claude-test-1'],null,10);
+mute('measured: a shell variable for the run',call(postM('R='+runM+'; node '+scripts+'/check-answer.js '+answerM('02-battle','seat-2')+' --run $R')),2);
+mute('measured: a shell variable in the answer file\'s path',call(postM('R='+runM+'; node '+scripts+'/check-answer.js $R/rounds/02-battle/seat-2.answer.md --run '+runM)),2);
+var dollar=path.join(proj,'$R'), dollarRound=path.join(dollar,'rounds','02-battle');
+fs.mkdirSync(dollarRound,{recursive:true}); fs.writeFileSync(path.join(dollar,'seats.json'),JSON.stringify({seats:[{id:'seat-2',model:'Test Model B',company:'Anthropic',start:'named'}]})); fs.writeFileSync(path.join(dollar,'log.jsonl'),JSON.stringify({ts:new Date().toISOString(),event:'run.created'})+'\n');
+fs.writeFileSync(path.join(dollarRound,'seat-2.packet.md'),'a packet\n'); fs.writeFileSync(path.join(dollarRound,'seat-2.answer.md'),'an answer\n');
+agent('dollar',path.join(dollarRound,'seat-2.packet.md'),path.join(dollarRound,'seat-2.answer.md'),['claude-test-7'],{agentType:'cw:seat'},12);
+mute('measured: a folder really named for the variable',call(postM('R='+runM+'; node '+scripts+'/check-answer.js $R/rounds/02-battle/seat-2.answer.md --run $R')),2);
+check(fs.readFileSync(path.join(dollar,'log.jsonl'),'utf8').indexOf('seat.model')<0,'measured: a token holding $ is no path, also when a folder of that name exists and holds a run');
+mute('measured: a substitution for the run',call(postM('node '+scripts+'/check-answer.js '+answerM('02-battle','seat-2')+' --run `pwd`')),2);
+mute('measured: the script only named in an argument',call(postM('grep -n round '+scripts+'/check-answer.js','44: var round\n')),2);
+mute('measured: an answer file outside the run\'s rounds',call(postM(checkCmd(path.join(proj,'seat-2.answer.md')))),2);
+mute('measured: an answer file in the run and not under its rounds folder',call(postM(checkCmd(path.join(runM,'elsewhere','02-battle','seat-2.answer.md')))),2);
+mute('measured: a session id that is no id',call(postM(checkCmd(answerM('02-battle','seat-2')),undefined,{session_id:'nope/../'+SID})),2);
+mute('measured: no --run on the command',call(postM('node '+scripts+'/check-answer.js '+answerM('02-battle','seat-2'))),2);
+// Two checks in one command: both seats measured, in the command's order.
+mute('measured: two checks in one command',call(postM(checkCmd(answerM('02-battle','seat-2'))+' && '+checkCmd(answerM('02-battle','seat-1')))),4);
+var l3=measuredM()[2]||{}, l4=measuredM()[3]||{};
+check(l3.seat==='seat-2'&&l3.round==='02-battle'&&l3.model==='claude-test-4'&&JSON.stringify(l3.models)==='["claude-test-2","claude-test-4"]'&&l3.passed==='test-b','measured: replies carrying two ids list both in order, the last the model, the synthetic record no reply, got '+JSON.stringify(l3));
+check(l4.seat==='seat-1'&&l4.round==='02-battle'&&l4.model==='claude-test-1'&&l4.passed===null&&l4.meta===false,'measured: a transcript with no meta file beside it says the start choice was not read, got '+JSON.stringify(l4));
+// The session's transcript missing: the seat is still measured, the session null.
+var hostDir2=path.join(tmp,'host2'); fs.mkdirSync(path.join(hostDir2,SID),{recursive:true}); fs.cpSync(agentsDir,path.join(hostDir2,SID,'subagents'),{recursive:true});
+node('packet.js',['--run',runM,'--round','03-final','--seat','seat-1','--final','sn']); fs.writeFileSync(answerM('03-final','seat-1','sn'),'S/N RATIO: 80%\nMostly signal.\n');
+var snFile=path.join(hostDir2,SID,'subagents','agent-f1.jsonl');
+fs.writeFileSync(snFile,[rec('user',{isSidechain:true},{role:'user',content:[{type:'text',text:'Packet: '+packetM('03-final','seat-1','sn')+'\nAnswer file: '+answerM('03-final','seat-1','sn')}]}),rec('assistant',{isSidechain:true},{role:'assistant',model:'claude-test-5',content:[]})].join('\n')+'\n');
+fs.writeFileSync(snFile.replace(/\.jsonl$/,'.meta.json'),JSON.stringify({agentType:'cw:seat'}));
+check(fs.existsSync(packetM('03-final','seat-1','sn')),'measured: the real packet.js built the final read\'s packet');
+mute('measured: a final read, the session\'s transcript missing',call(postM(checkCmd(answerM('03-final','seat-1','sn')),undefined,{transcript_path:path.join(hostDir2,SID+'.jsonl')})),5);
+var l5=measuredM()[4]||{};
+check(l5.seat==='seat-1'&&l5.round==='03-final'&&l5.model==='claude-test-5'&&l5.session===null&&l5.passed===null&&l5.meta===undefined,'measured: a final read\'s answer file finds its own packet; with no session transcript the session is null, got '+JSON.stringify(l5));
+// The line holds ids and places, never the transcript's words; the run folder gained no file.
+check(fs.readFileSync(path.join(runM,'log.jsonl'),'utf8').indexOf(SECRET)<0&&fs.readFileSync(path.join(runM,'log.jsonl'),'utf8').indexOf('Read the packet')<0,'measured: no text of a transcript reaches the log');
+check(fs.readdirSync(runM).sort().join(',')===filesBefore,'measured: the hook wrote no file in the run but the log lines, got '+fs.readdirSync(runM).sort().join(','));
+// One command carrying a check and the short form: the line is written and the message is the short form alone.
+fs.rmSync(path.join(agentsDir,'agent-b1.jsonl')); agent('b1b',packetM('02-battle','seat-1'),answerM('02-battle','seat-1'),['claude-test-6'],{agentType:'cw:seat'},5);
+var shortM=node('render-record.js',['--run',runM,'--short']).stdout;
+var mm=shown('measured: a check and the short form in one command',call(postM(checkCmd(answerM('02-battle','seat-1'))+'; node '+scripts+'/render-record.js --run '+runM+' --short',shortM)));
+var l6=measuredM()[5]||{};
+check(mm===shortM.replace(/\n+$/,'')&&measuredM().length===6&&l6.seat==='seat-1'&&l6.round==='02-battle'&&l6.model==='claude-test-6'&&l6.session==='claude-test-1','measured: a seat whose newest transcript carries another id gets a new line for the round, and the message is the short form alone, got '+JSON.stringify(l6));
+
 var src=fs.readFileSync(hook,'utf8');
 check(src.split('\n')[0]==='// SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0','show-result.js: no Shield header on line 1');
 check(!/writeFileSync|mkdirSync|\bfetch\(|https?:\/\/|execSync|execFile|cp\.exec\b|\bshell\s*:\s*true/.test(src.replace(/\/\/[^\n]*/g,'')),'show-result.js: must write no file but the log line, fetch nothing, run no shell');
 check((src.match(/process\.env\.[A-Z_]+/g)||[]).join(',')==='process.env.CW_OPENER','show-result.js: the one environment read is CW_OPENER, got '+(src.match(/process\.env\.[A-Z_]+/g)||[]).join(','));
 var provedOn=(/^var PROVED_ON='([^']+)';$/m.exec(src)||[])[1];
 check(typeof provedOn==='string'&&/^\d+\.\d+\.\d+$/.test(provedOn)&&src.split(provedOn).length===2,'show-result.js: PROVED_ON must be one version constant on its own line, appearing once, got '+provedOn);
+// THE MEASURED MODEL in the source: the versions the transcript shape was read on in one constant, the
+// bounds named, no file required but fs, path and child_process, no model name in the code.
+var readOn=(/^var MODEL_READ_ON='([^']+)';$/m.exec(src)||[])[1];
+check(typeof readOn==='string'&&/^\d+\.\d+\.\d+( to \d+\.\d+\.\d+)?$/.test(readOn)&&src.split(readOn).length===2,'show-result.js: MODEL_READ_ON must be one constant on its own line naming the versions the transcript shape was read on, appearing once, got '+readOn);
+var bounds=/AGENTS_READ_MAX=(\d+), TASK_BYTES=(\d+), SEAT_BYTES=(\d+), SESSION_BYTES=(\d+)/.exec(src)||[];
+check(+bounds[1]>0&&+bounds[1]<=200&&+bounds[2]>0&&+bounds[2]<=65536&&+bounds[3]>0&&+bounds[3]<=8388608&&+bounds[4]>0&&+bounds[4]<=2097152,'show-result.js: the measurement is bounded (at most 200 transcripts opened, 64 KiB for a task, 8 MiB of the seat\'s transcript, 2 MiB of the session\'s), got '+bounds.slice(1).join(', '));
+check((src.match(/require\('[^']+'\)/g)||[]).join(',')==="require('fs'),require('path'),require('child_process')",'show-result.js: requires fs, path and child_process alone, got '+(src.match(/require\('[^']+'\)/g)||[]).join(','));
+check(!/claude-(?!plugin)|\b(opus|sonnet|haiku|fable)\b/i.test(src.replace(/\/\/.*$/gm,'')),'show-result.js: no model name in the code');
+var readers=['taskOf','modelsOf','sessionModelOf'].map(function(n){ return (new RegExp('\\nfunction '+n+'\\([\\s\\S]*?\\n}\\n').exec(src)||[''])[0]; });
+check(readers.every(function(body){ return /bytesOf\(/.test(body)&&!/readFileSync/.test(body); }),'show-result.js: a transcript is read through the bounded reader, never whole');
 
 fs.rmSync(tmp,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
