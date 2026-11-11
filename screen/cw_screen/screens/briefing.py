@@ -93,7 +93,10 @@ class Briefing(Chrome):
         seats = {s["id"]: s for s in (state or {}).get("seats", [])}
         rounds = (state or {}).get("rounds", [])
         if not rounds and not forming:
-            widgets.append(Line(dim=True, id="noround"))
+            # No id on this line: the removal above is not awaited, so the line of the draw
+            # before is still in the box when this one is mounted, and two widgets under one
+            # id is DuplicateIds (the screen started on a run with no rounds draws twice).
+            widgets.append(Line(dim=True).set_text_and_return((state or {}).get("no_rounds_line") or "No run yet."))
         for r in rounds:
             put = r.get("put_to", [])
             head = f"Round {r['round']} · {r.get('task_line', '')}"
@@ -119,8 +122,6 @@ class Briefing(Chrome):
         if forming:
             widgets.append(RoundLine(forming.get("line") or f"Round {forming.get('round')} forming", forming=True))
         box.mount_all(widgets)
-        if not rounds and not forming:
-            self.query_one("#noround", Line).set_text((state or {}).get("no_rounds_line") or "No run yet.")
         if focused:
             for w in box.query(Entry):
                 if w.key == focused:
