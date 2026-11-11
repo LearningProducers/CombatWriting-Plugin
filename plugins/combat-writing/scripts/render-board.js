@@ -389,6 +389,9 @@ html.push('<h2>Run details</h2>');
 html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies: '+esc(companies.join(', '))+'.')+' '+esc(lib.nameSources(seats))+'</p>');
 lib.crewStateLines(runDir,seats,log).forEach(function(l){ html.push('<p class="meta"><strong>Seats:</strong> '+esc(l)+'</p>'); });
 if(modelsLine)html.push('<p class="meta"><strong>Models:</strong> '+esc(modelsLine)+'</p>');
+// The models measured, the record's lines: which model wrote each fresh reader's replies, round by round.
+var measuredLines=lib.measuredLines(seats,log);
+if(measuredLines.length)html.push('<p class="meta"><strong>'+esc(lib.MEASURED_HEADING)+':</strong> '+esc(lib.MEASURED_NOTE)+measuredLines.map(function(l){ return '<br>'+esc(l); }).join('')+'</p>');
 html.push('<p class="meta"><strong>Seat key:</strong> '+esc(lib.seatKey(seats))+'</p>');
 html.push('<p class="meta"><strong>Drafts:</strong> '+(drafts.length?esc(drafts.map(function(d){return d+' ('+lib.draftFactsLine(lib.draftFacts(lib.readText(path.join(runDir,d))))+')';}).join(', '))+'.':'none yet; the draft joins the run when sparring or battle brings it.')+(hasBrief?' <strong>Brief'+(briefName?' ('+esc(briefName)+', combat-writing/briefs/'+esc(briefName)+'.md)':'')+':</strong> '+esc(lib.readText(path.join(runDir,'brief.md')).trim()):'')+'</p>');
 // The counts every packet carries: the person sees what the seats were told.

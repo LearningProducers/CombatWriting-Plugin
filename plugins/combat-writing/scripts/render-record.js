@@ -11,7 +11,10 @@
 // alone goes to the named seats only), a battle round that asked for no rating marked "critique", an outside
 // seat's second overrun the add-on or the checker cut marked "truncated at N words", the final round's S/N and
 // red-flag counts per seat), then every answer in full by round under its seat's name, then
-// the log of what was sent. A Champion section sits between the scoreboard
+// the log of what was sent, and under it the models measured: one line per fresh reader per
+// round with the model id its replies carry, the model choice passed at its start and where the
+// line was read from (lib.measuredLines, the log's seat.model lines; nothing when none was
+// measured). A Champion section sits between the scoreboard
 // and the answers only when the log holds a champion.* line: the Shipped, Result and Insight
 // lines in order. Nothing is averaged, summed or ranked. Rebuilt after every round; the log
 // and the answer files are the truth.
@@ -216,6 +219,13 @@ log.filter(function(e){return e.event==='packet.built';}).forEach(function(e){
 // round, from the packets' sizes and the seats' walls; nothing a seat reads.
 var budgetLines=lib.budgetLines(runDir,log);
 if(budgetLines.length){ out.push(''); out.push('Tokens are estimated at four characters each, the add-on\'s rule. '+budgetLines.join(' ')); }
+// The models measured: which model wrote each fresh reader's replies, round by round, beside the
+// names the run recorded; the labels above are never rewritten from it.
+var measuredLines=lib.measuredLines(seats,log);
+if(measuredLines.length){
+  out.push(''); out.push('**'+lib.MEASURED_HEADING+':** '+lib.MEASURED_NOTE); out.push('');
+  measuredLines.forEach(function(l){ out.push('- '+l); });
+}
 out.push('');
 out.push('Full log: log.jsonl in this folder.');
 out.push('');

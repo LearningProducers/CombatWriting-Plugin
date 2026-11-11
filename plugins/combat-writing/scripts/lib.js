@@ -608,22 +608,120 @@ function sessionModelOf(log){
   var c=(log||[]).filter(function(e){return e.event==='run.created';})[0];
   return c&&c.session_model?String(c.session_model):null;
 }
-// The Models line: one plain line naming every fresh reader that starts on a model other than
-// the session's own, for the short form, the record, the board and the state, and after it one
+// The models measured (hooks/show-result.js, the log's seat.model lines): which model wrote a
+// fresh reader's replies in a round, read from the seat's own transcript after its answer was
+// checked, with the model choice passed at its start and the session's own model as its newest
+// reply carries it. The latest line per seat per round, as {seat: {round: line}}. A seat's
+// record, its label and its seat key are never rewritten from it: the seats quote each other by
+// the labels their packets carry, and a label that changed between rounds would break the
+// attribution the flip check holds. The measured id is shown beside the label instead.
+// The log is a file a hand can edit, and what it holds is printed on every result, so a line is
+// read only when its seat is a seat id, its round a round folder's name and its model a model
+// id by MODEL_ID_RE (letters, digits, dot, dash, underscore, slash, colon and square brackets,
+// at most 120: no space, no line break); the hook writes ids of that class alone and carries
+// the same pattern (hooks/show-result.js, kept equal by the test). A session, a start choice or
+// a list of ids on a line that is anything else is read as not there.
+var MODEL_ID_RE=/^[A-Za-z0-9._\/:\[\]-]{1,120}$/;
+function isModelId(v){ return typeof v==='string'&&MODEL_ID_RE.test(v); }
+function seatModels(log){
+  var out={};
+  (log||[]).forEach(function(e){ if(e&&e.event==='seat.model'&&typeof e.seat==='string'&&/^seat-\d+$/.test(e.seat)&&typeof e.round==='string'&&/^\d\d-[a-z][a-z0-9-]*$/.test(e.round)&&isModelId(e.model))(out[e.seat]=out[e.seat]||{})[e.round]=e; });
+  return out;
+}
+// The latest round the log names, by the round folders' own order (nn-kind sorts as text).
+function latestRoundOf(log){
+  var latest=null;
+  (log||[]).forEach(function(e){ if(e&&typeof e.round==='string'&&/^\d\d-[a-z][a-z0-9-]*$/.test(e.round)&&(latest===null||e.round>latest))latest=e.round; });
+  return latest;
+}
+// What the measurement says of the crew as it stands: null unless the log holds a seat.model line
+// for a fresh reader in the run's latest round (a round run where no transcript could be placed
+// is spoken for by the recorded names, as before). session is the session's measured id from the
+// newest such line that carries one, or null; latest is each fresh reader's newest measured line
+// in any round; changes is, per fresh reader, the newest round whose measured id differs from
+// its measured id in the measured round before.
+function measuredModels(seats,log){
+  var by=seatModels(log), round=latestRoundOf(log);
+  var fresh=(seats||[]).filter(function(s){ return !s.provider; });
+  if(!round||!fresh.some(function(s){ return by[s.id]&&by[s.id][round]; }))return null;
+  var ids={}; fresh.forEach(function(s){ ids[s.id]=true; });
+  var session=null;
+  (log||[]).forEach(function(e){ if(e&&e.event==='seat.model'&&e.round===round&&ids[e.seat]&&by[e.seat]&&by[e.seat][round]===e&&isModelId(e.session))session=e.session; });
+  var latest={}, changes=[];
+  fresh.forEach(function(s){
+    var rounds=Object.keys(by[s.id]||{}).sort();
+    if(!rounds.length)return;
+    latest[s.id]=by[s.id][rounds[rounds.length-1]];
+    for(var i=rounds.length-1;i>0;i--){
+      var now=by[s.id][rounds[i]], before=by[s.id][rounds[i-1]];
+      if(now.model!==before.model){ changes.push({seat:s.id,round:rounds[i],model:now.model,before:before.model,ts:now.ts||null}); break; }
+    }
+  });
+  return {round:round,session:session,latest:latest,changes:changes};
+}
+// One change in words: "seat-1 answered on <id> from round <round> (<YYYY-MM-DD HH:MM UTC>), where it answered on <earlier id> before."
+// A time that is no date is left out, as fallbackWords leaves it out: the sentence is said without it.
+function modelChangeWords(c){
+  return c.seat+' answered on '+c.model+' from round '+c.round+(c.ts&&!isNaN(new Date(c.ts))?' ('+whenUtc(c.ts)+')':'')+', where it answered on '+c.before+' before.';
+}
+// The measured lines for the record and the board's Run details: one per fresh reader per round
+// with a measured model, in round order: the id that answered (and every id its replies carry,
+// in order, when more than one), the model choice passed at its start or that none was, the
+// session's own id, and where the line was read from (and that it was the end of a long
+// transcript, when the hook's read was partial). Empty when nothing was measured.
+var MEASURED_HEADING='Models measured';
+var MEASURED_NOTE='A seat\'s label is the name the run recorded, the host\'s word; the model that answered is read from the model id on the seat\'s own replies, one line per fresh reader per round.';
+var MEASURED_SOURCE='read from the seat\'s own transcript';
+function measuredLines(seats,log){
+  var by=seatModels(log), out=[];
+  (seats||[]).filter(function(s){ return !s.provider&&by[s.id]; }).forEach(function(s){
+    Object.keys(by[s.id]).forEach(function(r){ out.push(by[s.id][r]); });
+  });
+  out.sort(function(a,b){ return a.round<b.round?-1:a.round>b.round?1:0; });
+  return out.map(function(e){
+    var many=Array.isArray(e.models)&&e.models.length>1&&e.models.every(isModelId);
+    var unread=e.meta===false||(e.passed!==null&&e.passed!==undefined&&!isModelId(e.passed));
+    return e.seat+', round '+e.round+': answered on '+e.model+(many?' (its replies carry '+e.models.join(', then ')+')':'')+'; '
+      +(isModelId(e.passed)?'passed at start: '+e.passed:unread?'the start choice could not be read':'none passed at start')+'; '
+      +(isModelId(e.session)?'the session on '+e.session:'the session\'s own model could not be read')+'; '+MEASURED_SOURCE+(e.partial===true?', the end of a long one':'')+'.';
+  });
+}
+// The Models line: one plain line naming every fresh reader that is not on the session's own
+// model, for the short form, the record, the board and the state, and after it one
 // sentence per fresh reader that fell back, its latest fallback: from which model to which, when
 // (UTC, to the minute) and why, so the work after that point can be reviewed. A fallback is
 // always named, also when it left every fresh reader on the session's model. Null when every
 // fresh reader is on the session's model and none fell back. An outside seat is another
 // company's model by design and is named on the crew line, never here.
+// Recorded or measured: with no seat.model line for the run's latest round, the line speaks from
+// the records alone (a reader that starts on a named model other than the session's recorded
+// one). With one, the session's model is the measured id and a fresh reader is named when the
+// id on its newest measured replies differs from it, the two compared as written: "seat-2
+// answered on <id>"; a fresh reader no round measured is still named from its record, marked
+// "as recorded"; and a reader whose measured id changed between two rounds gets one sentence
+// naming the round, the time and the id before. When the measured lines hold no session id, the
+// first sentence speaks from the records and the change sentence still stands.
 function modelsLine(seats,log){
   var sm=sessionModelOf(log);
   function same(a,b){ return String(a).trim().toLowerCase()===String(b).trim().toLowerCase(); }
-  var off=(seats||[]).filter(function(s){ return seatStart(s)==='named'&&!(sm&&same(s.model,sm)); });
+  function offByRecord(s){ return seatStart(s)==='named'&&!(sm&&same(s.model,sm)); }
+  var measured=measuredModels(seats,log);
   var parts=[];
-  if(off.length){
-    var names=off.map(function(s){return s.id+' on '+s.model;}).join(', ');
-    parts.push(sm?'Not on this session\'s model ('+sm+'): '+names+'.':'Not left on the session\'s own model: '+names+', named at start.');
+  if(measured&&measured.session){
+    var named=(seats||[]).filter(function(s){ return !s.provider; }).map(function(s){
+      var e=measured.latest[s.id];
+      if(e)return e.model!==measured.session?s.id+' answered on '+e.model:null;
+      return offByRecord(s)?s.id+' on '+s.model+', as recorded':null;
+    }).filter(Boolean);
+    if(named.length)parts.push('Not on this session\'s model ('+measured.session+'): '+named.join(', ')+'.');
+  }else{
+    var off=(seats||[]).filter(offByRecord);
+    if(off.length){
+      var names=off.map(function(s){return s.id+' on '+s.model;}).join(', ');
+      parts.push(sm?'Not on this session\'s model ('+sm+'): '+names+'.':'Not left on the session\'s own model: '+names+', named at start.');
+    }
   }
+  if(measured)measured.changes.forEach(function(c){ parts.push(modelChangeWords(c)); });
   seatFallbacks(seats,log).forEach(function(e){ parts.push(fallbackWords(e)); });
   return parts.length?parts.join(' '):null;
 }
@@ -1628,6 +1726,7 @@ module.exports={
   DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,runSlug:runSlug,thisRunLine:thisRunLine,runSummary:runSummary,runsLine:runsLine,listRunSummaries:listRunSummaries,matchRuns:matchRuns,NO_RATING_LINE:NO_RATING_LINE,
   SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,addonStateLine:addonStateLine,crewStateLines:crewStateLines,
   seatStart:seatStart,sessionModelOf:sessionModelOf,modelsLine:modelsLine,SOURCE_NAMED:SOURCE_NAMED,SOURCE_SESSION:SOURCE_SESSION,seatFallbacks:seatFallbacks,fallbackWords:fallbackWords,FALLBACK_REASON_SHOWN:FALLBACK_REASON_SHOWN,
+  MODEL_ID_RE:MODEL_ID_RE,isModelId:isModelId,seatModels:seatModels,measuredModels:measuredModels,modelChangeWords:modelChangeWords,measuredLines:measuredLines,MEASURED_HEADING:MEASURED_HEADING,MEASURED_NOTE:MEASURED_NOTE,MEASURED_SOURCE:MEASURED_SOURCE,
   MAX_FRESH_READERS:MAX_FRESH_READERS,READERS_FILE:READERS_FILE,READERS_REL:READERS_REL,freshReaders:freshReaders,crewAloneWords:crewAloneWords,readersPicksPath:readersPicksPath,readReaderPicks:readReaderPicks,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
