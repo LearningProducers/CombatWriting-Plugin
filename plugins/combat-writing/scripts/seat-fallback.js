@@ -22,7 +22,7 @@
 // with nothing written: a seat the run does not hold; an outside seat (a record with a provider:
 // the add-on starts it, and one that fails is shown as missing); a fallback to the model the
 // record already starts on (a seat on the session's own model has no model under it to fall
-// to); a round the run does not hold; a word outside the flags (quote a model name or a reason
+// to); a round the run does not hold; a seats.json that cannot be written; a word outside the flags (quote a model name or a reason
 // of more than one word). Nothing is validated against a model list, because the models are the
 // host's; the name is kept as given. No model name is written in this file.
 
@@ -47,7 +47,7 @@ if(!lib.isFreshReader(seat))lib.die(seatId+' is an outside seat: the add-on star
 var round=null;
 if(args.round!==undefined){
   round=given(args.round);
-  if(!round||!/^\d{2}-[a-z]+$/.test(round))lib.die('--round takes a round folder name, as in 02-battle');
+  if(!round||!/^\d\d-[a-z][a-z0-9-]*$/.test(round))lib.die('--round takes a round folder name, as in 02-battle');
   if(!fs.existsSync(path.join(runDir,'rounds',round)))lib.die('no round '+round+' in this run');
 }
 
@@ -61,6 +61,9 @@ if(toSession&&was==='session')lib.die(seatId+' already starts on the session\'s 
 if(!toSession&&was==='named'&&sameModel(to,seat.model))lib.die(seatId+' already starts on '+seat.model+'; name the model it falls to, or session');
 var toModel=toSession?sessionModel:to;
 
+// A record that cannot be rewritten is refused before anything is written, so the log never says
+// a fallback the record does not hold.
+try{ fs.accessSync(file,fs.constants.W_OK); }catch(e){ lib.die('the run\'s seats.json cannot be written ('+file+'); nothing is recorded'); }
 // The log line first (the source of truth), then the record the next start is held to.
 lib.appendLog(runDir,{event:'seat.fallback',seat:seatId,round:round,from:from,to:toModel,start:start,reason:reason});
 seat.model=toModel||lib.MODEL_UNREPORTED;

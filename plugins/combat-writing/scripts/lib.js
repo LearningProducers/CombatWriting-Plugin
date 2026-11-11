@@ -601,7 +601,7 @@ function fallbackWords(e){
   var reason=String(e.reason||'').replace(/\s+/g,' ').trim().replace(/[.\s]+$/,'')||'no reason given';
   var cut=reason.length>FALLBACK_REASON_SHOWN;
   if(cut)reason=reason.slice(0,FALLBACK_REASON_SHOWN).replace(/\s+\S*$/,'')+'…';
-  return e.seat+' fell back from '+(e.from||MODEL_UNREPORTED)+' to '+(e.to||'the session\'s own model')+(e.ts?' at '+whenUtc(e.ts):'')+': '+reason+(cut?'':'.');
+  return e.seat+' fell back from '+(e.from||MODEL_UNREPORTED)+' to '+(e.to||'the session\'s own model')+(e.ts&&!isNaN(new Date(e.ts))?' at '+whenUtc(e.ts):'')+': '+reason+(cut?'':'.');
 }
 // The session's model as the run recorded it (run.created's session_model), or null.
 function sessionModelOf(log){

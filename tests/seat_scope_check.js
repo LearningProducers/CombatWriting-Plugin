@@ -3,7 +3,7 @@
 // hook on every tool: a seat (agent_type cw:seat) uses Read and Write only, reads only inside its
 // run folder and writes only its own answer file, judged on the resolved path; any other tool and
 // any path the hook cannot place is denied; every other caller is left alone but for one call,
-// the one that starts a seat (issue 194): the Agent tool with subagent_type cw:seat is held to
+// the one that starts a seat (issue 194): the Agent tool, or Task, its earlier name, with subagent_type cw:seat is held to
 // the seat record's start. The live proof, which needs a running Claude Code, is
 // tests/seat_scope_live.js, not part of CI; it covers the seat's own calls, not the start call,
 // whose shape was read from transcripts (the hook's START_READ_ON constant).
@@ -26,7 +26,7 @@
 //     seats.json or a broken one, a seat id with no record: denied with the reason; an outside
 //     seat: denied, pointing at crew_answer; the crew-pass and final packets name their seat; a
 //     relative packet path resolves against cwd. An Agent call with any other subagent_type, and
-//     a host call of any other tool that carries the same input: no output. The hook's reading
+//     a host call of a tool other than Agent or Task that carries the same input: no output. The hook's reading
 //     of a record's start equals lib.seatStart over records with and without the field.
 //   - A seat calling Grep, Glob, Bash, WebFetch, Edit or Agent: denied, naming the tool; a seat's
 //     Write of 2 MB outside the run: denied; input that does not parse but names a seat: denied.
@@ -216,6 +216,9 @@ kinds.forEach(function(k){
 denied('start: an outside seat',fstart('seat-3'),/^Combat Writing seat scope: seat-3 is an outside seat \(its record carries a provider\) and is never started through the agent tool; call the add-on's crew_answer with the run, the round and the seat$/);
 denied('start: a seat id with no record',fstart('seat-9'),/^Combat Writing seat scope: seat-9 has no record in the run's seats\.json; the seat is not started$/);
 allowed('start: the crew-pass packet names its seat',fstart('seat-1',undefined,fpk('seat-1.crew.packet.md')));
+allowed('start: a packet kind with a digit and a dash names its seat',fstart('seat-1',undefined,fpk('seat-1.read-2.packet.md')));
+denied('start: the tool under its earlier name, Task, is held the same way',call('Task','',{agent_type:undefined,agent_id:undefined,tool_name:'Task',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'cw:seat',model:'x'}}),/start seat-2 again with no model choice/);
+allowed('start: the tool under its earlier name, a start that fits its record',call('Task','',{agent_type:undefined,agent_id:undefined,tool_name:'Task',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'cw:seat'}}));
 denied('start: the final packet names its seat',fstart('seat-1','x',fpk('seat-1.sn.packet.md')),/start seat-1 again with no model choice/);
 denied('start: a packet file that names no seat',fstart('seat-1',undefined,fpk('notes.packet.md')),/not a seat's packet inside a run's rounds folder/);
 // Every other Agent call, and every other tool, from a caller that is not a seat: untouched.

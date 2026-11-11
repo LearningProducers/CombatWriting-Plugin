@@ -164,6 +164,13 @@ refused('no --reason',['--seat','seat-2','--to','session'],/usage: seat-fallback
 refused('no --seat',['--to','session','--reason','x'],/usage: seat-fallback\.js/);
 refused('an unquoted model name',['--seat','seat-2','--to','Test','Model','C','--reason','x'],/a word outside the flags: Model C; quote a model name or a reason of more than one word/);
 refused('a round that is no round name',['--seat','seat-2','--to','session','--reason','x','--round','../x'],/--round takes a round folder name/);
+fs.mkdirSync(path.join(runR,'rounds','02-battle-2'),{recursive:true});
+before={log:read(path.join(runR,'log.jsonl')),seats:read(path.join(runR,'seats.json'))};
+fs.chmodSync(path.join(runR,'seats.json'),0o444);
+refused('a seats.json that cannot be written',['--seat','seat-2','--to','session','--reason','x','--round','02-battle-2'],/the run's seats\.json cannot be written \(.*seats\.json\); nothing is recorded/);
+fs.chmodSync(path.join(runR,'seats.json'),0o644);
+var badTs=lib.fallbackWords({seat:'seat-2',from:'Test Model B',to:'Test Model C',ts:'not a date',reason:'x'});
+check(badTs==='seat-2 fell back from Test Model B to Test Model C: x.','fallbackWords: a line whose time is no date is said without a time, never a throw, got '+badTs);
 refused('a round the run does not hold',['--seat','seat-2','--to','session','--reason','x','--round','09-battle'],/no round 09-battle in this run/);
 refused('the session\'s model for a seat already on it',['--seat','seat-1','--to','session','--reason','x'],/seat-1 already starts on the session's own model; there is no model under it to fall to/);
 refused('the model the record already names',['--seat','seat-2','--to','test model b','--reason','x'],/seat-2 already starts on Test Model B; name the model it falls to, or session/);

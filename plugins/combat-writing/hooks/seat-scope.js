@@ -19,7 +19,8 @@
 // the reason, so a seat the hook cannot place does nothing rather than anything.
 //
 // How a seat starts: the one judgment on a caller that is not a seat. The call that starts a
-// fresh reader is the Agent tool with subagent_type `cw:seat` (or `seat`), its prompt opening
+// fresh reader is the Agent tool (Task, its earlier name, is judged the same way) with
+// subagent_type `cw:seat` (or `seat`), its prompt opening
 // with the same two lines, and a model choice only when one is passed (the shape read from the
 // host's transcripts on the Claude Code versions in START_READ_ON below; the live proof does
 // not cover it). The hook resolves the packet to its run folder, takes the seat id from the
@@ -32,8 +33,8 @@
 // and passes the tool's own choice string, and the two differ by design. A start the hook
 // cannot place (no task lines, a packet outside a run's rounds folder, an answer file outside
 // the run, no seats.json, no record for the seat) and the start of an outside seat, which goes
-// through the add-on and never the agent tool, are denied with the reason. Any other Agent
-// call, and every other tool from a caller that is not a seat, is untouched.
+// through the add-on and never the agent tool, are denied with the reason. Any other call of
+// those two tools, and every other tool from a caller that is not a seat, is untouched.
 //
 // Output on deny: one JSON line, hookSpecificOutput.permissionDecision "deny" with the reason,
 // exit 0 (the documented form). On allow: nothing, exit 0, so the session's own permission
@@ -47,7 +48,7 @@ var fs=require('fs'), path=require('path');
 var PROVED_ON='2.1.301';
 // The Claude Code versions the start call's shape was read on, from the host's transcripts. One copy.
 var START_READ_ON='2.1.319 to 2.1.322';
-var START_TOOL='Agent';
+var START_TOOLS=['Agent','Task'];
 var SEAT_TYPES=['cw:seat','seat'];
 var SEAT_TOOLS=['Read','Write'];
 var ISSUES='github.com/LearningProducers/CombatWriting-Plugin/issues';
@@ -116,7 +117,7 @@ function judgeStart(input){
   if(!paths)return deny('the call that starts a seat names no packet or answer file (its task opens with the two lines `Packet: <path>` and `Answer file: <path>`, the start call as Claude Code '+START_READ_ON+' writes it); the seat is not started');
   var packet=placeExisting(paths.packet,cwd);
   if(!packet)return deny('the packet named in the seat\'s task cannot be placed; the seat is not started');
-  var runDir=path.dirname(path.dirname(packet)), m=/^(seat-\d+)\.(?:[a-z]+\.)?packet\.md$/.exec(path.basename(packet));
+  var runDir=path.dirname(path.dirname(packet)), m=/^(seat-\d+)\.(?:[a-z0-9-]+\.)?packet\.md$/.exec(path.basename(packet));
   if(path.basename(runDir)!=='rounds'||!m)return deny('the packet named in the seat\'s task is not a seat\'s packet inside a run\'s rounds folder; the seat is not started');
   runDir=path.dirname(runDir);
   var answer=placeTarget(paths.answer,cwd);
@@ -148,7 +149,7 @@ process.stdin.on('end',function(){
   if(SEAT_TYPES.indexOf(input.agent_type)<0){
     // The host or another agent: one judgment, the call that starts a seat; everything else untouched.
     var ti=input.tool_input;
-    if(input.tool_name===START_TOOL&&ti&&typeof ti==='object'&&SEAT_TYPES.indexOf(ti.subagent_type)>=0)return judgeStart(input);
+    if(START_TOOLS.indexOf(input.tool_name)>=0&&ti&&typeof ti==='object'&&SEAT_TYPES.indexOf(ti.subagent_type)>=0)return judgeStart(input);
     return allow();
   }
   // From here on the caller is a seat: anything the hook cannot place is denied.
