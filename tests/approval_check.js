@@ -12,7 +12,8 @@
 //     follows the question; two options in this order, Send and Change it, and no third; Send
 //     fires the round with the text as typed; Change it takes the next message as the new text,
 //     shows that and asks again; a one-seat round names that seat in place of "all AI crew
-//     members"; nothing is written and no packet is built until Send; the text is never read for
+//     members"; text typed into the dialog's own Other row is Change it, the new text, asked
+//     again, and only Send sends; nothing is written and no packet is built until Send; the text is never read for
 //     the word rerate; a command typed whole with its keyword is not asked; with no
 //     AskUserQuestion tool there is no picker and nothing to ask.
 //   - Each path that takes a typed text names the step between the text and the round: the
@@ -24,7 +25,10 @@
 //     options and no rating question; the plugin README and the plugin map say the text is shown
 //     back and carry no "yes or no for rerate".
 //   - What stands: the word `rerate` in the command, and Debate on screen one of the Next picker.
-//   - One eval case, picker-approval-before-packet, with its row in the evals README.
+//   - One eval case, picker-approval-before-packet, with its row in the evals README, the row
+//     naming issue 204 (today's runner cannot pass the case).
+//   - CLAUDE.md states the step with the question's exact words, no rerate question, the Other
+//     row, and eight eval cases.
 //
 // Run from the repo root:   node tests/approval_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -64,6 +68,7 @@ files.forEach(function(f,i){
   check(/\*\*Change it\*\* \(take the person's next message as the new text, show that, and ask again\)/.test(p),name+': Change it takes the next message as the new text, shows that and asks again');
   check(/names that seat in place of "all AI crew members"/.test(p),name+': a one-seat round names that seat in place of "all AI crew members"');
   check(/"\/cw:help for the full guide\."/.test(p),name+': the help line follows the question');
+  check(/Text typed into the tool's own Other row is Change it: it is the new text, shown the same way, and the dialog asks again\. Only Send sends\./.test(p),name+': text typed into the dialog\'s own Other row is Change it, the new text, asked again; only Send sends');
   check(/Nothing is written and no packet is built until Send/.test(p),name+': nothing is written and no packet is built until Send');
   check(/never read for the word `rerate`/.test(p)&&/cannot turn a rating on/.test(p),name+': the typed text is never read for the word rerate');
   check(/the word `rerate` in the command's own arguments, and Debate on the Next picker, which always rates/.test(p),name+': a rating is asked for in two ways only, the word in the command and Debate');
@@ -129,7 +134,16 @@ if(hasCase){
   var graders=fs.readdirSync(path.join(evalDir,'graders')).map(function(g){ return read(path.join(evalDir,'graders',g)); }).join('\n');
   check(graders.indexOf('Is this the message you want to send')>=0&&/packet\\\.js/.test(graders),'evals/picker-approval-before-packet: a grader must hold the packet against the approval question');
 }
-check(/^\| `picker-approval-before-packet` \|/m.test(read(path.join(plugin,'evals','README.md'))),'evals/README.md: needs the row for picker-approval-before-packet');
+var evalRow=(/^\| `picker-approval-before-packet` \|[^\n]*/m.exec(read(path.join(plugin,'evals','README.md')))||[''])[0];
+check(!!evalRow,'evals/README.md: needs the row for picker-approval-before-packet');
+check(/issue 204/.test(evalRow),'evals/README.md: the row for picker-approval-before-packet must name issue 204, the runner that cannot pass it');
+
+// 8. CLAUDE.md states the same rule as the tree: the step, no rerate question, eight cases.
+var claude=read(path.join(root,'CLAUDE.md'));
+check(claude.indexOf('"'+QUESTION+'"')>=0&&/THE APPROVAL STEP \(issue 202/.test(claude)&&/pinned equal by `tests\/approval_check\.js`/.test(claude),'CLAUDE.md: must name THE APPROVAL STEP with the question\'s exact words and this check');
+check(!/yes\/no for rerate where a rating is possible/.test(claude)&&!/a rerate reply that is not yes or no is no and the round still fires/.test(claude),'CLAUDE.md: still states the rerate question');
+check(/text typed into the dialog's own Other row is Change it/.test(claude),'CLAUDE.md: must say text typed into the Other row is Change it');
+check(/eight claude plugin eval cases/.test(claude)&&!/seven claude plugin eval cases/.test(claude),'CLAUDE.md: the layout must count eight eval cases');
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'approval_check: '+failures.length+' failure(s), ':'approval_check: all passed, ')+passes+' checks');
