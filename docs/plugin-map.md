@@ -53,7 +53,7 @@ A paste with no keyword on the draft: the text before the first keyword line is 
 
 ## 3. The pickers
 
-A missing keyword never errors. The host opens a one-keypress menu (the AskUserQuestion tool), at most two screens, never an "Other". Where the host has no such tool, the text Next line is printed instead.
+A missing keyword never errors. The host opens a one-keypress menu (the AskUserQuestion tool), at most two screens, never an "Other". A round's text typed after a menu (an FQ, an N, an SN, an SFQ, a note to one seat, sparring's question) is shown back whole in one more dialog, "Is this the message you want to send to all AI crew members?", Send or Change it, before anything is stored or sent; a command typed whole with its keyword is not asked. Where the host has no such tool, the text Next line is printed instead.
 
 | Where | Screen one | Screen two |
 |---|---|---|
@@ -63,7 +63,7 @@ A missing keyword never errors. The host opens a one-keypress menu (the AskUserQ
 | bare `/cw:battle`, or text with no keyword | Everyone / One seat / Revised draft / Final (New run in place of Final when the text is draft-shaped), best guess marked | under Everyone: FQ / N / SN / SFQ; under One seat: the seat list |
 | bare `/cw:champion` | Shipped / Result / Insight, best guess marked | one line asks for the text |
 | bare `/cw:runs`, after the listing | the four open runs touched last, any stage, by last activity (no picker when none is open) | the pick continues in that run's own stage: battle's or sparring's picker, or the first round on a strategy-made run |
-| after every sparring and battle result | Battle: everyone / Battle: one seat / Debate: seats re-read and rerate / More | under Battle: everyone: FQ / N / SN / SFQ; under More: Final reads / Champion / Help / Done for now; then one line for your text and one yes or no for rerate |
+| after every sparring and battle result | Battle: everyone / Battle: one seat / Debate: seats re-read and rerate / More | under Battle: everyone: FQ / N / SN / SFQ; under More: Final reads / Champion / Help / Done for now; then one line for your text, shown back for you to send or change (Send / Change it) before it reaches a seat; a rating takes `rerate` in the command, or Debate |
 
 Done for now prints the text Next line, which names the run, the word that returns to it (`run: <word>`), and the line that starts a new piece.
 
@@ -153,6 +153,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | Check | What it pins |
 |---|---|
 | `tests/announce_check.js` | the forming line and the per-seat line while a round runs |
+| `tests/approval_check.js` | THE APPROVAL STEP, the same words in three skills: a text taken through a picker is shown back before it is sent, and no rerate question follows it |
 | `tests/board_check.js` | the board: one screen, the tabs, the cards in their company identity, the embedded faces, no verdict box, the read-aloud controls, no outside request |
 | `tests/brief_check.js` | the brief travels: typed once, carried by later runs, grown by update |
 | `tests/briefs_check.js` | briefs by name |
@@ -205,7 +206,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `screen/tests/state_check.py` | the screen reads the run through `render-state.js` |
 | `screen/tests/sweep_check.py` | the screen sees a file land within one sweep |
 
-The seven eval cases, `plugins/combat-writing/evals/`, each one draft through the plugin and a grade: `buried-unsupported-claim`, `instruction-in-draft`, `date-after-cutoff`, `start-at-battle`, `n-rewrite-to-every-seat`, `one-seat-line-only`, `seat-2-by-rank`.
+The eight eval cases, `plugins/combat-writing/evals/`, each one draft through the plugin and a grade: `buried-unsupported-claim`, `instruction-in-draft`, `date-after-cutoff`, `start-at-battle`, `n-rewrite-to-every-seat`, `one-seat-line-only`, `seat-2-by-rank`, `picker-approval-before-packet`.
 
 ## What is not in the plugin
 
