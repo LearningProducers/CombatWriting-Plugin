@@ -52,7 +52,8 @@
 //   - The Next picker: sparring and battle close with it; the rules skill lays out screen one
 //     (Battle: everyone / Battle: one seat / Debate: seats re-read and rerate / More), the four
 //     round labels with the founder's descriptions in order, the More screen (Final reads / Help
-//     / Done for now), the text line, the rerate yes/no, and Done for now printing the text Next
+//     / Done for now), the text line, the approval step after it and no rerate question (issue
+//     202; tests/approval_check.js pins the step), and Done for now printing the text Next
 //     line and nothing else; strategy keeps its single Next line and no picker.
 //   - One eval case starts a run at battle.
 //
@@ -235,7 +236,7 @@ var three=/\*\*Shipped\*\*[^\n]*\*\*Result\*\*[^\n]*\*\*Insight\*\*/;
   check(three.test(p[1]),p[0]+': Champion\'s second screen must be Shipped / Result / Insight');
 });
 check(/then `\/cw:champion` runs as if typed/.test(rules),'the Next picker: after Champion\'s text, /cw:champion runs as if typed');
-check(/ask for the text in one line/.test(rules)&&/\*\*Rerate\*\*[^\n]*\*\*No rating\*\*/.test(rules),'the Next picker: the text line and the rerate yes/no');
+check(/ask for the text in one line/.test(rules)&&/take the next message as the text; then THE APPROVAL STEP \(below\)/.test(rules)&&!/\*\*Rerate\*\*/.test(rules)&&!/\*\*No rating\*\*/.test(rules),'the Next picker: the text line, then THE APPROVAL STEP, and no rerate yes/no');
 check(/Done for now prints the text Next line, as `render-record\.js --run <folder> --next` prints it, and nothing else; that line names the run it is on/.test(rules),'the Next picker: Done for now must print the text Next line (--next) and nothing else, naming the run');
 check(/the seat list as the existing picker builds it/.test(rules),'the Next picker: the seat list is the existing picker\'s');
 check(/Strategy's result keeps its single Next line/.test(rules)&&/End with one line, the Next line, and nothing after it/.test(strategy)&&!/Next picker/.test(strategy.replace(/not the picker/,'')),'strategy: must keep its single Next line and open no picker');
