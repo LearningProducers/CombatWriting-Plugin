@@ -366,7 +366,7 @@ function parseCapRefusal(message){
 function tokensForCap(capWords){ return Math.ceil(capWords*TOKENS_PER_WORD)+FIRST_LINE_TOKENS; }
 function loweredMaxTokens(maxTokens,limit,requested){ return Math.min(Math.floor(maxTokens*limit/requested*CAP_MARGIN),Math.floor(limit*CAP_MARGIN)); }
 function capRefusalReason(providerName,limit,capWords,needed){
-  return providerName+' limits this model\'s tier to '+limit.toLocaleString()+' output tokens a minute and refuses a request expected to write more; '+(capWords?'a '+capWords+'-word reply needs about '+needed.toLocaleString():'a reply needs at least '+needed.toLocaleString())+'; the seat is missing this round (a paid tier, or a smaller cap)';
+  return providerName+' limits this model\'s tier to '+limit.toLocaleString('en-US')+' output tokens a minute and refuses a request expected to write more; '+(capWords?'a '+capWords+'-word reply needs about '+needed.toLocaleString('en-US'):'a reply needs at least '+needed.toLocaleString('en-US'))+'; the seat is missing this round (a paid tier, or a smaller cap)';
 }
 // A reply the provider stopped: the API's finish_reason is length when the reply ran into the
 // max_tokens the call asked for. stoppedBy returns null for any other finish.

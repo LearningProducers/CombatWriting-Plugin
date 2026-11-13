@@ -130,7 +130,7 @@ var proj=fs.mkdtempSync(path.join(os.tmpdir(),'cw-crew-'));
 
 // ---- the fake provider ---------------------------------------------------------------------
 var requests=[]; var rateLimited=false;
-// Groq's per-request output cap refusal, the shape measured 2026-10-24, with the organization clause the
+// Groq's refusal on its per-minute output limit, the shape measured 2026-10-24, with the organization clause the
 // real message carries and a stand-in id (issue 58: the scrub must leave the numbers readable). The
 // stand-ins below are shaped so that the scrub catches them and a credential sweep over this file does
 // not (no 16-character run after a key prefix, no 8-character run after user_ or org-).
@@ -472,8 +472,9 @@ fake.listen(0,'127.0.0.1',function(){
       check(/## The other seats' answers \(round 07-battle\)/.test(p3)&&/seat-2\n\n=== ANSWER BEGIN ===/.test(p3)&&/seat-3 — missing/.test(p3),'after failures: the next packet should read the latest round with a sound answer and list seat-3 as missing');
     });
   }).then(function(){
-    // A per-request output cap (issue 56): the refusal is answered by one resend at once with max_tokens
-    // lowered by the ratio; the Retry-After of 60 is not waited. Under the floor: one request, missing.
+    // A refusal on the per-minute output limit (issue 56): it is answered by one resend at once with max_tokens
+    // lowered to the limit under the margin, never the ratio's value (issue 78); the Retry-After of 60 is not
+    // waited. A limit itself under what the packet's word cap needs: one request, the seat missing.
     fs.mkdirSync(path.join(run,'rounds','10-battle'),{recursive:true});
     fs.writeFileSync(path.join(run,'rounds','10-battle','seat-3.packet.md'),'# Packet for seat-3\n\nUnder 500 words.\n\nCAPME please rate this.\n');
     fs.writeFileSync(path.join(run,'rounds','10-battle','seat-2.packet.md'),'# Packet for seat-2\n\nUnder 600 words.\n\nCAPLOW please rate this.\n');

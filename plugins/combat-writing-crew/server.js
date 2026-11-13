@@ -332,7 +332,7 @@ function answer(args){
       var finish=lib.finishReason(choice);
       var stopped=lib.stoppedBy(finish,out.max_tokens,usage.completion_tokens,out.max_tokens_lowered);
       if(!text.trim()){
-        var emptyReason='empty reply'+(stopped?' (the provider stopped it at '+stopped.at.toLocaleString()+' output tokens before any text)':'');
+        var emptyReason='empty reply'+(stopped?' (the provider stopped it at '+stopped.at.toLocaleString('en-US')+' output tokens before any text)':'');
         lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,read:read,provider:provider.id,model_requested:seat.model,model_returned:returned,file:path.relative(runDir,packetPath),finish_reason:finish,max_tokens_lowered:out.max_tokens_lowered||null,reason:emptyReason});
         return {ok:false,seat:seatId,missing:true,reason:'the provider returned an '+emptyReason+'. The seat is missing this round.'};
       }
@@ -357,7 +357,7 @@ function answer(args){
         waited_ms:out.waited_ms,key_source:k.source});
       return {ok:true,seat:seatId,file:answerPath,model_requested:requested,model_returned:returned,model_source:'API response model field',served_by:provider.name,company:seat.company,waited_ms:out.waited_ms,
         max_tokens_lowered:out.max_tokens_lowered||null,truncated:truncated,stopped:stopped,
-        next:(stopped?'the provider stopped the reply at '+stopped.at.toLocaleString()+' output tokens, the most this call asked for'+(stopped.lowered_from?' (lowered from '+stopped.lowered_from.toLocaleString()+' to fit its per-minute output limit of '+stopped.limit.toLocaleString()+')':'')+'; the reply may end early and the record marks it stopped. ':'')+(truncated?'the reply was over the cap again and was cut at '+truncated.at+' words'+(truncated.cut_at==='sentence'?', at the last sentence end before the cap,':'')+' with its first line kept; the record marks it truncated. ':'')+'run the listed plugin\'s check-answer.js on the file, then check-flip.js for a rerate round'};
+        next:(stopped?'the provider stopped the reply at '+stopped.at.toLocaleString('en-US')+' output tokens, the most this call asked for'+(stopped.lowered_from?' (lowered from '+stopped.lowered_from.toLocaleString('en-US')+' to fit its per-minute output limit of '+stopped.limit.toLocaleString('en-US')+')':'')+'; the reply may end early and the record marks it stopped. ':'')+(truncated?'the reply was over the cap again and was cut at '+truncated.at+' words'+(truncated.cut_at==='sentence'?', at the last sentence end before the cap,':'')+' with its first line kept; the record marks it truncated. ':'')+'run the listed plugin\'s check-answer.js on the file, then check-flip.js for a rerate round'};
     });
   });
   queues[qk]=run.catch(function(){});
