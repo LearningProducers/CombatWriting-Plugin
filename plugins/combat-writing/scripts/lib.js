@@ -514,7 +514,7 @@ var VERDICT_SENTENCE_LINE_CRITIQUE='Your first sentence is your verdict on the d
 
 // The scoreboard legend, one paragraph: record.md carries it, and the short form prints it
 // once per run, the first time it prints, never again in that run.
-var SCOREBOARD_LEGEND='Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Not asked means the round was put to other seats only. Critique means the round asked for no rating (a battle round rates only on `rerate`). Failed read means the answer broke the contract it was sent, the rating line, the cap, or a number that contradicts the verdict. Truncated means the seat\'s second overrun was cut at the cap, at the last sentence end before it, with its first line kept. The bar is the seat\'s latest rating.';
+var SCOREBOARD_LEGEND='Every number is one seat\'s own. Nothing here is averaged. A flip shows the earlier number beside the new one; INVALID means the quote the seat gave does not match the seat it named. Missing means the seat gave no answer in that round. Not asked means the round was put to other seats only. Critique means the round asked for no rating (a battle round rates only on `rerate`). Failed read means the answer broke the contract it was sent, the rating line, the cap, or a number that contradicts the verdict. Truncated means the seat\'s second overrun was cut at the cap, at the last sentence end before it, with its first line kept. Stopped means the provider ended the reply at the output tokens the call asked for, so it may end early. The bar is the seat\'s latest rating.';
 var BOARD_FILE='board.html';
 
 function parseArgs(argv){
@@ -1607,6 +1607,45 @@ function truncationOf(log,seatId,round,read){
   return Object.assign({by:e.event==='answer.checked'?'checker':'add-on'},e.truncated);
 }
 function withTrunc(mark,t){ return t?(mark?mark+' · ':'')+'truncated at '+t.at+' words':mark; }
+// A reply the provider stopped: the crew add-on's crew.answered line carries `stopped` when the
+// API's finish_reason was length ({at: the output tokens the call asked for, completion_tokens,
+// and lowered_from with limit when the call was resent under the provider's per-minute output
+// limit}). Read from the last crew.answered line for that seat, round and read, so a retry that
+// ended on its own clears it. The mark stands beside the truncated mark, never in its place; the
+// record, the board and the state read these, one rule. Numbers only: a line whose `at` is no
+// number marks nothing.
+function stoppedOf(log,seatId,round,read){
+  var e=lastLogWhere(log,function(x){return x.event==='crew.answered'&&x.round===round&&x.seat===seatId&&(x.read||'rating')===read;});
+  var s=e&&e.stopped;
+  function num(v){ return typeof v==='number'&&isFinite(v)?v:null; }
+  if(!s||num(s.at)===null)return null;
+  var from=num(s.lowered_from), limit=num(s.limit);
+  return {at:s.at,completion_tokens:num(s.completion_tokens),lowered_from:from!==null&&limit!==null?from:null,limit:from!==null&&limit!==null?limit:null};
+}
+function stoppedMark(s){ return s?'stopped at '+thousands(s.at)+' tokens':''; }
+function withStopped(mark,s){ return s?(mark?mark+' · ':'')+stoppedMark(s):mark; }
+function stoppedLine(s){
+  return 'Stopped by the provider at '+thousands(s.at)+' output tokens, the most this call asked for'+(s.lowered_from!==null?', lowered from '+thousands(s.lowered_from)+' to fit the provider\'s per-minute output limit of '+thousands(s.limit):'')+'; the reply may end before the seat finished.';
+}
+// Why a seat is missing: the reason on the crew add-on's last crew.failed or crew.refused line
+// for that seat, round and read (a later crew.answered line for the same read clears it), on one
+// line, cut at a word past MISSING_REASON_SHOWN characters with a pointer to the log, where it
+// stands whole. The read is the line's own, else its packet's name (.sn, .redflag, .crew), else
+// the rating read. Null when the log holds no such line: a fresh reader's miss, or a log written
+// before the lines carried a reason. The text is the add-on's and the provider's, never
+// trusted as markup: the board escapes it.
+var MISSING_REASON_SHOWN=320;
+function loggedRead(e){ if(typeof e.read==='string'&&e.read)return e.read; var m=/\.(sn|redflag|crew)\.packet\.md$/.exec(String(e.file||'')); return m?m[1]:'rating'; }
+function missingReason(log,seatId,round,read){
+  read=read||'rating';
+  var e=lastLogWhere(log,function(x){return (x.event==='crew.failed'||x.event==='crew.refused'||x.event==='crew.answered')&&x.round===round&&x.seat===seatId&&loggedRead(x)===read;});
+  if(!e||e.event==='crew.answered'||typeof e.reason!=='string')return null;
+  var r=e.reason.replace(/\s+/g,' ').trim();
+  if(!r)return null;
+  if(r.length>MISSING_REASON_SHOWN)r=r.slice(0,MISSING_REASON_SHOWN).replace(/\s+\S*$/,'')+'… (whole in log.jsonl)';
+  return r;
+}
+function missingWhy(reason){ return reason?'Why: '+reason+(/[.!?]$/.test(reason)?'':'.'):''; }
 // One seat in one non-final round: kind is missing, not-asked, failed, critique, first, stand,
 // held, flip-valid or flip-invalid; rating is the number or null (a 7 or a contradiction is a
 // failed read, so a rating here is always a sound one); text is the scoreboard cell's word.
@@ -1614,34 +1653,35 @@ function roundCell(runDir,seat,round,seats,log){
   var rel=path.join('rounds',round,seat.id+'.answer.md'), p=path.join(runDir,rel);
   var q=path.join(runDir,'rounds',round,seat.id+'.question.md');
   var note=fs.existsSync(q)?readText(q).trim():null;
-  if(!fs.existsSync(p))return wasAsked(runDir,round,seat.id,log)?{kind:'missing',text:'missing',rating:null,mark:'',title:'',note:note,file:null}:{kind:'not-asked',text:'not asked',rating:null,mark:'',title:'the round was put to other seats only',note:note,file:null};
+  if(!fs.existsSync(p))return wasAsked(runDir,round,seat.id,log)?{kind:'missing',text:'missing',rating:null,mark:'',title:'',note:note,file:null,reason:missingReason(log,seat.id,round,'rating')}:{kind:'not-asked',text:'not asked',rating:null,mark:'',title:'the round was put to other seats only',note:note,file:null};
   var text=readText(p);
   var contract=contractSent(runDir,round,p,log);
   var logged=lastLogWhere(log,function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract===contract);});
   var check=checkAnswer(text,logged?logged.word_cap:null,contract);
   var trunc=truncationOf(log,seat.id,round,'rating');
+  var stop=stoppedOf(log,seat.id,round,'rating');
   var rw=rewriteOf(text);
   var copy=logged&&logged.copy?logged.copy:null;
-  var base={file:rel,words:wordCount(text),word_cap:logged?logged.word_cap:null,contract:contract,answer:text,truncated:trunc,note:note,verdict_line:verdictLine(text,contract),rewrite:rw?rw.text:null,copy:copy,from:null,cited:null,flip:null};
-  if(!check.ok)return Object.assign(base,{kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,wrote:check.rating,mark:withTrunc('',trunc),reasons:check.reasons});
-  if(contract==='critique')return Object.assign(base,{kind:'critique',text:'critique',title:copy?'the rewrite is a copy of '+copy.model+'\'s':'this round asked for no rating',rating:null,mark:withTrunc(copyMark(copy),trunc),reasons:[]});
+  var base={file:rel,words:wordCount(text),word_cap:logged?logged.word_cap:null,contract:contract,answer:text,truncated:trunc,stopped:stop,note:note,verdict_line:verdictLine(text,contract),rewrite:rw?rw.text:null,copy:copy,from:null,cited:null,flip:null};
+  if(!check.ok)return Object.assign(base,{kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,wrote:check.rating,mark:withStopped(withTrunc('',trunc),stop),reasons:check.reasons});
+  if(contract==='critique')return Object.assign(base,{kind:'critique',text:'critique',title:copy?'the rewrite is a copy of '+copy.model+'\'s':'this round asked for no rating',rating:null,mark:withStopped(withTrunc(copyMark(copy),trunc),stop),reasons:[]});
   var flip=lastLogWhere(log,function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
   if(!flip){ var inputs=flipInputs(runDir,seat,round,seats); flip=checkFlip(text,seat,inputs.ownRated?inputs.ownRated.text:null,inputs.prevAnswers); }
   var kind={first:'first',stand:'stand',held:'held','flip-valid':'flip-valid','flip-invalid':'flip-invalid',unrated:'first'}[flip.status]||'first';
   var mark={first:'',stand:'Stand',held:'held, no Stand','flip-valid':'flip from '+flip.from+', valid','flip-invalid':'flip from '+flip.from+', INVALID'}[kind]||'';
   var title={'flip-valid':'quoted '+flip.cited,'flip-invalid':flip.reason||'quote not found'}[kind]||'';
-  return Object.assign(base,{kind:kind,rating:check.rating,text:check.rating+'/10',mark:withTrunc(mark,trunc),title:title,reasons:[],from:flip.from===undefined?null:flip.from,cited:flip.cited||null,flip:flip.status});
+  return Object.assign(base,{kind:kind,rating:check.rating,text:check.rating+'/10',mark:withStopped(withTrunc(mark,trunc),stop),title:title,reasons:[],from:flip.from===undefined?null:flip.from,cited:flip.cited||null,flip:flip.status});
 }
 // One seat in a final round: its S/N read and its red-flag read, each missing, sound or failed.
 function finalCell(runDir,seat,round,log){
   var out={};
   ['sn','redflag'].forEach(function(c){
     var rel=path.join('rounds',round,seat.id+'.'+c+'.answer.md'), p=path.join(runDir,rel);
-    if(!fs.existsSync(p)){ out[c]={missing:true,ok:false,value:null,reasons:[],truncated:null,file:null,words:0,answer:null}; return; }
+    if(!fs.existsSync(p)){ out[c]={missing:true,ok:false,value:null,reasons:[],truncated:null,stopped:null,reason:missingReason(log,seat.id,round,c),file:null,words:0,answer:null}; return; }
     var logged=lastLogWhere(log,function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&e.contract===c;});
     var text=readText(p);
     var r=checkAnswer(text,logged?logged.word_cap:null,c);
-    out[c]={missing:false,ok:r.ok,value:r.ok?r.value:null,reasons:r.reasons||[],truncated:truncationOf(log,seat.id,round,c),file:rel,words:wordCount(text),answer:text};
+    out[c]={missing:false,ok:r.ok,value:r.ok?r.value:null,reasons:r.reasons||[],truncated:truncationOf(log,seat.id,round,c),stopped:stoppedOf(log,seat.id,round,c),file:rel,words:wordCount(text),answer:text};
   });
   out.text=finalText(out);
   return out;
@@ -1738,5 +1778,5 @@ module.exports={
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
   capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,copyShare:copyShare,rewriteCopy:rewriteCopy,copyMark:copyMark,COPY_SHARE:COPY_SHARE,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,VOICE_ORDER:VOICE_ORDER,voiceTier:voiceTier,voiceBase:voiceBase,voiceRank:voiceRank,isFenceLine:isFenceLine,plainSpoken:plainSpoken,spokenPlain:spokenPlain,draftParts:draftParts,draftPartsLines:draftPartsLines,PARTS_HEADING:PARTS_HEADING,PARTS_LINE:PARTS_LINE,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
-  STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,roundCell:roundCell,finalCell:finalCell,finalText:finalText,runState:runState
+  STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,stoppedOf:stoppedOf,stoppedMark:stoppedMark,withStopped:withStopped,stoppedLine:stoppedLine,missingReason:missingReason,missingWhy:missingWhy,MISSING_REASON_SHOWN:MISSING_REASON_SHOWN,roundCell:roundCell,finalCell:finalCell,finalText:finalText,runState:runState
 };

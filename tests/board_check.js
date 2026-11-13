@@ -110,6 +110,10 @@ write(path.join(r4,'seat-2.sn.answer.md'),'S/N RATIO: 55%\nHalf.\n');
 write(path.join(r4,'seat-2.redflag.answer.md'),'NO RED FLAGS\nNone.\n');
 ['seat-1.sn','seat-1.redflag','seat-2.sn','seat-2.redflag'].forEach(function(f){ node('check-answer.js',[path.join(r4,f+'.answer.md'),'--run',run]); });
 
+// Why a seat is missing: seat-2's miss in 04-battle carries the add-on's crew.failed line, its reason
+// holding markup characters; the board shows it escaped, on the seat's card and in the round history.
+fs.appendFileSync(path.join(run,'log.jsonl'),JSON.stringify({ts:new Date().toISOString(),event:'crew.failed',round:'04-battle',seat:'seat-2',read:'rating',reason:'HTTP 500: the provider said <b>no</b> & "later"'})+'\n');
+
 var rb=node('render-board.js',['--run',run]);
 check(rb.status===0&&rb.stdout.trim()===path.join(run,'board.html'),'render-board: exit '+rb.status+' '+rb.stderr+' '+rb.stdout);
 var html=fs.readFileSync(path.join(run,'board.html'),'utf8');
@@ -159,6 +163,13 @@ check(!!f1&&/<div class="full"><div class="read"><p>The close is the problem, as
 var f2=/<figure class="frame missing co-anthropic" data-seat="seat-2">([\s\S]*?)<\/figure>/.exec(html);
 check(!!f2&&/<span class="badge missing">Missing<\/span>/.test(f2[1])&&/<blockquote>No answer this round\. Nothing stands in for it\.<\/blockquote>/.test(f2[1])&&f2[1].indexOf('class="full"')<0&&f2[1].indexOf('class="ix')<0,'board: seat-2\'s frame should say missing with no read and no index');
 check(!!f2&&/<p class="final">05-final: S\/N 55% · no red flags<\/p>/.test(f2[1]),'board: seat-2\'s frame should carry its final numbers');
+// The reason line: on the card under the citation, in the scoreboard cell's title and under the round's line, escaped.
+var WHY='Why: HTTP 500: the provider said &lt;b&gt;no&lt;/b&gt; &amp; &quot;later&quot;.';
+check(!!f2&&f2[1].indexOf('</figcaption><p class="final why">'+WHY+'</p>')>=0,'board: seat-2\'s card should carry why it is missing, escaped, got '+(f2?f2[1]:'no frame'));
+check(html.indexOf('<td class="num"><span class="missing" title="'+WHY+'">missing</span></td>')>=0,'board: the missing cell should carry the reason as its title');
+check(html.indexOf('<li class="why"><b>Round 04-battle</b> · seat-2 missing. '+WHY+'</li>')>=0,'board: the round history should carry the missing seat\'s reason under its round');
+check(html.indexOf('<b>no</b>')<0,'board: a reason\'s markup must never reach the page unescaped');
+check((html.match(/class="why"/g)||[]).length===1&&(html.match(/class="final why"/g)||[]).length===1,'board: a missing seat with no logged reason carries no reason line');
 var f3=/<figure class="frame failed co-anthropic" data-seat="seat-3">([\s\S]*?)<\/figure>/.exec(html);
 check(!!f3&&/<span class="badge failed">Failed read<\/span>/.test(f3[1])&&/<blockquote>Failed read: this round asked for no rating; remove the RATING line and open with your critique\.<\/blockquote>/.test(f3[1]),'board: seat-3\'s frame should say failed read with the reason');
 check(!!f3&&/<div class="full"><div class="read failed">[^]*?<\/div><button type="button" class="fold" aria-expanded="false">\+ The failed read \(4 words\)<\/button><\/div>/.test(f3[1]),'board: seat-3\'s failed read is on the card, the fold button under it');

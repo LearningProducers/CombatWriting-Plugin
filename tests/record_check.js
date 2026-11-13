@@ -86,6 +86,17 @@ write(path.join(r3,'seat-3.sn.answer.md'),'S/N RATIO: 7/10\nWrong first line.\n'
 // seat-3's red-flag read is missing.
 ['seat-1.sn','seat-1.redflag','seat-2.sn','seat-2.redflag','seat-3.sn'].forEach(function(f){ node('check-answer.js',[path.join(r3,f+'.answer.md'),'--run',run]); });
 
+// Why a seat is missing: the add-on's crew.failed line for the seat, the round and the read, the last one
+// standing, its reason on one line under the seat. seat-3's round-1 line is written twice (the later
+// reason shows, a line break in it flattened); its round-3 miss has no line and keeps the bare mark; its
+// red-flag miss carries a line with no `read`, placed by its packet's name, and a reason past the
+// length shown, cut at a word with the pointer to the log.
+var LONG_REASON='HTTP 429: '+new Array(60).join('limit reached ')+'the end';
+function logLine(o){ fs.appendFileSync(path.join(run,'log.jsonl'),JSON.stringify(Object.assign({ts:new Date().toISOString()},o))+'\n'); }
+logLine({event:'crew.failed',round:'01-sparring',seat:'seat-3',read:'rating',reason:'HTTP 500: an earlier try'});
+logLine({event:'crew.failed',round:'01-sparring',seat:'seat-3',read:'rating',reason:'HTTP 500: the provider is down\nand said so twice'});
+logLine({event:'crew.failed',round:'04-final',seat:'seat-3',file:'rounds/04-final/seat-3.redflag.packet.md',reason:LONG_REASON});
+
 var rr=node('render-record.js',['--run',run]);
 check(rr.status===0,'render: exit '+rr.status+' '+rr.stderr);
 var rec=fs.readFileSync(path.join(run,'record.md'),'utf8');
@@ -139,9 +150,15 @@ check(/\*\*Measured by code \(facts, not a judgment\):\*\* 8 words · 1 paragrap
 check(/Rerate: a new rating asked\. Task: the default prompt: \u201cRead the other seats' latest answers\. Where do your interpretations overlap and where do they diverge\? Give a new critique and a new rating of the draft\.\u201d\./.test(r2sec),'record: round 2 should carry its task in words');
 var r1sec=rec.slice(rec.indexOf('### Round 01-sparring'),r2idx);
 check(/#### Test Model \(Anthropic\), seat-3\n\n\*Missing: no answer file\.\*/.test(r1sec),'record: seat-3 round 1 not marked missing in the answers');
+// The reason line: the last crew.failed reason for the seat in that round, on one line; none logged, the bare mark.
+check(r1sec.indexOf('#### Test Model (Anthropic), seat-3\n\n*Missing: no answer file.* Why: HTTP 500: the provider is down and said so twice.\n')>=0&&r1sec.indexOf('an earlier try')<0,'record: the missing seat\'s reason should stand under the seat, the last line\'s, flattened; got '+r1sec.slice(r1sec.indexOf('seat-3')));
+check(rcsec.indexOf('#### Test Model (Anthropic), seat-3\n\n*Missing: no answer file.*\n')>=0&&rcsec.indexOf('Why:')<0,'record: a missing seat with no logged reason keeps the bare mark');
 var r3sec=rec.slice(r3idx,rec.indexOf('## What was sent'));
 check(/Draft read: draft-2\.md\./.test(r3sec),'record: final round does not say it read draft-2.md');
 check(r3sec.indexOf('#### Test Model (Anthropic), seat-1 — S/N ratio')>=0&&r3sec.indexOf('#### Test Model (Anthropic), seat-2 — red flags')>=0,'record: final answers headings missing');
+var whyLong=(/seat-3 — red flags\n\n\*Missing: no answer file\.\* (Why: [^\n]*)\n/.exec(r3sec)||[])[1]||'';
+check(/^Why: HTTP 429: (limit reached )+(limit|limit reached)… \(whole in log\.jsonl\)\.$/.test(whyLong)&&whyLong.length<360&&whyLong.length>300&&whyLong.indexOf('the end')<0,'record: a long reason is cut at a word with the pointer to the log, and a line with no read is placed by its packet\'s name; got '+whyLong);
+check(r3sec.indexOf('seat-3 — S/N ratio\n\n*Missing')<0,'record: the red-flag reason must not land on the S/N read');
 
 // What was sent: every packet.
 var sent=rec.slice(rec.indexOf('## What was sent'));

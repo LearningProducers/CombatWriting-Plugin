@@ -70,16 +70,26 @@
 //     window by provider id and slot. A 429 with
 //     Retry-After: 1 is waited out and retried once (waited_ms >= 1000). A 500 and an empty
 //     reply are recorded as crew.failed and the seat is missing, with no answer file.
-//   - A per-request output cap (issue 56, measured 2026-10-24 on Groq's free tier) is not a window:
-//     a 429 reading "on output tokens per minute (OTPM): Limit 1000, Requested 1513" with
-//     Retry-After: 60 is answered by one resend at once (no Retry-After wait, no minute) with
-//     max_tokens lowered to the limit under the margin, floor(1000*0.95) = 950 (issue 78: never the
-//     ratio's 1758, because the provider's Requested count is not max_tokens scaled), which covers
-//     the 500-word cap's floor of 840 tokens; the answer lands, and the log line and the result
-//     carry max_tokens_lowered with the four numbers. With Limit 300 the lowered value (285) is
-//     under the floor: one request, no resend, no wait, the seat missing with a reason naming
-//     the provider's limit, the cap and what the reply needs, and crew.failed carrying output_cap.
+//   - A refusal on the per-minute output limit (issue 56, measured 2026-10-24 on Groq's free tier) is
+//     not a window to wait out: a 429 reading "on output tokens per minute (OTPM): Limit 1000,
+//     Requested 1513" with Retry-After: 60 is answered by one resend at once (no Retry-After wait, no
+//     minute) with max_tokens lowered to the limit under the margin, floor(1000*0.95) = 950 (issue 78:
+//     never the ratio's 1758, because the provider's Requested count is not max_tokens scaled); the
+//     answer lands, and the log line and the result carry max_tokens_lowered with the four numbers.
+//     The seat is kept whenever the limit itself covers what the packet's word cap needs: Limit 1000
+//     with a 600-word packet (1,000 tokens needed, the resend at 950) ends with an answer. With
+//     Limit 300 the limit itself is under that need: one request, no resend, no wait, the seat
+//     missing with a reason naming the provider's per-minute limit, the cap and what the reply needs,
+//     and crew.failed carrying output_cap and the read.
 //     parseCapRefusal reads Groq's two shapes (OTPM, and TPM with its Used count) and nothing else.
+//   - A reply the provider stopped (finish_reason length) is logged and marked: crew.answered carries
+//     finish_reason and stopped {at, completion_tokens, lowered_from, limit}, the result says so, and
+//     the record and the board mark the read "stopped at N tokens", the record with the line above the
+//     answer. A reply that ended on its own carries stopped null. An empty reply the provider stopped
+//     is missing, the reason saying where it was stopped.
+//   - A missing seat's reason shows: the record's answers section and the board (the seat's card when
+//     its latest turn is the missing one, and the scoreboard panel's round history) carry the reason of
+//     the round's last crew.failed line for that seat and read.
 //   - The id scrub (issue 58, measured 2026-10-24): the fake's 500, its always-429 route and a failing
 //     catalog read carry Groq's organization clause with a stand-in id (org_01JTESTORG…) and a
 //     key-shaped string (gsk_LEAKEDKEY…); the crew_answer reason, the crew.failed line, the crew_list
@@ -153,9 +163,12 @@ var fake=http.createServer(function(req,res){
       // The 500 and the always-429 carry the organization clause and a key-shaped string (issue 58).
       if(/FAILME/.test(user))return json(500,{error:{message:'boom in organization `'+ORG+'` with key '+KEYISH}});
       if(/TWICE429/.test(user))return json(429,{error:{message:'Rate limit reached for model `'+body.model+'` in organization `'+ORG+'` service tier `on_demand` on requests per minute (RPM): Limit 30, Used 30, Requested 1. Please try again in 2s.'}},{'Retry-After':'1'});
+      // An empty reply the provider stopped at max_tokens (a model that spent the room before any text).
+      if(/EMPTYSTOP/.test(user))return json(200,{model:body.model,choices:[{message:{role:'assistant',content:''},finish_reason:'length'}],usage:{prompt_tokens:300,completion_tokens:body.max_tokens,total_tokens:300+body.max_tokens}});
       if(/EMPTYME/.test(user))return json(200,{model:body.model,choices:[{message:{role:'assistant',content:''}}]});
       if(/RATELIMIT/.test(user)&&!rateLimited){rateLimited=true;return json(429,{error:{message:'rate limit'}},{'Retry-After':'1'});}
-      // The per-request output cap: refused above 2,000 max_tokens, answered below; Retry-After rides as Groq sends it.
+      // The per-minute output limit: refused above 2,000 max_tokens, answered below; Retry-After rides as Groq sends it.
+      // STOPME: the reply comes back stopped at max_tokens (finish_reason length), as a provider stops one.
       if(/CAPME/.test(user)&&body.max_tokens>2000)return json(429,{error:{message:capMessage(body.model,1000),type:'tokens',code:'rate_limit_exceeded'}},{'Retry-After':'60'});
       if(/CAPLOW/.test(user))return json(429,{error:{message:capMessage(body.model,300),type:'tokens',code:'rate_limit_exceeded'}},{'Retry-After':'60'});
       var sys=body.messages[0].content;
@@ -169,7 +182,7 @@ var fake=http.createServer(function(req,res){
         :/TRUNCATEME/.test(user)?'Opening line. The ask lands. '+new Array(350).join('alpha ')+'\n\nSecond paragraph. '+new Array(350).join('beta ')+'\n\nRATING: 8/10  \n'
         :(retried?'RATING: 6/10  \n'+(two?'Answer\n\n':'')+'Second try, shorter.'+(two?'\n\nTo the crew\n\n':' ')+'seat-1 wrote "The ask lands in the first line." and I agree.\n':'RATING: 8/10  \n'+(two?'Answer\n\n':'')+'The ask lands.'+(two?'\n\nTo the crew\n\n':' ')+'seat-1 wrote "The ask lands in the first line." and I agree.  \n');
       // The returned id differs from the requested one by a date suffix, as a real provider's did; the suffix is not stacked on a re-request of the returned id.
-      return json(200,{id:'chatcmpl-1',model:body.model.replace(/-0725$/,'')+'-0725',choices:[{message:{role:'assistant',content:content},finish_reason:'stop'}],usage:{prompt_tokens:321,completion_tokens:40,total_tokens:361}});
+      return json(200,{id:'chatcmpl-1',model:body.model.replace(/-0725$/,'')+'-0725',choices:[{message:{role:'assistant',content:content},finish_reason:/STOPME/.test(user)?'length':'stop'}],usage:/STOPME/.test(user)?{prompt_tokens:321,completion_tokens:body.max_tokens,total_tokens:321+body.max_tokens}:{prompt_tokens:321,completion_tokens:40,total_tokens:361}});
     }
     json(404,{error:{message:'no route '+req.url}});
   });
@@ -490,12 +503,81 @@ fake.listen(0,'127.0.0.1',function(){
       var done=Date.now();
       var calls=requests.filter(function(q){return q.url==='/v1/chat/completions'&&/CAPLOW/.test(q.body.messages[1].content);});
       check(calls.length===1,'cap under the floor: expected one request and no resend, got '+calls.length);
-      check(r.isError&&r.data.ok===false&&r.data.missing===true&&r.data.reason==='Groq allows 300 output tokens per request on this model\'s tier; a 600-word reply needs about 1,000; the seat is missing this round (a paid tier, or a smaller cap).','cap under the floor: the reason should name the limit, the cap and the need, got '+JSON.stringify(r.data));
+      check(r.isError&&r.data.ok===false&&r.data.missing===true&&r.data.reason==='Groq limits this model\'s tier to 300 output tokens a minute and refuses a request expected to write more; a 600-word reply needs about 1,000; the seat is missing this round (a paid tier, or a smaller cap).','limit under the need: the reason should name the per-minute limit, the cap and the need, got '+JSON.stringify(r.data));
       check(calls.length===1&&done-calls[0].t<1000,'cap under the floor: the refusal must return at once, not after Retry-After; '+(calls.length===1?done-calls[0].t:'?')+' ms');
       check(!fs.existsSync(path.join(run,'rounds','10-battle','seat-2.answer.md')),'cap under the floor: an answer file appeared');
       var e=logOf(run).filter(function(x){return x.event==='crew.failed'&&x.round==='10-battle'&&x.seat==='seat-2';}).pop()||{};
-      check(e.status===429&&!!e.output_cap&&e.output_cap.limit===300&&e.output_cap.requested===1513&&e.output_cap.max_tokens===2800&&e.output_cap.lowered_to===285&&e.output_cap.needed===1000&&e.output_cap.cap_words===600&&/^Groq allows 300 output tokens/.test(e.reason),'cap under the floor: crew.failed should carry output_cap with the numbers, got '+JSON.stringify(e.output_cap)+' '+e.reason);
+      check(e.status===429&&!!e.output_cap&&e.output_cap.limit===300&&e.output_cap.requested===1513&&e.output_cap.max_tokens===2800&&e.output_cap.lowered_to===285&&e.output_cap.needed===1000&&e.output_cap.cap_words===600&&e.read==='rating'&&/^Groq limits this model's tier to 300 output tokens a minute/.test(e.reason)&&!/per request/.test(e.reason),'limit under the need: crew.failed should carry output_cap with the numbers, the read and the per-minute wording, got '+JSON.stringify(e.output_cap)+' '+e.read+' '+e.reason);
       console.log('cap under the floor: '+(r.data&&r.data.reason));
+    });
+  }).then(function(){
+    // The seat is kept: the limit itself decides, never the margined resend value. Limit 1,000 covers the
+    // 1,000 tokens a 600-word reply needs, so the refusal is answered by one resend at 950 and the answer
+    // lands (the rule before dropped the seat here on every refusal: 950 is under 1,000 by construction).
+    // seat-3's reply to the same refusal comes back stopped at the 950 it was resent with.
+    fs.mkdirSync(path.join(run,'rounds','13-battle'),{recursive:true});
+    fs.writeFileSync(path.join(run,'rounds','13-battle','seat-2.packet.md'),'# Packet for seat-2\n\nUnder 600 words.\n\nCAPME KEPT600 please rate this.\n');
+    fs.writeFileSync(path.join(run,'rounds','13-battle','seat-3.packet.md'),'# Packet for seat-3\n\nUnder 600 words.\n\nCAPME STOPME KEPTSTOP please rate this.\n');
+    return s1.call('crew_answer',{run:run,round:'13-battle',seat:'seat-2'}).then(function(r){
+      var calls=requests.filter(function(q){return q.url==='/v1/chat/completions'&&/KEPT600/.test(q.body.messages[1].content);});
+      check(!r.isError&&r.data.ok===true&&calls.length===2&&calls[0].body.max_tokens===2800&&calls[1].body.max_tokens===950,'the seat is kept: limit 1,000 with a 600-word packet should end with an answer after one resend at 950, got '+calls.length+' call(s), max_tokens '+JSON.stringify(calls.map(function(c){return c.body.max_tokens;}))+' '+JSON.stringify(r.data).slice(0,300));
+      var L=r.data.max_tokens_lowered||{};
+      check(L.from===2800&&L.to===950&&L.limit===1000&&L.requested===1513,'the seat is kept: the result should carry max_tokens_lowered to 950, got '+JSON.stringify(r.data.max_tokens_lowered));
+      var f=path.join(run,'rounds','13-battle','seat-2.answer.md');
+      check(fs.existsSync(f)&&/^RATING: 8\/10/.test(fs.readFileSync(f,'utf8')),'the seat is kept: the answer file should land');
+      check(calls.length===2&&calls[1].t-calls[0].t<1000,'the seat is kept: the resend must follow at once; gap '+(calls.length===2?calls[1].t-calls[0].t:'?')+' ms');
+      var e=logOf(run).filter(function(x){return x.event==='crew.answered'&&x.round==='13-battle'&&x.seat==='seat-2';}).pop()||{};
+      check(!!e.max_tokens_lowered&&e.max_tokens_lowered.to===950&&e.finish_reason==='stop'&&e.stopped===null&&r.data.stopped===null,'the seat is kept: a reply that ended on its own carries finish_reason stop and stopped null, got '+JSON.stringify({finish:e.finish_reason,stopped:e.stopped,result:r.data.stopped}));
+      check(!logOf(run).some(function(x){return x.event==='crew.failed'&&x.round==='13-battle'&&x.seat==='seat-2';}),'the seat is kept: no crew.failed line for the kept seat');
+      return s1.call('crew_answer',{run:run,round:'13-battle',seat:'seat-3'});
+    }).then(function(r){
+      // A reply the provider stopped at the limit: logged, said in the result, the file still written.
+      var S=r.data.stopped||{};
+      check(!r.isError&&r.data.ok===true&&S.at===950&&S.completion_tokens===950&&S.lowered_from===2800&&S.limit===1000,'stopped: the result should carry stopped with the numbers, got '+JSON.stringify(r.data.stopped));
+      check(/^the provider stopped the reply at 950 output tokens, the most this call asked for \(lowered from 2,800 to fit its per-minute output limit of 1,000\); the reply may end early and the record marks it stopped\. /.test(r.data.next||''),'stopped: the result\'s next line should say so, got '+r.data.next);
+      check(fs.existsSync(path.join(run,'rounds','13-battle','seat-3.answer.md')),'stopped: the answer file is still written');
+      var e=logOf(run).filter(function(x){return x.event==='crew.answered'&&x.round==='13-battle'&&x.seat==='seat-3';}).pop()||{};
+      check(e.finish_reason==='length'&&!!e.stopped&&e.stopped.at===950&&e.stopped.completion_tokens===950&&e.stopped.lowered_from===2800&&e.stopped.limit===1000,'stopped: crew.answered should carry finish_reason length and stopped, got '+JSON.stringify({finish:e.finish_reason,stopped:e.stopped}));
+      // Stopped with nothing lowered (the call's own ask), and an empty reply the provider stopped.
+      fs.mkdirSync(path.join(run,'rounds','14-battle'),{recursive:true});
+      fs.writeFileSync(path.join(run,'rounds','14-battle','seat-2.packet.md'),'# Packet for seat-2\n\nUnder 500 words.\n\nSTOPME PLAINSTOP please rate this.\n');
+      fs.writeFileSync(path.join(run,'rounds','14-battle','seat-3.packet.md'),'# Packet for seat-3\n\nUnder 500 words.\n\nEMPTYSTOP\n');
+      return s1.call('crew_answer',{run:run,round:'14-battle',seat:'seat-2'});
+    }).then(function(r){
+      var S=r.data.stopped||{};
+      check(!r.isError&&r.data.ok===true&&S.at===2800&&S.lowered_from===null&&S.limit===null&&/^the provider stopped the reply at 2,800 output tokens, the most this call asked for; the reply may end early/.test(r.data.next||''),'stopped, nothing lowered: got '+JSON.stringify(r.data.stopped)+' '+r.data.next);
+      return s1.call('crew_answer',{run:run,round:'14-battle',seat:'seat-3'});
+    }).then(function(r){
+      check(r.isError&&r.data.missing===true&&r.data.reason==='the provider returned an empty reply (the provider stopped it at 2,800 output tokens before any text). The seat is missing this round.'&&!fs.existsSync(path.join(run,'rounds','14-battle','seat-3.answer.md')),'empty stopped reply: '+JSON.stringify(r.data));
+      var e=logOf(run).filter(function(x){return x.event==='crew.failed'&&x.round==='14-battle'&&x.seat==='seat-3';}).pop()||{};
+      check(e.finish_reason==='length'&&e.read==='rating'&&e.reason==='empty reply (the provider stopped it at 2,800 output tokens before any text)','empty stopped reply: crew.failed should carry finish_reason, the read and the reason, got '+JSON.stringify(e));
+      // The record and the board: the stopped mark beside the rating, the line above the answer, and why a seat is missing.
+      ['seat-2','seat-3'].forEach(function(s){ node('check-answer.js',[path.join(run,'rounds','13-battle',s+'.answer.md'),'--run',run]); });
+      node('check-answer.js',[path.join(run,'rounds','14-battle','seat-2.answer.md'),'--run',run]);
+      node('render-record.js',['--run',run]); node('render-board.js',['--run',run]);
+      var rec=fs.readFileSync(path.join(run,'record.md'),'utf8'), html=fs.readFileSync(path.join(run,'board.html'),'utf8');
+      var row3=(rec.match(/\| openai\/gpt-oss-120b-0725 \(OpenAI, served by Groq\), seat-3 \|[^\n]*/)||[''])[0];
+      var row2=(rec.match(/\| qwen\/qwen3\.6-27b-0725 \(Alibaba, served by Groq\), seat-2 \|[^\n]*/)||[''])[0];
+      check(/\| 8\/10[^|]*· stopped at 950 tokens \|/.test(row3),'record: the stopped read should be marked in the scoreboard with the rating shown, got '+row3);
+      check(/\| 8\/10[^|]*· stopped at 2,800 tokens \|/.test(row2)&&(row2.match(/stopped at/g)||[]).length===1,'record: seat-2\'s stopped read is marked and its kept read (13-battle) is not, got '+row2);
+      check(rec.indexOf('*Stopped by the provider at 950 output tokens, the most this call asked for, lowered from 2,800 to fit the provider\'s per-minute output limit of 1,000; the reply may end before the seat finished.*')>=0,'record: the answer should carry the stopped line with the lowering named');
+      check(rec.indexOf('*Stopped by the provider at 2,800 output tokens, the most this call asked for; the reply may end before the seat finished.*')>=0,'record: a stop with nothing lowered names only the call\'s own ask');
+      check(/Stopped means the provider ended the reply at the output tokens the call asked for/.test(rec)&&/Stopped means/.test(html),'record and board: the legend should explain stopped');
+      check(/8\/10<br><span class="mark"[^>]*>[^<]*stopped at 950 tokens<\/span>/.test(html),'board: the stopped read should be marked in the scoreboard with the rating shown');
+      var sec10=rec.slice(rec.indexOf('### Round 10-battle'),rec.indexOf('### Round 13-battle'));
+      check(sec10.indexOf('seat-2\n\n*Missing: no answer file.* Why: Groq limits this model\'s tier to 300 output tokens a minute and refuses a request expected to write more; a 600-word reply needs about 1,000; the seat is missing this round (a paid tier, or a smaller cap).')>=0,'record: the missing seat\'s reason should stand under the seat in that round, got '+sec10.slice(0,600));
+      var sec14=rec.slice(rec.indexOf('### Round 14-battle'));
+      check(sec14.indexOf('seat-3\n\n*Missing: no answer file.* Why: empty reply (the provider stopped it at 2,800 output tokens before any text).')>=0,'record: the empty stopped reply\'s reason should stand under seat-3 in round 14');
+      var f3=/<figure class="frame missing co-openai" data-seat="seat-3">([\s\S]*?)<\/figure>/.exec(html);
+      check(!!f3&&/<span class="badge missing">Missing<\/span>/.test(f3[1])&&f3[1].indexOf('<p class="final why">Why: empty reply (the provider stopped it at 2,800 output tokens before any text).</p>')>=0,'board: the missing seat\'s card should carry the reason, got '+(f3?f3[1].slice(0,500):'no frame'));
+      check(html.indexOf('<li class="why"><b>Round 10-battle</b> · seat-2 missing. Why: Groq limits this model\'s tier to 300 output tokens a minute and refuses a request expected to write more; a 600-word reply needs about 1,000; the seat is missing this round (a paid tier, or a smaller cap).</li>')>=0,'board: the scoreboard panel should carry the reason of a missing seat in an earlier round');
+      // The state carries both: the cell's stopped object and mark, the missing cell's reason.
+      var st=JSON.parse(node('render-state.js',['--run',run]).stdout||'{}');
+      var cellsOf=function(r){ return ((st.rounds||[]).filter(function(x){return x.round===r;})[0]||{}).cells||{}; };
+      var c13=cellsOf('13-battle')['seat-3']||{}, c14=cellsOf('14-battle')['seat-3']||{};
+      check(!!c13.stopped&&c13.stopped.at===950&&c13.stopped.lowered_from===2800&&c13.stopped.limit===1000&&/stopped at 950 tokens$/.test(c13.mark||''),'state: the stopped read should carry stopped and the mark, got '+JSON.stringify({stopped:c13.stopped,mark:c13.mark}));
+      check(c14.kind==='missing'&&c14.reason==='empty reply (the provider stopped it at 2,800 output tokens before any text)','state: the missing cell should carry the reason, got '+JSON.stringify(c14));
+      console.log('scoreboard row with the stopped mark: '+row3);
     });
   }).then(function(){
     // The id scrub on the site measured 2026-10-24 (issue 58): a 429 that still refuses after the wait carries

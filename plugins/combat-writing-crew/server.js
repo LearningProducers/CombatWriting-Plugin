@@ -26,13 +26,22 @@
 //                  seat's second overrun), the reply is cut at the cap, at the
 //                  last sentence end before it, with its first line kept, and the log line and
 //                  the result say so; the record and the board mark the read "truncated at N words".
-//                  A 429 naming a per-request output cap (Groq's OTPM, issue 56) is not waited
+//                  A 429 on the provider's per-minute output limit (Groq's OTPM, its forecast
+//                  of one request's output held against the limit; issue 56) is not waited
 //                  out: max_tokens is lowered to the limit under a 5% margin (or by the
 //                  limit-to-requested ratio when that is lower; issue 78: the provider's
 //                  Requested count is not max_tokens scaled) and the packet resent at once,
-//                  once, when the lowered value still covers the packet's word cap (the log
-//                  line and the result carry max_tokens_lowered); else the seat is missing
-//                  with the provider's limit and what the reply needs named.
+//                  once, whenever the limit itself covers what the packet's word cap needs
+//                  (the log line and the result carry max_tokens_lowered); the seat is
+//                  missing only when the limit itself is under that need, with the limit and
+//                  what the reply needs named.
+//                  A reply the provider stopped at max_tokens (finish_reason length) is still
+//                  written; the log line carries finish_reason and stopped {at,
+//                  completion_tokens, lowered_from, limit}, the result says so, and the record
+//                  and the board mark the read "stopped at N tokens". An empty reply the
+//                  provider stopped is missing, with where it was stopped in the reason.
+//                  Every crew.failed and crew.refused line carries the read and a reason; the
+//                  listed plugin's record and board show that reason under the missing seat.
 //
 // Keys: the masked prompt's value first (the manifest maps it to CW_CREW_<PROVIDER>_KEY), the
 // conventional environment variable only when the prompt is empty, then one NAME=value line in
@@ -225,7 +234,7 @@ function callProvider(provider,key,seat,systemPrompt,userText,budget,capWords){
   var win=windows[wk]||(windows[wk]=lib.makeWindow());
   var tokens=budget.input+budget.reservation;
   var waited=0, lowered=null;
-  // atOnce: the resend after a per-request cap refusal. The refused attempt's reservation already sits
+  // atOnce: the resend after a refusal on the per-minute output limit. The refused attempt's reservation already sits
   // in the window, so the resend neither waits for the window nor charges it again; it goes at once.
   function attempt(n,atOnce){
     var w=atOnce?0:win.waitFor(tokens,b);
@@ -235,15 +244,17 @@ function callProvider(provider,key,seat,systemPrompt,userText,budget,capWords){
       return lib.request('POST',endpoint,headers,body,180000);
     }).then(function(res){
       if(res.status===429&&n===0){
-        // A per-request output cap (issue 56): no wait helps. Lower max_tokens to the limit (or by the
-        // ratio when lower; issue 78) and resend at once when that still covers the reply the packet
-        // asks for; else the seat is missing with the numbers named. Any other 429 is a window: wait
-        // Retry-After, or a minute, and resend once.
+        // The per-minute output limit (issue 56): no wait helps. Lower max_tokens to the limit under the
+        // margin (or by the ratio when lower; issue 78) and resend at once whenever the limit itself covers
+        // the reply the packet asks for; the margined value is the resend's, never the test, or a limit
+        // equal to the need would drop the seat on every refusal. Only a limit under the need leaves the
+        // seat missing with the numbers named. Any other 429 is a window: wait Retry-After, or a minute,
+        // and resend once.
         var cap=lib.parseCapRefusal(res.json&&res.json.error&&res.json.error.message?res.json.error.message:res.text);
         if(cap&&cap.kind==='output'&&cap.requested>cap.limit){
           var needed=capWords?lib.tokensForCap(capWords):b.floor;
           var next=lib.loweredMaxTokens(body.max_tokens,cap.limit,cap.requested);
-          if(next<needed)return {res:res,waited_ms:waited,output_cap:{limit:cap.limit,requested:cap.requested,max_tokens:body.max_tokens,lowered_to:next,needed:needed,cap_words:capWords}};
+          if(cap.limit<needed)return {res:res,waited_ms:waited,output_cap:{limit:cap.limit,requested:cap.requested,max_tokens:body.max_tokens,lowered_to:next,needed:needed,cap_words:capWords}};
           lowered={from:body.max_tokens,to:next,limit:cap.limit,requested:cap.requested};
           body.max_tokens=next;
           return attempt(1,true);
@@ -253,7 +264,7 @@ function callProvider(provider,key,seat,systemPrompt,userText,budget,capWords){
         waited+=ms;
         return sleep(ms).then(function(){return attempt(1);});
       }
-      return {res:res,waited_ms:waited,max_tokens_lowered:lowered};
+      return {res:res,waited_ms:waited,max_tokens_lowered:lowered,max_tokens:body.max_tokens};
     });
   }
   return attempt(0);
@@ -282,7 +293,7 @@ function answer(args){
   if(!fs.existsSync(packetPath))throw new Error('no packet at '+path.relative(runDir,packetPath)+'; build it with the listed plugin\'s packet.js first');
   var k=lib.keyFor(provider);
   if(!k){
-    lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,reason:'no key for '+provider.name+': '+lib.keyHint(provider),key_shape:lib.keyShape(provider),next:lib.keyField(provider).next,field:lib.keyField(provider).field});
+    lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,read:read,provider:provider.id,reason:'no key for '+provider.name+': '+lib.keyHint(provider),key_shape:lib.keyShape(provider),next:lib.keyField(provider).next,field:lib.keyField(provider).field});
     return Promise.resolve({ok:false,seat:seatId,missing:true,reason:'no key for '+provider.name+': '+lib.keyHint(provider)+' The seat is missing this round.'});
   }
   var packet=lib.readText(packetPath);
@@ -291,7 +302,7 @@ function answer(args){
   var systemPrompt=systemPromptFor(read,seat,rules);
   var budget=lib.budgetFor(provider,systemPrompt,packet);
   if(!budget.ok){
-    lib.appendLog(runDir,{event:'crew.refused',round:round,seat:seatId,provider:provider.id,model:seat.model,file:path.relative(runDir,packetPath),input_tokens:budget.input,reason:budget.message});
+    lib.appendLog(runDir,{event:'crew.refused',round:round,seat:seatId,read:read,provider:provider.id,model:seat.model,file:path.relative(runDir,packetPath),input_tokens:budget.input,reason:budget.message});
     return Promise.resolve({ok:false,seat:seatId,missing:true,reason:budget.message});
   }
   var qk=lib.windowKey(provider,seat);
@@ -300,25 +311,30 @@ function answer(args){
     return callProvider(provider,k.key,seat,systemPrompt,packet,budget,rules.cap).then(function(out){
       var res=out.res;
       if(out.output_cap){
-        // The provider's per-request output cap is under what the packet's cap needs: missing, with the numbers.
+        // The provider's per-minute output limit is itself under what the packet's cap needs: missing, with the numbers.
         var c=out.output_cap;
         var capReason=lib.capRefusalReason(provider.name,c.limit,c.cap_words,c.needed);
-        lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,model_requested:seat.model,file:path.relative(runDir,packetPath),status:res.status,waited_ms:out.waited_ms,output_cap:c,reason:capReason});
+        lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,read:read,provider:provider.id,model_requested:seat.model,file:path.relative(runDir,packetPath),status:res.status,waited_ms:out.waited_ms,output_cap:c,reason:capReason});
         return {ok:false,seat:seatId,missing:true,output_cap:c,reason:capReason+'.'};
       }
       if(res.status!==200){
         var msg=lib.scrubIds(res.json&&res.json.error&&res.json.error.message?res.json.error.message:(res.text||'').slice(0,200));
         var reason='HTTP '+res.status+(msg?': '+msg:'')+(res.status===429?(out.max_tokens_lowered?' (still refused after max_tokens was lowered to '+out.max_tokens_lowered.to+')':' (rate limit still hit after waiting)'):res.status===413?' (payload too large for the provider)':res.status===401?' (the key was refused)':'');
-        lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,model_requested:seat.model,file:path.relative(runDir,packetPath),status:res.status,waited_ms:out.waited_ms,max_tokens_lowered:out.max_tokens_lowered||null,reason:reason});
+        lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,read:read,provider:provider.id,model_requested:seat.model,file:path.relative(runDir,packetPath),status:res.status,waited_ms:out.waited_ms,max_tokens_lowered:out.max_tokens_lowered||null,reason:reason});
         return {ok:false,seat:seatId,missing:true,reason:reason+'. The seat is missing this round.'};
       }
       var choice=res.json&&res.json.choices&&res.json.choices[0];
       var text=choice&&choice.message&&typeof choice.message.content==='string'?choice.message.content:'';
       text=text.replace(/<think>[\s\S]*?<\/think>\s*/g,'').replace(/^﻿/,'').replace(/^\s+/,'');
       var returned=res.json&&res.json.model?String(res.json.model):null;
+      // A reply the provider stopped at max_tokens (finish_reason length): read here, logged and said below.
+      var usage=(res.json&&res.json.usage)||{};
+      var finish=lib.finishReason(choice);
+      var stopped=lib.stoppedBy(finish,out.max_tokens,usage.completion_tokens,out.max_tokens_lowered);
       if(!text.trim()){
-        lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,model_requested:seat.model,model_returned:returned,file:path.relative(runDir,packetPath),reason:'empty reply'});
-        return {ok:false,seat:seatId,missing:true,reason:'the provider returned an empty reply. The seat is missing this round.'};
+        var emptyReason='empty reply'+(stopped?' (the provider stopped it at '+stopped.at.toLocaleString()+' output tokens before any text)':'');
+        lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,read:read,provider:provider.id,model_requested:seat.model,model_returned:returned,file:path.relative(runDir,packetPath),finish_reason:finish,max_tokens_lowered:out.max_tokens_lowered||null,reason:emptyReason});
+        return {ok:false,seat:seatId,missing:true,reason:'the provider returned an '+emptyReason+'. The seat is missing this round.'};
       }
       // Trailing whitespace off every line, so a rating line the model padded still meets the contract.
       text=text.split('\n').map(function(l){return l.replace(/[ \t\r]+$/,'');}).join('\n').replace(/\s+$/,'');
@@ -332,23 +348,22 @@ function answer(args){
         seat.model=returned;
         lib.writeSeats(runDir,seatsFile);
       }
-      var usage=res.json.usage||{};
       lib.appendLog(runDir,{event:'crew.answered',round:round,seat:seatId,provider:provider.id,served_by:provider.name,company:seat.company,
         model_requested:requested,model_returned:returned,model_changed:!!(returned&&returned!==requested),model_source:'API response model field',
         file:path.relative(runDir,answerPath),packet:path.relative(runDir,packetPath),read:read,retry_note:note||null,
-        word_cap:rules.cap,contract:read==='rating'?rules.contract:read,truncated:truncated,
+        word_cap:rules.cap,contract:read==='rating'?rules.contract:read,truncated:truncated,finish_reason:finish,stopped:stopped,
         input_tokens_estimated:budget.input,reservation:budget.reservation,max_tokens_lowered:out.max_tokens_lowered||null,
         usage:{prompt_tokens:usage.prompt_tokens||null,completion_tokens:usage.completion_tokens||null,total_tokens:usage.total_tokens||null},
         waited_ms:out.waited_ms,key_source:k.source});
       return {ok:true,seat:seatId,file:answerPath,model_requested:requested,model_returned:returned,model_source:'API response model field',served_by:provider.name,company:seat.company,waited_ms:out.waited_ms,
-        max_tokens_lowered:out.max_tokens_lowered||null,truncated:truncated,
-        next:(truncated?'the reply was over the cap again and was cut at '+truncated.at+' words'+(truncated.cut_at==='sentence'?', at the last sentence end before the cap,':'')+' with its first line kept; the record marks it truncated. ':'')+'run the listed plugin\'s check-answer.js on the file, then check-flip.js for a rerate round'};
+        max_tokens_lowered:out.max_tokens_lowered||null,truncated:truncated,stopped:stopped,
+        next:(stopped?'the provider stopped the reply at '+stopped.at.toLocaleString()+' output tokens, the most this call asked for'+(stopped.lowered_from?' (lowered from '+stopped.lowered_from.toLocaleString()+' to fit its per-minute output limit of '+stopped.limit.toLocaleString()+')':'')+'; the reply may end early and the record marks it stopped. ':'')+(truncated?'the reply was over the cap again and was cut at '+truncated.at+' words'+(truncated.cut_at==='sentence'?', at the last sentence end before the cap,':'')+' with its first line kept; the record marks it truncated. ':'')+'run the listed plugin\'s check-answer.js on the file, then check-flip.js for a rerate round'};
     });
   });
   queues[qk]=run.catch(function(){});
   return run.catch(function(err){
     var why=lib.scrubIds(err.message);
-    lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,provider:provider.id,model_requested:seat.model,reason:why});
+    lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,read:read,provider:provider.id,model_requested:seat.model,reason:why});
     return {ok:false,seat:seatId,missing:true,reason:why+'. The seat is missing this round.'};
   });
 }
@@ -359,7 +374,7 @@ var TOOLS=[
     inputSchema:{type:'object',properties:{},additionalProperties:false}},
   {name:'crew_register',description:'Add every available outside seat to a Combat Writing run: appends them to the run\'s seats.json (named by the model id and its maker, served by the provider) and logs it. Run it once per run after new-run.js and before building packets. Returns the seats added and the ones unavailable with the reason.',
     inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder, combat-writing/runs/<run-id>'}},required:['run'],additionalProperties:false}},
-  {name:'crew_answer',description:'Send one outside seat\'s packet for one round to its provider on the person\'s own key and write the answer file beside the packet. Checks the packet against the provider\'s call budget first (refuses with "Too long to send"), waits out the per-minute window, lowers max_tokens and resends once when the provider names a per-request output cap, and records the model id the API returned. Returns the answer path and the id, never the text. A failed call leaves the seat missing for the round.',
+  {name:'crew_answer',description:'Send one outside seat\'s packet for one round to its provider on the person\'s own key and write the answer file beside the packet. Checks the packet against the provider\'s call budget first (refuses with "Too long to send"), waits out the per-minute window, lowers max_tokens and resends once when the provider refuses on its per-minute output limit and that limit can still carry the reply, and records the model id the API returned. Returns the answer path and the id, never the text; `stopped` is set when the provider ended the reply at max_tokens. A failed call leaves the seat missing for the round, with the reason logged for the record and the board.',
     inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder'},round:{type:'string',description:'the round, such as 02-battle'},seat:{type:'string',description:'the seat id, such as seat-4'},read:{type:'string',enum:['rating','sn','redflag','crew'],description:'rating (default), sn / redflag for the final reads, or crew for the second pass of a first round (the <seat>.crew packet, issue 88)'},note:{type:'string',description:'on a retry only: the failed check\'s reasons, appended after the packet so the seat knows what to fix'}},required:['run','round','seat'],additionalProperties:false}}
 ];
 
