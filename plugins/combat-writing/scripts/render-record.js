@@ -9,8 +9,10 @@
 // marked valid or invalid with the earlier number kept visible, Stand marked, missing seats
 // marked missing, a seat the round was not put to marked "not asked" (a round of seat lines
 // alone goes to the named seats only), a battle round that asked for no rating marked "critique", an outside
-// seat's second overrun the add-on or the checker cut marked "truncated at N words", the final round's S/N and
-// red-flag counts per seat), then every answer in full by round under its seat's name, then
+// seat's second overrun the add-on or the checker cut marked "truncated at N words", an outside seat's reply the
+// provider stopped marked "stopped at N tokens", the final round's S/N and
+// red-flag counts per seat), then every answer in full by round under its seat's name (a missing
+// seat with the reason the add-on logged for it, lib.missingReason, when there is one), then
 // the log of what was sent, and under it the models measured: one line per fresh reader per
 // round with the model id its replies carry, the model choice passed at its start and where the
 // line was read from (lib.measuredLines, the log's seat.model lines; nothing when none was
@@ -61,6 +63,8 @@ function truncationOf(seat,round,read){
   return Object.assign({by:e.event==='answer.checked'?'checker':'add-on'},e.truncated);
 }
 function truncMark(t){ return t?' · truncated at '+t.at+' words':''; }
+// A reply the provider stopped (lib.stoppedOf): the mark beside the truncated mark, never in its place.
+function stopMark(s){ return s?' · '+lib.stoppedMark(s):''; }
 
 // One seat in one round: the facts from the files, with the log's verdicts where it has them.
 function cell(seat,round){
@@ -72,11 +76,11 @@ function cell(seat,round){
       var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&e.contract===c;});
       var cap=logged?logged.word_cap:null;
       if(cap)r=lib.checkAnswer(lib.readText(p),cap,c);
-      return {c:c,ok:r.ok,value:r.value,reasons:r.reasons,truncated:truncationOf(seat,round,c)};
+      return {c:c,ok:r.ok,value:r.value,reasons:r.reasons,truncated:truncationOf(seat,round,c),stopped:lib.stoppedOf(log,seat.id,round,c)};
     });
     var snP=parts[0], rfP=parts[1];
-    var snText=(snP.missing?'S/N missing':snP.ok?'S/N '+snP.value+'%':'S/N failed read')+(snP.truncated?' (truncated at '+snP.truncated.at+' words)':'');
-    var rfText=(rfP.missing?'red flags missing':rfP.ok?(rfP.value===0?'no red flags':rfP.value+' red flag'+(rfP.value===1?'':'s')):'red-flag read failed')+(rfP.truncated?' (truncated at '+rfP.truncated.at+' words)':'');
+    var snText=(snP.missing?'S/N missing':snP.ok?'S/N '+snP.value+'%':'S/N failed read')+(snP.truncated?' (truncated at '+snP.truncated.at+' words)':'')+(snP.stopped?' ('+lib.stoppedMark(snP.stopped)+')':'');
+    var rfText=(rfP.missing?'red flags missing':rfP.ok?(rfP.value===0?'no red flags':rfP.value+' red flag'+(rfP.value===1?'':'s')):'red-flag read failed')+(rfP.truncated?' (truncated at '+rfP.truncated.at+' words)':'')+(rfP.stopped?' ('+lib.stoppedMark(rfP.stopped)+')':'');
     return {text:snText+' · '+rfText,rating:null,final:true,sn:snP,redflag:rfP};
   }
   var p=path.join(runDir,'rounds',round,seat.id+'.answer.md');
@@ -86,9 +90,10 @@ function cell(seat,round){
   var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract===contract);});
   var check=lib.checkAnswer(text,logged?logged.word_cap:null,contract);
   var trunc=truncationOf(seat,round,'rating');
-  if(!check.ok)return {text:'failed read ('+check.reasons[0]+')'+(check.rating!==null?' · wrote '+check.rating+'/10':'')+truncMark(trunc),rating:null,failed:true,reasons:check.reasons,truncated:trunc};
+  var stop=lib.stoppedOf(log,seat.id,round,'rating');
+  if(!check.ok)return {text:'failed read ('+check.reasons[0]+')'+(check.rating!==null?' · wrote '+check.rating+'/10':'')+truncMark(trunc)+stopMark(stop),rating:null,failed:true,reasons:check.reasons,truncated:trunc};
   var copy=logged&&logged.copy?logged.copy:null;
-  if(contract==='critique')return {text:'critique'+(copy?' · copy of '+copy.model:'')+truncMark(trunc),rating:null,critique:true,truncated:trunc,copy:copy};
+  if(contract==='critique')return {text:'critique'+(copy?' · copy of '+copy.model:'')+truncMark(trunc)+stopMark(stop),rating:null,critique:true,truncated:trunc,copy:copy};
   var flip=lastLog(function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
   if(!flip){
     var inputs=lib.flipInputs(runDir,seat,round,seats);
@@ -98,7 +103,7 @@ function cell(seat,round){
   var mark={first:'',stand:' · Stand','held':' · held, no Stand',
     'flip-valid':' · flip from '+flip.from+', valid (quoted '+flip.cited+')',
     'flip-invalid':' · flip from '+flip.from+', INVALID ('+(flip.reason||'quote not found')+')',unrated:''}[flip.status]||'';
-  return {text:r+mark+(copy?' · copy of '+copy.model:'')+truncMark(trunc),rating:check.rating,flip:flip,truncated:trunc,copy:copy};
+  return {text:r+mark+(copy?' · copy of '+copy.model:'')+truncMark(trunc)+stopMark(stop),rating:check.rating,flip:flip,truncated:trunc,copy:copy};
 }
 
 var grid={}; seats.forEach(function(s){grid[s.id]={};rounds.forEach(function(r){grid[s.id][r]=cell(s,r);});});
@@ -196,11 +201,18 @@ rounds.forEach(function(r){
       out.push('');
       out.push('#### '+lib.seatLabel(s)+(f.indexOf('.sn.')>=0?' — S/N ratio':f.indexOf('.redflag.')>=0?' — red flags':''));
       out.push('');
-      if(!fs.existsSync(p)){out.push(lib.isFinalRound(r)||lib.wasAsked(runDir,r,s.id,log)?'*Missing: no answer file.*':'*Not asked this round.*');return;}
+      var readName=f.indexOf('.sn.')>=0?'sn':f.indexOf('.redflag.')>=0?'redflag':'rating';
+      // A missing seat says why when the add-on logged a reason for it (lib.missingReason).
+      if(!fs.existsSync(p)){
+        var why=lib.missingWhy(lib.missingReason(log,s.id,r,readName));
+        out.push(lib.isFinalRound(r)||lib.wasAsked(runDir,r,s.id,log)?'*Missing: no answer file.*'+(why?' '+why:''):'*Not asked this round.*');return;
+      }
       var q=path.join(runDir,'rounds',r,s.id+'.question.md');
       if(fs.existsSync(q)&&f===s.id+'.answer.md'){out.push('*Question to this seat:* '+lib.readText(q).trim());out.push('');}
-      var t=truncationOf(s,r,f.indexOf('.sn.')>=0?'sn':f.indexOf('.redflag.')>=0?'redflag':'rating');
+      var t=truncationOf(s,r,readName);
       if(t){out.push('*'+lib.truncationLine(t)+'*');out.push('');}
+      var st=lib.stoppedOf(log,s.id,r,readName);
+      if(st){out.push('*'+lib.stoppedLine(st)+'*');out.push('');}
       out.push(lib.readText(p).replace(/\s+$/,''));
       // The second pass of a first round (issue 88), under the answer it belongs to.
       if(f===s.id+'.answer.md'){ var crew=lib.crewPassOf(runDir,r,s.id,log); if(crew){out.push('');out.push('*'+lib.CREW_PASS_HEADING+':*');out.push('');out.push(crew.text);} }

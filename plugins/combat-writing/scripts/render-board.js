@@ -21,7 +21,9 @@
 // at a time, none on a missing or failed read); the full read open on the card, scrolling inside
 // it); the bar at the bottom (every seat's latest number in its company colour, the next
 // commands). The scoreboard (one row per seat, one column per round, every rating on its own,
-// flips marked valid or invalid with the earlier number kept, Stand, missing, not asked, failed
+// flips marked valid or invalid with the earlier number kept, Stand, missing (with the reason the crew
+// add-on logged, on the seat's card and under the round's line), stopped (a reply the provider ended at
+// the call's output tokens), not asked, failed
 // reads, truncated reads) carries the round history under it and the final reads when a final
 // round exists; the run details carry the crew line, the Seats line when the crew is short, the
 // seat key, the drafts, the measured facts, the brief, the reader (Part 84), where the run
@@ -118,31 +120,34 @@ function voiceFile(round,seatId){
 }
 function cell(seat,round){
   var p=path.join(runDir,'rounds',round,seat.id+'.answer.md');
-  if(!fs.existsSync(p))return lib.wasAsked(runDir,round,seat.id,log)?{kind:'missing',text:'missing',rating:null}:{kind:'not-asked',text:'not asked',rating:null};
+  // A missing seat says why when the crew add-on logged a reason for it (lib.missingReason).
+  if(!fs.existsSync(p))return lib.wasAsked(runDir,round,seat.id,log)?{kind:'missing',text:'missing',rating:null,why:lib.missingWhy(lib.missingReason(log,seat.id,round,'rating'))}:{kind:'not-asked',text:'not asked',rating:null};
   var text=lib.readText(p);
   var contract=lib.contractSent(runDir,round,p,log);
   var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&(!e.contract||e.contract===contract);});
   var check=lib.checkAnswer(text,logged?logged.word_cap:null,contract);
   var trunc=truncationOf(seat,round,'rating');
+  // A reply the provider stopped (lib.stoppedOf): the mark beside the truncated mark, never in its place.
+  var stop=lib.stoppedOf(log,seat.id,round,'rating');
   var words=lib.wordCount(text);
-  if(!check.ok)return {kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,mark:withTrunc('',trunc),answer:text,words:words,contract:contract,reasons:check.reasons};
+  if(!check.ok)return {kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,mark:lib.withStopped(withTrunc('',trunc),stop),answer:text,words:words,contract:contract,reasons:check.reasons};
   var copy=logged&&logged.copy?logged.copy:null;
-  if(contract==='critique')return {kind:'critique',text:'critique',title:copy?'the rewrite is a copy of '+copy.model+'\'s':'this round asked for no rating',rating:null,mark:withTrunc(lib.copyMark(copy),trunc),answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null,copy:copy};
+  if(contract==='critique')return {kind:'critique',text:'critique',title:copy?'the rewrite is a copy of '+copy.model+'\'s':'this round asked for no rating',rating:null,mark:lib.withStopped(withTrunc(lib.copyMark(copy),trunc),stop),answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null,copy:copy};
   var flip=lastLog(function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
   if(!flip){var inputs=lib.flipInputs(runDir,seat,round,seats);flip=lib.checkFlip(text,seat,inputs.ownRated?inputs.ownRated.text:null,inputs.prevAnswers);}
   var kind={first:'first',stand:'stand',held:'held','flip-valid':'flip-valid','flip-invalid':'flip-invalid',unrated:'first'}[flip.status]||'first';
   var mark={first:'',stand:'Stand',held:'held, no Stand','flip-valid':'flip from '+flip.from+', valid','flip-invalid':'flip from '+flip.from+', INVALID'}[kind]||'';
   var title={'flip-valid':'quoted '+flip.cited,'flip-invalid':flip.reason||'quote not found'}[kind]||'';
-  return {kind:kind,rating:check.rating,text:check.rating+'/10',mark:withTrunc(copy?(mark?mark+' · ':'')+lib.copyMark(copy):mark,trunc),title:title,from:flip.from,answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null,copy:copy};
+  return {kind:kind,rating:check.rating,text:check.rating+'/10',mark:lib.withStopped(withTrunc(copy?(mark?mark+' · ':'')+lib.copyMark(copy):mark,trunc),stop),title:title,from:flip.from,answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null,copy:copy};
 }
 function finalCell(seat,round){
   return ['sn','redflag'].map(function(c){
     var p=path.join(runDir,'rounds',round,seat.id+'.'+c+'.answer.md');
-    if(!fs.existsSync(p))return {c:c,missing:true};
+    if(!fs.existsSync(p))return {c:c,missing:true,why:lib.missingWhy(lib.missingReason(log,seat.id,round,c))};
     var logged=lastLog(function(e){return e.event==='answer.checked'&&e.round===round&&e.seat===seat.id&&e.contract===c;});
     var text=lib.readText(p);
     var r=lib.checkAnswer(text,logged?logged.word_cap:null,c);
-    return {c:c,ok:r.ok,value:r.value,truncated:truncationOf(seat,round,c),answer:text,words:lib.wordCount(text)};
+    return {c:c,ok:r.ok,value:r.value,truncated:truncationOf(seat,round,c),stopped:lib.stoppedOf(log,seat.id,round,c),answer:text,words:lib.wordCount(text)};
   });
 }
 function finalText(f){
@@ -223,7 +228,7 @@ html.push('.side{overflow:auto;min-height:0;display:flex;flex-direction:column;g
 html.push('.hand{position:relative;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px;min-height:0;overflow:auto}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.frame>.full{min-height:0;flex:1 1 auto}.frame>.suit,.frame>.badge,.frame>blockquote,.frame>figcaption,.frame>.final,.frame>.rewrite,.frame>.read-controls{flex:0 0 auto}');
 html.push('.frame{position:relative;margin:0;background:var(--paper);padding:46px 24px 20px;display:flex;flex-direction:column;gap:9px;color:var(--ink);min-height:0;overflow:hidden;border:2px solid var(--c-other);border-radius:10px}.frame .ix{position:absolute;font:800 40px/1 '+UI+';letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--c-other)}.frame .ix small{display:block;font:700 10px/1.2 '+UI+';letter-spacing:.12em;text-transform:uppercase}.frame .ix.tl{top:14px;left:18px}.frame .ix.br{right:18px;bottom:12px;transform:rotate(180deg)}.frame .suit{font:800 11px/1 '+UI+';letter-spacing:.22em;text-transform:uppercase;text-align:center;color:var(--c-other)}');
 html.push('.badge{font:600 11px/1.4 '+UI+';letter-spacing:.1em;text-transform:uppercase;text-align:center;color:var(--ink-2)}.badge.failed,.badge.missing{color:var(--bad)}.badge .mark{font-weight:400;letter-spacing:0;text-transform:none;margin-left:6px}.flip-valid .badge .mark{color:var(--good)}.flip-invalid .badge .mark{color:var(--bad)}');
-html.push('.frame blockquote{margin:0;padding:0;font:700 20px/1.3 '+UI+';text-align:center;overflow-wrap:anywhere}.frame figcaption{font:500 12px/1.5 '+UI+';color:var(--ink-2);text-align:center}.frame figcaption .seat{color:var(--ink-3)}.frame figcaption .note-line{display:block;margin-top:4px}.frame .final{font:12px/1.4 '+UI+';color:var(--ink-2);text-align:center;margin:0}');
+html.push('.frame blockquote{margin:0;padding:0;font:700 20px/1.3 '+UI+';text-align:center;overflow-wrap:anywhere}.frame figcaption{font:500 12px/1.5 '+UI+';color:var(--ink-2);text-align:center}.frame figcaption .seat{color:var(--ink-3)}.frame figcaption .note-line{display:block;margin-top:4px}.frame .final{font:12px/1.4 '+UI+';color:var(--ink-2);text-align:center;margin:0}.frame .final.why{overflow-wrap:anywhere}');
 html.push('.frame .rewrite{font-size:14px;line-height:1.5;max-height:30%;overflow:auto;border-top:1px solid var(--rule-2);padding-top:8px}.read-controls{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;font:12px/1.4 '+UI+';color:var(--ink-2)}.read-controls button,.canon-controls button{font:600 12px/1 '+UI+';color:var(--ink);background:var(--btn);border:1px solid var(--btn-rule);border-radius:999px;padding:9px 12px;cursor:pointer;min-height:36px}.read-controls button:disabled{opacity:.5;cursor:default}.read-controls select.seat-voice{font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:2px 6px;max-width:18em}');
 html.push('.full{display:flex;flex-direction:column;min-height:0;margin:0}.fold{font:600 12px/1.5 '+UI+';color:var(--ink-2);background:none;border:0;border-top:1px solid var(--rule-2);border-radius:0;padding:8px 44px 0;text-align:center;margin:8px 0 0;width:100%;cursor:pointer;min-height:0}.frame.open{position:absolute;top:0;left:0;right:0;bottom:0;height:auto;min-height:0;overflow:auto;z-index:2}.frame.open>.full{flex:0 0 auto}.frame.open .read{overflow:visible;max-width:76ch;margin:0 auto;width:100%}.frame.open>.rewrite{max-height:none}.read{text-align:left;font-size:14.5px;line-height:1.55;color:var(--read-ink);margin:0;overflow:auto;min-height:0;flex:1 1 auto;overflow-wrap:anywhere}.read p{margin:0 0 .7em}.read ul,.read ol{margin:0 0 .7em 1.3em;padding:0}.read li{margin:0 0 .3em}.read code{font-size:13px;background:var(--surface-2);padding:0 4px;border-radius:3px}.read.failed{color:var(--ink-2)}details.fold{margin-top:8px}details.fold>summary{cursor:pointer;font:13px/1.5 '+UI+';color:var(--ink-2)}');
 // The identity table, one entry per company: the face of the verdict and the read, the frame's
@@ -234,7 +239,7 @@ html.push('figure.co-openai{border:4px solid var(--c-openai);border-radius:6px}f
 html.push('.score.co-anthropic{color:var(--c-anthropic)}.score.co-alibaba{color:var(--c-alibaba)}.score.co-openai{color:var(--c-openai)}.score.co-other{color:var(--c-other)}');
 // The bar, the tables.
 html.push('.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--rule);padding-top:10px;font:12px/1.5 '+UI+';color:var(--ink-2)}.scores{display:flex;gap:12px;flex-wrap:wrap;font:700 13px/1.4 '+UI+'}.bar .kicker+.kicker,.bar .scores+.kicker{margin-left:14px}.cmd{font:500 12.5px/1 "JetBrains Mono",ui-monospace,monospace;color:var(--ink);background:var(--cmd);border:1px solid var(--cmd-rule);padding:9px 11px;border-radius:4px}');
-html.push('table{border-collapse:collapse;width:100%;font:13px/1.45 '+UI+';margin-top:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top;overflow-wrap:anywhere}th{color:var(--ink-2);font-weight:600}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mark{color:var(--ink-2);font-size:12px}td.flip-valid .mark{color:var(--good)}td.flip-invalid .mark{color:var(--bad)}.missing,.failed{color:var(--ink-3);font-style:italic}.critique{color:var(--ink-2)}code{font-size:13px}.rounds{list-style:none;padding:0;margin:14px 0 0;font:13px/1.5 '+UI+';color:var(--ink-2)}.rounds li{padding:4px 0;border-bottom:1px solid var(--rule);overflow-wrap:anywhere}.rounds b{color:var(--ink)}a{color:inherit}');
+html.push('table{border-collapse:collapse;width:100%;font:13px/1.45 '+UI+';margin-top:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top;overflow-wrap:anywhere}th{color:var(--ink-2);font-weight:600}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mark{color:var(--ink-2);font-size:12px}td.flip-valid .mark{color:var(--good)}td.flip-invalid .mark{color:var(--bad)}.missing,.failed{color:var(--ink-3);font-style:italic}.critique{color:var(--ink-2)}code{font-size:13px}.rounds{list-style:none;padding:0;margin:14px 0 0;font:13px/1.5 '+UI+';color:var(--ink-2)}.rounds li{padding:4px 0;border-bottom:1px solid var(--rule);overflow-wrap:anywhere}.rounds b{color:var(--ink)}.rounds li.why{padding-left:14px}a{color:inherit}');
 html.push('</style></head><body>');
 
 // The round line: the latest round's task, visible with nothing opened (beside the draft since Part 118; in the history under the Scoreboard tab for every round).
@@ -268,6 +273,17 @@ function roundLine(round,condensed){
   var r=lib.ratingLine(task,round); if(r)parts.push(esc(r));
   parts.push(a.done.length+' of '+a.put.length+' seat'+(a.put.length===1?'':'s')+' answered');
   return '<b>Round '+esc(round)+'</b> · '+parts.join(' · ');
+}
+
+// Why a seat is missing in a round, one line per seat and read the crew add-on logged a reason for.
+function whyLines(round){
+  var out=[];
+  seats.forEach(function(s){
+    if(lib.isFinalRound(round)){ finalCell(s,round).forEach(function(x){ if(x.missing&&x.why)out.push('<b>Round '+esc(round)+'</b> · '+esc(s.id)+' '+(x.c==='sn'?'S/N':'red flags')+' missing. '+esc(x.why)); }); return; }
+    var c=grid[s.id][round];
+    if(c&&c.kind==='missing'&&c.why)out.push('<b>Round '+esc(round)+'</b> · '+esc(s.id)+' missing. '+esc(c.why));
+  });
+  return out;
 }
 
 // The Shipped strip: the latest shipping, visible with nothing opened. The
@@ -329,14 +345,14 @@ if(rounds.length){
     rounds.forEach(function(r){
       if(lib.isFinalRound(r)){
         var f=finalCell(s,r);
-        var tr=function(x){return x.truncated?' <span class="mark">truncated at '+x.truncated.at+' words</span>':'';};
+        var tr=function(x){return (x.truncated?' <span class="mark">truncated at '+x.truncated.at+' words</span>':'')+(x.stopped?' <span class="mark">'+esc(lib.stoppedMark(x.stopped))+'</span>':'');};
         var snT=(f[0].missing?'<span class="missing">S/N missing</span>':f[0].ok?'S/N '+f[0].value+'%':'<span class="failed">S/N failed read</span>')+tr(f[0]);
         var rfT=(f[1].missing?'<span class="missing">red flags missing</span>':f[1].ok?(f[1].value===0?'no red flags':f[1].value+' red flag'+(f[1].value===1?'':'s')):'<span class="failed">red-flag read failed</span>')+tr(f[1]);
         html.push('<td class="num">'+snT+'<br>'+rfT+'</td>');
         return;
       }
       var c=grid[s.id][r];
-      if(c.kind==='missing')html.push('<td class="num"><span class="missing">missing</span></td>');
+      if(c.kind==='missing')html.push('<td class="num"><span class="missing"'+(c.why?' title="'+esc(c.why)+'"':'')+'>missing</span></td>');
       else if(c.kind==='not-asked')html.push('<td class="num"><span class="missing" title="the round was put to other seats only">not asked</span></td>');
       else if(c.kind==='failed')html.push('<td class="num"><span class="failed" title="'+esc(c.title)+'">failed read</span>'+(c.mark?'<br><span class="mark">'+esc(c.mark)+'</span>':'')+'</td>');
       else if(c.kind==='critique')html.push('<td class="num critique"><span class="critique" title="'+esc(c.title)+'">critique</span>'+(c.mark?'<br><span class="mark">'+esc(c.mark)+'</span>':'')+'</td>');
@@ -346,7 +362,8 @@ if(rounds.length){
     html.push('<td class="num">'+(lr?lr.rating+'/10':'—')+'</td></tr>');
   });
   html.push('</tbody></table>');
-  html.push('<ul class="rounds">'+rounds.map(function(r){return '<li>'+roundLine(r)+'</li>';}).join('')+'</ul>');
+  // Under each round's line, why a seat is missing there, when the crew add-on logged a reason: readable with nothing hovered.
+  html.push('<ul class="rounds">'+rounds.map(function(r){return '<li>'+roundLine(r)+'</li>'+whyLines(r).map(function(l){return '<li class="why">'+l+'</li>';}).join('');}).join('')+'</ul>');
   if(finalRounds.length){
     html.push('<h2>Final reads</h2>');
     html.push('<p class="note">The S/N ratio and red-flag reads of the newest draft, one pair per seat, never averaged.</p>');
@@ -419,9 +436,9 @@ if(tableRounds.length){
     var t=latestTurn(s);
     var c=t?t.cell:null;
     var kind=c?c.kind:'unread';
-    var badge, quote, fold='', ix='';
+    var badge, quote, fold='', ix='', whyLine='';
     if(!c){ badge='<span class="badge missing">Not yet read</span>'; quote='This seat has not been put to the draft yet.'; }
-    else if(c.kind==='missing'){ badge='<span class="badge missing">Missing</span>'; quote='No answer this round. Nothing stands in for it.'; }
+    else if(c.kind==='missing'){ badge='<span class="badge missing">Missing</span>'; quote='No answer this round. Nothing stands in for it.'; if(c.why)whyLine='<p class="final why">'+esc(c.why)+'</p>'; }
     else if(c.kind==='failed'){
       badge='<span class="badge failed">Failed read'+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
       quote='Failed read: '+c.reasons[0]+'.';
@@ -449,7 +466,7 @@ if(tableRounds.length){
     if(finalRounds.length){ var f=finalCell(s,finalRounds[finalRounds.length-1]); finalLine='<p class="final">'+esc(finalRounds[finalRounds.length-1])+': '+esc(finalText(f))+'</p>'; }
     var note=t?seatNote(t.round,s.id):null;
     var vf=t&&c&&c.kind!=='missing'&&c.kind!=='not-asked'?voiceFile(t.round,s.id):null;
-    html.push('<figure class="frame '+esc(kind)+' '+coClass(s.company)+'" data-seat="'+esc(s.id)+'"'+(vf?' data-audio="'+esc(vf.src)+'" data-voice="'+esc(vf.voice)+'" data-renders="'+esc(JSON.stringify(vf.renders))+'"':'')+'>'+ix+'<span class="suit">'+esc(s.company)+'</span>'+badge+'<blockquote>'+esc(quote)+'</blockquote><figcaption>— '+esc(lib.seatLabel(s))+(t?' <span class="seat">· round '+esc(t.round)+'</span>':'')+(note?' <span class="note-line">· your note: “'+esc(note)+'”</span>':'')+'</figcaption>'+finalLine+fold+'</figure>');
+    html.push('<figure class="frame '+esc(kind)+' '+coClass(s.company)+'" data-seat="'+esc(s.id)+'"'+(vf?' data-audio="'+esc(vf.src)+'" data-voice="'+esc(vf.voice)+'" data-renders="'+esc(JSON.stringify(vf.renders))+'"':'')+'>'+ix+'<span class="suit">'+esc(s.company)+'</span>'+badge+'<blockquote>'+esc(quote)+'</blockquote><figcaption>— '+esc(lib.seatLabel(s))+(t?' <span class="seat">· round '+esc(t.round)+'</span>':'')+(note?' <span class="note-line">· your note: “'+esc(note)+'”</span>':'')+'</figcaption>'+whyLine+finalLine+fold+'</figure>');
   });
   html.push('</section>');
 }

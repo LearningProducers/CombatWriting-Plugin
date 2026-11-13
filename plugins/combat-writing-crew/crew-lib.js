@@ -333,10 +333,11 @@ function makeWindow(){
   };
 }
 
-// A per-request output cap is not a rate window (measured 2026-10-24 on Groq's free tier,
-// issue 56): a 429 reading "on output tokens per minute (OTPM): Limit 1000, Requested 1513"
-// caps one request's expected output, so the same body sent again after a minute draws the
-// same refusal. parseCapRefusal reads such a message: {kind:'output'|'total', limit,
+// A refusal on the per-minute output limit is not a window to wait out (measured 2026-10-24 on
+// Groq's free tier, issue 56): a 429 reading "on output tokens per minute (OTPM): Limit 1000,
+// Requested 1513" is the provider's forecast of one request's output held against its
+// per-minute limit, so the same body sent again after a minute draws the same refusal, and a
+// request that asks for less than the limit is accepted. parseCapRefusal reads such a message: {kind:'output'|'total', limit,
 // requested}, 'total' for the per-minute TPM shape (Groq's "Used N," between the two counts
 // tolerated), null for any other text. The cure is a lower max_tokens, and the limit is the
 // number to lower it to (issue 78, measured 2026-10-27 on the qwen seat): the same packet
@@ -344,12 +345,17 @@ function makeWindow(){
 // count is not max_tokens scaled, and a resend lowered by the ratio limit/requested landed
 // at 1294 and 2560, above the limit both times, refused both times. loweredMaxTokens returns
 // the smaller of that ratio and the limit itself, each under a 5% margin, so the resend never
-// asks for more than the cap allows; tokensForCap is the floor a reply under a word cap
-// needs, 1.6 tokens a word plus 40 for the first line; a lowered value under that floor means
-// the seat is missing with the numbers named (capRefusalReason), because no value that fits
-// the cap could carry the reply. A reasoning model that spends the lowered budget on thinking
-// returns a short or empty reply, which the checker marks as a failed read; that is the next
-// measurement, not a rule here.
+// asks for more than the limit allows; tokensForCap is what a reply under a word cap needs at
+// most, 1.6 tokens a word plus 40 for the first line. The seat is kept whenever the limit
+// itself covers that need: the packet is resent at the lowered value (950 on a limit of 1,000,
+// a 600-word packet needing 1,000), because the margin is the resend's safety and never a
+// reason to drop a seat, and 1.6 is a ceiling most replies run under. Only a limit under the
+// need means the seat is missing with the numbers named (capRefusalReason): no request the
+// provider accepts could carry the reply. A reply the provider then stops at the lowered
+// value comes back with finish_reason length, and stoppedBy reads it: the call's max_tokens,
+// the tokens returned, and the lowering when there was one; the server logs it and the record
+// and the board mark the read stopped. finishReason keeps the provider's word only when it is
+// a short token of letters and underscores.
 var CAP_REFUSAL=/on (output )?tokens per minute \((O?TPM)\): Limit (\d+),(?: Used \d+,)? Requested (\d+)/i;
 var TOKENS_PER_WORD=1.6, FIRST_LINE_TOKENS=40, CAP_MARGIN=0.95;
 function parseCapRefusal(message){
@@ -360,7 +366,14 @@ function parseCapRefusal(message){
 function tokensForCap(capWords){ return Math.ceil(capWords*TOKENS_PER_WORD)+FIRST_LINE_TOKENS; }
 function loweredMaxTokens(maxTokens,limit,requested){ return Math.min(Math.floor(maxTokens*limit/requested*CAP_MARGIN),Math.floor(limit*CAP_MARGIN)); }
 function capRefusalReason(providerName,limit,capWords,needed){
-  return providerName+' allows '+limit.toLocaleString()+' output tokens per request on this model\'s tier; '+(capWords?'a '+capWords+'-word reply needs about '+needed.toLocaleString():'a reply needs at least '+needed.toLocaleString())+'; the seat is missing this round (a paid tier, or a smaller cap)';
+  return providerName+' limits this model\'s tier to '+limit.toLocaleString('en-US')+' output tokens a minute and refuses a request expected to write more; '+(capWords?'a '+capWords+'-word reply needs about '+needed.toLocaleString('en-US'):'a reply needs at least '+needed.toLocaleString('en-US'))+'; the seat is missing this round (a paid tier, or a smaller cap)';
+}
+// A reply the provider stopped: the API's finish_reason is length when the reply ran into the
+// max_tokens the call asked for. stoppedBy returns null for any other finish.
+function finishReason(choice){ var f=choice&&choice.finish_reason; return typeof f==='string'&&/^[A-Za-z_]{1,40}$/.test(f)?f:null; }
+function stoppedBy(finish,maxTokens,completionTokens,lowered){
+  if(finish!=='length')return null;
+  return {at:maxTokens,completion_tokens:typeof completionTokens==='number'?completionTokens:null,lowered_from:lowered?lowered.from:null,limit:lowered?lowered.limit:null};
 }
 
 // The id scrub (issue 58, measured 2026-10-24): a provider's error text can name the account the
@@ -384,5 +397,5 @@ function scrubIds(text){
 module.exports={readText:readText,readManifest:readManifest,manifestVersion:manifestVersion,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
   loadProviders:loadProviders,keyFor:keyFor,keyShape:keyShape,keyHint:keyHint,keyNext:keyNext,keyField:keyField,keyFilePath:keyFilePath,keyFileShown:keyFileShown,readKeyFile:readKeyFile,KEY_FILE:KEY_FILE,CONFIGURE_COMMAND:CONFIGURE_COMMAND,CAUSES:CAUSES,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
   eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,windowKey:windowKey,
-  parseCapRefusal:parseCapRefusal,tokensForCap:tokensForCap,loweredMaxTokens:loweredMaxTokens,capRefusalReason:capRefusalReason,TOKENS_PER_WORD:TOKENS_PER_WORD,FIRST_LINE_TOKENS:FIRST_LINE_TOKENS,CAP_MARGIN:CAP_MARGIN,scrubIds:scrubIds,
+  parseCapRefusal:parseCapRefusal,tokensForCap:tokensForCap,loweredMaxTokens:loweredMaxTokens,capRefusalReason:capRefusalReason,finishReason:finishReason,stoppedBy:stoppedBy,TOKENS_PER_WORD:TOKENS_PER_WORD,FIRST_LINE_TOKENS:FIRST_LINE_TOKENS,CAP_MARGIN:CAP_MARGIN,scrubIds:scrubIds,
   NO_RATING_LINE:NO_RATING_LINE,SECTIONS_LINE:SECTIONS_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,packetRules:packetRules,wordCount:wordCount,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer};
