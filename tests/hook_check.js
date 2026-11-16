@@ -4,7 +4,9 @@
 // seat-scope hook sits beside it in hooks.json, pinned by tests/seat_scope_check.js; since
 // 2026-10-26 the show-result hook too, issue 70, pinned by tests/show_result_check.js),
 // and on every start but the first it reads, writes and calls nothing (the first start measures the
-// add-on and the voices and writes the sentinel, Part 83).
+// add-on and the voices and writes the sentinel, Part 83; a host that names no data folder, or
+// one the hook cannot make, read or write, gets the measurement at every start, Part 128, pinned
+// by tests/session_start_check.js).
 //
 // What it pins:
 //   - plugins/combat-writing/hooks/ holds exactly hooks.json, seat-scope.js, session-start.js
@@ -12,20 +14,25 @@
 //   - hooks.json has the top-level `hooks` wrapper, three events, SessionStart, PreToolUse and
 //     PostToolUse, SessionStart with one entry
 //     whose one command hook runs node on a file inside the plugin, named through
-//     ${CLAUDE_PLUGIN_ROOT}, handed ${CLAUDE_PLUGIN_DATA} as its one argument (Part 83), with no
-//     other variable, substitution, shell operator or launcher.
-//   - Run with node and no data folder, session-start.js exits 0 and prints one JSON object whose
+//     ${CLAUDE_PLUGIN_ROOT}, with no argument (Part 128: the data folder reaches the script in its
+//     environment), no other variable, substitution, shell operator or launcher.
+//   - Every command in hooks.json, the three hooks', is node on one file under
+//     ${CLAUDE_PLUGIN_ROOT}/hooks/ and nothing else: no argument, no other variable.
+//   - Run with node on a start after the first (a data folder that holds the sentinel, named in
+//     CLAUDE_PLUGIN_DATA), session-start.js exits 0 and prints one JSON object whose
 //     hookSpecificOutput carries exactly "Combat Writing ready. /cw:help for the guide." as
 //     additionalContext for SessionStart, the context the host reads, and nothing else: no
 //     systemMessage key, the field the terminal shows the person (issue 165, 2026-11-04: nothing
 //     prints on the screen at session start, ever).
 //   - The script requires fs, path, child_process and the plugin's lib.js and nothing else, holds
-//     no URL, never installs, and reads one environment variable, CW_SESSION_PROBE (the tests' fakes).
+//     no URL, never installs, reads no argument, and reads three environment variables:
+//     CLAUDE_PLUGIN_DATA (its data folder), HOME (the cache fallback) and CW_SESSION_PROBE (the
+//     tests' fakes).
 //
 // Run from the repo root:   node tests/hook_check.js
 // Exit 0 on pass; exit 1 on any failure.
 
-var fs=require('fs'), path=require('path'), cp=require('child_process');
+var fs=require('fs'), path=require('path'), os=require('os'), cp=require('child_process');
 var root=path.join(__dirname,'..');
 var LINE='Combat Writing ready. /cw:help for the guide.';
 var failures=[], passes=0;
@@ -46,9 +53,17 @@ if(hooks){
   check(entries.length===1&&Array.isArray(entries[0].hooks)&&entries[0].hooks.length===1,'hooks.json: SessionStart must hold one entry with one hook');
   var h=(entries[0]&&entries[0].hooks&&entries[0].hooks[0])||{};
   check(h.type==='command','hooks.json: the hook type must be command');
-  check(h.command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js" "${CLAUDE_PLUGIN_DATA}"','hooks.json: the command must be node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js" "${CLAUDE_PLUGIN_DATA}", got '+JSON.stringify(h.command));
-  check(!/[;&|<>`$]/.test(String(h.command).replace('${CLAUDE_PLUGIN_ROOT}','').replace('${CLAUDE_PLUGIN_DATA}','')),'hooks.json: the command holds a shell operator or another substitution');
+  check(h.command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js"','hooks.json: the command must be node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js", got '+JSON.stringify(h.command));
+  check(!/[;&|<>`$]/.test(String(h.command).replace('${CLAUDE_PLUGIN_ROOT}','')),'hooks.json: the command holds a shell operator or another substitution');
   check(typeof h.timeout==='number'&&h.timeout>=12&&h.timeout<=15,'hooks.json: the hook timeout covers the two 5 s measurement budgets and no more (Part 83)');
+  // Every hook command of the plugin: node on one file under ${CLAUDE_PLUGIN_ROOT}/hooks/, nothing after it.
+  var commands=[];
+  Object.keys(hooks.hooks||{}).forEach(function(ev){ (hooks.hooks[ev]||[]).forEach(function(en){ (en.hooks||[]).forEach(function(x){ commands.push({event:ev,hook:x}); }); }); });
+  check(commands.length===3,'hooks.json: expected three hook commands, found '+commands.length);
+  commands.forEach(function(c){
+    check(c.hook.type==='command'&&/^node "\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/[a-z-]+\.js"$/.test(String(c.hook.command))&&c.hook.args===undefined,'hooks.json: the '+c.event+' command must be node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.js" and nothing else (no argument, no other variable), got '+JSON.stringify(c.hook.command)+(c.hook.args!==undefined?' args '+JSON.stringify(c.hook.args):''));
+  });
+  check(!/CLAUDE_PLUGIN_DATA/.test(read(dir+'/hooks.json')),'hooks.json names CLAUDE_PLUGIN_DATA: no hook command carries a variable but ${CLAUDE_PLUGIN_ROOT}');
 }
 
 var script=read(dir+'/session-start.js');
@@ -58,8 +73,15 @@ var reqs=(code.match(/require\(['"][^'"]+['"]\)/g)||[]).map(function(r){return r
 check(reqs.join()==='../scripts/lib.js,child_process,fs,path'&&!/\bfetch\(/.test(code)&&!/https?:\/\//.test(code),'session-start.js: requires fs, path, child_process and lib.js only, fetches nothing, holds no URL: '+reqs.join());
 check((code.match(/process\.env\.([A-Z_]+)/g)||[]).filter(function(v,i,a){return a.indexOf(v)===i;}).sort().join()==='process.env.CLAUDE_PLUGIN_DATA,process.env.CW_SESSION_PROBE,process.env.HOME','session-start.js: reads only CLAUDE_PLUGIN_DATA, HOME (the cache fallback) and CW_SESSION_PROBE from the environment');
 check(!/plugin install|plugin\s*,\s*['"]install/.test(code),'session-start.js: never installs');
+check(!/process\.argv/.test(code),'session-start.js: reads an argument; the data folder comes from the environment alone');
 
-var r=cp.spawnSync(process.execPath,[path.join(root,dir,'session-start.js')],{encoding:'utf8',cwd:root});
+// A start after the first: the data folder holds the sentinel, so the hook reads, writes and calls nothing.
+var data=fs.mkdtempSync(path.join(os.tmpdir(),'cw-hook-'));
+fs.writeFileSync(path.join(data,'first-session'),'{}\n');
+var env=Object.assign({},process.env,{CLAUDE_PLUGIN_DATA:data,CW_SESSION_PROBE:path.join(data,'no-such-commands')});
+var r=cp.spawnSync(process.execPath,[path.join(root,dir,'session-start.js')],{encoding:'utf8',cwd:root,env:env});
+check(fs.readdirSync(data).join()==='first-session'&&fs.readFileSync(path.join(data,'first-session'),'utf8')==='{}\n','session-start.js: a later start wrote in the data folder: '+fs.readdirSync(data).join());
+fs.rmSync(data,{recursive:true,force:true});
 check(r.status===0,'session-start.js: exit '+r.status+' '+r.stderr);
 check(r.stderr==='','session-start.js: wrote to stderr: '+r.stderr);
 var lines=(r.stdout||'').split('\n').filter(Boolean);
