@@ -236,7 +236,10 @@ check(h9.lines.length===3&&fs.existsSync(path.join(d8,'first-session'))&&!fs.exi
 // Every sentinel any case above wrote, found by walking the whole temporary folder, holds two whole
 // measurements: none records an unmeasured add-on, and the voices are a list or, off a Mac, null.
 var written=tree(tmp).split('\n').filter(function(rel){ return path.basename(rel)==='first-session'; });
-check(written.length>=9&&written.every(function(rel){ return measuredWhole(sentinelOf(path.dirname(path.join(tmp,rel)))); }),'a sentinel the suite wrote holds an unmeasured part, or fewer were written than the cases above write: '+JSON.stringify(written.filter(function(rel){ return !measuredWhole(sentinelOf(path.dirname(path.join(tmp,rel)))); }))+' of '+written.length);
+// A null voice list is whole only where none was owed: the two data folders of the off-Mac cases.
+var offMac=[dl,dl2];
+function whole(rel){ var dir=path.dirname(path.join(tmp,rel)), s=sentinelOf(dir); return measuredWhole(s)&&(Array.isArray(s.voices)||offMac.indexOf(dir)>=0); }
+check(written.length>=9&&written.every(whole),'a sentinel the suite wrote holds an unmeasured part (an unmeasured add-on, or a null voice list from a Mac), or fewer were written than the cases above write: '+JSON.stringify(written.filter(function(rel){ return !whole(rel); }))+' of '+written.length);
 // No case prints on the screen: no systemMessage key in any output (issue 165).
 check(outs.length>=14&&outs.every(function(o){ return o&&!('systemMessage' in o); }),'no run carries a systemMessage key: nothing prints on the screen at session start; got '+outs.map(function(o){return o?Object.keys(o).join('+'):'(none)';}).join(', '));
 // 7. hooks.json, the manifests, the docs.
