@@ -20,7 +20,9 @@
 // What it asserts: the repository's command names no ${CLAUDE_PLUGIN_DATA} (else nothing is
 // proved); the hook fired at each start; it was handed no argument; its environment named an
 // absolute data folder; after the first start that folder holds the `first-session` sentinel with
-// what was measured; after the second start the sentinel's bytes are the same (measured once).
+// what was measured (the hook writes it only when both measurements came back, Part 129, so the
+// proof needs a machine where `claude plugin list` or the plugin cache can be read and, on a
+// Mac, `say -v ?` runs); after the second start the sentinel's bytes are the same (measured once).
 // The scratch folder and the throwaway plugin's data folder are deleted after, pass or fail.
 //
 // Run it from a plain terminal, never from a sandboxed shell: the host makes the plugin's data
@@ -84,10 +86,10 @@ try{
     facts.push('CLAUDE_PLUGIN_DATA in a SessionStart hook\'s environment: '+(dataDir?tilde(dataDir):'absent'));
     var sentinel=dataDir?path.join(dataDir,'first-session'):null;
     var bytes=sentinel&&fs.existsSync(sentinel)?fs.readFileSync(sentinel,'utf8'):null;
-    check(bytes!==null,'the first start wrote no first-session sentinel in the data folder '+tilde(dataDir||'(none)'));
+    check(bytes!==null,'the first start wrote no first-session sentinel in the data folder '+tilde(dataDir||'(none)')+'; the hook writes it only when both measurements came back (the add-on by the plugin list or the cache, and on a Mac the voice list), so either the folder refused the write or one of them did not come back here');
     var s=null; try{ s=JSON.parse(bytes); }catch(x){}
-    check(s&&/^\d{4}-\d\d-\d\dT/.test(s.at)&&s.addon&&['claude plugin list','plugin cache','unmeasured'].indexOf(s.addon.by)>=0&&(s.voices===null||Array.isArray(s.voices)),'the sentinel does not record what was measured: '+bytes);
-    if(s&&s.addon)facts.push('the first start measured the add-on by '+s.addon.by+' ('+(s.addon.present===null?'unmeasured':s.addon.present?'present':'absent')+') and '+(s.voices?s.voices.length+' quality voice(s)':'no voice list'));
+    check(s&&/^\d{4}-\d\d-\d\dT/.test(s.at)&&s.addon&&['claude plugin list','plugin cache'].indexOf(s.addon.by)>=0&&typeof s.addon.present==='boolean'&&(Array.isArray(s.voices)||(s.voices===null&&process.platform!=='darwin')),'the sentinel does not record two measurements that came back (an unmeasured add-on, or on a Mac an unread voice list, writes none): '+bytes);
+    if(s&&s.addon)facts.push('the first start measured the add-on by '+s.addon.by+' ('+(s.addon.present?'present':'absent')+') and '+(s.voices?s.voices.length+' quality voice(s)':'no voice list, none owed off a Mac'));
     check(s&&s.at&&Date.now()-Date.parse(s.at)<10*60*1000,'the sentinel is older than this run, left by an earlier one; it is removed now, rerun the proof: '+bytes);
 
     // Second start: the sentinel is the memory, so nothing is measured again.
