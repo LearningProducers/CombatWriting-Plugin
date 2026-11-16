@@ -8,7 +8,9 @@
 // to every plugin hook), the command in hooks.json names ${CLAUDE_PLUGIN_ROOT} and no other
 // variable, and the check is skipped only when the hook can see its sentinel: a host that names no
 // folder, or one the hook cannot make, read or write, gets the measurement at every start, never
-// silence.
+// silence. Part 129, 2026-11-16 (issue 210): the sentinel is the proof the check ran, so it is
+// written only when every measurement the start owed came back; a start where one did not writes
+// nothing, and the next start measures again.
 //
 // What it pins, with the REAL hook as a child process, fake `claude` and `say` commands in a folder
 // named by CW_SESSION_PROBE, and a temporary data folder in the hook's CLAUDE_PLUGIN_DATA:
@@ -23,6 +25,15 @@
 //     the sentinel still written. A French premium voice and a stock voice are not counted.
 //   - A `claude` that fails: the plugin cache is read instead (HOME pointed at a fake home with
 //     cache/<marketplace>/combat-writing-crew/), present and absent.
+//   - A measurement that did not come back (Part 129): the add-on unmeasured (`claude` fails and
+//     no cache), or the voice list unread on a Mac (`say` fails, or is not there): no line for
+//     the part unmeasured, the line for a lack that was measured still given, NO sentinel, and the
+//     second start measures again; when the measurement comes back at a later start the sentinel
+//     is written then, holding no unmeasured part, and the start after it measures nothing.
+//   - Off a Mac (the fake folder's `platform` file stands in for the platform; with none the
+//     fakes are a Mac's) there is no voice measurement to owe: `say` is never run, the add-on
+//     alone decides, the sentinel is written with `voices` null, and an unmeasured add-on still
+//     writes none.
 //   - No data folder (no CLAUDE_PLUGIN_DATA): there is no place to remember a start, so the hook
 //     measures at every start and writes nothing: the same lines on the first start and on the
 //     second, both measured; the ready line alone when nothing is lacking.
@@ -51,10 +62,10 @@ function read(p){ return fs.readFileSync(p,'utf8'); }
 var LINE='Combat Writing ready. /cw:help for the guide.';
 var outs=[];
 var tmp=fs.mkdtempSync(path.join(os.tmpdir(),'cw-session-'));
-function fakes(dir,claudeOut,sayOut,claudeExit){
+function fakes(dir,claudeOut,sayOut,claudeExit,sayExit){
   fs.mkdirSync(dir,{recursive:true});
   fs.writeFileSync(path.join(dir,'claude'),'#!/bin/sh\necho "$@" >> "'+dir+'/calls"\n'+(claudeExit?'exit '+claudeExit+'\n':'')+'printf %s "'+claudeOut.replace(/"/g,'\\"')+'"\n');
-  fs.writeFileSync(path.join(dir,'say'),'#!/bin/sh\necho "$@" >> "'+dir+'/calls"\nprintf %s "'+sayOut.replace(/"/g,'\\"')+'"\n');
+  fs.writeFileSync(path.join(dir,'say'),'#!/bin/sh\necho "$@" >> "'+dir+'/calls"\n'+(sayExit?'exit '+sayExit+'\n':'')+'printf %s "'+sayOut.replace(/"/g,'\\"')+'"\n');
   fs.chmodSync(path.join(dir,'claude'),493); fs.chmodSync(path.join(dir,'say'),493);
 }
 // dataDir reaches the hook as production hands it, in CLAUDE_PLUGIN_DATA; null is a host that names
@@ -114,9 +125,78 @@ check(e5.lines.length===1&&JSON.parse(read(path.join(tmp,'d5','first-session')))
 var home6=path.join(tmp,'home6'); fs.mkdirSync(path.join(home6,'.claude','plugins','cache','learning-producers','cw'),{recursive:true});
 var e6=run(f5,path.join(tmp,'d6'),{HOME:home6});
 check(e6.lines.length===2&&/^The crew add-on is not installed/.test(e6.lines[1])&&JSON.parse(read(path.join(tmp,'d6','first-session'))).addon.by==='plugin cache','claude fails, add-on not in the cache: the add-on line by the cache: '+JSON.stringify(e6.lines));
+// 5b. A measurement that did not come back (issue 210, Part 129). The sentinel is the proof the check
+// ran, so a start where the add-on or the Mac's voice list could not be read writes none: the next
+// start measures again, and the sentinel is written at the first start where both came back.
+function sentinelOf(dir){ var p=path.join(dir,'first-session'); if(!fs.existsSync(p))return null; try{ return JSON.parse(read(p)); }catch(x){ return {unparsed:read(p)}; } }
+function measuredWhole(s){ return !!s&&!!s.addon&&typeof s.addon.present==='boolean'&&s.addon.by!=='unmeasured'&&(s.voices===null||Array.isArray(s.voices)); }
+// The add-on unmeasured: `claude` fails and there is no cache to read.
 var home7=path.join(tmp,'home7'); fs.mkdirSync(home7);
-var e7=run(f5,path.join(tmp,'d7'),{HOME:home7});
-check(e7.lines.length===1&&JSON.parse(read(path.join(tmp,'d7','first-session'))).addon.present===null,'claude fails and no cache: unmeasured, no line');
+var f5c=path.join(tmp,'f5c'), d7=path.join(tmp,'d7');
+fakes(f5c,'',SAY_THREE,1);
+var e7=run(f5c,d7,{HOME:home7});
+check(e7.r.status===0&&e7.r.stderr===''&&e7.lines.length===1&&e7.lines[0]===LINE,'add-on unmeasured (claude fails, no cache): the ready line alone, no line for a part nobody measured: '+JSON.stringify(e7.lines));
+check(sentinelOf(d7)===null&&fs.existsSync(d7)&&fs.readdirSync(d7).length===0,'add-on unmeasured: the sentinel is written although the add-on was never measured, so this host is never measured again: '+JSON.stringify(sentinelOf(d7)));
+var e7b=run(f5c,d7,{HOME:home7});
+check(e7b.r.status===0&&e7b.lines.length===1&&callsIn(f5c).length===4&&sentinelOf(d7)===null,'add-on unmeasured, second start: measured again (four calls), still no sentinel: calls '+callsIn(f5c).length+' sentinel '+JSON.stringify(sentinelOf(d7)));
+// The measurement comes back at the third start (the cache can be read now): the line, and the sentinel.
+fs.mkdirSync(path.join(home7,'.claude','plugins','cache','learning-producers','cw'),{recursive:true});
+var e7c=run(f5c,d7,{HOME:home7});
+var s7=sentinelOf(d7);
+check(e7c.lines.length===2&&/^The crew add-on is not installed/.test(e7c.lines[1])&&measuredWhole(s7)&&s7.addon.present===false&&s7.addon.by==='plugin cache'&&Array.isArray(s7.voices)&&s7.voices.length===3,'add-on unmeasured twice, measured at the third start: the add-on line and the sentinel written then, holding what was measured: '+JSON.stringify(e7c.lines)+' '+JSON.stringify(s7));
+var e7d=run(f5c,d7,{HOME:home7});
+check(e7d.lines.length===1&&e7d.lines[0]===LINE&&callsIn(f5c).length===6,'after the sentinel: the ready line alone, nothing measured again: calls '+callsIn(f5c).length);
+// The voice list unread on a Mac: `say` fails. The add-on was measured absent, so its line is still given.
+var fv=path.join(tmp,'fv'), dv=path.join(tmp,'dv');
+fakes(fv,LIST_ABSENT,'',0,1);
+var v1=run(fv,dv);
+check(v1.r.status===0&&v1.r.stderr===''&&v1.lines.length===2&&v1.lines[0]===LINE&&v1.lines[1]===a.lines[1],'voice list unread: the add-on line (measured) still given, no voices line: '+JSON.stringify(v1.lines));
+check(sentinelOf(dv)===null,'voice list unread: the sentinel is written although the voices were never counted: '+JSON.stringify(sentinelOf(dv)));
+var v2=run(fv,dv);
+check(v2.lines.join('\n')===v1.lines.join('\n')&&callsIn(fv).length===4&&sentinelOf(dv)===null,'voice list unread, second start: measured again, the same lines, still no sentinel: calls '+callsIn(fv).length+' '+JSON.stringify(v2.lines));
+fakes(fv,LIST_ABSENT,SAY_ONE);
+var v3=run(fv,dv);
+var sv=sentinelOf(dv);
+check(v3.lines.length===3&&v3.lines.join('\n')===a.lines.join('\n')&&measuredWhole(sv)&&sv.addon.present===false&&Array.isArray(sv.voices)&&sv.voices.join()==='Ava (Premium)','voice list read at the third start: both lines and the sentinel written then: '+JSON.stringify(v3.lines)+' '+JSON.stringify(sv));
+var v4=run(fv,dv);
+check(v4.lines.length===1&&callsIn(fv).length===6,'after the sentinel: nothing measured again: calls '+callsIn(fv).length);
+// No `say` command at all on a Mac: unread, as a failed one is.
+var fn=path.join(tmp,'fn'), dn=path.join(tmp,'dn');
+fakes(fn,LIST_PRESENT,SAY_THREE); fs.unlinkSync(path.join(fn,'say'));
+var n1=run(fn,dn);
+check(n1.r.status===0&&n1.r.stderr===''&&n1.lines.length===1&&sentinelOf(dn)===null,'no say command on a Mac: the voice list is unread, no sentinel: '+JSON.stringify(n1.lines)+' '+JSON.stringify(sentinelOf(dn)));
+// Neither came back.
+var fb=path.join(tmp,'fb'), db=path.join(tmp,'db'), homeb=path.join(tmp,'homeb'); fs.mkdirSync(homeb);
+fakes(fb,'','',1,1);
+var b1=run(fb,db,{HOME:homeb});
+check(b1.r.status===0&&b1.lines.length===1&&sentinelOf(db)===null,'neither measurement came back: the ready line alone, no sentinel: '+JSON.stringify(b1.lines)+' '+JSON.stringify(sentinelOf(db)));
+// 5c. Off a Mac there is no voice measurement to owe: `say` is never run and the add-on alone decides.
+function platformOf(dir,name){ fs.writeFileSync(path.join(dir,'platform'),name+'\n'); }
+var fl=path.join(tmp,'fl'), dl=path.join(tmp,'dl');
+fakes(fl,LIST_PRESENT,SAY_ONE); platformOf(fl,'linux');
+var l1=run(fl,dl);
+var sl=sentinelOf(dl);
+check(l1.r.status===0&&l1.r.stderr===''&&l1.lines.length===1&&l1.lines[0]===LINE&&callsIn(fl).join()==='plugin list','off a Mac: the ready line alone and say never run: '+JSON.stringify(l1.lines)+' calls '+JSON.stringify(callsIn(fl)));
+check(measuredWhole(sl)&&sl.addon.present===true&&sl.voices===null,'off a Mac, the add-on measured: the sentinel is written, voices null (no measurement owed there): '+JSON.stringify(sl));
+var l2=run(fl,dl);
+check(l2.lines.length===1&&callsIn(fl).length===1,'off a Mac, second start: nothing measured again: calls '+callsIn(fl).length);
+var fl2=path.join(tmp,'fl2'), dl2=path.join(tmp,'dl2');
+fakes(fl2,LIST_ABSENT,SAY_ONE); platformOf(fl2,'win32');
+var l3=run(fl2,dl2);
+var sl2=sentinelOf(dl2);
+check(l3.lines.length===2&&l3.lines[1]===a.lines[1]&&callsIn(fl2).join()==='plugin list'&&measuredWhole(sl2)&&sl2.addon.present===false&&sl2.voices===null,'off a Mac, the add-on absent: the add-on line, no voices line, the sentinel written: '+JSON.stringify(l3.lines)+' '+JSON.stringify(sl2));
+var fl3=path.join(tmp,'fl3'), dl3=path.join(tmp,'dl3'), homel=path.join(tmp,'homel'); fs.mkdirSync(homel);
+fakes(fl3,'',SAY_THREE,1); platformOf(fl3,'linux');
+var l4=run(fl3,dl3,{HOME:homel});
+var l5=run(fl3,dl3,{HOME:homel});
+check(l4.lines.length===1&&l5.lines.length===1&&sentinelOf(dl3)===null&&callsIn(fl3).join()==='plugin list,plugin list','off a Mac, the add-on unmeasured: no sentinel, and the second start measures again: '+JSON.stringify(sentinelOf(dl3))+' calls '+JSON.stringify(callsIn(fl3)));
+// A platform file that names a Mac is a Mac: the voices are owed.
+var fm=path.join(tmp,'fm'), dm=path.join(tmp,'dm');
+fakes(fm,LIST_PRESENT,SAY_ONE); platformOf(fm,'darwin');
+var m1=run(fm,dm);
+check(m1.lines.length===2&&/^This Mac has 1 premium or enhanced voice /.test(m1.lines[1])&&callsIn(fm).join()==='plugin list,-v ?','a platform file naming a Mac: the voices are measured: '+JSON.stringify(m1.lines));
+// No sentinel the suite's earlier cases wrote holds an unmeasured part.
+check([d1,d3,d4,path.join(tmp,'d5'),path.join(tmp,'d6')].every(function(dd){ return measuredWhole(sentinelOf(dd)); }),'a sentinel written by a start where both measurements came back holds an unmeasured part');
 // 6. No data folder: no memory, so every start measures and nothing is written.
 function tree(dir){ var out=[]; (function walk(d){ fs.readdirSync(d).sort().forEach(function(n){ var p=path.join(d,n); out.push(path.relative(dir,p)); if(fs.statSync(p).isDirectory())walk(p); }); })(dir); return out.join('\n'); }
 function callsIn(dir){ var p=path.join(dir,'calls'); return fs.existsSync(p)?read(p).trim().split('\n'):[]; }
@@ -166,6 +246,9 @@ check(/^- \*\*What one install brings\.\*\*|\*\*What one install brings\.\*\* In
 var help=read(path.join(plugin,'skills','help','SKILL.md'));
 check(/^## Voices$/m.test(help)&&/`help voices` shows this section\./.test(help)&&/champion, briefs, runs, voices, files/.test(help),'help: the Voices section and the topic');
 check(/first-session/.test(read(path.join(root,'CLAUDE.md')))&&/The first-session line \(Part 83/.test(read(path.join(root,'CLAUDE.md'))),'CLAUDE.md names the first-session line');
+var NEXT=/the next start measures again/;
+check(NEXT.test(read(path.join(root,'CLAUDE.md')))&&NEXT.test(read(path.join(root,'README.md')))&&NEXT.test(read(path.join(plugin,'README.md')))&&NEXT.test(read(path.join(root,'docs','plugin-map.md')))&&NEXT.test(read(path.join(root,'docs','directory-checklist.md')))&&NEXT.test(src),'CLAUDE.md, the two READMEs, the plugin map, the checklist and the hook\'s own header each say what a start does after a measurement that did not come back: "the next start measures again" (Part 129)');
+check(!/the sentinel is still written/.test(read(path.join(root,'CLAUDE.md'))),'CLAUDE.md still says the sentinel is written after a failed measurement (issue 210)');
 check(/never carries `systemMessage`/.test(read(path.join(root,'CLAUDE.md')))&&/prints nothing to the person/.test(read(path.join(plugin,'README.md')))&&/prints nothing to the person/.test(read(path.join(root,'docs','plugin-map.md'))),'CLAUDE.md, the plugin README and the plugin map say the hook prints nothing to the person (issue 165)');
 
 fs.rmSync(tmp,{recursive:true,force:true});
