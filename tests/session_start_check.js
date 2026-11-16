@@ -6,7 +6,9 @@
 // moment, and a sentinel in the plugin's data folder makes it fire once. Part 128, 2026-11-16: the
 // hook learns that folder from its environment alone (CLAUDE_PLUGIN_DATA, which the host exports
 // to every plugin hook), the command in hooks.json names ${CLAUDE_PLUGIN_ROOT} and no other
-// variable, and a host that names no folder gets the measurement at every start, never silence.
+// variable, and the check is skipped only when the hook can see its sentinel: a host that names no
+// folder, or one the hook cannot make, read or write, gets the measurement at every start, never
+// silence.
 //
 // What it pins, with the REAL hook as a child process, fake `claude` and `say` commands in a folder
 // named by CW_SESSION_PROBE, and a temporary data folder in the hook's CLAUDE_PLUGIN_DATA:
