@@ -13,6 +13,11 @@
 // repeats it. The check is skipped in that one state only, the sentinel seen: a host that names
 // no data folder, or one the hook cannot make, read or write, gives no proof of an earlier start,
 // so there every start measures: the lines are never lost, only repeated as context.
+// The sentinel is the proof the check ran, so it is written only when every measurement the start
+// owed came back (Part 129): the add-on read by the plugin list or the cache, and on a Mac the
+// voice list read. A start where one did not come back adds no line for that part, still gives
+// the line for a lack it did measure, writes nothing, and the next start measures again. Off a
+// Mac no voice measurement is owed, so the add-on alone decides.
 // /cw:help crew and /cw:help voices carry the same lines for later:
 //   - The crew add-on: `claude plugin list` (the documented signal, read with a 5 s budget) names
 //     combat-writing-crew; when the command cannot run, the plugin cache is read instead
@@ -22,7 +27,9 @@
 //     the page's language), fewer than three named with the download path. No program downloads
 //     Apple's voices; the line says where they are.
 // The hook installs nothing, downloads nothing, writes only the sentinel (what it measured, dated),
-// and reads CW_SESSION_PROBE, the tests' fake commands, and HOME for the cache. The data folder is
+// and reads CW_SESSION_PROBE, the tests' fake commands, and HOME for the cache. The tests' folder
+// may also hold a `platform` file, which stands in for the platform; with none, the fakes are a
+// Mac's. The data folder is
 // read from the hook's environment alone, CLAUDE_PLUGIN_DATA, which the host exports to every
 // plugin hook: the command in hooks.json names ${CLAUDE_PLUGIN_ROOT} and no other variable, and
 // an argument is never read. The hook makes the folder itself when it is not there yet.
@@ -41,6 +48,12 @@ var dataDir=process.env.CLAUDE_PLUGIN_DATA||null;
 var probe=process.env.CW_SESSION_PROBE||null;
 function cmd(name){ return probe?path.join(probe,name):name; }
 function run(name,args){ try{ return cp.spawnSync(cmd(name),args,{encoding:'utf8',timeout:BUDGET_MS}); }catch(e){ return {error:e}; } }
+// The platform the voices are judged on: the machine's own, or, under the tests' fakes, the name in
+// the fake folder's `platform` file, a Mac when there is none.
+function platform(){
+  if(!probe)return process.platform;
+  try{ return fs.readFileSync(path.join(probe,'platform'),'utf8').trim()||'darwin'; }catch(e){ return 'darwin'; }
+}
 
 function addonInstalled(){
   var r=run('claude',['plugin','list']);
@@ -52,10 +65,12 @@ function addonInstalled(){
     return {present:hit,by:'plugin cache'};
   }catch(e){ return {present:null,by:'unmeasured'}; }
 }
+// owed: whether this machine has a voice list to read (a Mac alone). names: the quality voices
+// read, or null when none were read: not owed, or owed and the list did not come back.
 function qualityVoices(){
-  if(process.platform!=='darwin'&&!probe)return null;
+  if(platform()!=='darwin')return {owed:false,names:null};
   var r=run('say',['-v','?']);
-  if(!r||r.error||r.status!==0||typeof r.stdout!=='string')return null;
+  if(!r||r.error||r.status!==0||typeof r.stdout!=='string')return {owed:true,names:null};
   var lang='en';
   var names=[];
   r.stdout.split('\n').forEach(function(l){
@@ -63,7 +78,7 @@ function qualityVoices(){
     if(!m)return;
     if(lib.voiceTier(m[1])>0&&m[2].toLowerCase()===lang)names.push(m[1].trim());
   });
-  return names;
+  return {owed:true,names:names};
 }
 function addonLine(){ return 'The crew add-on is not installed: the crew is the two fresh readers, one company\'s models. '+lib.ADDON_INSTALL+' seats two more models on a free Groq key in the second chair, your key going only to Groq. /cw:help crew for the three states.'; }
 function voicesLine(names){ return 'This Mac has '+names.length+' premium or enhanced '+(names.length===1?'voice':'voices')+(names.length?' ('+names.join(', ')+')':'')+'. The board reads each seat in its own voice when three are installed: System Settings, Accessibility, Read & Speak (Spoken Content before macOS 26), the ⓘ beside System voice, then the arrow beside Ava (Premium), Nathan (Enhanced) and Allison (Enhanced), or any Premium or Enhanced voice. /cw:help voices.'; }
@@ -79,8 +94,11 @@ if(first){
   var addon=addonInstalled();
   var voices=qualityVoices();
   if(addon.present===false)lines.push(addonLine());
-  if(voices&&voices.length<VOICES_WANTED)lines.push(voicesLine(voices));
-  if(sentinel){ try{ fs.writeFileSync(sentinel,JSON.stringify({at:new Date().toISOString(),addon:addon,voices:voices})+'\n'); }catch(e){} }
+  if(voices.names&&voices.names.length<VOICES_WANTED)lines.push(voicesLine(voices.names));
+  // The sentinel says the check ran, so it is written only when every measurement owed came back;
+  // a start where one did not leaves no proof, and the next start measures again.
+  var measured=addon.present!==null&&(!voices.owed||voices.names!==null);
+  if(sentinel&&measured){ try{ fs.writeFileSync(sentinel,JSON.stringify({at:new Date().toISOString(),addon:addon,voices:voices.names})+'\n'); }catch(e){} }
 }
 var text=lines.join('\n');
 process.stdout.write(JSON.stringify({
