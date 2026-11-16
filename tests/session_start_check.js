@@ -3,10 +3,13 @@
 // we make it so when they install the plugin the ai crew add on is installed too or they are prompted
 // after the cw installs to also install the add on ... and same for the voices ... (whatever is best
 // practice and more transparent)". No hook event fires on install, so the first SessionStart is the
-// moment, and a sentinel in the plugin's data folder makes it fire once.
+// moment, and a sentinel in the plugin's data folder makes it fire once. Part 128, 2026-11-16: the
+// hook learns that folder from its environment alone (CLAUDE_PLUGIN_DATA, which the host exports
+// to every plugin hook), the command in hooks.json names ${CLAUDE_PLUGIN_ROOT} and no other
+// variable, and a host that names no folder gets the measurement at every start, never silence.
 //
 // What it pins, with the REAL hook as a child process, fake `claude` and `say` commands in a folder
-// named by CW_SESSION_PROBE, and a temporary data folder as the hook's argument:
+// named by CW_SESSION_PROBE, and a temporary data folder in the hook's CLAUDE_PLUGIN_DATA:
 //   - First start, the add-on absent and one quality voice: the ready line, then the add-on line
 //     (lib.ADDON_INSTALL in it), then the voices line naming the count, the voice and the download
 //     path, all in hookSpecificOutput.additionalContext, the context the host reads and the
@@ -18,9 +21,14 @@
 //     the sentinel still written. A French premium voice and a stock voice are not counted.
 //   - A `claude` that fails: the plugin cache is read instead (HOME pointed at a fake home with
 //     cache/<marketplace>/combat-writing-crew/), present and absent.
-//   - No data folder (no argument, no CLAUDE_PLUGIN_DATA): the ready line alone, nothing written.
+//   - No data folder (no CLAUDE_PLUGIN_DATA): there is no place to remember a start, so the hook
+//     measures at every start and writes nothing: the same lines on the first start and on the
+//     second, both measured; the ready line alone when nothing is lacking.
+//   - A data folder that is named but cannot be made: nothing is measured and nothing written.
+//   - An argument is never read: a folder handed on the command line is not made and not used.
 //   - The hook writes nothing but the sentinel, installs nothing (the fake `claude` records every
-//     call; only `plugin list` is ever run), and hooks.json passes "${CLAUDE_PLUGIN_DATA}" with a
+//     call; only `plugin list` is ever run), and the SessionStart command in hooks.json is node on
+//     the hook file under ${CLAUDE_PLUGIN_ROOT} with no argument and no other variable, with a
 //     timeout that covers the two 5 s budgets.
 //   - The marketplace entry for cw declares the add-on as a dependency and plugin.json declares
 //     none (a plugin.json dependency the directory cannot resolve makes the plugin fail to load
@@ -46,10 +54,12 @@ function fakes(dir,claudeOut,sayOut,claudeExit){
   fs.writeFileSync(path.join(dir,'say'),'#!/bin/sh\necho "$@" >> "'+dir+'/calls"\nprintf %s "'+sayOut.replace(/"/g,'\\"')+'"\n');
   fs.chmodSync(path.join(dir,'claude'),493); fs.chmodSync(path.join(dir,'say'),493);
 }
-function run(fakeDir,dataDir,env){
+// dataDir reaches the hook as production hands it, in CLAUDE_PLUGIN_DATA; null is a host that names
+// no folder. args is for the one case that proves an argument is ignored.
+function run(fakeDir,dataDir,env,args){
   var e=Object.assign({},process.env,{CW_SESSION_PROBE:fakeDir},env||{});
-  delete e.CLAUDE_PLUGIN_DATA; if(env&&env.CLAUDE_PLUGIN_DATA)e.CLAUDE_PLUGIN_DATA=env.CLAUDE_PLUGIN_DATA;
-  var r=cp.spawnSync(process.execPath,[hook].concat(dataDir?[dataDir]:[]),{encoding:'utf8',env:e,cwd:tmp});
+  delete e.CLAUDE_PLUGIN_DATA; if(dataDir)e.CLAUDE_PLUGIN_DATA=dataDir;
+  var r=cp.spawnSync(process.execPath,[hook].concat(args||[]),{encoding:'utf8',env:e,cwd:tmp});
   var out=null; try{ out=JSON.parse((r.stdout||'').trim().split('\n')[0]); }catch(x){}
   outs.push(out);
   var ctx=out&&out.hookSpecificOutput&&typeof out.hookSpecificOutput.additionalContext==='string'?out.hookSpecificOutput.additionalContext:null;
@@ -104,19 +114,42 @@ check(e6.lines.length===2&&/^The crew add-on is not installed/.test(e6.lines[1])
 var home7=path.join(tmp,'home7'); fs.mkdirSync(home7);
 var e7=run(f5,path.join(tmp,'d7'),{HOME:home7});
 check(e7.lines.length===1&&JSON.parse(read(path.join(tmp,'d7','first-session'))).addon.present===null,'claude fails and no cache: unmeasured, no line');
-// 6. No data folder: the ready line alone, nothing written.
-var g=run(f1,null);
-check(g.r.status===0&&g.lines.length===1&&g.lines[0]===LINE&&Object.keys(g.out).sort().join()==='hookSpecificOutput','no data folder: the ready line alone, in additionalContext alone');
-// The data folder from the environment when no argument is given.
-var d8=path.join(tmp,'d8');
-var h8=run(f1,null,{CLAUDE_PLUGIN_DATA:d8});
-check(h8.lines.length===3&&fs.existsSync(path.join(d8,'first-session')),'the data folder is read from CLAUDE_PLUGIN_DATA when no argument comes');
+// 6. No data folder: no memory, so every start measures and nothing is written.
+function tree(dir){ var out=[]; (function walk(d){ fs.readdirSync(d).sort().forEach(function(n){ var p=path.join(d,n); out.push(path.relative(dir,p)); if(fs.statSync(p).isDirectory())walk(p); }); })(dir); return out.join('\n'); }
+function callsIn(dir){ var p=path.join(dir,'calls'); return fs.existsSync(p)?read(p).trim().split('\n'):[]; }
+var f6=path.join(tmp,'f6');
+fakes(f6,LIST_ABSENT,SAY_ONE);
+var before6=tree(tmp);
+var g=run(f6,null);
+check(g.r.status===0&&g.r.stderr===''&&g.lines.length===3&&g.lines[0]===LINE&&g.lines[1]===a.lines[1]&&g.lines[2]===a.lines[2]&&Object.keys(g.out).sort().join()==='hookSpecificOutput','no data folder: the hook still measures and hands the host the same lines a first start does, in additionalContext alone: '+JSON.stringify(g.lines));
+check(callsIn(f6).join()==='plugin list,-v ?','no data folder: plugin list and say -v ? are run, nothing else: '+JSON.stringify(callsIn(f6)));
+var g2=run(f6,null);
+check(g2.lines.join('\n')===g.lines.join('\n')&&callsIn(f6).length===4,'no data folder, second start: measured again, the same lines (no memory, never silence): '+JSON.stringify(g2.lines)+' calls '+callsIn(f6).length);
+check(tree(tmp).replace(/(^|\n)f6\/calls(?=\n|$)/,'')===before6,'no data folder: the hook wrote something (only the fake commands\' own call record may be new)');
+var f6b=path.join(tmp,'f6b');
+fakes(f6b,LIST_PRESENT,SAY_THREE);
+var g3=run(f6b,null);
+check(g3.r.status===0&&g3.lines.length===1&&g3.lines[0]===LINE&&callsIn(f6b).length===2,'no data folder, nothing lacking: measured, the ready line alone: '+JSON.stringify(g3.lines));
+// A data folder the hook cannot make (its parent is a file): nothing is measured, nothing written, as before.
+var f7=path.join(tmp,'f7'), blocker=path.join(tmp,'blocker');
+fakes(f7,LIST_ABSENT,SAY_ONE);
+fs.writeFileSync(blocker,'a file where a folder would go\n');
+var u=run(f7,path.join(blocker,'data'));
+check(u.r.status===0&&u.r.stderr===''&&u.lines.length===1&&u.lines[0]===LINE&&callsIn(f7).length===0&&read(blocker)==='a file where a folder would go\n','a data folder that cannot be made: the ready line alone, nothing measured, nothing written: '+JSON.stringify(u.lines)+' calls '+callsIn(f7).length);
+// An argument is never read: the folder comes from the environment alone.
+var d8=path.join(tmp,'d8'), f8=path.join(tmp,'f8');
+fakes(f8,LIST_ABSENT,SAY_ONE);
+var h8=run(f8,null,null,[d8]);
+check(h8.r.status===0&&h8.lines.length===3&&!fs.existsSync(d8),'a folder handed as an argument is not made and not used: '+JSON.stringify(h8.lines)+' exists '+fs.existsSync(d8));
+var h9=run(f8,d8,null,[path.join(tmp,'d9')]);
+check(h9.lines.length===3&&fs.existsSync(path.join(d8,'first-session'))&&!fs.existsSync(path.join(tmp,'d9')),'with CLAUDE_PLUGIN_DATA set and an argument beside it, the sentinel lands in the environment\'s folder');
 // No case prints on the screen: no systemMessage key in any output (issue 165).
-check(outs.length>=9&&outs.every(function(o){ return o&&!('systemMessage' in o); }),'no run carries a systemMessage key: nothing prints on the screen at session start; got '+outs.map(function(o){return o?Object.keys(o).join('+'):'(none)';}).join(', '));
+check(outs.length>=13&&outs.every(function(o){ return o&&!('systemMessage' in o); }),'no run carries a systemMessage key: nothing prints on the screen at session start; got '+outs.map(function(o){return o?Object.keys(o).join('+'):'(none)';}).join(', '));
 // 7. hooks.json, the manifests, the docs.
 var hooks=JSON.parse(read(path.join(plugin,'hooks','hooks.json')));
 var sh=hooks.hooks.SessionStart[0].hooks[0];
-check(sh.command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js" "${CLAUDE_PLUGIN_DATA}"'&&sh.timeout>=12,'hooks.json: the SessionStart command passes the data folder and the timeout covers two 5 s budgets: '+JSON.stringify(sh));
+check(sh.command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js"'&&sh.args===undefined&&sh.timeout>=12,'hooks.json: the SessionStart command is node on the hook file under ${CLAUDE_PLUGIN_ROOT}, no argument, no other variable, and the timeout covers two 5 s budgets: '+JSON.stringify(sh));
+check(!/CLAUDE_PLUGIN_DATA/.test(read(path.join(plugin,'hooks','hooks.json'))),'hooks.json names CLAUDE_PLUGIN_DATA: the hook reads its data folder from the environment, never from the command line');
 var market=JSON.parse(read(path.join(root,'.claude-plugin','marketplace.json')));
 var cw=market.plugins.filter(function(p){return p.name==='cw';})[0];
 check(cw&&Array.isArray(cw.dependencies)&&cw.dependencies.join()==='combat-writing-crew','marketplace.json: the cw entry depends on combat-writing-crew');

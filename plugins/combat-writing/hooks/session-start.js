@@ -10,7 +10,9 @@
 // in every result's Seats line. The FIRST start (no `first-session` file in the plugin's data folder, the folder
 // Claude Code keeps across updates and removes on uninstall) also measures two things and adds
 // one line per lack after the ready line, nothing when there is no lack, then writes the sentinel so no later start
-// repeats it; /cw:help crew and /cw:help voices carry the same lines for later:
+// repeats it. A host that names no data folder leaves the hook no place to remember a start, so
+// there every start measures and nothing is written: the lines are never lost, only repeated as
+// context. /cw:help crew and /cw:help voices carry the same lines for later:
 //   - The crew add-on: `claude plugin list` (the documented signal, read with a 5 s budget) names
 //     combat-writing-crew; when the command cannot run, the plugin cache is read instead
 //     (~/.claude/plugins/cache/<marketplace>/<plugin>/, the layout the security page documents).
@@ -19,9 +21,12 @@
 //     the page's language), fewer than three named with the download path. No program downloads
 //     Apple's voices; the line says where they are.
 // The hook installs nothing, downloads nothing, writes only the sentinel (what it measured, dated),
-// and reads one environment variable, CW_SESSION_PROBE, the tests' fake commands. The data folder
-// comes as the second argument (hooks.json passes "${CLAUDE_PLUGIN_DATA}", which creates it), else
-// from CLAUDE_PLUGIN_DATA, else nothing is measured and the ready line stands alone.
+// and reads CW_SESSION_PROBE, the tests' fake commands, and HOME for the cache. The data folder is
+// read from the hook's environment alone, CLAUDE_PLUGIN_DATA, which the host exports to every
+// plugin hook: the command in hooks.json names ${CLAUDE_PLUGIN_ROOT} and no other variable, and
+// an argument is never read. The hook makes the folder itself when it is not there yet.
+// tests/session_start_live.js is the live proof that a real session start hands the hook the
+// folder this way; rerun it after a Claude Code update.
 // The security page asks for review before an install, so the hook never runs one.
 
 var fs=require('fs'), path=require('path'), cp=require('child_process');
@@ -30,7 +35,7 @@ var LINE='Combat Writing ready. /cw:help for the guide.';
 var SENTINEL='first-session';
 var VOICES_WANTED=3;
 var BUDGET_MS=5000;
-var dataDir=process.argv[2]&&process.argv[2]!=='${CLAUDE_PLUGIN_DATA}'?process.argv[2]:(process.env.CLAUDE_PLUGIN_DATA||null);
+var dataDir=process.env.CLAUDE_PLUGIN_DATA||null;
 // The tests' fakes: CW_SESSION_PROBE=<dir> names a folder whose `claude` and `say` stand in for the real ones.
 var probe=process.env.CW_SESSION_PROBE||null;
 function cmd(name){ return probe?path.join(probe,name):name; }
@@ -63,19 +68,17 @@ function addonLine(){ return 'The crew add-on is not installed: the crew is the 
 function voicesLine(names){ return 'This Mac has '+names.length+' premium or enhanced '+(names.length===1?'voice':'voices')+(names.length?' ('+names.join(', ')+')':'')+'. The board reads each seat in its own voice when three are installed: System Settings, Accessibility, Read & Speak (Spoken Content before macOS 26), the ⓘ beside System voice, then the arrow beside Ava (Premium), Nathan (Enhanced) and Allison (Enhanced), or any Premium or Enhanced voice. /cw:help voices.'; }
 
 var lines=[LINE];
-var measured=null;
-if(dataDir){
-  var sentinel=path.join(dataDir,SENTINEL);
-  var first=false;
-  try{ fs.mkdirSync(dataDir,{recursive:true}); first=!fs.existsSync(sentinel); }catch(e){ first=false; }
-  if(first){
-    var addon=addonInstalled();
-    var voices=qualityVoices();
-    measured={at:new Date().toISOString(),addon:addon,voices:voices};
-    if(addon.present===false)lines.push(addonLine());
-    if(voices&&voices.length<VOICES_WANTED)lines.push(voicesLine(voices));
-    try{ fs.writeFileSync(sentinel,JSON.stringify(measured)+'\n'); }catch(e){}
-  }
+// With a data folder the sentinel is the memory: measure when it is absent, then write it.
+// With none there is no memory, so every start measures and nothing is written.
+var sentinel=dataDir?path.join(dataDir,SENTINEL):null;
+var first=true;
+if(sentinel){ try{ fs.mkdirSync(dataDir,{recursive:true}); first=!fs.existsSync(sentinel); }catch(e){ first=false; } }
+if(first){
+  var addon=addonInstalled();
+  var voices=qualityVoices();
+  if(addon.present===false)lines.push(addonLine());
+  if(voices&&voices.length<VOICES_WANTED)lines.push(voicesLine(voices));
+  if(sentinel){ try{ fs.writeFileSync(sentinel,JSON.stringify({at:new Date().toISOString(),addon:addon,voices:voices})+'\n'); }catch(e){} }
 }
 var text=lines.join('\n');
 process.stdout.write(JSON.stringify({
