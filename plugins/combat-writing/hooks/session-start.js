@@ -9,8 +9,8 @@
 // shows the person. The host says nothing about a lack unless asked; a missing seat is still named
 // in every result's Seats line. The FIRST start (no `first-session` file in the plugin's data folder, the folder
 // Claude Code keeps across updates and removes on uninstall) also measures two things and adds
-// one line per lack after the ready line, nothing when there is no lack, then writes the sentinel so no later start
-// repeats it. The check is skipped in that one state only, the sentinel seen: a host that names
+// one line per lack after the ready line, nothing when there is no lack, then, when both came back, writes the
+// sentinel so no later start repeats it. The check is skipped in that one state only, the sentinel seen: a host that names
 // no data folder, or one the hook cannot make, read or write, gives no proof of an earlier start,
 // so there every start measures: the lines are never lost, only repeated as context.
 // The sentinel is the proof the check ran, so it is written only when every measurement the start

@@ -33,7 +33,9 @@
 //   - Off a Mac (the fake folder's `platform` file stands in for the platform; with none the
 //     fakes are a Mac's) there is no voice measurement to owe: `say` is never run, the add-on
 //     alone decides, the sentinel is written with `voices` null, and an unmeasured add-on still
-//     writes none.
+//     writes none. The line that reads the machine's own platform runs under no fake, so it is
+//     held by its text.
+//   - Every sentinel the suite writes, found by a walk, holds two whole measurements.
 //   - No data folder (no CLAUDE_PLUGIN_DATA): there is no place to remember a start, so the hook
 //     measures at every start and writes nothing: the same lines on the first start and on the
 //     second, both measured; the ready line alone when nothing is lacking.
@@ -146,6 +148,11 @@ var s7=sentinelOf(d7);
 check(e7c.lines.length===2&&/^The crew add-on is not installed/.test(e7c.lines[1])&&measuredWhole(s7)&&s7.addon.present===false&&s7.addon.by==='plugin cache'&&Array.isArray(s7.voices)&&s7.voices.length===3,'add-on unmeasured twice, measured at the third start: the add-on line and the sentinel written then, holding what was measured: '+JSON.stringify(e7c.lines)+' '+JSON.stringify(s7));
 var e7d=run(f5c,d7,{HOME:home7});
 check(e7d.lines.length===1&&e7d.lines[0]===LINE&&callsIn(f5c).length===6,'after the sentinel: the ready line alone, nothing measured again: calls '+callsIn(f5c).length);
+// The mirror: the add-on unmeasured and one voice counted. The voices line is still given, and no sentinel.
+var f5d=path.join(tmp,'f5d'), d7m=path.join(tmp,'d7m'), home7m=path.join(tmp,'home7m'); fs.mkdirSync(home7m);
+fakes(f5d,'',SAY_ONE,1);
+var e7m=run(f5d,d7m,{HOME:home7m});
+check(e7m.r.status===0&&e7m.lines.length===2&&e7m.lines[0]===LINE&&e7m.lines[1]===a.lines[2]&&sentinelOf(d7m)===null,'add-on unmeasured, one voice counted: the voices line (measured) still given, no add-on line, no sentinel: '+JSON.stringify(e7m.lines)+' '+JSON.stringify(sentinelOf(d7m)));
 // The voice list unread on a Mac: `say` fails. The add-on was measured absent, so its line is still given.
 var fv=path.join(tmp,'fv'), dv=path.join(tmp,'dv');
 fakes(fv,LIST_ABSENT,'',0,1);
@@ -195,8 +202,6 @@ var fm=path.join(tmp,'fm'), dm=path.join(tmp,'dm');
 fakes(fm,LIST_PRESENT,SAY_ONE); platformOf(fm,'darwin');
 var m1=run(fm,dm);
 check(m1.lines.length===2&&/^This Mac has 1 premium or enhanced voice /.test(m1.lines[1])&&callsIn(fm).join()==='plugin list,-v ?','a platform file naming a Mac: the voices are measured: '+JSON.stringify(m1.lines));
-// No sentinel the suite's earlier cases wrote holds an unmeasured part.
-check([d1,d3,d4,path.join(tmp,'d5'),path.join(tmp,'d6')].every(function(dd){ return measuredWhole(sentinelOf(dd)); }),'a sentinel written by a start where both measurements came back holds an unmeasured part');
 // 6. No data folder: no memory, so every start measures and nothing is written.
 function tree(dir){ var out=[]; (function walk(d){ fs.readdirSync(d).sort().forEach(function(n){ var p=path.join(d,n); out.push(path.relative(dir,p)); if(fs.statSync(p).isDirectory())walk(p); }); })(dir); return out.join('\n'); }
 function callsIn(dir){ var p=path.join(dir,'calls'); return fs.existsSync(p)?read(p).trim().split('\n'):[]; }
@@ -228,6 +233,10 @@ var h8=run(f8,null,null,[d8]);
 check(h8.r.status===0&&h8.lines.length===3&&!fs.existsSync(d8),'a folder handed as an argument is not made and not used: '+JSON.stringify(h8.lines)+' exists '+fs.existsSync(d8));
 var h9=run(f8,d8,null,[path.join(tmp,'d9')]);
 check(h9.lines.length===3&&fs.existsSync(path.join(d8,'first-session'))&&!fs.existsSync(path.join(tmp,'d9')),'with CLAUDE_PLUGIN_DATA set and an argument beside it, the sentinel lands in the environment\'s folder');
+// Every sentinel any case above wrote, found by walking the whole temporary folder, holds two whole
+// measurements: none records an unmeasured add-on, and the voices are a list or, off a Mac, null.
+var written=tree(tmp).split('\n').filter(function(rel){ return path.basename(rel)==='first-session'; });
+check(written.length>=9&&written.every(function(rel){ return measuredWhole(sentinelOf(path.dirname(path.join(tmp,rel)))); }),'a sentinel the suite wrote holds an unmeasured part, or fewer were written than the cases above write: '+JSON.stringify(written.filter(function(rel){ return !measuredWhole(sentinelOf(path.dirname(path.join(tmp,rel)))); }))+' of '+written.length);
 // No case prints on the screen: no systemMessage key in any output (issue 165).
 check(outs.length>=14&&outs.every(function(o){ return o&&!('systemMessage' in o); }),'no run carries a systemMessage key: nothing prints on the screen at session start; got '+outs.map(function(o){return o?Object.keys(o).join('+'):'(none)';}).join(', '));
 // 7. hooks.json, the manifests, the docs.
@@ -241,6 +250,10 @@ check(cw&&Array.isArray(cw.dependencies)&&cw.dependencies.join()==='combat-writi
 var manifest=JSON.parse(read(path.join(plugin,'.claude-plugin','plugin.json')));
 check(manifest.dependencies===undefined,'plugin.json: declares no dependency (the directory copy must stay installable)');
 var src=read(hook);
+// Every run above sets CW_SESSION_PROBE, so none reaches the line that reads the machine's own
+// platform. It is held by its text: with no fake folder the platform is process.platform, and the
+// voices are owed on darwin alone.
+check(/function platform\(\)\{\s*if\(!probe\)return process\.platform;/.test(src)&&/if\(platform\(\)!=='darwin'\)return \{owed:false,names:null\};/.test(src)&&(src.replace(/\/\/[^\n]*/g,'').match(/process\.platform/g)||[]).length===1,'session-start.js: with no fake folder the platform must be process.platform, read in one place, and the voices owed on darwin alone');
 check(!/plugin\s*,\s*['"]install|plugin install/.test(src.replace(/\/\/[^\n]*/g,''))&&!/\bfetch\(|https?:\/\//.test(src.replace(/\/\/[^\n]*/g,'')),'session-start.js: never installs, fetches or holds a URL');
 check(/^- \*\*What one install brings\.\*\*|\*\*What one install brings\.\*\* Installed from the Learning Producers marketplace/m.test(read(path.join(plugin,'README.md'))),'the plugin README has the What one install brings paragraph');
 var help=read(path.join(plugin,'skills','help','SKILL.md'));
