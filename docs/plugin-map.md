@@ -89,7 +89,7 @@ Nothing is fetched by any script. The one outside connection is the host opening
 
 | Hook | When | What it does |
 |---|---|---|
-| `session-start.js` | every session start and resume | prints nothing to the person: hands the host "Combat Writing ready. /cw:help for the guide." as context it reads and never shows (`hookSpecificOutput.additionalContext`, no `systemMessage`); on the first session only, adds what the install still lacks (the crew add-on, the Mac's voices) and never again; the data folder that holds its one sentinel is read from the hook's environment, and a host that names none gets the lines at every start, nothing written |
+| `session-start.js` | every session start and resume | prints nothing to the person: hands the host "Combat Writing ready. /cw:help for the guide." as context it reads and never shows (`hookSpecificOutput.additionalContext`, no `systemMessage`); on the first session only, adds what the install still lacks (the crew add-on, the Mac's voices) and never again; the data folder that holds its one sentinel is read from the hook's environment, and the check is skipped only when the hook can see that sentinel: a host that names no data folder, or one the hook cannot make, read or write, gets the lines at every start |
 | `seat-scope.js` | before every tool call | for a fresh reader: allows Read inside its run folder and Write to its own answer file, denies the rest; for the call that starts a fresh reader: holds it to the seat's record (no model choice for a seat recorded on the session's own model, one for a seat recorded on a named model) and denies a start it cannot place; touches nothing else |
 | `show-result.js` | after every shell command | when the command printed the short form, puts it on your screen as the plugin's own line; when the opener failed in the sandbox, opens the board itself; when the speech engine was silenced, renders the voices itself; when the command checked a seat's answer, reads which model wrote that seat's replies from the seat's own transcript and logs it to the run (`seat.model`), printing nothing |
 
@@ -194,7 +194,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/seat_scope_check.js` | the seat's reach and the start of a seat held to its record, the real hook on a real run |
 | `tests/seat_scope_live.js` | not in CI: one real seat through a throwaway plugin, rerun after every Claude Code update |
 | `tests/sections_check.js` | Answer, then To the crew, when the round shares |
-| `tests/session_start_check.js` | the first-session line; the data folder from the environment alone; every start measured when the host names none |
+| `tests/session_start_check.js` | the first-session line; the data folder from the environment alone; every start measured when the hook cannot see its sentinel (no folder named, or one that cannot be made) |
 | `tests/session_start_live.js` | not in CI: two real session starts through a throwaway plugin, the hook handed no argument and its data folder in the environment; rerun after every Claude Code update |
 | `tests/show_result_check.js` | the result shown by the plugin itself; the model that answered read from the seat's own transcript after its check |
 | `tests/speak_check.js` | the Mac speaks the files |

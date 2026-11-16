@@ -24,7 +24,8 @@
 //   - No data folder (no CLAUDE_PLUGIN_DATA): there is no place to remember a start, so the hook
 //     measures at every start and writes nothing: the same lines on the first start and on the
 //     second, both measured; the ready line alone when nothing is lacking.
-//   - A data folder that is named but cannot be made: nothing is measured and nothing written.
+//   - A data folder that is named but cannot be made: the check is skipped only when the hook can
+//     see the sentinel, so it measures at the first start and again at the second, nothing written.
 //   - An argument is never read: a folder handed on the command line is not made and not used.
 //   - The hook writes nothing but the sentinel, installs nothing (the fake `claude` records every
 //     call; only `plugin list` is ever run), and the SessionStart command in hooks.json is node on
@@ -130,12 +131,14 @@ var f6b=path.join(tmp,'f6b');
 fakes(f6b,LIST_PRESENT,SAY_THREE);
 var g3=run(f6b,null);
 check(g3.r.status===0&&g3.lines.length===1&&g3.lines[0]===LINE&&callsIn(f6b).length===2,'no data folder, nothing lacking: measured, the ready line alone: '+JSON.stringify(g3.lines));
-// A data folder the hook cannot make (its parent is a file): nothing is measured, nothing written, as before.
+// A data folder the hook cannot make (its parent is a file): no sentinel can be seen, so every start measures.
 var f7=path.join(tmp,'f7'), blocker=path.join(tmp,'blocker');
 fakes(f7,LIST_ABSENT,SAY_ONE);
 fs.writeFileSync(blocker,'a file where a folder would go\n');
 var u=run(f7,path.join(blocker,'data'));
-check(u.r.status===0&&u.r.stderr===''&&u.lines.length===1&&u.lines[0]===LINE&&callsIn(f7).length===0&&read(blocker)==='a file where a folder would go\n','a data folder that cannot be made: the ready line alone, nothing measured, nothing written: '+JSON.stringify(u.lines)+' calls '+callsIn(f7).length);
+check(u.r.status===0&&u.r.stderr===''&&u.lines.length===3&&u.lines.join('\n')===a.lines.join('\n')&&callsIn(f7).join()==='plugin list,-v ?'&&read(blocker)==='a file where a folder would go\n','a data folder that cannot be made: the hook measures and hands the host the lines a first start does, and writes nothing: '+JSON.stringify(u.lines)+' calls '+callsIn(f7).length);
+var u2=run(f7,path.join(blocker,'data'));
+check(u2.r.status===0&&u2.lines.join('\n')===u.lines.join('\n')&&callsIn(f7).length===4&&read(blocker)==='a file where a folder would go\n','a data folder that cannot be made, second start: measured again, the same lines (no sentinel seen, never silence): '+JSON.stringify(u2.lines)+' calls '+callsIn(f7).length);
 // An argument is never read: the folder comes from the environment alone.
 var d8=path.join(tmp,'d8'), f8=path.join(tmp,'f8');
 fakes(f8,LIST_ABSENT,SAY_ONE);
@@ -144,7 +147,7 @@ check(h8.r.status===0&&h8.lines.length===3&&!fs.existsSync(d8),'a folder handed 
 var h9=run(f8,d8,null,[path.join(tmp,'d9')]);
 check(h9.lines.length===3&&fs.existsSync(path.join(d8,'first-session'))&&!fs.existsSync(path.join(tmp,'d9')),'with CLAUDE_PLUGIN_DATA set and an argument beside it, the sentinel lands in the environment\'s folder');
 // No case prints on the screen: no systemMessage key in any output (issue 165).
-check(outs.length>=13&&outs.every(function(o){ return o&&!('systemMessage' in o); }),'no run carries a systemMessage key: nothing prints on the screen at session start; got '+outs.map(function(o){return o?Object.keys(o).join('+'):'(none)';}).join(', '));
+check(outs.length>=14&&outs.every(function(o){ return o&&!('systemMessage' in o); }),'no run carries a systemMessage key: nothing prints on the screen at session start; got '+outs.map(function(o){return o?Object.keys(o).join('+'):'(none)';}).join(', '));
 // 7. hooks.json, the manifests, the docs.
 var hooks=JSON.parse(read(path.join(plugin,'hooks','hooks.json')));
 var sh=hooks.hooks.SessionStart[0].hooks[0];

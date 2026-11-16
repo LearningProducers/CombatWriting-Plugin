@@ -10,9 +10,10 @@
 // in every result's Seats line. The FIRST start (no `first-session` file in the plugin's data folder, the folder
 // Claude Code keeps across updates and removes on uninstall) also measures two things and adds
 // one line per lack after the ready line, nothing when there is no lack, then writes the sentinel so no later start
-// repeats it. A host that names no data folder leaves the hook no place to remember a start, so
-// there every start measures and nothing is written: the lines are never lost, only repeated as
-// context. /cw:help crew and /cw:help voices carry the same lines for later:
+// repeats it. The check is skipped in that one state only, the sentinel seen: a host that names
+// no data folder, or one the hook cannot make, read or write, gives no proof of an earlier start,
+// so there every start measures: the lines are never lost, only repeated as context.
+// /cw:help crew and /cw:help voices carry the same lines for later:
 //   - The crew add-on: `claude plugin list` (the documented signal, read with a 5 s budget) names
 //     combat-writing-crew; when the command cannot run, the plugin cache is read instead
 //     (~/.claude/plugins/cache/<marketplace>/<plugin>/, the layout the security page documents).
@@ -68,11 +69,12 @@ function addonLine(){ return 'The crew add-on is not installed: the crew is the 
 function voicesLine(names){ return 'This Mac has '+names.length+' premium or enhanced '+(names.length===1?'voice':'voices')+(names.length?' ('+names.join(', ')+')':'')+'. The board reads each seat in its own voice when three are installed: System Settings, Accessibility, Read & Speak (Spoken Content before macOS 26), the ⓘ beside System voice, then the arrow beside Ava (Premium), Nathan (Enhanced) and Allison (Enhanced), or any Premium or Enhanced voice. /cw:help voices.'; }
 
 var lines=[LINE];
-// With a data folder the sentinel is the memory: measure when it is absent, then write it.
-// With none there is no memory, so every start measures and nothing is written.
+// The check is skipped in one state only: the hook can see the sentinel, the proof it already ran.
+// No data folder, or one that cannot be made, read or written, is no proof, so that start measures:
+// a memory that fails costs a repeat, never silence.
 var sentinel=dataDir?path.join(dataDir,SENTINEL):null;
 var first=true;
-if(sentinel){ try{ fs.mkdirSync(dataDir,{recursive:true}); first=!fs.existsSync(sentinel); }catch(e){ first=false; } }
+if(sentinel){ try{ fs.mkdirSync(dataDir,{recursive:true}); }catch(e){} first=!fs.existsSync(sentinel); }
 if(first){
   var addon=addonInstalled();
   var voices=qualityVoices();
