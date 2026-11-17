@@ -45,6 +45,7 @@ Any of these can sit anywhere in what you type or paste, in any order. The first
 | `cold` | | sparring | a read with no brief |
 | `debate` | | sparring | the seats read each other's answers and rate again |
 | `final` | | battle | the two final reads on the draft alone: S/N ratio and red flags; not ratings |
+| `picker on` | | battle, sparring | turns the picker that ends every round back on for this project; runs no round |
 | `shipped` | | champion | the piece went out: a link, `email to <whom>`, or any channel in words |
 | `result:` | | champion | one dated line in your words; silence is a result; `at:` dates it |
 | `insight:` | | champion | one dated, run-tagged line in the project's insight vault |
@@ -63,13 +64,15 @@ A missing keyword never errors. The host opens a one-keypress menu (the AskUserQ
 | bare `/cw:battle`, or text with no keyword | Everyone / One seat / Revised draft / Final (New run in place of Final when the text is draft-shaped), best guess marked | under Everyone: FQ / N / SN / SFQ; under One seat: the seat list |
 | bare `/cw:champion` | Shipped / Result / Insight, best guess marked | one line asks for the text |
 | bare `/cw:runs`, after the listing | the four open runs touched last, any stage, by last activity (no picker when none is open) | the pick continues in that run's own stage: battle's or sparring's picker, or the first round on a strategy-made run |
-| after every sparring and battle result | Battle: everyone / Battle: one seat / Debate: seats re-read and rerate / More | under Battle: everyone: FQ / N / SN / SFQ; under More: Final reads / Champion / Help / Done for now; then one line for your text, shown back for you to send or change (Send / Change it) before it reaches a seat; a rating takes `rerate` in the command, or Debate |
+| after every sparring and battle result | Battle: everyone / Battle: one seat / Debate: seats re-read and rerate / More | under Battle: everyone: FQ / N / SN / SFQ; under More: Final reads / Champion / I will type commands for this project / Done for now; then one line for your text, shown back for you to send or change (Send / Change it) before it reaches a seat; a rating takes `rerate` in the command, or Debate |
 
 Done for now prints the text Next line, which names the run, the word that returns to it (`run: <word>`), and the line that starts a new piece.
 
+The picker that ends every round has an off switch, kept per project. "I will type commands for this project" prints the text Next line at once and writes `combat-writing/picker.json`; from then on every round in that project ends with the text Next line and no picker, until `/cw:battle picker on` turns it back on. A picker closed with no choice stores nothing and opens again after the next round. The switch holds that picker alone: the menus a typed command asks for still open.
+
 ## 4. What is written where
 
-Everything lands in your project, under `combat-writing/`, never in the plugin: the seven places the rulings count, the last of them holding your two pick files.
+Everything lands in your project, under `combat-writing/`, never in the plugin: the eight places the rulings count, the seventh holding your two pick files and the eighth the picker's off switch.
 
 | Place | What | Written by |
 |---|---|---|
@@ -80,6 +83,7 @@ Everything lands in your project, under `combat-writing/`, never in the plugin: 
 | `combat-writing/brief.md` | the project's unnamed brief and its dated updates | `new-run.js` from a `brief:`, `brief.js --update` |
 | `combat-writing/briefs/<name>.md` | the briefs saved by name | `new-run.js` with `--brief-name`, `brief.js --update --name` |
 | `combat-writing/seats.json` and `combat-writing/voices.json` | your picks: a model for a fresh reader; a voice for a seat | `seats.js --set`, `speak.js --set` |
+| `combat-writing/picker.json` | the picker's off switch: there only while you chose "I will type commands for this project" | `picker.js --off`; `picker.js --on` removes it |
 
 Nothing is fetched by any script. The one outside connection is the host opening the link given to `shipped`, once. The add-on sends packets to the providers you hold keys for and nowhere else.
 
@@ -119,7 +123,7 @@ A key comes from the masked prompt (`/plugin configure combat-writing-crew`), el
 
 ## 6. The scripts
 
-Twenty files in `plugins/combat-writing/scripts/`, plain Node, no dependencies. The host runs them; a person never types them. They are the only writers inside a run folder.
+Twenty-one files in `plugins/combat-writing/scripts/`, plain Node, no dependencies. The host runs them; a person never types them. They are the only writers inside a run folder.
 
 | Script | Called when | What it writes |
 |---|---|---|
@@ -130,6 +134,7 @@ Twenty files in `plugins/combat-writing/scripts/`, plain Node, no dependencies. 
 | `briefs.js` | `/cw:briefs` | nothing; prints the list |
 | `runs.js` | `/cw:runs`, `run:` | nothing; prints the list, the one folder, or under `--pick` the JSON array the runs picker reads |
 | `seats.js` | "seat-2 on <model>", "seat-2 back to the default" | `combat-writing/seats.json` |
+| `picker.js` | before every Next picker; the More screen's "I will type commands for this project"; `picker on` | `combat-writing/picker.json` with `--off`, removed with `--on`; bare, nothing: prints `Picker: on`, or `Picker: off` and the text Next line |
 | `seat-fallback.js` | the host's tool refused a fresh reader's start or does not offer its model | one log line, `seat.fallback` (from, to, the reason; its time is the when), and that seat's record in the run's `seats.json` |
 | `crew-state.js` | the add-on is absent or down | one log line saying which, for the Seats line |
 | `announce.js` | the round's kind and seats are known | one log line; prints the forming line |
@@ -179,6 +184,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/order_check.js` | any stage may be skipped |
 | `tests/packet_check.js` | the packet from files only, the previous round carried, the contract |
 | `tests/paste_check.js` | THE PASTE RULE, the same words in three skills |
+| `tests/picker_check.js` | THE PICKER RULE, the same words in three skills: the off switch per project, the text Next line at once, the way back, and a closed picker that remembers nothing |
 | `tests/provenance_check.js` | the shipped folders carry the rule, never the ruling: no "ruled", no "founder" outside the credit line |
 | `tests/pr_body_check.js` | the four-section gate script |
 | `tests/rating_contract_check.js` | `RATING: X/10`, 7 forbidden, the number against the words |

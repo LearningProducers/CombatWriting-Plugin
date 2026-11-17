@@ -37,7 +37,7 @@
 //   - The script's own lines match lib's constants, so the skill, the script and this test read
 //     one option label and one way back.
 //   - CLAUDE.md and the plugin map carry the new More screen, the file as the eighth place and
-//     the way back.
+//     the way back; the listing README carries the new More screen, the file and the way back.
 //
 // Run from the repo root:   node tests/picker_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -53,6 +53,8 @@ function read(p){ return fs.readFileSync(p,'utf8'); }
 function skill(name){ return read(path.join(plugin,'skills',name,'SKILL.md')); }
 function nodeIn(dir,script,args){ return cp.spawnSync(process.execPath,[path.join(scripts,script)].concat(args||[]),{cwd:dir,encoding:'utf8'}); }
 function lines(r){ return r.stdout.replace(/\n$/,'').split('\n'); }
+// lib's read, guarded so this file reports its failures on a tree that has no picker rule yet.
+function picker(dir){ return typeof lib.readPicker==='function'?lib.readPicker(dir):{}; }
 
 var OPTION='I will type commands for this project';
 var BACK='/cw:battle picker on';
@@ -117,7 +119,7 @@ var kept=fs.existsSync(file)?read(file):'';
 var j=null; try{ j=JSON.parse(kept); }catch(e){}
 check(!!j&&j.picker==='off'&&/^\d{4}-\d\d-\d\dT/.test(j.at||'')&&j.run===path.basename(run),'case 2: the file must hold {picker: "off", at, run}; got '+kept);
 check(fs.readdirSync(path.join(proj,'combat-writing')).indexOf('picker.json')>=0&&!fs.existsSync(path.join(run,'picker.json')),'case 2: the choice is the project\'s, never inside the run folder');
-check(lib.readPicker(proj).off===true&&lib.readPicker(other).off===false,'lib.readPicker: off in the project that chose, on in another');
+check(picker(proj).off===true&&picker(other).off===false,'lib.readPicker: off in the project that chose, on in another');
 
 // From then on: no picker; the read says so and carries the text Next line.
 var st=node('picker.js',['--run',run]);
@@ -130,7 +132,7 @@ check(stRoot.status===0&&lines(stRoot).length===1&&/^Picker: off for this projec
 // A later round in the same project still reads off; a second --off rewrites nothing.
 var off2=node('picker.js',['--run',run,'--off']);
 check(off2.status===0&&lines(off2)[0]===nextLine&&/^Picker already off for this project/.test(lines(off2)[1]||''),'a second --off: the text Next line, then "Picker already off for this project"; got '+JSON.stringify(off2.stdout+off2.stderr));
-check(read(file)===kept,'a second --off must leave the file\'s bytes as they were');
+check(fs.existsSync(file)&&read(file)===kept,'a second --off must leave the file\'s bytes as they were');
 
 // That project only.
 var o=nodeIn(other,'picker.js',[]);
@@ -151,12 +153,12 @@ fs.writeFileSync(path.join(other,'combat-writing','picker.json'),'{not json');
 var broken=nodeIn(other,'picker.js',[]);
 check(broken.status===0&&/^Picker: on\b/.test(broken.stdout)&&/not JSON/.test(broken.stdout),'a picker.json that is not JSON reads as on and the line says so; got '+JSON.stringify(broken.stdout+broken.stderr));
 fs.writeFileSync(path.join(other,'combat-writing','picker.json'),'{"picker":"maybe"}\n');
-check(nodeIn(other,'picker.js',[]).stdout==='Picker: on\n'&&lib.readPicker(other).off===false,'a picker.json that says anything but off reads as on');
+check(nodeIn(other,'picker.js',[]).stdout==='Picker: on\n'&&picker(other).off===false,'a picker.json that says anything but off reads as on');
 // Usage: the two words never ride together, and --off outside a run still works from the project.
 var both=node('picker.js',['--on','--off']);
 check(both.status===2&&/--on or --off, never both/.test(both.stderr),'--on with --off must be refused; got '+both.status+' '+both.stderr);
 var offRoot=nodeIn(other,'picker.js',['--off']);
-check(offRoot.status===0&&lines(offRoot).length===1&&/^Picker off for this project/.test(offRoot.stdout)&&lib.readPicker(other).off===true,'--off with no --run: the one line, and the file written in the working folder\'s project; got '+JSON.stringify(offRoot.stdout+offRoot.stderr));
+check(offRoot.status===0&&lines(offRoot).length===1&&/^Picker off for this project/.test(offRoot.stdout)&&picker(other).off===true,'--off with no --run: the one line, and the file written in the working folder\'s project; got '+JSON.stringify(offRoot.stdout+offRoot.stderr));
 
 // The text.
 var rules=skill('combat-writing'), battle=skill('battle'), sparring=skill('sparring'), help=skill('help');
@@ -216,12 +218,16 @@ check(/scripts\/picker\.js \[--run <folder>\] \[--off\\\|--on\]/.test(rules),'th
 // The documents the ruling stands in.
 var claude=read(path.join(root,'CLAUDE.md')), map=read(path.join(root,'docs','plugin-map.md'));
 check(/Under More: Final reads \/ Champion \/ I will type commands for this project \/ Done for now/.test(claude)&&/THE PICKER RULE \(issue 215/.test(claude),'CLAUDE.md: the Next picker bullet must carry the new More screen and THE PICKER RULE');
-check(/The eighth and last \(issue 215/.test(claude)&&/`combat-writing\/picker\.json`/.test(claude)&&/`scripts\/picker\.js`/.test(claude),'CLAUDE.md: picker.json is the eighth write location, written by scripts/picker.js');
+check(/The eighth and last \(issue 215/.test(claude)&&/`combat-writing\/picker\.json`/.test(claude)&&/`scripts\/picker\.js --off`/.test(claude),'CLAUDE.md: picker.json is the eighth write location, written by scripts/picker.js');
 check(!/The seventh and last/.test(claude),'CLAUDE.md: the seventh write location is no longer the last');
 check(claude.indexOf('`'+BACK+'`')>=0,'CLAUDE.md: must name the way back, '+BACK);
 check(/under More: Final reads \/ Champion \/ I will type commands for this project \/ Done for now/.test(map)&&!/Final reads \/ Champion \/ Help \/ Done for now/.test(map),'plugin map: the picker row must carry the new More screen and not the old one');
 check(/`combat-writing\/picker\.json`/.test(map)&&/the eight places/.test(map)&&!/the seven places/.test(map),'plugin map: picker.json among the eight places written');
 check(map.indexOf(BACK)>=0&&/`picker\.js`/.test(map),'plugin map: must name the way back and picker.js');
+// The listing README, which lays out the same picker for a reader of the directory.
+var readme=read(path.join(plugin,'README.md'));
+check(/or More \(final reads, champion, I will type commands for this project, done for now\)/.test(readme)&&!/champion, help, done for now/.test(readme),'the plugin README: More must read final reads, champion, I will type commands for this project, done for now');
+check(readme.indexOf('`'+BACK+'`')>=0&&/`combat-writing\/picker\.json`/.test(readme)&&/a picker closed with no choice stores nothing and returns after the next round/.test(readme),'the plugin README: must name the way back, the file and the closed picker');
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log('picker_check: '+passes+' passed, '+failures.length+' failed');
