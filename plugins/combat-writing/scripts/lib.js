@@ -732,6 +732,32 @@ function crewAloneWords(seats){
   return 'one seat';
 }
 function readersPicksPath(root){ return path.join(root,READERS_REL); }
+// The picker's off switch (issue 215, THE PICKER RULE): the Next picker, the one that ends every
+// sparring and battle round, is on by default and stays on unless the person picks
+// PICKER_OPTION on its More screen. The choice lives in <project>/combat-writing/picker.json,
+// the eighth write location, written and removed by picker.js alone: {"picker":"off","at","run"}.
+// No file, a file that is not JSON, or one that says anything but off reads as on, so a picker
+// closed with no choice, which writes nothing, changes nothing. PICKER_ON_CMD is the one command
+// that turns it back on. projectOfRun reads the project from the run folder alone, as vaultPath does.
+var PICKER_FILE='picker.json';
+var PICKER_REL=path.join('combat-writing',PICKER_FILE);
+var PICKER_OPTION='I will type commands for this project';
+var PICKER_ON_CMD=CMD.battle+' picker on';
+function pickerPath(root){ return path.join(root,PICKER_REL); }
+function readPicker(root){
+  var p=pickerPath(root);
+  if(!fs.existsSync(p))return {off:false,at:null,run:null,broken:false};
+  try{
+    var j=JSON.parse(readText(p));
+    var off=!!j&&typeof j==='object'&&j.picker==='off';
+    return {off:off,at:off&&typeof j.at==='string'?j.at:null,run:off&&typeof j.run==='string'?j.run:null,broken:false};
+  }catch(e){ return {off:false,at:null,run:null,broken:true}; }
+}
+function projectOfRun(runDir){
+  var parent=path.dirname(path.resolve(runDir)), grand=path.dirname(parent);
+  if(path.basename(parent)!=='runs'||path.basename(grand)!=='combat-writing')return null;
+  return path.dirname(grand);
+}
 function readReaderPicks(root){
   var p=readersPicksPath(root);
   if(!fs.existsSync(p))return {};
@@ -1768,6 +1794,7 @@ module.exports={
   seatStart:seatStart,sessionModelOf:sessionModelOf,modelsLine:modelsLine,SOURCE_NAMED:SOURCE_NAMED,SOURCE_SESSION:SOURCE_SESSION,seatFallbacks:seatFallbacks,fallbackWords:fallbackWords,FALLBACK_REASON_SHOWN:FALLBACK_REASON_SHOWN,
   MODEL_ID_RE:MODEL_ID_RE,isModelId:isModelId,seatModels:seatModels,measuredModels:measuredModels,modelChangeWords:modelChangeWords,measuredLines:measuredLines,MEASURED_HEADING:MEASURED_HEADING,MEASURED_NOTE:MEASURED_NOTE,MEASURED_SOURCE:MEASURED_SOURCE,
   MAX_FRESH_READERS:MAX_FRESH_READERS,READERS_FILE:READERS_FILE,READERS_REL:READERS_REL,freshReaders:freshReaders,crewAloneWords:crewAloneWords,readersPicksPath:readersPicksPath,readReaderPicks:readReaderPicks,
+  PICKER_FILE:PICKER_FILE,PICKER_REL:PICKER_REL,PICKER_OPTION:PICKER_OPTION,PICKER_ON_CMD:PICKER_ON_CMD,pickerPath:pickerPath,readPicker:readPicker,projectOfRun:projectOfRun,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   GITIGNORE_FILE:GITIGNORE_FILE,GITIGNORE_LINES:GITIGNORE_LINES,GITIGNORE_LINE:GITIGNORE_LINE,inGitRepo:inGitRepo,writeGitignore:writeGitignore,

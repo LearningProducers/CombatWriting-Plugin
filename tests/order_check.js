@@ -51,8 +51,9 @@
 //     bytes; this pins the departure).
 //   - The Next picker: sparring and battle close with it; the rules skill lays out screen one
 //     (Battle: everyone / Battle: one seat / Debate: seats re-read and rerate / More), the four
-//     round labels with the founder's descriptions in order, the More screen (Final reads / Help
-//     / Done for now), the text line, the approval step after it and no rerate question (issue
+//     round labels with the founder's descriptions in order, the More screen (Final reads /
+//     Champion / I will type commands for this project / Done for now; issue 215, Help left it;
+//     tests/picker_check.js pins the off switch), the text line, the approval step after it and no rerate question (issue
 //     202; tests/approval_check.js pins the step), and Done for now printing the text Next
 //     line and nothing else; strategy keeps its single Next line and no picker.
 //   - One eval case starts a run at battle.
@@ -226,13 +227,14 @@ check(/^14\. \*\*The order of the stages is the person's choice/m.test(method)&&
 var screenOne=/\*\*Battle: everyone\*\*[^\n]*\*\*Battle: one seat\*\*[^\n]*\*\*Debate: seats re-read and rerate\*\*[^\n]*\*\*More\*\*/;
 check(screenOne.test(rules)&&screenOne.test(battle)&&screenOne.test(sparring),'the Next picker: screen one must be Battle: everyone / Battle: one seat / Debate: seats re-read and rerate / More in the rules skill, battle and sparring');
 check(/\*\*FQ\*\*, "same question to every seat, nothing shared"; \*\*N\*\*, "same guidance to every seat, nothing shared"; \*\*SN\*\*, "everyone reads each other plus responds to your prompt"; \*\*SFQ\*\*, "everyone reads each other's response to this question plus responds to your question"/.test(rules),'the Next picker: the four round labels and descriptions, in order, in the rules skill');
-check(/\*\*Final reads\*\*[^\n]*\*\*Help\*\*[^\n]*\*\*Done for now\*\*/.test(rules),'the Next picker: the More screen must be Final reads / Help / Done for now');
-// Champion under More (ruled 2026-10-19): between Final reads and Help, with Shipped / Result /
-// Insight on its second screen, in the rules skill, battle, sparring and the help.
-var more=/\*\*Final reads\*\*[^\n]*\*\*Champion\*\*[^\n]*\*\*Help\*\*[^\n]*\*\*Done for now\*\*/;
+check(/\*\*Final reads\*\*[^\n]*\*\*I will type commands for this project\*\*[^\n]*\*\*Done for now\*\*/.test(rules),'the Next picker: the More screen must be Final reads / Champion / I will type commands for this project / Done for now');
+// Champion under More (ruled 2026-10-19): after Final reads, with Shipped / Result / Insight on
+// its second screen, in the rules skill, battle, sparring and the help. The option that turns
+// the picker off for the project stands where Help stood (issue 215).
+var more=/\*\*Final reads\*\*[^\n]*\*\*Champion\*\*[^\n]*\*\*I will type commands for this project\*\*[^\n]*\*\*Done for now\*\*/;
 var three=/\*\*Shipped\*\*[^\n]*\*\*Result\*\*[^\n]*\*\*Insight\*\*/;
 [['combat-writing',rules],['battle',battle],['sparring',sparring],['help',help]].forEach(function(p){
-  check(more.test(p[1]),p[0]+': the More screen must carry Champion between Final reads and Help');
+  check(more.test(p[1]),p[0]+': the More screen must carry Champion between Final reads and I will type commands for this project');
   check(three.test(p[1]),p[0]+': Champion\'s second screen must be Shipped / Result / Insight');
 });
 check(/then `\/cw:champion` runs as if typed/.test(rules),'the Next picker: after Champion\'s text, /cw:champion runs as if typed');

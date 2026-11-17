@@ -77,7 +77,7 @@ var CARD=[
 // Every code span in the card or the guide is one of these: a thing a person types that does something.
 var RUNS=['/cw:strategy','/cw:sparring','/cw:battle','/cw:champion','/cw:briefs','/cw:runs','/cw:help','/cw:help all','/cw:help <topic>',
   'rerate','shipped','result:','insight:','brief:','reader:','sparring:','battle:','fq:','question:','n:','sn:','sfq:',
-  'draft:','seat-N:','seat-1:','seat-2:','cold','debate','final','run:','brief <name>:','brief: <name>','brief update:'];
+  'draft:','seat-N:','seat-1:','seat-2:','cold','debate','final','run:','brief <name>:','brief: <name>','brief update:','picker on'];
 
 var help=read(path.join(plugin,'skills','help','SKILL.md'));
 var BEGIN='<!-- THE CARD BEGIN -->', END='<!-- THE CARD END -->';
@@ -141,7 +141,7 @@ check(heads.join('|')==='Start a run|Run a round|Everything else|After every rou
 function rows(from,to){ var a=guide.indexOf('## '+from), z=to?guide.indexOf('## '+to):guide.length; return guide.slice(a,z).split('\n').filter(function(l){return /^\| `/.test(l);}).map(function(l){return l.split('|')[1].trim();}); }
 check(rows('Start a run','Run a round').join(' ; ')==='`brief:` ; `reader:` ; `sparring:` / `battle:`','guide: the Start a run table, three rows in order; got '+rows('Start a run','Run a round').join(' ; '));
 check(rows('Run a round','Everything else').join(' ; ')==='`fq:` (also `question:`) ; `n:` ; `sn:` ; `sfq:`','guide: the Run a round table, four rows in order; got '+rows('Run a round','Everything else').join(' ; '));
-check(rows('Everything else','After every round').join(' ; ')==='`draft:` ; `rerate` ; `seat-N:` ; `cold` / `debate` ; `final` ; `run:` ; `brief <name>:` / `brief: <name>` ; `brief update:`','guide: the Everything else table, eight rows in order; got '+rows('Everything else','After every round').join(' ; '));
+check(rows('Everything else','After every round').join(' ; ')==='`draft:` ; `rerate` ; `seat-N:` ; `cold` / `debate` ; `final` ; `run:` ; `brief <name>:` / `brief: <name>` ; `brief update:` ; `picker on`','guide: the Everything else table, nine rows in order; got '+rows('Everything else','After every round').join(' ; '));
 check((guide.match(/^\|---\|---\|$/mg)||[]).length===3,'guide: three tables');
 check(/^\| `sn:` \| SN, your prompt; every seat reads the others' answers first \|\n\| `sfq:` \| SFQ, your question; every seat reads the others' answers first \|$/m.test(guide),'guide: the sn: and sfq: rows say every seat reads the others\' answers first (issue 163)');
 check(/^\| `seat-N:` \| a note to one seat: `seat-1:`, `seat-2:`, or its short name \|$/m.test(guide),'guide: the seat-N row says seat-1:, seat-2: and so on, or the short name');
@@ -150,7 +150,7 @@ check(/^In FQ and N each seat answers alone; in SN and SFQ they read each other 
 check(/^The terminal prints the crew line, the scoreboard, the board's path and the seat key; the board opens in your browser\. Then the picker\.$/m.test(guide),'guide: After every round names the four lines, the browser and the picker');
 check(/^Ratings are 1 to 10 with 7 forbidden, never averaged; a changed rating quotes who moved it\.$/m.test(guide),'guide: the rating sentence and the flip rule, no band name (issue 175)');
 check(/^Two fresh readers by default\. The add-on, named combat-writing-crew, seats other companies' models on your keys and takes the second chair, third chair or more\.$/m.test(guide),'guide: the crew in two sentences, the chairs the add-on takes');
-check(/^Under combat-writing\/ in your project: runs\/, inbox\/, insight-vault\.md, brief\.md, briefs\/, seats\.json, voices\.json\.$/m.test(guide),'guide: where files land');
+check(/^Under combat-writing\/ in your project: runs\/, inbox\/, insight-vault\.md, brief\.md, briefs\/, seats\.json, voices\.json, picker\.json\.$/m.test(guide),'guide: where files land');
 check(/^`\/cw:help <topic>` prints one section: stages, order, commands, next; rounds, champion, briefs, runs; crew, where, voices; files, record, privacy; rating; method\.$/m.test(guide),'guide: the More line lists the topic words in groups');
 var LIVE_1="Right now: seat-1, a fresh reader, plus the add-on's seats, one per provider with a key.";
 var LIVE_2="Right now: the two fresh readers; the add-on is <not installed | installed but not running>. Next: <the one command for that state>.";
