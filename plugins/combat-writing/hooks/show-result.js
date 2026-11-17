@@ -103,7 +103,8 @@
 // the file is read through the bounded reader, and with the picker off the context says to
 // print the text Next line and open no picker. No file, a file that is no regular file or is
 // over SMALL_BYTES, a file that does not parse, any value but off, a run named by a shell
-// variable and a run folder anywhere else all read as on, and the context ends as it always
+// variable or written with a tilde (the shell expands both, the hook cannot) and a run folder
+// anywhere else all read as on, and the context ends as it always
 // has. pickerOff mirrors lib.readPicker, so the hook still requires fs, path and child_process
 // alone; tests/show_result_check.js holds the two equal on the same files. The hook never
 // writes the file.
@@ -302,8 +303,10 @@ function pickerOff(runDir){
 // The context for a command: the off one when a literal --run path in it names a run whose
 // project has the picker off, else the one the hook has always handed over.
 function contextFor(command,cwd){
-  var dir=runDirOf(command,SHORT_RE,cwd)||runDirOf(command,OPENER_RE,cwd)||runDirOf(command,BOARD_RE,cwd)||runDirOf(command,SPEAK_RE,cwd);
-  try{ return dir&&pickerOff(dir)?CONTEXT_OFF:CONTEXT; }catch(e){ return CONTEXT; }
+  try{
+    var dir=runDirOf(command,SHORT_RE,cwd)||runDirOf(command,OPENER_RE,cwd)||runDirOf(command,BOARD_RE,cwd)||runDirOf(command,SPEAK_RE,cwd);
+    return dir&&pickerOff(dir)?CONTEXT_OFF:CONTEXT;
+  }catch(e){ return CONTEXT; } // a path the hook cannot resolve (a working folder that is no string) is the default too
 }
 // The checks a command ran: the answer file (the first word that is no option, as check-answer.js
 // reads its arguments) and the --run folder of each check-answer.js segment, literal paths only.
