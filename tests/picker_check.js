@@ -20,8 +20,9 @@
 //     project already on writes nothing and says so.
 //   - Case 3, the closed picker: nothing is remembered. A whole round run through the real
 //     scripts (the run, the packets, the answers, the checks, the record, the board, the state)
-//     leaves no picker.json and the read is `Picker: on`; no script but picker.js, and no hook,
-//     names the file or lib's picker functions, so nothing else can write or read the choice.
+//     leaves no picker.json and the read is `Picker: on`; no script but picker.js and lib.js,
+//     which holds the rule, and no hook, names the file or lib's picker functions, so nothing
+//     else can write or read the choice.
 //   - A picker.json that is not JSON, or that says anything but off, reads as on: the default.
 // And on the text:
 //   - The paragraph headed THE PICKER RULE stands in the rules skill, battle and sparring, the
@@ -238,6 +239,15 @@ var method=read(path.join(plugin,'method','combat-writing.md')), mirror=read(pat
 [['the method',method],['the method\'s docs/ mirror',mirror],['the help',help],['the plugin README',readme],['CLAUDE.md',claude]].forEach(function(p){
   check(!/the picker, and nothing else/.test(p[1]),p[0]+': "the picker, and nothing else" must carry the switch: the text Next line where the picker is off');
   check(/the picker \((?:the text Next line|the one line of text)[^)]*picker (?:is )?off[^)]*\), and nothing else/.test(p[1]),p[0]+': the sentence on what the terminal shows must name the text Next line for a project with the picker off');
+});
+// The three skills: no sentence says the reply after a round is the picker without the switch
+// beside it (the rules skill's seat-key bullet, its round-fires-as-chosen bullet, which reaches
+// a keyword typed by hand, and its Showing a result line; battle's and sparring's closing lines).
+check(/the round line and the picker \(the text Next line where the project's picker is off, THE PICKER RULE below\)/.test(rules)&&!/the round line and the picker,/.test(rules),'the rules skill: the round-fires-as-chosen bullet must carry the switch after "the round line and the picker"');
+check(/then the Next picker \(the text Next line where the project's picker is off, THE PICKER RULE below\)/.test(rules)&&!/then the Next picker;/.test(rules),'the rules skill: the seat-key bullet must carry the switch after "then the Next picker"');
+check(/then the Next picker \(above\), or the text Next line where the project's picker is off \(THE PICKER RULE\)/.test(rules),'the rules skill: Showing a result must carry the switch after "then the Next picker (above)"');
+[['battle',battle],['sparring',sparring]].forEach(function(p){
+  check(/the picker follows the round line \(the text Next line does, where the project's picker is off\)\./.test(p[1])&&!/the picker follows the round line\./.test(p[1]),p[0]+': "the picker follows the round line" must carry the switch');
 });
 
 failures.forEach(function(f){console.log('FAIL '+f);});
