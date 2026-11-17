@@ -21,8 +21,10 @@
 //   - Case 3, the closed picker: nothing is remembered. A whole round run through the real
 //     scripts (the run, the packets, the answers, the checks, the record, the board, the state)
 //     leaves no picker.json and the read is `Picker: on`; no script but picker.js and lib.js,
-//     which holds the rule, and no hook, names the file or lib's picker functions, so nothing
-//     else can write or read the choice.
+//     which holds the rule, and no hook but the result hook, names the file or lib's picker
+//     functions, so nothing
+//     else can write the choice; the result hook alone reads it too, and never writes it
+//     (issue 216).
 //   - A picker.json that is not JSON, or that says anything but off, reads as on: the default.
 // And on the text:
 //   - The paragraph headed THE PICKER RULE stands in the rules skill, battle and sparring, the
@@ -108,8 +110,15 @@ check(onRoot.status===0&&onRoot.stdout==='Picker: on\n','the read with no --run 
 var others=fs.readdirSync(scripts).filter(function(f){return /\.js$/.test(f)&&f!=='picker.js'&&f!=='lib.js';}).map(function(f){return path.join(scripts,f);})
   .concat(fs.readdirSync(path.join(plugin,'hooks')).filter(function(f){return /\.js$/.test(f);}).map(function(f){return path.join(plugin,'hooks',f);}));
 others.forEach(function(p){
-  check(!/picker\.json|PICKER_FILE|PICKER_REL|pickerPath|readPicker|writePicker/.test(read(p)),path.relative(root,p)+': only picker.js may write or read the stored choice');
+  if(path.basename(p)==='show-result.js')return; // the one hook that reads the choice (issue 216), held below
+  check(!/picker\.json|PICKER_FILE|PICKER_REL|pickerPath|readPicker|writePicker/.test(read(p)),path.relative(root,p)+': only picker.js may write the stored choice, and only it and the result hook may read it');
 });
+// The result hook reads the choice and never writes it (issue 216): its one function that names
+// the file holds no write, no append, no unlink and no mkdir.
+var hookSrc=read(path.join(plugin,'hooks','show-result.js'));
+var offFn=(/\nfunction pickerOff\(runDir\)\{[\s\S]*?\n\}\n/.exec(hookSrc)||[''])[0];
+check(!!offFn&&/picker\.json/.test(offFn),'hooks/show-result.js: must hold a pickerOff(runDir) function that names picker.json');
+check(!!offFn&&!/write|append|unlink|mkdir|rmSync|rename/i.test(offFn),'hooks/show-result.js: pickerOff must read only');
 check(others.length>=20,'the sweep of the other scripts and hooks must read them; got '+others.length);
 
 // Case 2, the choice: the text Next line at once, the way back named, the file written.
@@ -184,6 +193,7 @@ files.forEach(function(f,i){
   check(/after the next round open the Next picker again as after any round/.test(p)&&/never put the text Next line in its place because a picker was closed/.test(p),name+': case 3, the picker opens again after the next round and the text Next line never stands in for a closed one');
   check(/Before you open the Next picker after a round, run `node \$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/picker\.js --run <folder>`/.test(p)&&/`Picker: on` means open it/.test(p)&&/a first line starting `Picker: off` means open no picker in this project/.test(p),name+': the read before every Next picker, and what its two answers mean');
   check(/the way a round ends where you have no AskUserQuestion tool/.test(p),name+': with the picker off a round ends as where there is no picker tool');
+  check(/the plugin's result hook reads the same file and tells you the same/.test(p)&&!/does not hold there/.test(p),name+': the rule must say the result hook reads the same file and says the same (issue 216)');
   check(/The switch holds the Next picker alone/.test(p),name+': the switch holds the Next picker alone');
   check(p.indexOf('`'+BACK+'`')>=0&&/run `picker\.js --on`, print its line, and run no round/.test(p),name+': the way back, '+BACK+', runs picker.js --on and no round');
   check(/never changes unless the person chooses the option/.test(p),name+': the default never changes unless the person chooses the option');
@@ -225,6 +235,7 @@ check(/Under More: Final reads \/ Champion \/ I will type commands for this proj
 check(/The eighth and last \(issue 215/.test(claude)&&/`combat-writing\/picker\.json`/.test(claude)&&/`scripts\/picker\.js --off`/.test(claude),'CLAUDE.md: picker.json is the eighth write location, written by scripts/picker.js');
 check(!/The seventh and last/.test(claude),'CLAUDE.md: the seventh write location is no longer the last');
 check(claude.indexOf('`'+BACK+'`')>=0,'CLAUDE.md: must name the way back, '+BACK);
+check(/no hook but `show-result\.js`, which reads it and never writes it/.test(claude)&&/issue 216/.test(claude)&&!/Named and not held by code: the result hook/.test(claude),'CLAUDE.md: the result hook reads the switch (issue 216) and the named gap is closed');
 check(/under More: Final reads \/ Champion \/ I will type commands for this project \/ Done for now/.test(map)&&!/Final reads \/ Champion \/ Help \/ Done for now/.test(map),'plugin map: the picker row must carry the new More screen and not the old one');
 check(/`combat-writing\/picker\.json`/.test(map)&&/the eight places/.test(map)&&!/the seven places/.test(map),'plugin map: picker.json among the eight places written');
 check(map.indexOf(BACK)>=0&&/`picker\.js`/.test(map),'plugin map: must name the way back and picker.js');
