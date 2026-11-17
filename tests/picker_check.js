@@ -38,6 +38,9 @@
 //     one option label and one way back.
 //   - CLAUDE.md and the plugin map carry the new More screen, the file as the eighth place and
 //     the way back; the listing README carries the new More screen, the file and the way back.
+//   - Every passage that says what the terminal shows after a round (the method's departure 15
+//     and its mirror, the help's record section, the listing README, CLAUDE.md) names the text
+//     Next line for a project with the picker off.
 //
 // Run from the repo root:   node tests/picker_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -228,6 +231,14 @@ check(map.indexOf(BACK)>=0&&/`picker\.js`/.test(map),'plugin map: must name the 
 var readme=read(path.join(plugin,'README.md'));
 check(/or More \(final reads, champion, I will type commands for this project, done for now\)/.test(readme)&&!/champion, help, done for now/.test(readme),'the plugin README: More must read final reads, champion, I will type commands for this project, done for now');
 check(readme.indexOf('`'+BACK+'`')>=0&&/`combat-writing\/picker\.json`/.test(readme)&&/a picker closed with no choice stores nothing and returns after the next round/.test(readme),'the plugin README: must name the way back, the file and the closed picker');
+// No passage says a round ends on "the picker, and nothing else" without the switch beside it:
+// the method's departure 15 and its docs/ mirror, the help's record section, the listing README
+// and CLAUDE.md's board bullet each carry the text Next line for a project with the picker off.
+var method=read(path.join(plugin,'method','combat-writing.md')), mirror=read(path.join(root,'docs','combat-writing.md'));
+[['the method',method],['the method\'s docs/ mirror',mirror],['the help',help],['the plugin README',readme],['CLAUDE.md',claude]].forEach(function(p){
+  check(!/the picker, and nothing else/.test(p[1]),p[0]+': "the picker, and nothing else" must carry the switch: the text Next line where the picker is off');
+  check(/the picker \((?:the text Next line|the one line of text)[^)]*picker (?:is )?off[^)]*\), and nothing else/.test(p[1]),p[0]+': the sentence on what the terminal shows must name the text Next line for a project with the picker off');
+});
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log('picker_check: '+passes+' passed, '+failures.length+' failed');
