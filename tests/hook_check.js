@@ -5,8 +5,9 @@
 // 2026-10-26 the show-result hook too, issue 70, pinned by tests/show_result_check.js),
 // and on every start but the first it reads, writes and calls nothing (the first start measures the
 // add-on and the voices and writes the sentinel, Part 83; a host that names no data folder, or
-// one the hook cannot make, read or write, gets the measurement at every start, Part 128, pinned
-// by tests/session_start_check.js).
+// one the hook cannot make, read or write, gets the measurement at every start, Part 128; the
+// sentinel is written only when both measurements came back, so a start where one did not is
+// followed by a start that measures again, Part 129; all pinned by tests/session_start_check.js).
 //
 // What it pins:
 //   - plugins/combat-writing/hooks/ holds exactly hooks.json, seat-scope.js, session-start.js
