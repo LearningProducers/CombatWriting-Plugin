@@ -39,6 +39,10 @@
 //     naming the miss on the screen, renders nothing, exit 0.
 //   - additionalContext tells the host the lines are on the screen and to print the round line
 //     and the picker only. The output is one JSON line, exit 0, nothing on stderr.
+//   - THE SWITCH (issue 216): the hook reads <project>/combat-writing/picker.json, the project read
+//     from the command's literal --run path, and never writes it. Off, the context says to print
+//     the text Next line and open no picker; on, absent, unreadable, a pipe, or a run the hook
+//     cannot place (a shell variable, a tilde, a working folder that is no string), it ends as before. The reading equals lib.readPicker's on the same file.
 //   - Every quality voice (Part 82, issue 129): with two quality voices listed the hook renders both
 //     for the seat, the line counts them and names the default ("2 voices for seat-1 (Ava (Premium)
 //     the default, 12.5 s)"), the second file is on disk, voices.json's renders names both, and the
@@ -555,6 +559,71 @@ var idRe=(/^var MODEL_ID_RE=(\/.*\/);$/m.exec(src)||[])[1], libRe=(/^var MODEL_I
 check(typeof idRe==='string'&&idRe===libRe,'show-result.js: the model id pattern equals lib.js\'s, got '+idRe+' and '+libRe);
 var idTest=idRe?new RegExp(idRe.slice(1,-1)):/$^/;
 check(['test-id-0','test-id-9','maker/name-1.5:x[1m]_y',new Array(121).join('a')].every(function(s){ return idTest.test(s); })&&['','a b','a\nb','a\tb','<synthetic>','a"b','a\u0007b',new Array(122).join('a')].every(function(s){ return !idTest.test(s); }),'show-result.js: the model id pattern takes letters, digits, dot, dash, underscore, slash, colon and square brackets up to 120 and nothing else');
+
+// THE SWITCH (issue 216): the hook reads the project's picker.json and ends its context to match.
+// With the picker on, or where the hook cannot place the project, the context ends as it always
+// has, "then open the Next picker."; with the picker off it says to print the text Next line and
+// open no picker, so nothing the plugin hands the host after a round says to open one there.
+var libP=require(path.join(scripts,'lib.js'));
+var pickerFile=path.join(proj,'combat-writing','picker.json');
+var ON_TAIL='print one line naming the round just run, then open the Next picker.';
+function ctxOf(r){ return r.json&&r.json.hookSpecificOutput?String(r.json.hookSpecificOutput.additionalContext||''):''; }
+function isOn(r){ var c=ctxOf(r); return c.slice(-ON_TAIL.length)===ON_TAIL&&!/open no picker/.test(c); }
+function isOff(r){ var c=ctxOf(r); return /print one line naming the round just run, then the text Next line/.test(c)&&/open no picker/.test(c)&&!/open the Next picker/.test(c)&&/combat-writing\/picker\.json/.test(c)&&/picker\.js --run <folder>/.test(c); }
+fs.rmSync(pickerFile,{force:true});
+var swOn=call(post(S,freshShort()+'\n'));
+shown('the switch, no file',swOn);
+check(isOn(swOn)&&libP.readPicker(proj).off===false,'the switch, no file: the context must end "'+ON_TAIL+'"; got '+JSON.stringify(ctxOf(swOn).slice(-120)));
+var offRun=node('picker.js',['--run',run,'--off']);
+check(offRun.status===0&&fs.existsSync(pickerFile)&&libP.readPicker(proj).off===true,'the switch: picker.js --off must write the project file; got '+offRun.stdout+offRun.stderr);
+var keptBytes=fs.existsSync(pickerFile)?fs.readFileSync(pickerFile,'utf8'):'';
+var swOff=call(post(S,freshShort()+'\n'));
+shown('the switch, off',swOff);
+check(isOff(swOff),'the switch, off: the context must say the text Next line, "open no picker", the file and picker.js --run <folder>, and never "open the Next picker"; got '+JSON.stringify(ctxOf(swOff).slice(-260)));
+check(swOff.json&&swOff.json.systemMessage===freshShort(),'the switch, off: the short form on the screen is unchanged');
+// The opener's line alone, in the same project, carries the same context.
+var swOffOpener=call(post(O,failedLine+'\n'),okOpener);
+check(isOff(swOffOpener),'the switch, off, the opener alone: the context must be the off one; got '+JSON.stringify(ctxOf(swOffOpener).slice(-160)));
+// A run named by a shell variable: the hook cannot place the project, so the line is the default.
+var swVar=call(post('node '+scripts+'/render-record.js --run $R --short',freshShort()+'\n'));
+check(isOn(swVar),'the switch, off, a shell variable for the run: the hook cannot place the project and must hand the default line; got '+JSON.stringify(ctxOf(swVar).slice(-120)));
+// A run written with a tilde: the shell expands it for the script, the hook cannot (issue 220).
+var swTilde=call(post('node '+scripts+'/render-record.js --run ~/combat-writing/runs/'+path.basename(run)+' --short',freshShort()+'\n'));
+check(isOn(swTilde),'the switch, off, a tilde in the run path: the hook cannot place the project and must hand the default line; got '+JSON.stringify(ctxOf(swTilde).slice(-120)));
+// A working folder that is no string, with a relative run path: the default line, exit 0, never a crash.
+var swCwd=call(post('node '+scripts+'/render-record.js --run combat-writing/runs/'+path.basename(run)+' --short',freshShort()+'\n',{cwd:5}));
+check(swCwd.status===0&&swCwd.stderr===''&&isOn(swCwd),'the switch, a working folder that is no string: exit 0 and the default line; got exit '+swCwd.status+' '+swCwd.stderr.slice(0,160));
+// A relative run path under a real working folder is placed, and reads off.
+var swRel=call(post('node '+scripts+'/render-record.js --run combat-writing/runs/'+path.basename(run)+' --short',freshShort()+'\n'));
+check(isOff(swRel),'the switch, off, a relative run path: placed under the working folder and read as off; got '+JSON.stringify(ctxOf(swRel).slice(-160)));
+// A run folder that is not under <project>/combat-writing/runs/ has no project to read.
+var loose=path.join(tmp,'loose','a-run'); fs.mkdirSync(path.dirname(loose),{recursive:true}); fs.cpSync(run,loose,{recursive:true});
+var swLoose=call(post('node '+scripts+'/render-record.js --run '+loose+' --short',freshShort()+'\n'));
+check(isOn(swLoose),'the switch, a run outside combat-writing/runs: the default line; got '+JSON.stringify(ctxOf(swLoose).slice(-120)));
+// The hook reads and never writes: the file's bytes are as picker.js left them.
+check(fs.existsSync(pickerFile)&&fs.readFileSync(pickerFile,'utf8')===keptBytes,'the switch: the hook must leave picker.json as picker.js wrote it');
+// The hook's reading equals lib's on the same file: not JSON, another value, an array, off written
+// by hand, and a folder in the file's place: five, each compared to lib.readPicker.
+[['not JSON','{not json'],['another value','{"picker":"maybe"}\n'],['an array','["off"]\n'],['off, by hand','{"picker":"off"}\n']].forEach(function(c){
+  fs.writeFileSync(pickerFile,c[1]);
+  var r=call(post(S,freshShort()+'\n')), want=libP.readPicker(proj).off;
+  check((want?isOff(r):isOn(r)),'the switch, picker.json '+c[0]+': the hook must read it as lib.readPicker does ('+(want?'off':'on')+'); got '+JSON.stringify(ctxOf(r).slice(-120)));
+});
+fs.rmSync(pickerFile,{force:true}); fs.mkdirSync(pickerFile);
+check(libP.readPicker(proj).off===false&&isOn(call(post(S,freshShort()+'\n'))),'the switch, a folder in the file\'s place: the hook must read it as lib.readPicker does (on)');
+fs.rmSync(pickerFile,{recursive:true,force:true});
+// A pipe in the file's place is passed over, never waited on.
+if(haveFifo&&fifo(pickerFile)){
+  var tF=Date.now(), rF=cp.spawnSync(process.execPath,[hook],{input:JSON.stringify(post(S,freshShort()+'\n')),encoding:'utf8',cwd:proj,timeout:8000,killSignal:'SIGKILL'});
+  var jF=null; try{ jF=JSON.parse(rF.stdout.trim()); }catch(e){}
+  check(rF.status===0&&Date.now()-tF<8000&&isOn({json:jF}),'the switch, a pipe in the file\'s place: the hook must not wait on it and must read on; exit '+rF.status+' after '+(Date.now()-tF)+' ms');
+  fs.rmSync(pickerFile,{force:true});
+}
+// The way back: picker.js --on removes the file and the context is the default again.
+node('picker.js',['--run',run,'--off']);
+check(isOff(call(post(S,freshShort()+'\n'))),'the switch: off again before the way back');
+var backRun=node('picker.js',['--on']);
+check(backRun.status===0&&!fs.existsSync(pickerFile)&&isOn(call(post(S,freshShort()+'\n'))),'the switch, the way back: after picker.js --on the context ends "'+ON_TAIL+'"');
 
 fs.rmSync(tmp,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});

@@ -95,10 +95,25 @@
 // The transcript shape was read on the Claude Code versions in MODEL_READ_ON, from the host's
 // own files, not proved on a live round.
 //
+// THE SWITCH (issue 216). The Next picker has an off switch kept per project,
+// <project>/combat-writing/picker.json, written by scripts/picker.js alone. The context this
+// hook hands the host after a round used to end "then open the Next picker" in every project,
+// against the skill's own paragraph where the picker is off. The hook now reads the file: the
+// project comes from the command's literal --run path (<project>/combat-writing/runs/<run>/),
+// the file is read through the bounded reader, and with the picker off the context says to
+// print the text Next line and open no picker. No file, a file that is no regular file or is
+// over SMALL_BYTES, a file that does not parse, any value but off, a run named by a shell
+// variable or written with a tilde (the shell expands both, the hook cannot) and a run folder
+// anywhere else all read as on, and the context ends as it always
+// has. pickerOff mirrors lib.readPicker, so the hook still requires fs, path and child_process
+// alone; tests/show_result_check.js holds the two equal on the same files. The hook never
+// writes the file.
+//
 // Silent (no output, exit 0) on any other event, tool or command, and on input it cannot read.
 // It reads the hook input and, from the run folder, seats.json (its existence, and one seat's record),
 // the seat's packet's existence,
 // the round's voices.json, the log's board.opened and seat.model lines and board.html's existence;
+// from the project the run sits in, combat-writing/picker.json (THE SWITCH);
 // from the session's folder, the files named under THE MEASURED MODEL; it writes log lines to the
 // run and nothing else, one when it opened the board and one per seat's model it measured; it
 // spawns the opener and the plugin's own speak.js, render-board.js and
@@ -142,7 +157,9 @@ var EXIT_WAIT_MS=3000, REASON_MAX=200, FRESH_MS=120000;
 var scripts=path.join(__dirname,'..','scripts');
 var STARVED_UNKNOWN='Combat Writing: the command hid the scripts\' output and named the run folder with a shell variable, so the plugin could not re-run them; rerun them with the run folder spelled out and the output left alone.';
 var STARVED_NOT_A_RUN='Combat Writing: the command hid the scripts\' output and its --run path is not a run folder (no seats.json there), so the plugin re-ran nothing: ';
-var CONTEXT='Combat Writing: the short form and the board line are on the person\'s screen already, printed by the plugin\'s own hook as the scripts returned. Print nothing from those scripts\' output and never redirect it (no >/dev/null, no file): the hook reads it; print one line naming the round just run, then open the Next picker.';
+var CONTEXT_HEAD='Combat Writing: the short form and the board line are on the person\'s screen already, printed by the plugin\'s own hook as the scripts returned. Print nothing from those scripts\' output and never redirect it (no >/dev/null, no file): the hook reads it; print one line naming the round just run, ';
+var CONTEXT=CONTEXT_HEAD+'then open the Next picker.';
+var CONTEXT_OFF=CONTEXT_HEAD+'then the text Next line, and open no picker: the Next picker is off for this project (combat-writing/picker.json; picker.js --run <folder> prints the text Next line under its first line).';
 
 function hasSegment(command,re){ return String(command||'').split(/;|&&|\|\||\||\n/).some(function(s){return re.test(s);}); }
 function textOf(resp){
@@ -271,6 +288,25 @@ function smallJson(file){
   if(!st.isFile()||st.size>SMALL_BYTES)return {refused:true};
   var part=bytesOf(file,SMALL_BYTES,false); if(!part||part.partial)return {refused:true};
   try{ var v=JSON.parse(part.text); return v&&typeof v==='object'?{value:v}:{unread:true}; }catch(e){ return {unread:true}; }
+}
+// THE SWITCH (issue 216): whether the project a run sits in has the Next picker off. The project
+// is read from the run folder alone, <project>/combat-writing/runs/<run>/, as lib.projectOfRun
+// reads it; the file through smallJson, so a pipe, a folder or a large file in its place is
+// passed over. Off only when the file parses to an object whose picker is "off", the rule of
+// lib.readPicker. Reads only.
+function pickerOff(runDir){
+  var parent=path.dirname(path.resolve(runDir)), grand=path.dirname(parent);
+  if(path.basename(parent)!=='runs'||path.basename(grand)!=='combat-writing')return false;
+  var j=smallJson(path.join(grand,'picker.json'));
+  return !!(j.value&&!Array.isArray(j.value)&&j.value.picker==='off');
+}
+// The context for a command: the off one when a literal --run path in it names a run whose
+// project has the picker off, else the one the hook has always handed over.
+function contextFor(command,cwd){
+  try{
+    var dir=runDirOf(command,SHORT_RE,cwd)||runDirOf(command,OPENER_RE,cwd)||runDirOf(command,BOARD_RE,cwd)||runDirOf(command,SPEAK_RE,cwd);
+    return dir&&pickerOff(dir)?CONTEXT_OFF:CONTEXT;
+  }catch(e){ return CONTEXT; } // a path the hook cannot resolve (a working folder that is no string) is the default too
 }
 // The checks a command ran: the answer file (the first word that is no option, as check-answer.js
 // reads its arguments) and the --run folder of each check-answer.js segment, literal paths only.
@@ -424,6 +460,7 @@ process.stdin.on('end',function(){
   if(hasSegment(command,CHECK_RE)){ try{ measureSeats(input,command); }catch(e){} }
   if(!wantShort&&!wantOpener&&!wantSpeak)return silent();
   var text=textOf(input.tool_response);
+  var context=contextFor(command,input.cwd);
   var parts=[];
   var shortForm=wantShort?shortFormOf(text):null;
   var openerLine=wantOpener?openerLineOf(text):null;
@@ -463,11 +500,11 @@ process.stdin.on('end',function(){
   if(!board){
     if(openerLine)parts.push(openerLine);
     if(!parts.length)return silent();
-    return finish({systemMessage:parts.join('\n\n'),hookSpecificOutput:{hookEventName:'PostToolUse',additionalContext:CONTEXT}});
+    return finish({systemMessage:parts.join('\n\n'),hookSpecificOutput:{hookEventName:'PostToolUse',additionalContext:context}});
   }
   openBoard(board,function(ok,reason,cmd){
     logOpened(board,ok,reason,cmd);
     parts.push(ok?'Board opened by the plugin: '+board:'Board: '+board+' (the plugin could not open it either: '+reason+'; open it yourself: open '+board+')');
-    finish({systemMessage:parts.join('\n\n'),hookSpecificOutput:{hookEventName:'PostToolUse',additionalContext:CONTEXT}});
+    finish({systemMessage:parts.join('\n\n'),hookSpecificOutput:{hookEventName:'PostToolUse',additionalContext:context}});
   });
 });
