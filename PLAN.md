@@ -512,3 +512,23 @@ THE SMOKE, measured in the build session in a browser at 1360 by 900 on an inven
 Delivers: `plugins/combat-writing/hooks/show-result.js`, `plugins/combat-writing/skills/combat-writing/SKILL.md`, `plugins/combat-writing/skills/battle/SKILL.md`, `plugins/combat-writing/skills/sparring/SKILL.md`, `plugins/combat-writing/README.md`, `plugins/combat-writing/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `tests/show_result_check.js`, `tests/picker_check.js`, `docs/plugin-map.md`, `docs/directory-checklist.md`, `README.md`, CLAUDE.md, PLAN.md.
 
 Status: delivered — 2026-11-17 — four commits (the failing tests; the hook; the words, the disclosure lines, the version and this part; the cures of the night-watchman's read, unread by it); draft pull request open; `node tests/run_all.js` reads 54 passed, 0 failed, 0 skipped in the build session; THE SMOKE measured in a browser on a fixture round; the live round is the founder's.
+
+## Part 132 — The two lists of what is written name every place (cw 0.9.15)
+
+Issue 217, opened 2026-11-17 from the build of Part 130. Read on main at 787d4a9, and again at bbb056a, cw 0.9.14: two lists of what the plugin writes in a project ended "Nothing is written anywhere else" and neither named every place. The help's full section "Where files land" (`/cw:help files`) left out `combat-writing/seats.json` and `combat-writing/voices.json`; the listing README's paragraph on what a run leaves left out `combat-writing/brief.md`, `combat-writing/briefs/`, the two pick files and, in that paragraph, `combat-writing/picker.json`. The home of the list is `docs/plugin-map.md` section 4, and nothing held either copy equal to it. No ruling was needed: the issue's done-when is the rule already standing, a fact with a home is pointed at or pinned equal.
+
+Built, the test first, in its own commit. `tests/places_check.js` reads the places from the rows of the map's section 4 and holds the two lists equal to them, none missing and none extra, a place read up to its first placeholder so `runs/<run-id>/` and `runs/<date-time-slug>/` are one. On main's text it read seven failures, two for the help and five for the README; on this part, none.
+
+(A) The help. "Where files land" gains one bullet for the two pick files: what each keeps, the words to the host that write it, and that each is written only on a pick.
+
+(B) The README. The paragraph gains two sentences before its closing one: the project's brief and the briefs saved by name, kept beside the vault; then the three files written only on a choice, the model pick, the voice pick and the picker's off switch.
+
+(C) The test also holds that the closing sentence stands in no other Markdown file under `plugins/combat-writing/`, so a third list that makes the claim is read before it ships, and proves its own comparison both ways on invented text. The map's section 7 carries the check's row.
+
+Judgments made in the build session. (1) Of the issue's two cures, each list names every place; neither points at the other. The README is read before an install, where `/cw:help files` cannot be typed. (2) A new test file, not a block in `tests/map_check.js`: that check holds the map to the folders, this one holds two documents to the map. (3) Not touched, because the issue names two lists: the guide's one-line list under `/cw:help all`, which names every place but the `.gitignore`, and the root README's Writes line, which makes no closing claim. (4) Named and not cured: both lists are of the project, and their closing sentence does not count the one file the session-start hook writes in the plugin's own data folder, outside the project, which the README and the help disclose in their hook passages.
+
+No capability is removed. Nothing a host runs changes: two documents and a test.
+
+Delivers: `tests/places_check.js`, `plugins/combat-writing/skills/help/SKILL.md`, `plugins/combat-writing/README.md`, `plugins/combat-writing/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `docs/plugin-map.md`, PLAN.md.
+
+Status: delivered — 2026-11-18 — two commits (the failing test with its row on the map; the two lists, the version and this part); draft pull request open; `node tests/run_all.js` reads 55 passed, 0 failed, 0 skipped in the build session, run as an unprivileged user; as root, the cloud container's own user, it reads 54 passed, 1 failed, the one `tests/fallback_check.js`, which fails the same seven lines on main's tree there because root writes a file made read-only, and passes, 71 checks, as an unprivileged user; no board, hook or script changed, so THE SMOKE is not owed.
