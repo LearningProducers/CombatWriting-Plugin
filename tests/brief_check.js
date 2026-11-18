@@ -219,8 +219,8 @@ check(/battle when the paste carries no `draft:` \(issue 65/.test(rules)&&/the p
 check(/A brief you type is the project's from then on/.test(help)&&/`brief update:` adds a dated line to it/.test(help)&&/^- `combat-writing\/brief\.md` in your project: the project's brief, the last one you typed/m.test(help)&&!/`keep`|--keep|brief: same|brief: last/.test(help),'help: strategy, battle, the files list and the shortcuts must name the brief routes and none of the old words');
 var readme=read(path.join(plugin,'README.md'));
 check(/A brief you type is the project's from then on/.test(readme)&&/`brief update:`/.test(readme)&&!/`keep`|brief: same/.test(readme),'the plugin README: the brief typed is the project\'s, brief update:, no keep');
-var claude=read(path.join(root,'CLAUDE.md'));
-check(/The fifth \(issue 65, 2026-10-26; issue 72, the same day\) is `combat-writing\/brief\.md`/.test(claude)&&/`brief\.js`/.test(claude)&&/battle when the paste carries no `draft:` \(issue 65, 2026-10-26/.test(claude)&&!/`keep` on a brief line/.test(claude),'CLAUDE.md: the fifth write location, brief.js among the writers, battle\'s new run, no keep');
+var claude=read(path.join(root,'CLAUDE.md')), rulings=read(path.join(root,'RULINGS.md'));
+check(/The fifth \(issue 65, 2026-10-26; issue 72, the same day\) is `combat-writing\/brief\.md`/.test(claude)&&/`brief\.js`/.test(claude)&&/battle when the paste carries no `draft:` \(issue 65, 2026-10-26/.test(rulings)&&!/`keep` on a brief line/.test(claude)&&!/`keep` on a brief line/.test(rulings),'CLAUDE.md: the fifth write location, brief.js among the writers; RULINGS.md (issue 224): battle\'s new run with its issue; no keep in either');
 fs.rmSync(proj,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'brief_check: '+failures.length+' failure(s), ':'brief_check: all passed, ')+passes+' checks');
