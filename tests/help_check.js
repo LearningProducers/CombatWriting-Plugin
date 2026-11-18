@@ -46,7 +46,8 @@
 //   - The plugin README's card, between its markers, is the skill's card with its markdown
 //     stripped (bold and code spans), line for line, and its /cw:help bullet names the card, all
 //     with the live line, and a topic; no sentence in it says a line prints under the card.
-//   - The manifest description names the card; CLAUDE.md names issue 74 and the markers.
+//   - The manifest description names the card; CLAUDE.md names the markers, and RULINGS.md, the
+//     record behind it since issue 224, names issue 74 and issue 160.
 //
 // Run from the repo root:   node tests/help_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -177,9 +178,9 @@ check(/^- `\/cw:help` bare is the card: what Combat Writing is in one line, the 
 check(readme.indexOf('under the card')<0&&readme.indexOf('under it the seats')<0,'README: no sentence says a line prints under the card');
 var manifest=JSON.parse(read(path.join(plugin,'.claude-plugin','plugin.json')));
 check(/\/cw:help, bare, is the card and a picker to begin; \/cw:help all explains the method\./.test(manifest.description),'manifest: the description names the card and all');
-var claude=read(path.join(root,'CLAUDE.md'));
-check(/issue 74, 2026-10-26/.test(claude)&&/between its two marker comments/.test(claude)&&/pinned equal by `tests\/help_check\.js`/.test(claude),'CLAUDE.md: names issue 74, the markers and this check');
-check(/issue 160/.test(claude)&&claude.indexOf('under the card one live')<0,'CLAUDE.md: names issue 160 and no longer puts the live line under the card');
+var claude=read(path.join(root,'CLAUDE.md')), rulings=read(path.join(root,'RULINGS.md'));
+check(/issue 74, 2026-10-26/.test(rulings)&&/between its two marker comments/.test(claude)&&/pinned equal by `tests\/help_check\.js`/.test(claude),'CLAUDE.md: names the markers and this check; RULINGS.md (issue 224): names issue 74');
+check(/issue 160/.test(rulings)&&claude.indexOf('under the card one live')<0&&rulings.indexOf('under the card one live')<0,'RULINGS.md names issue 160, and neither it nor CLAUDE.md puts the live line under the card');
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'help_check: '+failures.length+' failure(s), ':'help_check: all passed, ')+passes+' checks; the guide is '+guideWords+' words, ceiling '+GUIDE_CEILING);

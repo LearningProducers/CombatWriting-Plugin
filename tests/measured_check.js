@@ -255,7 +255,7 @@ has('plugins/combat-writing/skills/sparring/SKILL.md',/as measured from the seat
 has('plugins/combat-writing/skills/battle/SKILL.md',/as measured from the seat's own transcript/,'the battle skill should say the Models line speaks from the measurement');
 has('README.md',/the model that answered is measured[^.]*seat's own transcript/,'the root README should say the model that answered is measured');
 has('plugins/combat-writing/README.md',/the model that answered is measured[^.]*seat's own transcript/,'the listing README should say the model that answered is measured');
-has('CLAUDE.md',/issue 196, Part 124/,'CLAUDE.md should carry the measurement with its issue and part');
+has('RULINGS.md',/issue 196, Part 124/,'RULINGS.md, the record behind CLAUDE.md (issue 224), should carry the measurement with its issue and part');
 has('docs/directory-checklist.md',/opens up to 200 of the session's agent transcripts/,'the checklist should say how many of the session\'s transcripts the hook opens');
 has('CLAUDE.md',/opens up to 200 of the session's agent transcripts/,'CLAUDE.md should say how many of the session\'s transcripts the hook opens');
 has('docs/directory-checklist.md',/model id field/,'the checklist should say what the show-result hook reads of the host\'s transcripts');

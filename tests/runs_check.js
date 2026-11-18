@@ -138,8 +138,8 @@ check(/`\/cw:briefs` and `\/cw:runs` \(each a skill/.test(rules)&&/scripts\/runs
 check(/scripts\/runs\.js --pick$/m.test(runs)&&/AskUserQuestion/.test(runs)&&/`Which run do you want back\? \/cw:help for the full guide\.`/.test(runs)&&/the four open runs touched last, any stage/.test(runs)&&/`Returning to <id>\.`/.test(runs)&&/`battle`, do exactly what `\/cw:battle run: <id>` does bare/.test(runs)&&/`sparring`, exactly what `\/cw:sparring run: <id>` does bare/.test(runs)&&/`none`, exactly what a bare `\/cw:sparring` does on a run strategy made/.test(runs)&&!/"Other"/.test(runs),'the runs skill: --pick, the picker question, the four runs touched last any stage, the pick continues in the run\'s own stage, no extra row named (issue 186)');
 check(/then a picker of the four runs you touched last, any stage: arrow, enter, and you are back in it where you left it\./.test(help),'the help: the runs bullet says arrow, enter, any stage (issue 186)');
 check(/^- `\/cw:runs` lists every run in the project/m.test(read(path.join(plugin,'README.md')))&&/`\/cw:briefs` and `\/cw:runs`, which list your briefs and your runs/.test(read(path.join(plugin,'README.md'))),'the plugin README names /cw:runs');
-var claude=read(path.join(root,'CLAUDE.md'));
-check(/`\/cw:help`, `\/cw:briefs` and `\/cw:runs`;/.test(claude)&&/The seven commands are skills/.test(claude)&&/briefs\.js, runs\.js,/.test(claude)&&/The runs and the way back \(Part 85, 2026-10-31/.test(claude),'CLAUDE.md: the seventh command, the script, the ruling');
+var claude=read(path.join(root,'CLAUDE.md')), rulings=read(path.join(root,'RULINGS.md'));
+check(/`\/cw:help`, `\/cw:briefs` and `\/cw:runs`;/.test(claude)&&/The seven commands are skills/.test(claude)&&/briefs\.js, runs\.js,/.test(claude)&&/The runs and the way back:/.test(claude)&&/The runs and the way back \(Part 85, 2026-10-31/.test(rulings),'CLAUDE.md: the seventh command, the script, the rule; RULINGS.md (issue 224): the ruling');
 check(/the seven commands/.test(read(path.join(root,'README.md'))),'the root README says seven commands');
 
 fs.rmSync(proj,{recursive:true,force:true});

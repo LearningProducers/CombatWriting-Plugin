@@ -28,7 +28,8 @@
 //   - One eval case, picker-approval-before-packet, with its row in the evals README, the row
 //     naming issue 204 (today's runner cannot pass the case).
 //   - CLAUDE.md states the step with the question's exact words, no rerate question, the Other
-//     row, and eight eval cases.
+//     row, and eight eval cases; RULINGS.md, the record behind it since issue 224, names the
+//     step with its issue and this check, and neither file states the rerate question.
 //
 // Run from the repo root:   node tests/approval_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -139,11 +140,11 @@ check(!!evalRow,'evals/README.md: needs the row for picker-approval-before-packe
 check(/issue 204/.test(evalRow),'evals/README.md: the row for picker-approval-before-packet must name issue 204, the runner that cannot pass it');
 
 // 8. CLAUDE.md states the same rule as the tree: the step, no rerate question, eight cases.
-var claude=read(path.join(root,'CLAUDE.md'));
-check(claude.indexOf('"'+QUESTION+'"')>=0&&/THE APPROVAL STEP \(issue 202/.test(claude)&&/pinned equal by `tests\/approval_check\.js`/.test(claude),'CLAUDE.md: must name THE APPROVAL STEP with the question\'s exact words and this check');
-check(!/yes\/no for rerate where a rating is possible/.test(claude)&&!/a rerate reply that is not yes or no is no and the round still fires/.test(claude),'CLAUDE.md: still states the rerate question');
+var claude=read(path.join(root,'CLAUDE.md')), rulings=read(path.join(root,'RULINGS.md'));
+check(claude.indexOf('"'+QUESTION+'"')>=0&&/THE APPROVAL STEP \(issue 202/.test(rulings)&&/pinned equal by `tests\/approval_check\.js`/.test(rulings),'CLAUDE.md must carry the question\'s exact words, and RULINGS.md must name THE APPROVAL STEP with its issue and this check');
+[['CLAUDE.md',claude],['RULINGS.md',rulings]].forEach(function(f){ check(!/yes\/no for rerate where a rating is possible/.test(f[1])&&!/a rerate reply that is not yes or no is no and the round still fires/.test(f[1]),f[0]+': still states the rerate question'); });
 check(/text typed into the dialog's own Other row is Change it/.test(claude),'CLAUDE.md: must say text typed into the Other row is Change it');
-check(/eight claude plugin eval cases/.test(claude)&&!/seven claude plugin eval cases/.test(claude),'CLAUDE.md: the layout must count eight eval cases');
+check(/eight claude plugin eval cases/.test(claude)&&!/seven claude plugin eval cases/.test(claude)&&!/seven claude plugin eval cases/.test(rulings),'CLAUDE.md: the layout must count eight eval cases, and neither it nor RULINGS.md seven');
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'approval_check: '+failures.length+' failure(s), ':'approval_check: all passed, ')+passes+' checks');

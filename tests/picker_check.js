@@ -230,12 +230,12 @@ check(/combat-writing\/picker\.json/.test(filesSection),'help files: the full se
 // The script table in the rules skill.
 check(/scripts\/picker\.js \[--run <folder>\] \[--off\\\|--on\]/.test(rules),'the rules skill: the script table must carry picker.js');
 // The documents the ruling stands in.
-var claude=read(path.join(root,'CLAUDE.md')), map=read(path.join(root,'docs','plugin-map.md'));
-check(/Under More: Final reads \/ Champion \/ I will type commands for this project \/ Done for now/.test(claude)&&/THE PICKER RULE \(issue 215/.test(claude),'CLAUDE.md: the Next picker bullet must carry the new More screen and THE PICKER RULE');
+var claude=read(path.join(root,'CLAUDE.md')), rulings=read(path.join(root,'RULINGS.md')), map=read(path.join(root,'docs','plugin-map.md'));
+check(/Under More: Final reads \/ Champion \/ I will type commands for this project \/ Done for now/.test(claude)&&/THE PICKER RULE \(/.test(claude)&&/THE PICKER RULE \(issue 215/.test(rulings),'CLAUDE.md: the Next picker bullet must carry the new More screen and THE PICKER RULE; RULINGS.md (issue 224): the rule with its issue');
 check(/The eighth and last \(issue 215/.test(claude)&&/`combat-writing\/picker\.json`/.test(claude)&&/`scripts\/picker\.js --off`/.test(claude),'CLAUDE.md: picker.json is the eighth write location, written by scripts/picker.js');
-check(!/The seventh and last/.test(claude),'CLAUDE.md: the seventh write location is no longer the last');
+check(!/The seventh and last/.test(claude)&&!/The seventh and last/.test(rulings),'CLAUDE.md and RULINGS.md: the seventh write location is no longer the last');
 check(claude.indexOf('`'+BACK+'`')>=0,'CLAUDE.md: must name the way back, '+BACK);
-check(/no hook but `show-result\.js`, which reads it and never writes it/.test(claude)&&/issue 216/.test(claude)&&!/Named and not held by code: the result hook/.test(claude),'CLAUDE.md: the result hook reads the switch (issue 216) and the named gap is closed');
+check(/no hook but `show-result\.js`, which reads it and never writes it/.test(claude)&&/issue 216/.test(claude)&&!/Named and not held by code: the result hook/.test(claude)&&!/Named and not held by code: the result hook/.test(rulings),'CLAUDE.md: the result hook reads the switch (issue 216) and the named gap is closed, in it and in RULINGS.md');
 check(/under More: Final reads \/ Champion \/ I will type commands for this project \/ Done for now/.test(map)&&!/Final reads \/ Champion \/ Help \/ Done for now/.test(map),'plugin map: the picker row must carry the new More screen and not the old one');
 check(/`combat-writing\/picker\.json`/.test(map)&&/the eight places/.test(map)&&!/the seven places/.test(map),'plugin map: picker.json among the eight places written');
 check(map.indexOf(BACK)>=0&&/`picker\.js`/.test(map),'plugin map: must name the way back and picker.js');
@@ -247,7 +247,7 @@ check(readme.indexOf('`'+BACK+'`')>=0&&/`combat-writing\/picker\.json`/.test(rea
 // the method's departure 15 and its docs/ mirror, the help's record section, the listing README
 // and CLAUDE.md's board bullet each carry the text Next line for a project with the picker off.
 var method=read(path.join(plugin,'method','combat-writing.md')), mirror=read(path.join(root,'docs','combat-writing.md'));
-[['the method',method],['the method\'s docs/ mirror',mirror],['the help',help],['the plugin README',readme],['CLAUDE.md',claude]].forEach(function(p){
+[['the method',method],['the method\'s docs/ mirror',mirror],['the help',help],['the plugin README',readme],['CLAUDE.md',claude],['RULINGS.md',rulings]].forEach(function(p){
   check(!/the picker, and nothing else/.test(p[1]),p[0]+': "the picker, and nothing else" must carry the switch: the text Next line where the picker is off');
   check(/the picker \((?:the text Next line|the one line of text)[^)]*picker (?:is )?off[^)]*\), and nothing else/.test(p[1]),p[0]+': the sentence on what the terminal shows must name the text Next line for a project with the picker off');
 });

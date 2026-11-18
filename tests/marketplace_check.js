@@ -26,7 +26,7 @@
 //     something shaped like a credential.
 //   - The add-on's road to the directory (Part 107, issue 221). No file that speaks for the
 //     add-on says it is not listed: the marketplace, the add-on's manifest and README, both
-//     checklist pages and CLAUDE.md are read line by line for the phrases that said so (not
+//     checklist pages, CLAUDE.md and RULINGS.md (its record, issue 224) are read line by line for the phrases that said so (not
 //     listed, never listed, unlisted plugin, not or never submitted, not in the Claude plugin
 //     directory, only plugins/combat-writing is submitted, the directory never scans); the one
 //     sentence left alone is the /mcp one, where "not listed" is a server missing from that
@@ -165,7 +165,7 @@ check(crewWords>40,'crew README: '+crewWords+' words outside code blocks, the di
 
 // The add-on's road to the directory (PLAN.md Part 107, issue 221): no file that speaks for the
 // add-on says it is not listed.
-var ROAD=['.claude-plugin/marketplace.json','plugins/combat-writing-crew/.claude-plugin/plugin.json','plugins/combat-writing-crew/README.md','docs/directory-checklist.md','docs/directory-checklist-crew.md','CLAUDE.md'];
+var ROAD=['.claude-plugin/marketplace.json','plugins/combat-writing-crew/.claude-plugin/plugin.json','plugins/combat-writing-crew/README.md','docs/directory-checklist.md','docs/directory-checklist-crew.md','CLAUDE.md','RULINGS.md'];
 var NOT_LISTED=[/\b(?:not|never) listed\b/i,/\bunlisted (?:plugin|add-on)\b/i,/\b(?:not|never) submitted\b/i,/\bnot in the Claude plugin directory\b/i,/\bonly `?plugins\/combat-writing`? is submitted\b/i,/\bthe directory never scans\b/i];
 // The one sentence that keeps the words: under /mcp, "not listed" is a server missing from that list.
 var MCP_LIST=[/if it is not listed, `?\/plugin`?/g,/not listed means `?\/plugin`?/g];

@@ -196,6 +196,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/release_notes_check.js` | the Release notes cut from a merged pull request |
 | `tests/rewrite_check.js` | the Contract follows the prompt; a rewrite fenced and framed |
 | `tests/run_all.js` | not a check: the runner of the whole suite |
+| `tests/rulings_check.js` | CLAUDE.md's short wall and its record: the first 28 entries of RULINGS.md equal to their hashes, every bullet of "What is ruled about the method" closed by the tests that hold it or by its words, CLAUDE.md under one ceiling in characters |
 | `tests/runs_check.js` | open runs and the way back |
 | `tests/second_copy_check.js` | a fact with a home is never copied: no version string in the root README or docs/, the listing README's card equal to the skill's |
 | `tests/seat_scope_check.js` | the seat's reach and the start of a seat held to its record, the real hook on a real run |

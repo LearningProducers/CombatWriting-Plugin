@@ -136,8 +136,8 @@ check(/scripts\/budget\.js --run <folder> --round <round>/.test(sparring),'sparr
 check(/budget\.js --run <folder> --round <nn-kind> \[--pass crew\]/.test(rules)&&/two kinds of line/.test(rules)&&/only when a seat's packet is over a provider's wall/.test(rules)&&!/three kinds of line/.test(rules),'rules skill: the table row, the two kinds of line and the warning');
 check(/only when a seat's packet is over its provider's wall/.test(help)&&/on the board under Run details/.test(help)&&!/packets: up to about/.test(help),'help: the warning alone on the terminal, the measurement on the board');
 check(/prints NOTHING unless a seat's packet is over the room/.test(battle)&&/prints NOTHING unless a seat's packet is over the room/.test(sparring),'battle and sparring skills: the script is quiet unless it warns');
-var claude=read(path.join(root,'CLAUDE.md'));
-check(/`budget\.js` \(which writes only a log line/.test(claude)&&/two kinds of line/.test(claude)&&/accessible, not presented/.test(claude)&&/budget\.measured/.test(claude)&&!/three kinds of line/.test(claude)&&/budget\.js/.test(claude.split('## Layout')[1]||''),'CLAUDE.md: the writer, the two kinds of line, the ruling, the layout');
+var claude=read(path.join(root,'CLAUDE.md')), rulings=read(path.join(root,'RULINGS.md'));
+check(/`budget\.js` \(which writes only a log line/.test(claude)&&/two kinds of line/.test(claude)&&/accessible, not presented/.test(claude)&&/budget\.measured/.test(claude)&&!/three kinds of line/.test(claude)&&!/three kinds of line/.test(rulings)&&/budget\.js/.test(claude.split('## Layout')[1]||''),'CLAUDE.md: the writer, the two kinds of line, the ruling, the layout; no three kinds of line in it or in RULINGS.md');
 check(/per_minute, reply_floor, reply_ceiling/.test(read(path.join(root,'plugins','combat-writing-crew','README.md'))),'add-on README: crew_register records the wall');
 
 if(failures.length){ failures.forEach(function(f){console.log('FAIL '+f);}); console.log('budget_check: '+failures.length+' failure(s), '+(passes+failures.length)+' checks'); process.exit(1); }

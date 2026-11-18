@@ -256,12 +256,14 @@ check(/- The crew \(Part 87\) is two fresh readers by default/.test(rules)&&/sea
 check(/seat-1 runs on this session's own model: start it with no model choice/.test(rules)&&/passed as `new-run\.js --session-model`/.test(rules)&&/passed as `--model-2`/.test(rules)&&/a pick that is the session's own model is no pick/.test(rules),'rules skill: seat-1 on the session\'s model, seat-2 named, the pick');
 
 // Docs.
+var rulings=read(path.join(root,'RULINGS.md'));
 var docs={'CLAUDE.md':read(path.join(root,'CLAUDE.md')),'README.md':read(path.join(root,'README.md')),'plugin README':read(path.join(plugin,'README.md')),'add-on README':read(path.join(root,'plugins','combat-writing-crew','README.md')),'method':read(path.join(plugin,'method','combat-writing.md')),'docs mirror':read(path.join(root,'docs','combat-writing.md'))};
 Object.keys(docs).forEach(function(k){
   check(/two fresh readers/.test(docs[k])&&/second chair/.test(docs[k]),k+': should say two fresh readers and the second chair');
   check(!/one fresh reader plus/.test(docs[k]),k+': the one-reader sentence survives');
 });
-check(/reversing the one-reader ruling of 2026-10-09/.test(docs['CLAUDE.md'])&&/seventh write location/.test(docs['CLAUDE.md'])&&/scripts\/seats\.js --set/.test(docs['CLAUDE.md']),'CLAUDE.md: the ruling, the seventh write location and seats.js');
+check(!/one fresh reader plus/.test(rulings),'RULINGS.md: the one-reader sentence survives');
+check(/reversing the one-reader ruling of 2026-10-09/.test(rulings)&&/seventh write location/.test(docs['CLAUDE.md'])&&/scripts\/seats\.js --set/.test(docs['CLAUDE.md']),'CLAUDE.md: the seventh write location and seats.js; RULINGS.md (issue 224): the ruling');
 check(/seats\.js/.test(docs['CLAUDE.md'].split('## Layout')[1]||''),'CLAUDE.md: seats.js in the layout');
 check(docs.method.split('## Where the plugin departs')[1]===docs['docs mirror'].split('## Where the plugin departs')[1],'method: the departures match the docs mirror');
 docs['plugin map']=read(path.join(root,'docs','plugin-map.md'));

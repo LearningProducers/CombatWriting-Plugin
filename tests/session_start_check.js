@@ -261,10 +261,10 @@ check(!/plugin\s*,\s*['"]install|plugin install/.test(src.replace(/\/\/[^\n]*/g,
 check(/^- \*\*What one install brings\.\*\*|\*\*What one install brings\.\*\* Installed from the Learning Producers marketplace/m.test(read(path.join(plugin,'README.md'))),'the plugin README has the What one install brings paragraph');
 var help=read(path.join(plugin,'skills','help','SKILL.md'));
 check(/^## Voices$/m.test(help)&&/`help voices` shows this section\./.test(help)&&/champion, briefs, runs, voices, files/.test(help),'help: the Voices section and the topic');
-check(/first-session/.test(read(path.join(root,'CLAUDE.md')))&&/The first-session line \(Part 83/.test(read(path.join(root,'CLAUDE.md'))),'CLAUDE.md names the first-session line');
+check(/first-session/.test(read(path.join(root,'CLAUDE.md')))&&/The first-session line \(/.test(read(path.join(root,'CLAUDE.md')))&&/The first-session line \(Part 83/.test(read(path.join(root,'RULINGS.md'))),'CLAUDE.md names the first-session line, and RULINGS.md (issue 224) names it with its part');
 var NEXT=/the next start measures again/;
 check(NEXT.test(read(path.join(root,'CLAUDE.md')))&&NEXT.test(read(path.join(root,'README.md')))&&NEXT.test(read(path.join(plugin,'README.md')))&&NEXT.test(read(path.join(root,'docs','plugin-map.md')))&&NEXT.test(read(path.join(root,'docs','directory-checklist.md')))&&NEXT.test(src),'CLAUDE.md, the two READMEs, the plugin map, the checklist and the hook\'s own header each say what a start does after a measurement that did not come back: "the next start measures again" (Part 129)');
-check(!/the sentinel is still written/.test(read(path.join(root,'CLAUDE.md'))),'CLAUDE.md still says the sentinel is written after a failed measurement (issue 210)');
+check(!/the sentinel is still written/.test(read(path.join(root,'CLAUDE.md')))&&!/the sentinel is still written/.test(read(path.join(root,'RULINGS.md'))),'CLAUDE.md or RULINGS.md still says the sentinel is written after a failed measurement (issue 210)');
 check(/never carries `systemMessage`/.test(read(path.join(root,'CLAUDE.md')))&&/prints nothing to the person/.test(read(path.join(plugin,'README.md')))&&/prints nothing to the person/.test(read(path.join(root,'docs','plugin-map.md'))),'CLAUDE.md, the plugin README and the plugin map say the hook prints nothing to the person (issue 165)');
 
 fs.rmSync(tmp,{recursive:true,force:true});
