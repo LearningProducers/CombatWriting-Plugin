@@ -17,7 +17,7 @@ Results: **pass** means the item holds and names the test or file that satisfies
 | Item | Result | Satisfied by |
 |---|---|---|
 | A folder that contains `.claude-plugin/plugin.json` | pass | `plugins/combat-writing/.claude-plugin/plugin.json` |
-| One plugin at a time in a marketplace repository; validate and submit each plugin folder on its own | pass (to do at submission) | `.claude-plugin/marketplace.json` lists `cw` and `combat-writing-crew`; only `plugins/combat-writing` is submitted, as its own submission with plugin path `plugins/combat-writing`; `tests/marketplace_check.js` pins the two apart |
+| One plugin at a time in a marketplace repository; validate and submit each plugin folder on its own | pass (to do at submission) | `.claude-plugin/marketplace.json` lists `cw` and `combat-writing-crew`; each folder is its own submission, this one with plugin path `plugins/combat-writing` and the add-on's with `plugins/combat-writing-crew`, passed on its own page, `docs/directory-checklist-crew.md`; `tests/marketplace_check.js` pins the two apart |
 | Every file a hook, MCP server or script uses inside the plugin folder; every `plugin.json` path inside it | pass | `plugin.json` declares no component paths; every script the skills run is under `plugins/combat-writing/scripts/` and is named as `${CLAUDE_PLUGIN_ROOT}/scripts/<file>`; the three hooks run files under `plugins/combat-writing/hooks/`; `tests/hook_check.js` pins the hook commands and `tests/map_check.js` pins the script set against `docs/plugin-map.md` |
 | Regular files only: no symlinks, submodules or LFS pointers | pass | `git ls-files -s plugins/combat-writing` shows one mode, regular file, for every entry; no `.gitmodules`, no `.gitattributes` in the repository |
 | No `.DS_Store`, `Thumbs.db`, `desktop.ini`, `__MACOSX` | pass | none tracked; `git ls-files` is the measure |
@@ -54,7 +54,7 @@ Results: **pass** means the item holds and names the test or file that satisfies
 | 512 files or fewer | pass | `git ls-files plugins/combat-writing` lists the folder, a few dozen files; the count is that command's, not this page's |
 | Only text files, SVG, complete PNG, JPEG, GIF, WebP and fonts; no other binary | pass | every tracked file in the plugin folder is text: Markdown, JavaScript, JSON, and the one `.gitignore` under `evals/`; `git ls-files plugins/combat-writing` is the measure |
 | Bundled images referenced only by Markdown image syntax, never from commands, hooks or scripts | n/a | the plugin bundles no image or font |
-| MCP servers declared with `command` and `args` or `url`, not a `.mcpb` or `.dxt` bundle | n/a | the listed plugin declares no MCP server; the add-on is a separate, unlisted plugin |
+| MCP servers declared with `command` and `args` or `url`, not a `.mcpb` or `.dxt` bundle | n/a | the listed plugin declares no MCP server; the add-on is a separate plugin, and its server is a row of its own page, `docs/directory-checklist-crew.md` |
 
 ## What the plugin runs and connects to
 
@@ -112,14 +112,14 @@ Results: **pass** means the item holds and names the test or file that satisfies
 
 ## With the add-on present
 
-The add-on, `plugins/combat-writing-crew/`, is a separate plugin that is never submitted. Its presence changes nothing in the listed plugin's folder, and `tests/marketplace_check.js` pins the separation on every run:
+The add-on, `plugins/combat-writing-crew/`, is a separate plugin, submitted to the directory as a second bundle from this repository, its folder a submission of its own; its pass against the checklist is its own page, `docs/directory-checklist-crew.md`. Its presence changes nothing in the listed plugin's folder, and `tests/marketplace_check.js` pins the separation on every run:
 
 | Item | Result | Satisfied by |
 |---|---|---|
 | The listed plugin holds no keys | pass | `plugins/combat-writing/.claude-plugin/plugin.json` declares no `userConfig`, no `mcpServers` and no `hooks` field; no `.mcp.json`; `tests/marketplace_check.js` fails if any appears. Its session-start hook reads no key (`tests/hook_check.js`, `tests/session_start_check.js`); its seat-scope hook reads a transcript, the hook input and a run's `seats.json`, never a key (`tests/seat_scope_check.js`); its show-result hook reads the hook input, the project's `combat-writing/picker.json` and one test-only variable, `CW_OPENER`, never a key (`tests/show_result_check.js`) |
-| The listed plugin makes no outside call | pass | no script under `plugins/combat-writing/scripts/` requires a network module, calls `fetch`, or holds a URL outside a comment; `tests/marketplace_check.js` fails if one does (`champion.js` builds its address pattern from `lib.URL_RE` and never fetches; the page it measures is one the host saved). The host opens the one link given to `/cw:champion shipped`, once, by its own route, never a script, and the README and the description say so. Outside calls happen only in `plugins/combat-writing-crew/server.js`, a different plugin folder the directory never scans |
+| The listed plugin makes no outside call | pass | no script under `plugins/combat-writing/scripts/` requires a network module, calls `fetch`, or holds a URL outside a comment; `tests/marketplace_check.js` fails if one does (`champion.js` builds its address pattern from `lib.URL_RE` and never fetches; the page it measures is one the host saved). The host opens the one link given to `/cw:champion shipped`, once, by its own route, never a script, and the README and the description say so. Outside calls happen only in `plugins/combat-writing-crew/server.js`, a different plugin folder, which the directory scans as its own submission and never as part of this one |
 | The listed plugin's description stays scoped (policy 2.B) | pass | its `plugin.json` description names the seven commands, the final reads, the record and the board, all of which ship inside its folder, and discloses the one link the host opens for `shipped`; it does not promise other companies' models. The add-on's own manifest and README say the crew tools exist there |
-| The add-on's keys | n/a for the directory | masked prompts with `sensitive: true`, an environment variable when the prompt is empty, then the owner-only key file the person writes by hand; the add-on is not submitted |
+| The add-on's keys | held for a reviewer, on the add-on's own submission | three routes, all kept: masked prompts with `sensitive: true`, the shape the directory asks for; an environment variable when the prompt is empty, then the owner-only key file the person writes by hand, the two routes the checklist holds for a reviewer and does not block. The hold is accepted, and the add-on's README says why the key file exists. The rows are on `docs/directory-checklist-crew.md`, and this plugin's own submission carries none of it |
 
 ## Items that need a ruling
 

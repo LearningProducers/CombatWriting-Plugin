@@ -18,6 +18,31 @@
 //     and the folder has no .mcp.json: it holds no keys and makes no outside call. Its one
 //     hook file, hooks/hooks.json (the session-start line, ruled 2026-10-09, and the seat scope,
 //     ruled 2026-10-16), is pinned by tests/hook_check.js and tests/seat_scope_check.js.
+//   - The separation, as it stands since the add-on is submitted too (PLAN.md Part 107, issue
+//     221): each plugin folder is its own submission to the directory, so each stands alone. A
+//     literal relative require in either folder resolves inside that folder, the add-on's
+//     folder holds its own manifest, README, LICENSE.md and NOTICE, its README has more than 40
+//     words outside code blocks (the directory's README rule), and no tracked file in it holds
+//     something shaped like a credential.
+//   - The add-on's road to the directory (Part 107, issue 221). No file that speaks for the
+//     add-on says it is not listed: the marketplace, the add-on's manifest and README, both
+//     checklist pages and CLAUDE.md are read line by line for the phrases that said so (not
+//     listed, never listed, unlisted plugin, not or never submitted, not in the Claude plugin
+//     directory, only plugins/combat-writing is submitted, the directory never scans); the one
+//     sentence left alone is the /mcp one, where "not listed" is a server missing from that
+//     list. The add-on's listing text, its manifest description and its README, says Claude
+//     Code plainly (a local MCP server is ignored in chat on claude.ai and loads in the desktop
+//     app only on your own computer) and never names cw as "the listed plugin"; the README
+//     names the three key routes and says why the key file exists; the marketplace's cw entry
+//     names the add-on as its crew; CLAUDE.md says the add-on is submitted as a second bundle;
+//     the main checklist's add-on row no longer reads n/a and points at the add-on's own page.
+//   - docs/directory-checklist-crew.md, the add-on's own pass: it names the two published
+//     pages it was read against; its sections are the published checklist's, each with as
+//     many rows as the checklist had on the day of the pass (the counts live here, in
+//     CREW_PAGE, and move when the page is re-passed); every row's result is pass, HELD or
+//     n/a; no row carries a date or a version; the row on a credential read from the person's
+//     machine reads HELD, and of the three key routes the masked prompt reads pass and the
+//     environment variable and the key file read HELD.
 //   - When the claude CLI is on PATH, `claude plugin validate --strict` passes on the root,
 //     on both plugin folders and on the listed plugin's component folders; otherwise that
 //     step is reported as skipped.
@@ -94,6 +119,15 @@ providers.filter(function(p){return p.key_prompt_env&&!p.stub;}).forEach(functio
 });
 var manifestText=read('plugins/combat-writing-crew/.claude-plugin/plugin.json')+read('plugins/combat-writing-crew/providers.json');
 check(!/\b(sk|gsk|xai|pplx)[-_][A-Za-z0-9]{16,}/.test(manifestText),'crew: something that looks like a credential appears in the manifest or provider table');
+// The same shape in every file of the add-on's folder, documentation and examples included
+// (the directory's rule: real credentials out of every file).
+function filesUnder(rel){
+  var out=[]; (function walk(d){ fs.readdirSync(path.join(root,d)).forEach(function(n){ var p=d+'/'+n; if(fs.statSync(path.join(root,p)).isDirectory())walk(p); else out.push(p); }); })(rel);
+  return out;
+}
+filesUnder('plugins/combat-writing-crew').forEach(function(f){
+  check(!/\b(sk|gsk|xai|pplx)[-_][A-Za-z0-9]{16,}/.test(read(f)),'crew: something that looks like a credential appears in '+f);
+});
 check(!crew.hooks&&!crew.commands&&!crew.agents,'crew manifest: the add-on should declare no hooks, commands or agents');
 
 // The listed plugin holds no keys and makes no outside call.
@@ -110,6 +144,111 @@ check(!/require\(['"](https?|net|dgram)['"]\)/.test(listedScripts)&&!/\bfetch\(/
 var scriptsButRuled=fs.readdirSync(path.join(root,'plugins/combat-writing/scripts')).filter(function(f){return /\.js$/.test(f)&&f!=='open-board.js'&&f!=='speak.js';}).map(function(f){return read('plugins/combat-writing/scripts/'+f);}).join('\n');
 check(!/require\(['"]child_process['"]\)/.test(scriptsButRuled),'listed plugin: a script other than open-board.js or speak.js requires child_process');
 check(!/https?:\/\//.test(listedScripts.replace(/\/\/[^\n]*/g,'')),'listed plugin: a script holds a URL outside a comment');
+
+// The separation, re-pinned (PLAN.md Part 107, issue 221): the add-on is submitted too, each folder
+// its own submission, and a person who installs one gets that folder alone. So each stands alone.
+['plugins/combat-writing','plugins/combat-writing-crew'].forEach(function(folder){
+  filesUnder(folder).filter(function(f){return /\.js$/.test(f);}).forEach(function(f){
+    var text=read(f), re=/require\(\s*['"](\.[^'"]*)['"]\s*\)/g, m;
+    while((m=re.exec(text))){
+      var target=path.resolve(root,path.dirname(f),m[1]);
+      check(target.indexOf(path.join(root,folder)+path.sep)===0,f+': require('+JSON.stringify(m[1])+') leaves '+folder+', and each folder is its own submission');
+    }
+  });
+});
+['.claude-plugin/plugin.json','README.md','LICENSE.md','NOTICE','server.js','crew-lib.js','providers.json'].forEach(function(f){
+  check(exists('plugins/combat-writing-crew/'+f),'crew: '+f+' is missing from the add-on\'s folder, which is submitted on its own');
+});
+var crewReadme=read('plugins/combat-writing-crew/README.md');
+var crewWords=crewReadme.replace(/```[\s\S]*?```/g,' ').replace(/<!--[\s\S]*?-->/g,' ').split(/\s+/).filter(function(w){return /[A-Za-z0-9]/.test(w);}).length;
+check(crewWords>40,'crew README: '+crewWords+' words outside code blocks, the directory needs more than 40');
+
+// The add-on's road to the directory (PLAN.md Part 107, issue 221): no file that speaks for the
+// add-on says it is not listed.
+var ROAD=['.claude-plugin/marketplace.json','plugins/combat-writing-crew/.claude-plugin/plugin.json','plugins/combat-writing-crew/README.md','docs/directory-checklist.md','docs/directory-checklist-crew.md','CLAUDE.md'];
+var NOT_LISTED=[/\b(?:not|never) listed\b/i,/\bunlisted (?:plugin|add-on)\b/i,/\b(?:not|never) submitted\b/i,/\bnot in the Claude plugin directory\b/i,/\bonly `?plugins\/combat-writing`? is submitted\b/i,/\bthe directory never scans\b/i];
+// The one sentence that keeps the words: under /mcp, "not listed" is a server missing from that list.
+var MCP_LIST=[/if it is not listed, `?\/plugin`?/g,/not listed means `?\/plugin`?/g];
+ROAD.forEach(function(f){
+  check(exists(f),f+': missing');
+  if(!exists(f))return;
+  read(f).split('\n').forEach(function(line,i){
+    var bare=line.replace(/\*\*/g,'');
+    MCP_LIST.forEach(function(re){ bare=bare.replace(re,' '); });
+    NOT_LISTED.forEach(function(re){
+      var m=re.exec(bare);
+      check(!m,f+':'+(i+1)+': says the add-on is not listed ("'+(m?m[0]:'')+'"): '+bare.trim().slice(0,110));
+    });
+  });
+});
+// The listing text, the add-on's manifest description and its README, says Claude Code plainly.
+var crewListing={'crew manifest description':String(crew.description||''),'crew README':crewReadme};
+Object.keys(crewListing).forEach(function(k){
+  var t=crewListing[k].replace(/\*\*/g,'');
+  check(/Claude Code/.test(t)&&/ignored in chat on claude\.ai/.test(t)&&/loads in the desktop app only on your own computer/.test(t),k+': should say Claude Code plainly: a local MCP server is ignored in chat on claude.ai and loads in the desktop app only on your own computer');
+  check(!/\blisted plugin\b/i.test(t),k+': names cw as "the listed plugin", which says this one is not');
+});
+check(/masked prompt/i.test(crewReadme)&&/environment variable/i.test(crewReadme)&&/key file/i.test(crewReadme),'crew README: should name the three key routes: the masked prompt, the environment variable, the key file');
+check(/key file exists[^.]*survives a host update/i.test(crewReadme.replace(/\*\*/g,'')),'crew README: should say why the key file exists: it is the route that survives a host update');
+if(market){
+  var cwEntry=(market.plugins||[]).filter(function(p){return p.name==='cw';})[0]||{};
+  check(/combat-writing-crew/.test(cwEntry.description||'')&&/\bcrew\b/.test(cwEntry.description||'')&&/add-on/.test(cwEntry.description||''),'marketplace: the cw entry\'s description should name the add-on, combat-writing-crew, as its crew');
+}
+var claudeMd=read('CLAUDE.md');
+check(/submitted to the Claude plugin directory as a second bundle/.test(claudeMd),'CLAUDE.md: the add-on rule should say the add-on is submitted to the Claude plugin directory as a second bundle');
+var mainPage=read('docs/directory-checklist.md');
+var addonRow=mainPage.split('\n').filter(function(l){return /^\| The add-on's keys \|/.test(l);})[0]||'';
+check(!!addonRow,'docs/directory-checklist.md: the row "The add-on\'s keys" is missing');
+check(!!addonRow&&!/^n\/a/i.test((addonRow.split('|')[2]||'').trim()),'docs/directory-checklist.md: the row "The add-on\'s keys" still reads n/a');
+check(/docs\/directory-checklist-crew\.md/.test(mainPage),'docs/directory-checklist.md: should point at the add-on\'s own page, docs/directory-checklist-crew.md');
+
+// docs/directory-checklist-crew.md: the add-on's own pass, row by row. The counts are the published
+// checklist's rows per section as read on the day of the pass; they move when the page is re-passed.
+var CREW_PAGE=[
+  ['Repository and folder layout',9],
+  ['Manifest and plugin name',8],
+  ['README and license',2],
+  ['Files in the plugin folder',5],
+  ['What the plugin runs and connects to',9],
+  ['Choices a reviewer always checks',3],
+  ['Hooks, skills, commands and agents',4],
+  ['The security scan',3],
+  ['The three key routes',3]
+];
+if(exists('docs/directory-checklist-crew.md')){
+  var page=read('docs/directory-checklist-crew.md');
+  check(/claude\.com\/docs\/plugins\/pre-submission-checklist/.test(page)&&/claude\.com\/docs\/plugins\/submit/.test(page),'crew checklist: should name the two published pages it was read against');
+  check(/plugins\/combat-writing-crew/.test(page),'crew checklist: should name the folder it passes');
+  // The rows of each section: table lines under a "## " heading, the header and the rule dropped.
+  var sections={}, order=[], current=null, seenRule=false;
+  page.split('\n').forEach(function(line){
+    var h=/^## (.+?)\s*$/.exec(line);
+    if(h){ current=h[1]; sections[current]=[]; order.push(current); seenRule=false; return; }
+    if(!current||!/^\|/.test(line)){ if(!/^\|/.test(line))seenRule=false; return; }
+    if(/^\|\s*:?-+/.test(line)){ seenRule=true; return; }
+    if(seenRule)sections[current].push(line);
+  });
+  var tabled=order.filter(function(n){return sections[n].length>0;});
+  check(tabled.join(' / ')===CREW_PAGE.map(function(e){return e[0];}).join(' / '),'crew checklist: the sections with rows are '+tabled.join(' / ')+', expected '+CREW_PAGE.map(function(e){return e[0];}).join(' / '));
+  CREW_PAGE.forEach(function(e){
+    var rows=sections[e[0]]||[];
+    check(rows.length===e[1],'crew checklist: "'+e[0]+'" has '+rows.length+' rows, the checklist has '+e[1]);
+    rows.forEach(function(row){
+      var cells=row.split('|').map(function(c){return c.trim();});
+      var item=(cells[1]||'').slice(0,60), result=cells[2]||'';
+      check(cells.length>=5&&cells[1]&&cells[3],'crew checklist: a row of "'+e[0]+'" lacks an item or what shows it: '+item);
+      check(/^(pass|HELD|n\/a)(?![A-Za-z])/.test(result),'crew checklist: the row "'+item+'" reads "'+result+'", expected pass, HELD or n/a');
+      var bare=row.replace(/LicenseRef-PolyForm-Shield-1\.0\.0|PolyForm[ -]Shield[ -]1\.0\.0/g,' ');
+      check(!/\b\d{4}-\d{2}-\d{2}\b/.test(bare)&&!/\b\d+\.\d+\.\d+\b/.test(bare),'crew checklist: the row "'+item+'" carries a date or a version; the number lives in the file or test the row names');
+    });
+  });
+  function resultOf(rows,re){ var r=(rows||[]).filter(function(l){return re.test(l);})[0]; return r?(r.split('|')[2]||'').trim():'(no such row)'; }
+  var runs=sections['What the plugin runs and connects to'], routes=sections['The three key routes'];
+  check(/^HELD/.test(resultOf(runs,/already set in the (?:user|person)'s environment/)),'crew checklist: the row on a credential already set in the environment reads "'+resultOf(runs,/already set in the (?:user|person)'s environment/)+'", expected HELD');
+  check(/^pass/.test(resultOf(routes,/^\| The masked prompt/)),'crew checklist: the masked prompt reads "'+resultOf(routes,/^\| The masked prompt/)+'", expected pass');
+  check(/^HELD/.test(resultOf(routes,/^\| The environment variable/)),'crew checklist: the environment variable reads "'+resultOf(routes,/^\| The environment variable/)+'", expected HELD');
+  check(/^HELD/.test(resultOf(routes,/^\| The owner-only key file/)),'crew checklist: the owner-only key file reads "'+resultOf(routes,/^\| The owner-only key file/)+'", expected HELD');
+}
 
 // claude plugin validate --strict, when the CLI is here.
 var which=cp.spawnSync(process.platform==='win32'?'where':'which',['claude'],{encoding:'utf8'});
