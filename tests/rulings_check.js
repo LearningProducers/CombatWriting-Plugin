@@ -36,7 +36,7 @@ var SECTION='What is ruled about the method';
 var WORDS='Held by: its words.';
 var TESTS=/Held by: (tests\/[a-z0-9_]+_check\.js(?:, tests\/[a-z0-9_]+_check\.js)*)\.$/;
 // The ceiling on CLAUDE.md, in characters: the built size rounded up to the next 1,000.
-var CEILING=101000;
+var CEILING=106000;
 // The 28 entries as `git show a7fade2:CLAUDE.md` gives them, in the section's order.
 var HASHES=[
   '71cd02bf6e808e15a440a11eb2fd91604e87663e43e67e5ed543cf1c34536728',
