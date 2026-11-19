@@ -108,7 +108,8 @@ check(/cannot open a link/.test(skill('sparring')),'the sparring skill says the 
 check(/No seat can open a link/.test(skill('combat-writing')),'the rules skill says the seats cannot open a link');
 check(/cannot open a link/.test(skill('help')),'the help says the seats cannot open a link');
 check(/cannot open a link/.test(read(path.join(plugin,'README.md'))),'the plugin README says the seats cannot open a link');
-check(/Links are unread \(issue 90/.test(read(path.join(root,'RULINGS.md')))&&/Links are unread:/.test(read(path.join(root,'CLAUDE.md'))),'CLAUDE.md carries the rule, and RULINGS.md (issue 224) the rule with its issue');
+// Issue 226: the sentence left the wall (the checks above hold it in the packet); RULINGS.md carries it, and the wall's bullet names this check.
+check(/Links are unread \(issue 90/.test(read(path.join(root,'RULINGS.md')))&&/^- The draft's counts:[^\n]* Held by: [^\n]*tests\/links_check\.js/m.test(read(path.join(root,'CLAUDE.md'))),'RULINGS.md (issue 224) carries the rule with its issue, and CLAUDE.md\'s bullet on the draft\'s counts names this check (issue 226)');
 check(/links are unread|cannot open a link/i.test(read(path.join(root,'plugins','combat-writing-crew','README.md'))),'the add-on README says the system line names unread links');
 
 fs.rmSync(proj,{recursive:true,force:true});

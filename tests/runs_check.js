@@ -139,7 +139,7 @@ check(/scripts\/runs\.js --pick$/m.test(runs)&&/AskUserQuestion/.test(runs)&&/`W
 check(/then a picker of the four runs you touched last, any stage: arrow, enter, and you are back in it where you left it\./.test(help),'the help: the runs bullet says arrow, enter, any stage (issue 186)');
 check(/^- `\/cw:runs` lists every run in the project/m.test(read(path.join(plugin,'README.md')))&&/`\/cw:briefs` and `\/cw:runs`, which list your briefs and your runs/.test(read(path.join(plugin,'README.md'))),'the plugin README names /cw:runs');
 var claude=read(path.join(root,'CLAUDE.md')), rulings=read(path.join(root,'RULINGS.md'));
-check(/`\/cw:help`, `\/cw:briefs` and `\/cw:runs`;/.test(claude)&&/The seven commands are skills/.test(claude)&&/briefs\.js, runs\.js,/.test(claude)&&/The runs and the way back:/.test(claude)&&/The runs and the way back \(Part 85, 2026-10-31/.test(rulings),'CLAUDE.md: the seventh command, the script, the rule; RULINGS.md (issue 224): the ruling');
+check(/`\/cw:help`, `\/cw:briefs` and `\/cw:runs`;/.test(claude)&&/The seven commands are skills/.test(claude)&&/briefs\.js, runs\.js,/.test(claude)&&new RegExp('^- The Next picker:[^\\n]* Held by: [^\\n]*tests/runs_check\\.js','m').test(claude)&&/The runs and the way back \(Part 85, 2026-10-31/.test(rulings),'CLAUDE.md: the seventh command, the script, and the Next picker bullet names this check (issue 226); RULINGS.md (issue 224): the ruling');
 check(/the seven commands/.test(read(path.join(root,'README.md'))),'the root README says seven commands');
 
 fs.rmSync(proj,{recursive:true,force:true});

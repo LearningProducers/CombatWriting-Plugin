@@ -263,14 +263,15 @@ Object.keys(docs).forEach(function(k){
   check(!/one fresh reader plus/.test(docs[k]),k+': the one-reader sentence survives');
 });
 check(!/one fresh reader plus/.test(rulings),'RULINGS.md: the one-reader sentence survives');
-check(/reversing the one-reader ruling of 2026-10-09/.test(rulings)&&/seventh write location/.test(docs['CLAUDE.md'])&&/scripts\/seats\.js --set/.test(docs['CLAUDE.md']),'CLAUDE.md: the seventh write location and seats.js; RULINGS.md (issue 224): the ruling');
+check(/reversing the one-reader ruling of 2026-10-09/.test(rulings)&&/seventh write location/.test(rulings)&&/scripts\/seats\.js --set/.test(docs['CLAUDE.md']),'CLAUDE.md: seats.js --set; RULINGS.md (issues 224 and 226): the ruling and the seventh write location');
 check(/seats\.js/.test(docs['CLAUDE.md'].split('## Layout')[1]||''),'CLAUDE.md: seats.js in the layout');
 check(docs.method.split('## Where the plugin departs')[1]===docs['docs mirror'].split('## Where the plugin departs')[1],'method: the departures match the docs mirror');
 docs['plugin map']=read(path.join(root,'docs','plugin-map.md'));
 ['README.md','plugin README','method','docs mirror','plugin map'].forEach(function(k){
   check(/second most capable model/.test(docs[k])&&/never by the order of (?:the|its) list/.test(docs[k])&&!BY_LIST.test(docs[k]),k+': seat-2\'s default should be by rank, never by the list\'s order');
 });
-check(/issue 194/.test(docs['CLAUDE.md'])&&BY_RANK.test(docs['CLAUDE.md'])&&NO_MODEL.test(docs['CLAUDE.md'])&&/seat-fallback\.js/.test(docs['CLAUDE.md']),'CLAUDE.md: the crew bullet carries the issue 194 ruling, the sentence and the fallback script');
+// Issue 226: the two sentences left the wall (the checks above hold them in the skills); RULINGS.md carries them, and the wall's bullet names this check.
+check(/issue 194/.test(docs['CLAUDE.md'])&&BY_RANK.test(rulings)&&NO_MODEL.test(rulings)&&/seat-fallback\.js/.test(docs['CLAUDE.md'])&&new RegExp('^- The crew:[^\\n]* Held by: [^\\n]*tests/readers_check\\.js','m').test(docs['CLAUDE.md']),'CLAUDE.md: issue 194, the fallback script, and the crew bullet names this check; RULINGS.md (issue 226): the crew entry carries the two sentences');
 
 if(failures.length){ failures.forEach(function(f){console.log('FAIL '+f);}); console.log('readers_check: '+failures.length+' failure(s), '+checks+' checks'); process.exit(1); }
 console.log('readers_check: all passed ('+checks+' checks)');

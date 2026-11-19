@@ -179,7 +179,8 @@ check(readme.indexOf('under the card')<0&&readme.indexOf('under it the seats')<0
 var manifest=JSON.parse(read(path.join(plugin,'.claude-plugin','plugin.json')));
 check(/\/cw:help, bare, is the card and a picker to begin; \/cw:help all explains the method\./.test(manifest.description),'manifest: the description names the card and all');
 var claude=read(path.join(root,'CLAUDE.md')), rulings=read(path.join(root,'RULINGS.md'));
-check(/issue 74, 2026-10-26/.test(rulings)&&/between its two marker comments/.test(claude)&&/pinned equal by `tests\/help_check\.js`/.test(claude),'CLAUDE.md: names the markers and this check; RULINGS.md (issue 224): names issue 74');
+// Issue 226: the markers' sentence left the wall (the checks above hold the card and the guide between them); RULINGS.md carries it, and the wall's bullet names this check.
+check(/issue 74, 2026-10-26/.test(rulings)&&/between its two marker comments/.test(rulings)&&/pinned equal by `tests\/help_check\.js`/.test(rulings)&&new RegExp('^- Output is organized and easy on the eyes[^\\n]* Held by: [^\\n]*tests/help_check\\.js','m').test(claude),'RULINGS.md (issues 224 and 226): names the markers, this check and issue 74; CLAUDE.md: the bullet names this check');
 check(/issue 160/.test(rulings)&&claude.indexOf('under the card one live')<0&&rulings.indexOf('under the card one live')<0,'RULINGS.md names issue 160, and neither it nor CLAUDE.md puts the live line under the card');
 
 failures.forEach(function(f){console.log('FAIL '+f);});
