@@ -231,11 +231,12 @@ check(/combat-writing\/picker\.json/.test(filesSection),'help files: the full se
 check(/scripts\/picker\.js \[--run <folder>\] \[--off\\\|--on\]/.test(rules),'the rules skill: the script table must carry picker.js');
 // The documents the ruling stands in.
 var claude=read(path.join(root,'CLAUDE.md')), rulings=read(path.join(root,'RULINGS.md')), map=read(path.join(root,'docs','plugin-map.md'));
-check(/Under More: Final reads \/ Champion \/ I will type commands for this project \/ Done for now/.test(claude)&&/THE PICKER RULE \(/.test(claude)&&/THE PICKER RULE \(issue 215/.test(rulings),'CLAUDE.md: the Next picker bullet must carry the new More screen and THE PICKER RULE; RULINGS.md (issue 224): the rule with its issue');
+// Issue 226: the More screen and the rule's paragraph left the wall (the checks above hold them in the skills and the script); RULINGS.md carries them, and the wall's bullet names this check.
+check(/Under More: Final reads \/ Champion \/ I will type commands for this project \/ Done for now/.test(rulings)&&/THE PICKER RULE \(issue 215/.test(rulings)&&new RegExp('^- The Next picker:[^\\n]* Held by: [^\\n]*tests/picker_check\\.js','m').test(claude),'RULINGS.md (issues 224 and 226): the Next picker entry must carry the new More screen and THE PICKER RULE with its issue; CLAUDE.md: the bullet names this check');
 check(/The eighth and last \(issue 215/.test(claude)&&/`combat-writing\/picker\.json`/.test(claude)&&/`scripts\/picker\.js --off`/.test(claude),'CLAUDE.md: picker.json is the eighth write location, written by scripts/picker.js');
 check(!/The seventh and last/.test(claude)&&!/The seventh and last/.test(rulings),'CLAUDE.md and RULINGS.md: the seventh write location is no longer the last');
-check(claude.indexOf('`'+BACK+'`')>=0,'CLAUDE.md: must name the way back, '+BACK);
-check(/no hook but `show-result\.js`, which reads it and never writes it/.test(claude)&&/issue 216/.test(claude)&&!/Named and not held by code: the result hook/.test(claude)&&!/Named and not held by code: the result hook/.test(rulings),'CLAUDE.md: the result hook reads the switch (issue 216) and the named gap is closed, in it and in RULINGS.md');
+check(rulings.indexOf('`'+BACK+'`')>=0,'RULINGS.md (issue 226): must name the way back, '+BACK);
+check(/no hook but `show-result\.js`, which reads it and never writes it/.test(rulings)&&/issue 216/.test(rulings)&&!/Named and not held by code: the result hook/.test(claude)&&!/Named and not held by code: the result hook/.test(rulings),'RULINGS.md (issue 226): the result hook reads the switch (issue 216); the named gap is closed, in it and in CLAUDE.md');
 check(/under More: Final reads \/ Champion \/ I will type commands for this project \/ Done for now/.test(map)&&!/Final reads \/ Champion \/ Help \/ Done for now/.test(map),'plugin map: the picker row must carry the new More screen and not the old one');
 check(/`combat-writing\/picker\.json`/.test(map)&&/the eight places/.test(map)&&!/the seven places/.test(map),'plugin map: picker.json among the eight places written');
 check(map.indexOf(BACK)>=0&&/`picker\.js`/.test(map),'plugin map: must name the way back and picker.js');

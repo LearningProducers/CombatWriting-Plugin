@@ -141,9 +141,10 @@ check(/issue 204/.test(evalRow),'evals/README.md: the row for picker-approval-be
 
 // 8. CLAUDE.md states the same rule as the tree: the step, no rerate question, eight cases.
 var claude=read(path.join(root,'CLAUDE.md')), rulings=read(path.join(root,'RULINGS.md'));
-check(claude.indexOf('"'+QUESTION+'"')>=0&&/THE APPROVAL STEP \(issue 202/.test(rulings)&&/pinned equal by `tests\/approval_check\.js`/.test(rulings),'CLAUDE.md must carry the question\'s exact words, and RULINGS.md must name THE APPROVAL STEP with its issue and this check');
+// Issue 226: the question's words left the wall (this check holds them in the skills); RULINGS.md carries them, and the wall's bullet names this check.
+check(rulings.indexOf('"'+QUESTION+'"')>=0&&/THE APPROVAL STEP \(issue 202/.test(rulings)&&/pinned equal by `tests\/approval_check\.js`/.test(rulings)&&new RegExp('^- The Next picker:[^\\n]* Held by: [^\\n]*tests/approval_check\\.js','m').test(claude),'RULINGS.md must carry the question\'s exact words and name THE APPROVAL STEP with its issue and this check, and CLAUDE.md\'s Next picker bullet must name this check');
 [['CLAUDE.md',claude],['RULINGS.md',rulings]].forEach(function(f){ check(!/yes\/no for rerate where a rating is possible/.test(f[1])&&!/a rerate reply that is not yes or no is no and the round still fires/.test(f[1]),f[0]+': still states the rerate question'); });
-check(/text typed into the dialog's own Other row is Change it/.test(claude),'CLAUDE.md: must say text typed into the Other row is Change it');
+check(/text typed into the dialog's own Other row is Change it/.test(rulings),'RULINGS.md (issue 226): must say text typed into the Other row is Change it');
 check(/eight claude plugin eval cases/.test(claude)&&!/seven claude plugin eval cases/.test(claude)&&!/seven claude plugin eval cases/.test(rulings),'CLAUDE.md: the layout must count eight eval cases, and neither it nor RULINGS.md seven');
 
 failures.forEach(function(f){console.log('FAIL '+f);});
