@@ -572,3 +572,24 @@ No file under `plugins/` or `screen/` changed: no bump. No board, hook or script
 Delivers: CLAUDE.md, `tests/rulings_check.js`, the nine test files, PLAN.md.
 
 Status: delivered — 2026-11-19 — two commits (the wall and the nine tests; the fresh reader's ten put-backs, the ceiling and this part); draft pull request open; `node tests/run_all.js` reads 56 passed, 0 failed, 0 skipped in the build session, run as an unprivileged user; as root, the cloud container's own user, `tests/fallback_check.js` fails as it does on main's tree; no board, hook or script changed, so THE SMOKE is not owed.
+
+---
+
+## Part 135 — A rewrite is asked by an order, never by a description; the forming line names it (cw 0.9.16)
+
+Issue 228, and its comment of 2026-11-19, which settled the form: plain speech, no keyword.
+
+What happened on cw 0.9.15: a battle round sent with `rerate` and an `sn:` prompt that called the draft "revised" was built as a rewrite round. `lib.asksRewrite` was a word list, and "revised" was on it. Every seat wrote the draft again in full, two outside seats ran over the cap, and the round ended with no record and no board. Nothing on the screen said a rewrite was about to be asked.
+
+What is built:
+
+1. `lib.asksRewrite` reads an order and never a description. The verb in its base form (rewrite, redraft, rework, revise, reword, "write it", "draft me") asks where a clause starts or after a word that leads into an order (please, then, and, to, you, should...), never after a refusal ("do not rewrite it"); the noun asks when it is asked for ("give me a rewrite"). "Revised", "rewritten", "this rewrite", "this draft a clear answer" and "did I write the ask" ask for nothing. `packet.js` is unchanged: it calls the same function.
+2. `announce.js` takes `--prompt <the round's prompt files, comma-separated>` and reads them with the same function: the forming line ends ", a rewrite asked" and the `round.announced` line carries `rewrite`. A prompt file that is not there is refused, nothing logged. The final reads, a cold read and the second pass never name one.
+3. The battle and sparring skills pass `--prompt` on every round that has a prompt, and say the forming line is in the host's reply, as printed, before any packet is built and before any seat starts. The rules skill's script table and the help's "Your prompt rules the shape" line say how a rewrite is asked.
+4. CLAUDE.md gains the bullet "How a rewrite is asked" and the Battle bullet points at it in place of the word list; RULINGS.md gains its entry, the 29th.
+
+The eight prompts of the comment all hold; none was given up for another. Named and not held by code: the host showing the forming line is the skill's words, as before; the result hook does not print it. No hook file and no board file changed, so the limit the issue set was not reached and THE SMOKE is not owed.
+
+Delivers: `plugins/combat-writing/scripts/lib.js`, `scripts/announce.js`, the battle, sparring, rules and help skills, the two manifests' version, `tests/rewrite_check.js`, `tests/announce_check.js`, CLAUDE.md, RULINGS.md, PLAN.md.
+
+Status: delivered — 2026-11-20 (UTC; 2026-11-19 on the founder's calendar) — draft pull request open; the new checks were run red on the unfixed code first (17 failures in `tests/rewrite_check.js`, 6 in `tests/announce_check.js`), then green; the count of `node tests/run_all.js` is in the pull request body.

@@ -61,10 +61,10 @@ If the add-on is present (a `crew_list` tool from the `combat-writing-crew` serv
 As soon as the kind and the seats are known, before any packet is built, print the forming line (issue 33):
 
 ```
-node ${CLAUDE_PLUGIN_ROOT}/scripts/announce.js --run <folder> --round <round> --kind plain|cold|FQ|seat|debate --to <seat ids, comma-separated> --rerate
+node ${CLAUDE_PLUGIN_ROOT}/scripts/announce.js --run <folder> --round <round> --kind plain|cold|FQ|seat|debate --to <seat ids, comma-separated> --rerate [--prompt <the round's prompt files, comma-separated>]
 ```
 
-It prints one line, "Round 01 forming: the default prompt to 3 seats (seat-1 <short>, seat-2 <short>, seat-3 <short>), rerate", and logs it; show that line as printed. Every sparring round rates, so pass `--rerate`; `--kind FQ` for a `question:` to every seat, `seat` for seat lines, `cold` for a cold read, `debate` for a debate round, `plain` otherwise.
+It prints one line, "Round 01 forming: the default prompt to 3 seats (seat-1 <short>, seat-2 <short>, seat-3 <short>), rerate", and logs it; show that line as printed. Every sparring round rates, so pass `--rerate`; `--kind FQ` for a `question:` to every seat, `seat` for seat lines, `cold` for a cold read, `debate` for a debate round, `plain` otherwise. `--prompt` takes every prompt file of the round as you cut it into the inbox (the question file and each seat line), on every round that has one: when a prompt asks for a rewrite, by the verb as an order and never by a word that describes the draft (issue 228, the battle skill has the forms), the forming line ends ", a rewrite asked". The forming line is in your reply, as printed, before any packet is built and before any seat starts.
 
 Then, for each seat in `seats.json` (a seat's question file from step 1 goes in as `--question`; the script copies it into the round folder as `<seat>.question.md`):
 

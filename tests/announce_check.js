@@ -10,7 +10,9 @@
 //     ", rerate" only when asked, singular for one seat, the kind in the round terms (FQ, N, SN,
 //     SFQ, a seat line / seat lines, the default prompt, a cold read, debate, the final reads),
 //     never a seat the round does not go to, and logs round.announced with the kind, the seats
-//     and the rerate flag, writing nothing else.
+//     and the rerate flag, writing nothing else. With --prompt, the round's prompt files, the line
+//     ends ", a rewrite asked" when one asks for a rewrite and the log line carries rewrite
+//     (issue 228); a prompt that describes the draft adds nothing.
 //   - It refuses (exit 2, nothing logged) a kind it does not know, a seat not in seats.json, a
 //     round name of the wrong shape, and a missing --run, --round, --kind or --to.
 //   - check-answer.js with --run leads its first line with "<seat> <short> finished round
@@ -89,6 +91,28 @@ var count=logOf(run).length;
 });
 check(logOf(run).length===count,'a refused announce logs nothing');
 check(/seat-9/.test(node('announce.js',['--run',run,'--round','07-battle','--kind','N','--to','seat-9']).stderr),'the refusal names the unknown seat');
+
+// The forming line names a rewrite (issue 228): with --prompt, the round's prompt files as the host
+// cut them, a prompt that asks for a rewrite adds ", a rewrite asked" and rewrite true on the log
+// line; a prompt that only describes the draft adds nothing; with no --prompt the line is as before.
+fs.writeFileSync(path.join(proj,'ask.md'),'Rate it, then rewrite it.\n');
+fs.writeFileSync(path.join(proj,'describe.md'),'Read this revised draft and rate it on a scale from 1–10, you cannot use 7.\n');
+var w1=node('announce.js',['--run',run,'--round','12-battle','--kind','SN','--to','seat-1,seat-2,seat-3','--rerate','--prompt','ask.md']);
+check(w1.status===0&&w1.stdout==='Round 12 forming: SN3 to 3 seats (seat-1 Test Model, seat-2 gpt-oss, seat-3 qwen), rerate, a rewrite asked\n','a rewrite asked is named on the forming line: got '+JSON.stringify(w1.stdout)+' '+w1.stderr);
+var le1=logOf(run).pop();
+check(le1.event==='round.announced'&&le1.round==='12-battle'&&le1.rewrite===true&&le1.line===w1.stdout.trim(),'round.announced carries rewrite true: got '+JSON.stringify(le1));
+var w2=node('announce.js',['--run',run,'--round','13-battle','--kind','SN','--to','seat-1,seat-2,seat-3','--rerate','--prompt','describe.md']);
+check(w2.status===0&&w2.stdout==='Round 13 forming: SN4 to 3 seats (seat-1 Test Model, seat-2 gpt-oss, seat-3 qwen), rerate\n','a prompt that describes the draft names no rewrite: got '+JSON.stringify(w2.stdout)+' '+w2.stderr);
+var le2=logOf(run).pop();
+check(le2.round==='13-battle'&&le2.rewrite===false,'round.announced carries rewrite false: got '+JSON.stringify(le2));
+var w3=node('announce.js',['--run',run,'--round','14-battle','--kind','seat','--to','seat-2,seat-3','--prompt','describe.md, ask.md']);
+check(w3.status===0&&w3.stdout==='Round 14 forming: seat lines to 2 seats (seat-2 gpt-oss, seat-3 qwen), a rewrite asked\n','one seat line of several asking is named, with no rerate: got '+JSON.stringify(w3.stdout)+' '+w3.stderr);
+var w4=node('announce.js',['--run',run,'--round','15-final','--kind','final','--to','seat-1','--prompt','ask.md']);
+check(w4.status===0&&w4.stdout.indexOf('rewrite')<0,'the final reads never name a rewrite: got '+JSON.stringify(w4.stdout));
+var count2=logOf(run).length;
+var w5=node('announce.js',['--run',run,'--round','16-battle','--kind','N','--to','seat-1','--prompt','nowhere.md']);
+check(w5.status===2&&w5.stdout===''&&/nowhere\.md/.test(w5.stderr)&&logOf(run).length===count2,'a prompt file that is not there is refused by name, nothing logged: got '+w5.status+' '+w5.stderr.slice(0,120));
+check(e1.rewrite===false,'with no --prompt the log line carries rewrite false: got '+JSON.stringify(e1));
 
 // The per-seat line: check-answer.js with --run leads with the seat and the round.
 fs.writeFileSync(path.join(run,'seats.json'),JSON.stringify({seats:sj.seats.slice(0,1)},null,2)+'\n');
