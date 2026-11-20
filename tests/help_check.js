@@ -58,6 +58,14 @@ var plugin=path.join(root,'plugins','combat-writing');
 var failures=[], passes=0;
 function check(cond,msg){ if(cond)passes++; else failures.push(msg); }
 function read(p){ return fs.readFileSync(p,'utf8'); }
+// The value a YAML reader takes from one line of a skill's header: the quotes dropped, an escape read.
+function headerValue(text,key){
+  var m=new RegExp('^'+key+': (.*)$','m').exec(text.split('\n---')[0]); if(!m)return null;
+  var v=m[1].trim();
+  if(/^".*"$/.test(v)){ try{ return JSON.parse(v); }catch(e){ return null; } }
+  if(/^'.*'$/.test(v))return v.slice(1,-1).replace(/''/g,"'");
+  return v;
+}
 function words(text){ return text.split(/\s+/).filter(function(w){ return /[A-Za-z0-9]/.test(w); }).length; }
 
 var CREDIT='Combat Writing — Learning Producers Inc., Israel Hernandez, founder · combatwriting.learningproducers.com';
@@ -166,7 +174,7 @@ var full=help.slice(ge+GE.length);
 check(/^## The four stages, and the command for each$/m.test(full)&&/^## Fewer seats than you expected$/m.test(full)&&/^## Voices$/m.test(full)&&/^## The record$/m.test(full),'full guide: the sections stand behind the topic words');
 check(full.split('[Right now').length===2,'full guide: one live line, under Where you are running');
 check(words(full)>guideWords*3,'full guide: the detail stands after the markers, longer than the guide');
-check(/^argument-hint: \[all \| topic\]$/m.test(help)&&/^description: Bare, the card and a picker to begin/m.test(help)&&/under 450 words/.test(help.split('\n---')[0]),'help: the frontmatter names all | topic, the card and the 450-word guide');
+check(headerValue(help,'argument-hint')==='[all | topic]'&&/^Bare, the card and a picker to begin/.test(headerValue(help,'description')||'')&&/under 450 words/.test(help.split('\n---')[0]),'help: the frontmatter names all | topic, the card and the 450-word guide');
 check(/^- `\/cw:help` — bare, the card and a picker to begin \(the terminal's `\/cw` completes to it\); `help all` is the short guide; `help rounds` shows one section of this one\.$/m.test(help),'help: the commands section\'s own bullet');
 
 // The README: the card between its markers is the skill's card with its markdown stripped.

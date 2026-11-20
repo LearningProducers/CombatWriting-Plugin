@@ -21,6 +21,14 @@
 //     the root NOTICE and the root Shield text.
 //   - The three texts in LICENSES/ match the SHA-256 of their sources (the OFL for the four
 //     embedded faces, Part 106).
+//   - A license text ships with what it covers, because an installer receives the plugin
+//     folder alone: a plugin folder that holds a font holds LICENSES/OFL-1.1.txt, one that
+//     holds method/ holds LICENSES/CC-BY-NC-SA-4.0.txt, each byte for byte the root text of
+//     the same name, and no other file stands in a plugin's LICENSES/. The LICENSES/ path
+//     the folder's NOTICE gives for each of those two texts is then a file in that folder
+//     (for the Shield text the NOTICE itself names the folder's copy, LICENSE.md). The listed plugin's README
+//     names the three licenses in its License section, each with the path of its text, and
+//     every path it names there is a file in the folder.
 //   - Every README contains the trademark sign and "source-available". No file
 //     the directory or a reader sees says "open source"; only CLAUDE.md, this
 //     file, readme_check.js and the license texts may contain the phrase,
@@ -30,6 +38,18 @@
 //   - No bin/ at the repository root or a plugin root.
 //   - plugin.json's license field is the Shield identifier; marketplace.json
 //     names both combat-writing and combat-writing-crew.
+//
+//   - Every skill, command and agent file found on disk under a plugin folder has a header
+//     (the YAML frontmatter) that a strict YAML reader reads: one `key: value` per line, the
+//     value a plain or a quoted scalar. A plain value may not hold a colon followed by a space,
+//     a space followed by #, or a tab, may not end with a colon, and may not open with an
+//     indicator ([ { ] } , # & * ! | > % @ ` ' " or - ? : before a space); a quoted value must
+//     close, with nothing after it but a comment. `description` and `argument-hint` must be
+//     text, never a value YAML reads as a number, a truth value or null. The reader is this
+//     file's own (headerProblems, no dependency) and is narrower than YAML: a list, a block
+//     scalar or an indented line is refused as outside what it reads. The fixtures under it
+//     run on every pass, one per refused shape, so the reader cannot go soft unseen. The
+//     folders are walked on disk, so a new skill file is covered with no edit here.
 //
 // Run from the repo root:   node tests/license_check.js
 // Optional first argument: a path to a different repository root to check.
@@ -86,6 +106,7 @@ function expectedId(rel){
   // carry the Shield header like every other executable file.
   if(base==='uv.lock'||base==='.python-version')return null;
   if(rel.indexOf('LICENSES/')===0)return null;
+  if(/^plugins\/[^/]+\/LICENSES\//.test(rel))return null;
   if(/^plugins\/[^/]+\/LICENSE(\.[a-z]+)?$/i.test(rel))return null;
   if(IMAGE_OR_FONT.test(base))return null;
   if(rel.indexOf('docs/')===0)return CC;
@@ -120,6 +141,128 @@ files.forEach(function(rel){
   }
   check(headers[0].line===wantLine,rel+': header on line '+headers[0].line+', must be on line '+wantLine+(wantLine===1?'':' (the line after the closing ---)'));
   check(headers[0].id===want,rel+': header says '+headers[0].id+', path rule says '+want);
+});
+
+// The headers of the skill, command and agent files: read as a strict YAML reader reads them.
+// headerProblems takes the lines between the two --- lines and returns one line per problem.
+var TEXT_KEYS=['description','argument-hint'];
+var NOT_TEXT=/^(~|null|Null|NULL|true|True|TRUE|false|False|FALSE|[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?|0o[0-7]+|0x[0-9a-fA-F]+|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN))$/;
+function scalarProblem(v){
+  if(v==='')return null;
+  var c=v.charAt(0), m;
+  if(c==='"'){
+    m=/^"((?:[^"\\]|\\.)*)"(.*)$/.exec(v);
+    if(!m)return 'opens with a double quote that is never closed';
+    if(m[2]!==''&&!/^ +#/.test(m[2])&&!/^ +$/.test(m[2]))return 'has text after the closing double quote';
+    var esc=m[1].match(/\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|.)/g)||[];
+    for(var i=0;i<esc.length;i++)if(!/^\\(x..|u....|U........|[0abtnvfre "\/\\N_LP])$/.test(esc[i]))return 'holds the escape '+esc[i]+', which YAML does not have';
+    return null;
+  }
+  if(c==="'"){
+    m=/^'((?:[^']|'')*)'(.*)$/.exec(v);
+    if(!m)return 'opens with a single quote that is never closed';
+    if(m[2]!==''&&!/^ +#/.test(m[2])&&!/^ +$/.test(m[2]))return 'has text after the closing single quote';
+    return null;
+  }
+  if('[]{},#&*!|>%@`'.indexOf(c)>=0)return 'is unquoted and opens with '+c;
+  if((c==='-'||c==='?'||c===':')&&(v.length===1||v.charAt(1)===' '))return 'is unquoted and opens with '+c+' before a space';
+  if(/: /.test(v))return 'is unquoted and holds a colon followed by a space';
+  if(/:$/.test(v))return 'is unquoted and ends with a colon';
+  if(/ #/.test(v))return 'is unquoted and holds a space followed by #';
+  return null;
+}
+function headerProblems(lines){
+  var out=[], seen={};
+  lines.forEach(function(raw,i){
+    var line=raw.replace(/\r$/,''), n=i+2;
+    if(line.indexOf('\t')>=0){ out.push('line '+n+' holds a tab'); return; }
+    if(/^\s*$/.test(line)||/^#/.test(line))return;
+    var m=/^([A-Za-z0-9_][A-Za-z0-9_-]*):(?: (.*))?$/.exec(line);
+    if(!m){ out.push('line '+n+' is not `key: value` on one line (a list, a block or an indented line is outside what this check reads)'); return; }
+    var key=m[1], v=(m[2]||'').replace(/^ +/,'').replace(/ +$/,'');
+    if(seen[key])out.push('line '+n+' repeats the key '+key);
+    seen[key]=true;
+    var p=scalarProblem(v);
+    if(p){ out.push('line '+n+', '+key+': the value '+p); return; }
+    if(TEXT_KEYS.indexOf(key)>=0&&v.charAt(0)!=='"'&&v.charAt(0)!=="'"&&(v===''||NOT_TEXT.test(v)))out.push('line '+n+', '+key+': the value is not text to a YAML reader ('+(v===''?'empty':v)+')');
+  });
+  return out;
+}
+// The component files, walked on disk: plugins/<name>/skills|commands|agents/**/*.md.
+function componentFiles(){
+  var acc=[];
+  if(!exists('plugins'))return acc;
+  fs.readdirSync(path.join(root,'plugins'),{withFileTypes:true}).filter(function(d){return d.isDirectory();}).forEach(function(pl){
+    ['skills','commands','agents'].forEach(function(kind){
+      (function walk(rel){
+        if(!exists(rel))return;
+        fs.readdirSync(path.join(root,rel),{withFileTypes:true}).forEach(function(d){
+          if(d.isDirectory())walk(rel+'/'+d.name);
+          else if(/\.md$/.test(d.name))acc.push(rel+'/'+d.name);
+        });
+      })('plugins/'+pl.name+'/'+kind);
+    });
+  });
+  return acc.sort();
+}
+var components=componentFiles();
+check(root!==path.resolve(__dirname,'..')||components.length>0,'plugins/: no skill, command or agent file found on disk');
+components.forEach(function(rel){
+  var lines=read(rel).split('\n');
+  if(lines[0].replace(/\r$/,'')!=='---'){ fail(rel+': the header does not open on line 1'); return; }
+  var close=-1;
+  for(var i=1;i<lines.length;i++){ if(lines[i].replace(/\r$/,'')==='---'){close=i;break;} }
+  if(close<0){ fail(rel+': the header opened on line 1 is never closed'); return; }
+  var problems=headerProblems(lines.slice(1,close));
+  check(problems.length===0,rel+': a strict YAML reader refuses the header: '+problems.join('; '));
+});
+// The fixtures: each refused shape, and the shapes that must be read. Invented text only.
+[
+  ['a colon followed by a space','description: Battle. One round: every seat answers'],
+  ['a value that ends with a colon','description: the rounds are these:'],
+  ['a value that opens with [','argument-hint: [all] [topic]'],
+  ['a value that opens with {','argument-hint: {all}'],
+  ['a value that opens with *','description: *bold* opening'],
+  ['a value that opens with &','description: &anchor text'],
+  ['a value that opens with !','description: !tagged text'],
+  ['a value that opens with |','argument-hint: | all'],
+  ['a value that opens with >','argument-hint: > all'],
+  ['a value that opens with %','description: %percent first'],
+  ['a value that opens with @','description: @seat first'],
+  ['a value that opens with a backtick','description: `fq:` puts one question'],
+  ['a double quote never closed','description: "an opening quote with no end'],
+  ['a single quote never closed','description: \'an opening quote with no end'],
+  ['a double quote closed before the end','description: "closed early" and more text'],
+  ['a single quote closed by a lone quote inside','description: \'the seat\'s answer\''],
+  ['a space followed by #','description: the draft #2 is read'],
+  ['a tab','description: one\ttab inside'],
+  ['a tab inside quotes on the line','description: "one\ttab inside"'],
+  ['an escape YAML does not have','description: "a \\q escape"'],
+  ['a dash before a space','description: - a list item'],
+  ['a question mark before a space','description: ? a key'],
+  ['a key twice','name: a\nname: b'],
+  ['an indented line','description: first line\n  second line'],
+  ['a block scalar','description: >-\n  folded text'],
+  ['a line with no key','just words'],
+  ['a description YAML reads as a number','description: 42'],
+  ['an argument-hint YAML reads as null','argument-hint: ~'],
+  ['an empty description','description:']
+].forEach(function(f){
+  check(headerProblems(f[1].split('\n')).length>0,'the header reader passes a fixture it must refuse: '+f[0]);
+});
+[
+  ['a plain value','description: A seat reads one packet, rates it 1 to 10 and saves its answer.'],
+  ['a colon with no space after it','description: the time is 10:30 and the path is a:b'],
+  ['a # with no space before it','description: draft#2 and C# are read'],
+  ['a double-quoted value holding every refused shape','description: "[all] {x} one: two #3 `fq:` \'s *b* @a %c"'],
+  ['a single-quoted value with a doubled quote','description: \'the seat\'\'s answer: one line\''],
+  ['a quoted value with a comment after it','argument-hint: "[all | topic]" # the two words'],
+  ['YAML\'s own escapes','description: "a \\" quote, a \\\\ and \\u00e9"'],
+  ['a quoted number is text','description: "42"'],
+  ['other keys, a comment line and an empty value','name: seat\n# a comment\ntools: Read, Write\nmodel: inherit\nextra:']
+].forEach(function(f){
+  var p=headerProblems(f[1].split('\n'));
+  check(p.length===0,'the header reader refuses a fixture it must read: '+f[0]+' ('+p.join('; ')+')');
 });
 
 // NOTICE: every ruled line, and the plugin copies identical.
@@ -158,6 +301,42 @@ Object.keys(LICENSE_HASHES).forEach(function(rel){
   check(exists(rel)&&sha256(rel)===LICENSE_HASHES[rel],rel+': missing or its SHA-256 differs from the source text');
 });
 
+// A license text ships with what it covers: the copies inside a plugin folder, read on disk.
+var FONT=/\.(woff2?|ttf|otf|eot)$/i;
+function bytesEqual(a,b){ return exists(a)&&exists(b)&&fs.statSync(path.join(root,a)).isFile()&&fs.readFileSync(path.join(root,a)).equals(fs.readFileSync(path.join(root,b))); }
+pluginRoots.filter(function(r){return exists(r+'/.claude-plugin/plugin.json');}).forEach(function(r){
+  var inside=files.filter(function(f){return f.indexOf(r+'/')===0;});
+  var needs=[];
+  if(inside.some(function(f){return FONT.test(f);}))needs.push('OFL-1.1.txt');
+  if(inside.some(function(f){return f.indexOf(r+'/method/')===0;}))needs.push('CC-BY-NC-SA-4.0.txt');
+  needs.forEach(function(n){
+    check(bytesEqual(r+'/LICENSES/'+n,'LICENSES/'+n),r+'/LICENSES/'+n+': missing or not byte for byte the root LICENSES/'+n+' (the folder holds what that text covers, and an installer receives the folder alone)');
+  });
+  var held=exists(r+'/LICENSES')?fs.readdirSync(path.join(root,r,'LICENSES')):[];
+  held.forEach(function(n){
+    check(bytesEqual(r+'/LICENSES/'+n,'LICENSES/'+n),r+'/LICENSES/'+n+': not byte for byte a text of the root LICENSES/');
+  });
+  // The folder's NOTICE, read from the folder: a LICENSES/ path it gives for a text the folder
+  // needs is a file there. The Shield path is covered by its own words, "inside the plugin folder, in LICENSE.md".
+  var named=(exists(r+'/NOTICE')?read(r+'/NOTICE'):'').match(/LICENSES\/[A-Za-z0-9._-]+\.(txt|md)/g)||[];
+  named.filter(function(v,i,a){return a.indexOf(v)===i;}).forEach(function(n){
+    if(needs.indexOf(n.slice('LICENSES/'.length))<0)return;
+    check(exists(r+'/'+n),r+'/NOTICE names '+n+', and the folder holds no such file');
+  });
+});
+// The listed plugin's README: its License section names the three licenses and where each text is.
+if(exists('plugins/combat-writing/README.md')){
+  var lic=(/\n## License\n([\s\S]*?)(\n## |$)/.exec(read('plugins/combat-writing/README.md'))||[])[1]||'';
+  check(lic.length>0,'plugins/combat-writing/README.md: no License section');
+  [['PolyForm Shield License 1.0.0','LICENSE.md'],['CC BY-NC-SA 4.0','LICENSES/CC-BY-NC-SA-4.0.txt'],['SIL Open Font License','LICENSES/OFL-1.1.txt']].forEach(function(p){
+    check(lic.indexOf(p[0])>=0&&lic.indexOf('`'+p[1]+'`')>=0,'plugins/combat-writing/README.md: the License section does not name '+p[0]+' with its text at `'+p[1]+'`');
+  });
+  (lic.match(/`(LICENSE\.md|NOTICE|LICENSES\/[^`]+|method\/|fonts\/)`/g)||[]).forEach(function(q){
+    var n=q.slice(1,-1);
+    check(exists('plugins/combat-writing/'+n),'plugins/combat-writing/README.md: the License section names `'+n+'`, and the folder holds no such path');
+  });
+}
+
 // READMEs and the phrase rules.
 var readmes=files.filter(function(f){return /(^|\/)README\.md$/.test(f);});
 check(readmes.indexOf('README.md')>=0,'README.md: missing at the root');
@@ -170,7 +349,7 @@ readmes.forEach(function(rel){
 var OPEN_SOURCE=/open[\s-]source/i;
 files.forEach(function(rel){
   if(rel==='CLAUDE.md'||rel==='tests/license_check.js'||rel==='tests/readme_check.js'||rel.indexOf('LICENSES/')===0)return;
-  if(/^plugins\/[^/]+\/LICENSE(\.[a-z]+)?$/i.test(rel))return;
+  if(/^plugins\/[^/]+\/LICENSE(\.[a-z]+)?$/i.test(rel)||/^plugins\/[^/]+\/LICENSES\//.test(rel))return;
   if(IMAGE_OR_FONT.test(rel))return;
   check(!OPEN_SOURCE.test(read(rel)),rel+': says "open source"');
 });

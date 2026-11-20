@@ -50,6 +50,14 @@ var HELP_LINE='/cw:help for the full guide.';
 var failures=[], passes=0;
 function check(cond,msg){ if(cond)passes++; else failures.push(msg); }
 function read(p){ return fs.readFileSync(p,'utf8'); }
+// The value a YAML reader takes from one line of a skill's header: the quotes dropped, an escape read.
+function headerValue(text,key){
+  var m=new RegExp('^'+key+': (.*)$','m').exec(text.split('\n---')[0]); if(!m)return null;
+  var v=m[1].trim();
+  if(/^".*"$/.test(v)){ try{ return JSON.parse(v); }catch(e){ return null; } }
+  if(/^'.*'$/.test(v))return v.slice(1,-1).replace(/''/g,"'");
+  return v;
+}
 
 // The command files.
 // The four commands are skills (moved from commands/ on 2026-10-14, the format the docs name for
@@ -111,7 +119,7 @@ var sparring=read(cmd('sparring'));
 check(/no repaste/.test(sparring)&&/whose `rounds\/` is empty/.test(sparring),'sparring.md: must use the run strategy made (the newest run whose rounds/ is empty) with no repaste');
 check(/A bare command then runs the plain round on that draft with the default prompt and no picker/.test(sparring),'sparring.md: a bare command after strategy must run with no picker');
 check(/A draft pasted or given as a path always starts a new run/.test(sparring),'sparring.md: a pasted draft must still start a new run');
-check(/argument-hint: \[cold\|debate\] \[<draft path or pasted draft>\]/.test(sparring),'sparring.md: the argument-hint must show the draft as optional');
+check(/^\[cold\|debate\] \[<draft path or pasted draft>\]/.test(headerValue(sparring,'argument-hint')||''),'sparring.md: the argument-hint must show the draft as optional');
 
 // The scripts, for real, in a temporary project.
 var proj=fs.mkdtempSync(path.join(os.tmpdir(),'cw-strategy-'));

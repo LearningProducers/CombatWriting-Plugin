@@ -32,6 +32,8 @@ Or in one step, on Claude Code 2.1.275 or later:
 /plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin
 ```
 
+Node must be on your PATH: the add-on's server is started with `node`. Its checks were run on Node 22, and on no other version.
+
 Install the `cw` plugin (its commands are `/cw:strategy`, `/cw:sparring`, `/cw:battle` and `/cw:help`), the same way; the add-on does nothing on its own.
 
 ## Keys and where the prompt appears

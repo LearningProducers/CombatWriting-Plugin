@@ -34,6 +34,18 @@ The version is the one in [plugins/combat-writing/.claude-plugin/plugin.json](pl
 
 `plugins/combat-writing-crew/` is a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew can be more than one company's models. It is installed from this repository as a marketplace, not from the directory. Each key goes only to its own provider, never to Learning Producers, and is never stored in a file by the add-on: a masked prompt first, an environment variable when the prompt is empty, then one line in a key file you write by hand in your home folder, owner-only, the route that survives the host rebuilding its credentials store (Part 36.2). One free Groq key seats two outside models beside the fresh reader: a crew of three. Each outside seat is told the word cap; a second overrun is cut at the cap with the rating kept and marked in the record. See [its README](plugins/combat-writing-crew/README.md).
 
+## Run the checks
+
+`node tests/run_all.js`, from the repository root, runs the set CI runs and ends on one line with the counts; a pass is its exit 0. What it needs on your PATH:
+
+- **Node.** The plugin's hooks and scripts, the add-on's server and every check start with `node`. The checks were run on Node 22, the version the workflow sets up, and on no other version.
+- **uv**, for the screen's tests under `screen/tests/`; uv brings its own Python. Without uv the run fails, unless `--no-screen` says the skip is meant.
+- **The `claude` CLI**, for the validate step, `claude plugin validate --strict` on both plugin folders and on this root. Without it the step is skipped with a line, and `--no-validate` skips it on purpose.
+
+`--profile directory` adds the CLI's directory profile to the validate calls on the two plugin folders: the checks of the plugin directory's that the CLI can run before a submission, which its own help calls a subset of what the directory runs. It is off by default, because the profile fails a plugin folder that has no icon, and neither folder has one yet.
+
+The one-step install line in the two plugin READMEs, the one that names the marketplace on the install command itself, needs a Claude Code version that takes it in a session. That version is named on Claude Code's documentation page [Install and manage plugins](https://code.claude.com/docs/en/discover-plugins), under "Add and install in a session", and each plugin README carries it beside its install line.
+
 ## Licensing
 
 | What | License | Identifier |

@@ -34,6 +34,14 @@ var lib=require(path.join(scripts,'lib.js'));
 var failures=[], passes=0;
 function check(cond,msg){ if(cond)passes++; else failures.push(msg); }
 function read(p){ return fs.readFileSync(p,'utf8'); }
+// The value a YAML reader takes from one line of a skill's header: the quotes dropped, an escape read.
+function headerValue(text,key){
+  var m=new RegExp('^'+key+': (.*)$','m').exec(text.split('\n---')[0]); if(!m)return null;
+  var v=m[1].trim();
+  if(/^".*"$/.test(v)){ try{ return JSON.parse(v); }catch(e){ return null; } }
+  if(/^'.*'$/.test(v))return v.slice(1,-1).replace(/''/g,"'");
+  return v;
+}
 function skill(name){ return read(path.join(plugin,'skills',name,'SKILL.md')); }
 var proj=fs.mkdtempSync(path.join(os.tmpdir(),'cw-runs-'));
 function node(script,args,cwd){ return cp.spawnSync(process.execPath,[path.join(scripts,script)].concat(args),{cwd:cwd||proj,encoding:'utf8'}); }
@@ -128,11 +136,11 @@ check(node('render-record.js',['--run',run2,'--short']).stdout.indexOf('This run
 
 // 4. The skills and the docs.
 var runs=skill('runs'), battle=skill('battle'), sparring=skill('sparring'), champion=skill('champion'), rules=skill('combat-writing'), help=skill('help');
-check(runs.split('\n')[0]==='---'&&/^name: runs$/m.test(runs)&&/^argument-hint: \[<a word of the run id>\]$/m.test(runs)&&/scripts\/runs\.js$/m.test(runs)&&/scripts\/runs\.js --match <word>/.test(runs)&&/Two or more \(exit 3\)/.test(runs)&&/None \(exit 1\)/.test(runs)&&/Never pick for the person\./.test(runs),'skills/runs/SKILL.md: the frontmatter, both calls, the three outcomes');
+check(runs.split('\n')[0]==='---'&&/^name: runs$/m.test(runs)&&headerValue(runs,'argument-hint')==='[<a word of the run id>]'&&/scripts\/runs\.js$/m.test(runs)&&/scripts\/runs\.js --match <word>/.test(runs)&&/Two or more \(exit 3\)/.test(runs)&&/None \(exit 1\)/.test(runs)&&/Never pick for the person\./.test(runs),'skills/runs/SKILL.md: the frontmatter, both calls, the three outcomes');
 [['battle',battle],['sparring',sparring]].forEach(function(p){
   check(/`run: <folder or word>` names the run \(Part 85\): a folder path, or a word of a run id matched by `runs\.js --match <word>`/.test(p[1])&&/argument-hint: .*\[run: <folder or word>\]/.test(p[1]),p[0]+': run: reads a folder or a word, in the bullet and the hint');
 });
-check(/`run: <folder or word>` names the run \(Part 85: a folder path, or a word of a run id matched by `runs\.js --match <word>`/.test(champion)&&/\[run: <folder or word>\]$/m.test(champion),'champion: run: reads a folder or a word');
+check(/`run: <folder or word>` names the run \(Part 85: a folder path, or a word of a run id matched by `runs\.js --match <word>`/.test(champion)&&/\[run: <folder or word>\]$/.test(headerValue(champion,'argument-hint')||''),'champion: run: reads a folder or a word');
 check(/^## Returning and starting fresh$/m.test(help)&&/Any number of runs stay open at once\./.test(help)&&/a run is open until `\/cw:champion shipped` freezes its canon, and nothing else closes it/.test(help)&&/^- `\/cw:runs` — lists every run in the project/m.test(help)&&/champion, briefs, runs, voices, files/.test(help)&&/that line names the run you are on, the word that returns to it and the line that starts a new piece/.test(help),'help: the section, the command, the topic, the picker sentence');
 check(/`\/cw:briefs` and `\/cw:runs` \(each a skill/.test(rules)&&/scripts\/runs\.js \[--match <word>\] \[--pick \[N\]\]/.test(rules)&&/that line names the run it is on, the word that returns to it \(`run: <word>`\) and the line that leaves it \(Part 85\)/.test(rules),'the rules skill: the seventh command, the script row, the Next line');
 check(/scripts\/runs\.js --pick$/m.test(runs)&&/AskUserQuestion/.test(runs)&&/`Which run do you want back\? \/cw:help for the full guide\.`/.test(runs)&&/the four open runs touched last, any stage/.test(runs)&&/`Returning to <id>\.`/.test(runs)&&/`battle`, do exactly what `\/cw:battle run: <id>` does bare/.test(runs)&&/`sparring`, exactly what `\/cw:sparring run: <id>` does bare/.test(runs)&&/`none`, exactly what a bare `\/cw:sparring` does on a run strategy made/.test(runs)&&!/"Other"/.test(runs),'the runs skill: --pick, the picker question, the four runs touched last any stage, the pick continues in the run\'s own stage, no extra row named (issue 186)');

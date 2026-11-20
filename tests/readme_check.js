@@ -26,6 +26,19 @@
 //     three READMEs after six other files were cured). PLAN.md, PLAN_ARCHIVE.md (Parts 1 to 90,
 //     frozen; issue 166) and .github/release-notes/ keep their history and are not read;
 //     node_modules, .git and virtual environments are skipped.
+//   - What must be installed: the Install section of both plugin READMEs and the root README's
+//     "Run the checks" section name Node, each with the major version CI's workflow sets up
+//     (`node-version` in .github/workflows/checks.yml, the place that runs it on every pull
+//     request) and no other. The plugin README's first paragraph says "built for Claude Code".
+//   - The root README's "Run the checks" section names the command, `node tests/run_all.js`,
+//     the `claude` CLI for the validate step, uv for the screen's tests, and the documentation
+//     page that names the Claude Code version the one-step install line needs (a version has a
+//     home, second_copy_check.js: the root README points, the plugin README carries it beside
+//     its install line); every `--flag` the section names is one tests/run_all.js reads, and
+//     `--profile directory`, the validator's directory profile, is named there and read there.
+//   - The key sentence in the plugin README's "What one install brings": with no key the
+//     add-on can find, the crew is its two fresh readers, and where a key is read from is the
+//     add-on's README, under a heading that file holds. The paragraph copies no list of routes.
 //
 // Run from the repo root:   node tests/readme_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -78,6 +91,46 @@ prompts.forEach(function(pr){
 ['help','strategy','sparring','battle','champion'].forEach(function(c){ check(named[c],'plugin README: no example prompt for /cw:'+c); });
 var prose=p.replace(/```[\s\S]*?```/g,' ').replace(/<!--[\s\S]*?-->/g,' ');
 check(prose.split(/\s+/).filter(Boolean).length>40,'plugin README: 40 words or fewer outside code blocks');
+
+// What must be installed, and how the checks are run.
+function sectionOf(text,heading){ var m=new RegExp('\\n## '+heading+'\\n([\\s\\S]*?)(?=\\n## |$)').exec(text); return m?m[1]:''; }
+var crewReadme=read('plugins/combat-writing-crew/README.md'), rootReadme=files['README.md'];
+var ciNode=(/node-version: *['"]?(\d+)/.exec(read('.github/workflows/checks.yml'))||[])[1];
+check(!!ciNode,'.github/workflows/checks.yml: no node-version to hold the READMEs to');
+[['plugins/combat-writing/README.md',sectionOf(p,'Install'),'Install'],['plugins/combat-writing-crew/README.md',sectionOf(crewReadme,'Install'),'Install'],['README.md',sectionOf(rootReadme,'Run the checks'),'Run the checks']].forEach(function(r){
+  var majors=(r[1].match(/\bNode(?:\.js)? (\d+)\b/g)||[]).map(function(x){return /(\d+)$/.exec(x)[1];});
+  check(r[1].length>0,r[0]+': no "'+r[2]+'" section');
+  check(/\bNode(\.js)?\b/.test(r[1]),r[0]+': the "'+r[2]+'" section does not name Node');
+  check(majors.length>0&&majors.every(function(v){return v===ciNode;}),r[0]+': the "'+r[2]+'" section must name Node '+ciNode+', the version the workflow runs, and no other (it names '+(majors.join(', ')||'none')+')');
+});
+var firstPara=p.split('\n').filter(function(l){ return l.trim()&&!/^(<!--|#|\*\*)/.test(l); })[0]||'';
+check(/built for Claude Code/.test(firstPara),'plugins/combat-writing/README.md: the first paragraph does not say "built for Claude Code"');
+var runSec=sectionOf(rootReadme,'Run the checks');
+check(/`node tests\/run_all\.js`/.test(runSec),'README.md: "Run the checks" does not give the command, `node tests/run_all.js`');
+check(/`claude` CLI/.test(runSec)&&/validate/.test(runSec),'README.md: "Run the checks" does not name the `claude` CLI for the validate step');
+check(/\buv\b/.test(runSec)&&/screen/.test(runSec),'README.md: "Run the checks" does not name uv for the screen\'s tests');
+check(/\]\(https:\/\/code\.claude\.com\/docs\/[^)]+\)/.test(runSec)&&/install line/.test(runSec),'README.md: "Run the checks" does not point at the documentation page for the Claude Code version the install line needs');
+var runAll=read('tests/run_all.js');
+(runSec.match(/--[a-z][a-z-]+/g)||[]).filter(function(v,i,a){return a.indexOf(v)===i;}).forEach(function(flag){
+  check(runAll.indexOf("'"+flag+"'")>=0,'README.md: "Run the checks" names '+flag+', which tests/run_all.js does not read');
+});
+// The validator's directory profile: the flag is named in the section, read by the runner, and off by default.
+check(/`--profile directory`/.test(runSec),'README.md: "Run the checks" does not name `--profile directory`, the flag that adds the validator\'s directory profile');
+check(/'--profile'/.test(runAll)&&/'directory'/.test(runAll),'tests/run_all.js: does not read --profile directory');
+// The plugin README carries the version beside its one-step install line, as the add-on's does.
+var cwInstall=sectionOf(p,'Install');
+check(/--marketplace/.test(cwInstall)&&/Claude Code \d+\.\d+\.\d+ or later/.test(cwInstall),'plugins/combat-writing/README.md: the Install section does not name the Claude Code version its install line needs');
+var need=function(t){ return (/Claude Code (\d+\.\d+\.\d+) or later/.exec(t)||[])[1]; };
+check(need(cwInstall)===need(sectionOf(crewReadme,'Install')),'the two plugin READMEs name different Claude Code versions for the same install line: '+need(cwInstall)+' and '+need(sectionOf(crewReadme,'Install')));
+
+// The key sentence: no key the add-on can find, and a pointer, never a copied list.
+var brings=p.split('\n').filter(function(l){ return l.indexOf('**What one install brings.**')===0; })[0]||'';
+check(brings.length>0,'plugins/combat-writing/README.md: no "What one install brings" paragraph');
+check(/with no key the add-on can find, the crew is its two fresh readers/.test(brings),'plugins/combat-writing/README.md: "What one install brings" does not say that with no key the add-on can find, the crew is its two fresh readers');
+check(!/prompt left empty/.test(brings),'plugins/combat-writing/README.md: "What one install brings" still says a prompt left empty decides the crew');
+var pointer=/the add-on's README, under "([^"]+)"/.exec(brings);
+check(!!pointer&&new RegExp('^## '+(pointer?pointer[1].replace(/[.*+?^${}()|[\]\\]/g,'\\$&'):'x')+'$','m').test(crewReadme),'plugins/combat-writing/README.md: "What one install brings" does not point at a heading the add-on\'s README holds for where a key is read from');
+check(!/environment variable|key file/.test(brings),'plugins/combat-writing/README.md: "What one install brings" copies the list of places a key is read from; it points at the add-on\'s README');
 
 // The phrase "stands once" in any Markdown file outside PLAN.md, PLAN_ARCHIVE.md and the release notes.
 var SKIP={'node_modules':1,'.git':1,'.venv':1,'results':1};
