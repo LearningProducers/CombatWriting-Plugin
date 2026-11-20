@@ -1,7 +1,7 @@
 ---
 name: sparring
 description: Sparring. Every seat reads the draft on the same snapshot and gives its own critique with the rating line first (1 to 10, never 7). Optional context brief, optional focus question for every seat (`question:`) or for one seat (`seat-2:`), `cold` for a read with no brief, `debate` to show the seats each other's answers and rate again. Bare after strategy, it reads the stored draft and brief with no repaste; a pasted draft starts a run on its own, so strategy may be skipped, and sparring may follow battle. A question with no keyword, or a bare command with no stored draft, opens a picker; every result ends with a picker for the next round.
-argument-hint: [cold|debate] [<draft path or pasted draft>] [brief: ...|brief <name>: ...|brief: <name>] [reader: ...] [question: ...] [seat-N: ...] [run: <folder or word>] [picker on]
+argument-hint: "[cold|debate] [<draft path or pasted draft>] [brief: ...|brief <name>: ...|brief: <name>] [reader: ...] [question: ...] [seat-N: ...] [run: <folder or word>] [picker on]"
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
 Run one Sparring round of Combat Writing on the draft in `$ARGUMENTS`, or on the draft a run already holds. The rules that hold across every round are in the `combat-writing` skill; read `${CLAUDE_PLUGIN_ROOT}/method/combat-writing.md` once per session. The order of the stages is the person's choice: sparring may be the first command typed, with the draft pasted here; it may follow strategy, reading what strategy stored; and it may follow battle, as a round of reads and ratings on a run the discussion started. The round continues the run's numbering either way, and the record says which stage the run started at.

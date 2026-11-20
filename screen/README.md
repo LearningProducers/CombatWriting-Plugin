@@ -12,7 +12,7 @@ This folder is part of the plugin's repository and is source-available under the
 The screen is a Python package on Textual, installed as a tool with uv. uv is installed user-level on your own account, by your own hand, from the official standalone installer, never with sudo; it provides its own Python, so your system's Python is not used.
 
 ```
-uv tool install "git+https://github.com/LearningProducers/CombatWriting-Plugin@cw-screen--v0.1.0#subdirectory=screen"
+uv tool install "git+https://github.com/LearningProducers/CombatWriting-Plugin@main#subdirectory=screen"
 ```
 
 Node must be on your PATH: the screen runs the plugin's scripts with it, as Claude Code does.

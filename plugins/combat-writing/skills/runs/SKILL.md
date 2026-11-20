@@ -1,7 +1,7 @@
 ---
 name: runs
 description: Runs. Lists every run in the project, newest first, one line each, with its brief by name, its reader, its last round, the drafts it holds and OPEN or SHIPPED with the date; a word after the command finds the run whose id holds it. Use when the person asks which runs are open, where a piece left off, how to return to a run or how to start fresh on a new one.
-argument-hint: [<a word of the run id>]
+argument-hint: "[<a word of the run id>]"
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
 List the project's runs, or find one (Part 85: open runs, and the way back). The rules that hold across every command are in the `combat-writing` skill.

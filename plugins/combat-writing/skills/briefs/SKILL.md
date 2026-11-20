@@ -1,6 +1,6 @@
 ---
 name: briefs
-description: Briefs. Lists your briefs, the unnamed default and every brief saved by name, each with its first line and the runs on it. One project, many kinds of writing: `brief cold-email: <the rules>` in any command saves a brief by name, `brief: cold-email` picks it for a run, `brief update cold-email: <a line>` adds to it. Use when the person asks which briefs exist, which brief a run used, or how to keep several kinds of writing in one project.
+description: "Briefs. Lists your briefs, the unnamed default and every brief saved by name, each with its first line and the runs on it. One project, many kinds of writing: `brief cold-email: <the rules>` in any command saves a brief by name, `brief: cold-email` picks it for a run, `brief update cold-email: <a line>` adds to it. Use when the person asks which briefs exist, which brief a run used, or how to keep several kinds of writing in one project."
 argument-hint: (nothing)
 ---
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->

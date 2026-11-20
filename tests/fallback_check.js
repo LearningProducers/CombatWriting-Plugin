@@ -166,9 +166,14 @@ refused('an unquoted model name',['--seat','seat-2','--to','Test','Model','C','-
 refused('a round that is no round name',['--seat','seat-2','--to','session','--reason','x','--round','../x'],/--round takes a round folder name/);
 fs.mkdirSync(path.join(runR,'rounds','02-battle-2'),{recursive:true});
 before={log:read(path.join(runR,'log.jsonl')),seats:read(path.join(runR,'seats.json'))};
-fs.chmodSync(path.join(runR,'seats.json'),0o444);
-refused('a seats.json that cannot be written',['--seat','seat-2','--to','session','--reason','x','--round','02-battle-2'],/the run's seats\.json cannot be written \(.*seats\.json\); nothing is recorded/);
-fs.chmodSync(path.join(runR,'seats.json'),0o644);
+// This one case leans on a file's mode bits, and root is not held by them: as root the write
+// goes through and the fallback is recorded. It is skipped for root alone, with a printed line.
+if(typeof process.getuid==='function'&&process.getuid()===0)console.log('skip a seats.json that cannot be written: the user is root, and root is not held by a file\'s mode bits (2 checks not run; run as any other user to run them)');
+else{
+  fs.chmodSync(path.join(runR,'seats.json'),0o444);
+  refused('a seats.json that cannot be written',['--seat','seat-2','--to','session','--reason','x','--round','02-battle-2'],/the run's seats\.json cannot be written \(.*seats\.json\); nothing is recorded/);
+  fs.chmodSync(path.join(runR,'seats.json'),0o644);
+}
 var badTs=lib.fallbackWords({seat:'seat-2',from:'Test Model B',to:'Test Model C',ts:'not a date',reason:'x'});
 check(badTs==='seat-2 fell back from Test Model B to Test Model C: x.','fallbackWords: a line whose time is no date is said without a time, never a throw, got '+badTs);
 refused('a round the run does not hold',['--seat','seat-2','--to','session','--reason','x','--round','09-battle'],/no round 09-battle in this run/);

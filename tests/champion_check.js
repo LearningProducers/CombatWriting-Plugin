@@ -63,6 +63,14 @@ var failures=[], passes=0;
 function check(cond,msg){ if(cond)passes++; else failures.push(msg); }
 function node(script,args,cwd){ return cp.spawnSync(process.execPath,[path.join(scripts,script)].concat(args),{cwd:cwd||proj,encoding:'utf8'}); }
 function read(p){ return fs.readFileSync(p,'utf8'); }
+// The value a YAML reader takes from one line of a skill's header: the quotes dropped, an escape read.
+function headerValue(text,key){
+  var m=new RegExp('^'+key+': (.*)$','m').exec(text.split('\n---')[0]); if(!m)return null;
+  var v=m[1].trim();
+  if(/^".*"$/.test(v)){ try{ return JSON.parse(v); }catch(e){ return null; } }
+  if(/^'.*'$/.test(v))return v.slice(1,-1).replace(/''/g,"'");
+  return v;
+}
 function write(p,t){ fs.writeFileSync(p,t); }
 function sha(p){ return require('crypto').createHash('sha256').update(fs.readFileSync(p)).digest('hex'); }
 function logOf(run){ return read(path.join(run,'log.jsonl')).split('\n').filter(Boolean).map(function(l){return JSON.parse(l);}); }
@@ -221,7 +229,7 @@ var dry=node('open-board.js',['--run',run,'--dry-run']);
 check(dry.status===0&&/^would run: /.test(dry.stdout)&&logOf(run).some(function(e){return e.event==='board.opened'&&e.dry_run===true;}),'open-board after shipped: must run and log board.opened; got '+dry.status+' '+dry.stdout+dry.stderr);
 var skill=read(path.join(plugin,'skills','champion','SKILL.md'));
 var sLines=skill.split('\n');
-check(sLines[0]==='---'&&/^name: champion$/m.test(skill)&&/^argument-hint: shipped \[<url> \| email to <recipient> \| <channel>\] \| result: <text> \| insight: <text> \[run: <folder or word>\]$/m.test(skill)&&sLines[sLines.indexOf('---',1)+1]==='<!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->','champion skill: the front matter, the argument-hint or the SPDX line');
+check(sLines[0]==='---'&&/^name: champion$/m.test(skill)&&headerValue(skill,'argument-hint')==='shipped [<url> | email to <recipient> | <channel>] | result: <text> | insight: <text> [run: <folder or word>]'&&sLines[sLines.indexOf('---',1)+1]==='<!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->','champion skill: the front matter, the argument-hint or the SPDX line');
 check(/After `shipped`, run the third too: the board opens/.test(skill)&&/After `result` and `insight` the board is rebuilt and its path printed, not opened\./.test(skill),'champion skill: shipped must open the board and result and insight must not');
 check(/open-board\.js --run <folder>/.test(skill)&&/champion\.js --run <folder> --kind shipped --file/.test(skill),'champion skill: must run champion.js and open-board.js');
 check(/\*\*Shipped\*\* \(the piece went out; the link, or email to whom\); \*\*Result\*\* \(what came back, silence included\); \*\*Insight\*\* \(what you learned, or a term and what it means\)/.test(skill)&&/\(best guess\)/.test(skill)&&/a lone address is Shipped/.test(skill),'champion skill: the picker with the best-guess rule');
