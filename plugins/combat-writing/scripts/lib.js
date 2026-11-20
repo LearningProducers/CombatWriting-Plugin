@@ -355,8 +355,38 @@ var PROMPT_FIRST_LINE='Answer the task above as it asks, first and in its own sh
 var SECTIONS_LINE_PROMPTED=SECTIONS_LINE.replace('your reply to the task, the verdict line first','your reply to the task as it asks, first');
 var REWRITE_BEGIN='=== REWRITE BEGIN ===', REWRITE_END='=== REWRITE END ===';
 var REWRITE_LINE='The task asks for a rewrite: write it in full between a line holding only `'+REWRITE_BEGIN+'` and a line holding only `'+REWRITE_END+'`, before anything else in your answer but the rating line and the verdict line when they are asked; then your rationale, under 120 words. Your rewrite is your own: one that repeats another seat\'s rewrite is recorded as a copy.';
-var REWRITE_WORDS=/\b(re-?writes?|re-?written|re-?drafts?|re-?works?|revise|revised|reword|rewording|write (it|me|us|a|the|one|this)|draft (me|us|a|the|one))\b/i;
-function asksRewrite(text){ return REWRITE_WORDS.test(String(text||'')); }
+// How a rewrite is asked (issue 228): by the verb as an order, anywhere in the prompt, and never by a
+// word that describes the draft. An order is the verb where a clause starts (the start of the prompt,
+// or after a punctuation mark) or after a word that leads into one ("please", "then", "and", "to",
+// "you", "should"...), with no refusal before it ("do not rewrite it" asks for none); or the noun asked
+// for ("give me a rewrite", "I want a full redraft"). "This revised draft", "this rewrite", "this draft
+// a clear answer" and "did I write the ask" describe, and ask for nothing.
+var REWRITE_VERBS=/\b(?:re-?write|re-?draft|re-?work|revise|reword|write (?:it|me|us|a|the|one|this)|draft (?:me|us|a|the|one))\b/gi;
+var REWRITE_NOUN_ASKS=/\b(?:give|send|show|write|produce|provide|offer|want|need|(?:would|'d) like|do|make|try)\s+(?:(?:me|us)\s+)?(?:a|an|another|one|your|your own)\s+(?:[a-z-]+\s+)?(?:re-?write|re-?draft|rewording|revision|rework)\b/gi;
+var REWRITE_LEADS=['please','kindly','now','then','also','just','and','but','so','next','finally','first','to','you','should','could','would','can','must','will','shall',"let's",'lets'];
+var REWRITE_REFUSALS=['not','never','no','without',"don't",'dont','cannot',"can't","won't","shouldn't","needn't","mustn't"];
+function lastWord(text){ var m=/([A-Za-z'’]+)\s*$/.exec(text); return m?{word:m[1].toLowerCase().replace(/’/g,"'"),before:text.slice(0,m.index)}:null; }
+// Whether the text before a verb leaves it standing as an order: nothing, a punctuation mark, or lead
+// words back to one of those or to any other word; a refusal before the verb or its lead words, never.
+function ordersFrom(before){
+  var led=false;
+  for(;;){
+    before=before.replace(/\s+$/,'');
+    if(before===''||/[^A-Za-z0-9'’]$/.test(before))return true;
+    var w=lastWord(before);
+    if(!w||REWRITE_REFUSALS.indexOf(w.word)>=0)return false;
+    if(REWRITE_LEADS.indexOf(w.word)<0)return led;
+    led=true; before=w.before;
+  }
+}
+function asksRewrite(text){
+  text=String(text||''); var m;
+  REWRITE_VERBS.lastIndex=0;
+  while((m=REWRITE_VERBS.exec(text))){ if(ordersFrom(text.slice(0,m.index)))return true; }
+  REWRITE_NOUN_ASKS.lastIndex=0;
+  while((m=REWRITE_NOUN_ASKS.exec(text))){ var w=lastWord(text.slice(0,m.index)); if(!w||REWRITE_REFUSALS.indexOf(w.word)<0)return true; }
+  return false;
+}
 // The rewrite in an answer: the text between the fence lines (each line holding only its fence, markdown
 // marks around it dropped), or null when the answer carries none.
 function rewriteOf(text){

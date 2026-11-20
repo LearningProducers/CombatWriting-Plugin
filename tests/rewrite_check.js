@@ -10,7 +10,8 @@
 //     sections line and PROMPT_FIRST_LINE, never the verdict clause; the same with --rerate keeps the
 //     verdict-first sections line and the verdict sentence, the rewrite line beside them; a plain
 //     sharing round with no prompt keeps the verdict-first line and the critique sentence.
-//   - lib: asksRewrite on the word list; rewriteOf cuts the fence; rewriteReasons names a missing
+//   - lib: asksRewrite reads an order and never a description (issue 228: the eight prompts of the
+//     issue's comment, on the function and on real packets); rewriteOf cuts the fence; rewriteReasons names a missing
 //     fence, an empty one and text before it (the rating and verdict lines allowed when rated);
 //     verdictLine frames a rewrite by its opening with the greeting line skipped.
 //   - check-answer.js: an answer with no fence on a rewrite round FAILs the first check and is noted
@@ -50,7 +51,7 @@ sj.seats.push({id:'seat-2',model:'openai/gpt-oss-120b',company:'OpenAI',served_b
 sj.seats.push({id:'seat-3',model:'qwen/qwen3.8-27b',company:'Alibaba',served_by:'Groq',provider:'groq',slot:'groq-b',source:'test fixture'});
 write(path.join(run,'seats.json'),JSON.stringify(sj,null,2)+'\n');
 
-// 1. The word list.
+// 1. The verbs that ask.
 check(lib.asksRewrite('Rewrite my most recent revision applying your critique to make it ready to send.')&&lib.asksRewrite('redraft the close')&&lib.asksRewrite('Please re-write it')&&lib.asksRewrite('write it tighter')&&lib.asksRewrite('Revise the ask.'),'asksRewrite: the rewrite words');
 check(!lib.asksRewrite('Who was Queen Elizabeth?')&&!lib.asksRewrite('Is this ready to send?')&&!lib.asksRewrite("the writer's voice is off")&&!lib.asksRewrite(''),'asksRewrite: a question, a judgment and a near word are not a rewrite');
 
@@ -188,6 +189,37 @@ check(/var rewrite=rules\.rewrite\?' The task asks for a rewrite: write it in fu
 var agent=read(path.join(plugin,'agents','seat.md')), battle=skill('battle'), rules_=skill('combat-writing'), help=skill('help'), claude=read(path.join(root,'CLAUDE.md')), rulings=read(path.join(root,'RULINGS.md')), readme=read(path.join(plugin,'README.md'));
 check(/On a round with the author's prompt and no rating \(issue 103\), open with the answer to the prompt as it asks/.test(agent)&&/A rewrite asked for goes first, in full, between the fence lines the Contract names/.test(agent),'seat.md says the prompt rules the shape');
 check(/The Contract follows the prompt \(issue 103; issue 106/.test(battle)&&/The Contract follows the prompt \(issue 103\):/.test(rules_)&&/\*\*Your prompt rules the shape\*\*/.test(help)&&new RegExp('^- Battle \\(the `battle` command\\):[^\\n]* Held by: [^\\n]*tests/rewrite_check\\.js','m').test(claude)&&/The Contract follows the prompt \(issue 103/.test(rulings)&&/a prompt that asks for a rewrite gets the rewrite first, in full, framed on the board under a Rewrite badge/.test(readme),'the skills, RULINGS.md (the rule with its issue, issue 224) and the README say it, and CLAUDE.md\'s Battle bullet names this check (issue 226)');
+
+// 11. An order asks, a description does not (issue 228): the eight prompts of the issue's comment and
+// the four of its table, each with the result given there, on the function and on a real packet.
+var ASKS=['Rewrite it.','Please rewrite the opening.','Rate it, then rewrite it.','Rewrite the opening paragraph.'];
+var DESCRIBES=['Read this revised draft and rate it.','Is this draft a clear answer to the brief?','Did I write the ask too late?','Read this rewrite and rate it.'];
+ASKS.forEach(function(t){ check(lib.asksRewrite(t)===true,'issue 228: "'+t+'" asks for a rewrite; asksRewrite said '+lib.asksRewrite(t)); });
+DESCRIBES.forEach(function(t){ check(lib.asksRewrite(t)===false,'issue 228: "'+t+'" asks for no rewrite; asksRewrite said '+lib.asksRewrite(t)); });
+// The round that was lost: an sn: with rerate whose prompt calls the draft "revised".
+var LOST='Read this revised draft and rate it on a scale from 1–10, you cannot use 7. Explain your reasoning with evidence.';
+check(lib.asksRewrite(LOST)===false,'issue 228: the prompt of the lost round asks for no rewrite');
+// A rewrite asked in the middle of a sentence keeps working; a refusal of one, and the words that only describe, ask for none.
+['I think you should rewrite the opening.','Can you rewrite the close?','Tell me what is weak, and redraft the ask.','I want a rewrite of the close.','Give me your rewrite.','Draft me a shorter close.','How would you write the opening?'].forEach(function(t){ check(lib.asksRewrite(t)===true,'issue 228: "'+t+'" asks for a rewrite'); });
+['Critique it; do not rewrite it.','Don\'t rewrite anything, just rate it.','Is the rewritten close better?','Which of the rewrites is the strongest?','Rate my revised opening.','The draft the board saw was longer.','Did the writer rework the close?'].forEach(function(t){ check(lib.asksRewrite(t)===false,'issue 228: "'+t+'" asks for no rewrite'); });
+// The same eight through packet.js, each as an n: of its own round in a run of its own.
+fs.writeFileSync(path.join(proj,'draft228.md'),'Dana,\n\nBuy the company before the quarter closes.\n');
+var mk228=node('new-run.js',['--draft','draft228.md','--name','order','--stage','battle','--no-brief','--model','Test Model']);
+check(mk228.status===0,'issue 228 new-run: '+mk228.stderr);
+var run228=mk228.stdout.trim();
+ASKS.concat(DESCRIBES).forEach(function(t,i){
+  var round=('0'+(i+1)).slice(-2)+'-battle', want=i<ASKS.length;
+  write(path.join(proj,'p228.md'),t+'\n');
+  var r=node('packet.js',['--run',run228,'--round',round,'--seat','seat-1','--n','p228.md']);
+  var c=r.status===0?contractOf(path.join(run228,'rounds',round,'seat-1.packet.md')):'';
+  var l=r.status===0?packetLine(run228,round,'seat-1'):{};
+  check(r.status===0&&(c.indexOf(lib.REWRITE_LINE)>=0)===want&&l.rewrite===want,'issue 228 packet: "'+t+'" should build a packet '+(want?'with':'with no')+' rewrite line; rewrite on the log line is '+l.rewrite+' '+r.stderr);
+});
+// The lost round as it was sent, sn: with --rerate: a rating packet with no rewrite line.
+write(path.join(proj,'p228.md'),LOST+'\n');
+var rl=node('packet.js',['--run',run228,'--round','09-battle','--seat','seat-1','--sn','p228.md','--rerate']);
+var cl=rl.status===0?contractOf(path.join(run228,'rounds','09-battle','seat-1.packet.md')):'';
+check(rl.status===0&&cl.indexOf(lib.REWRITE_LINE)<0&&/RATING: X\/10/.test(cl)&&packetLine(run228,'09-battle','seat-1').rewrite===false,'issue 228: the lost round builds a rating packet with no rewrite line '+rl.stderr);
 
 fs.rmSync(proj,{recursive:true,force:true});
 if(failures.length){ console.log('rewrite_check: '+failures.length+' failure(s), '+(passes+failures.length)+' checks'); failures.forEach(function(f){console.log('FAIL '+f);}); process.exit(1); }
