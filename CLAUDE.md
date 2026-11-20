@@ -122,7 +122,7 @@ plugins/combat-writing/                the listed plugin, named cw (the folder k
 docs/directory-checklist.md            the pre-submission checklist pass, item by item
 docs/directory-checklist-crew.md       the add-on's own pass, row by row: pass, HELD or n/a, the two key routes HELD (Part 107)
 docs/plugin-map.md                     the plugin on one page (Part 89): the commands, the words, the pickers, the write locations, the hooks and the add-on, the scripts, the checks; its row sets pinned to the folders by tests/map_check.js
-screen/                                the Combat Writing screen (Part 44): a Textual terminal interface in Python, package cw_screen, installed as a uv tool from a tag; its own README, pyproject.toml, uv.lock and tests/*_check.py, which build runs with the plugin's real scripts; CI's screen job runs them, and so does tests/run_all.js
+screen/                                the Combat Writing screen (Part 44): a Textual terminal interface in Python, package cw_screen, installed as a uv tool from `main`; its own README, pyproject.toml, uv.lock and tests/*_check.py, which build runs with the plugin's real scripts; CI's screen job runs them, and so does tests/run_all.js
 plugins/combat-writing-crew/           the add-on: a local MCP server, the second bundle submitted to the directory
   .claude-plugin/plugin.json           the manifest: license, userConfig (masked keys), the mcpServers entry for server.js
   README.md                            what it is, install, keys and surfaces, what it sends where, rate limits
