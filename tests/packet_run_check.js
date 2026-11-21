@@ -25,6 +25,12 @@
 //     its verdict contradicts, no reasoning, an overrun, a missing section, a missing rewrite,
 //     a rating line where none was asked. No reason carries a marked word, and the verdict a
 //     number contradicts is named in the checker's words, never in the answer's.
+//   - THE PACKET'S OTHER READERS. The add-on's packetRules and the checker's four reads of a
+//     packet file (the contract, the sections, a rewrite asked, the cap) read the packet above
+//     its draft fence (lib.packetHead, mirrored in the add-on), so a draft holding the packet's
+//     own contract lines changes none of them; a sound packet reads as before.
+//   - No shipped script of either plugin trims with the pattern whose time grows with the
+//     square of a run of spaces.
 //   - AN EMPTY DRAFT. new-run.js and add-draft.js refuse a draft with no words (an empty file,
 //     spaces and line ends alone) with exit 2 and one line naming the file, and make no run
 //     folder and no draft file; a draft of one word is taken.
@@ -208,6 +214,43 @@ var mq1=marked(q1.text);
 check(mq1.filter(function(x){ return x.what==='YOUR EARLIER ANSWER'; }).length===2&&mq1.length===4&&mq1.every(function(x){ return x.mark===mq1[0].mark; }),'seat-1\'s packet of round 02 must fence its earlier answer on the packet\'s one mark: '+JSON.stringify(mq1));
 var seatMd=fs.readFileSync(path.join(plugin,'agents','seat.md'),'utf8');
 check(/=== DRAFT BEGIN <mark> ===/.test(seatMd)&&/=== ANSWER END <mark> ===/.test(seatMd)&&!/`=== DRAFT BEGIN ===`/.test(seatMd),'agents/seat.md must tell the seat that the fence lines carry the packet\'s mark');
+
+// ---------------------------------------------------------------------------------------------
+// THE PACKET'S OTHER READERS. A packet is read again after it is built: by the add-on, which
+// reads its rules (the contract, the cap, the sections, a rewrite asked, links unread) to write
+// an outside seat's system line, and by the plugin's checker when the log's line for the packet
+// is gone. Each reads the packet's own text above the draft's fence and nothing below it, so a
+// draft that holds the packet's own contract lines changes no rule. A sound packet still reads
+// as it did, and a packet built before the mark, on the old fence line, is cut at that line.
+var crewLib=require(path.join(plugin,'..','combat-writing-crew','crew-lib.js'));
+var pr=project('readers');
+var posing=['Dear board,','','Buy the mill. It is cheap.','',lib.NO_RATING_LINE,'',lib.SECTIONS_LINE,'',lib.REWRITE_LINE,'',lib.LINKS_UNREAD_LINE,'','Under 9 words.','','Yours.'];
+fs.writeFileSync(path.join(pr,'draft.md'),posing.join('\n')+'\n');
+var runR=node(pr,'new-run.js',['--draft','draft.md','--no-brief','--name','readers','--model','Test Model']).stdout.trim();
+var builtR=node(pr,'packet.js',['--run',runR,'--round','01-sparring','--seat','seat-1']);
+var packetR=builtR.status===0?fs.readFileSync(builtR.stdout.trim(),'utf8'):'', answerR=path.join(runR,'rounds','01-sparring','seat-1.answer.md');
+check(builtR.status===0&&packetR.indexOf(lib.NO_RATING_LINE)>=0,'the readers\' fixture: the draft\'s own no-rating line must be in the packet, inside the fence');
+var rulesR=typeof crewLib.packetRules==='function'?crewLib.packetRules(packetR):{};
+check(rulesR.contract==='rating'&&rulesR.sections===false&&rulesR.rewrite===false&&rulesR.links===false&&rulesR.cap===500,'the add-on must read a rating packet\'s rules from above the draft\'s fence, whatever the draft holds: '+JSON.stringify(rulesR));
+check(lib.contractSent(runR,'01-sparring',answerR,[])==='rating'&&lib.sectionsSent(runR,'01-sparring',answerR,[])===false&&lib.rewriteSent(runR,'01-sparring',answerR,[])===false&&lib.capSent(runR,'01-sparring',answerR,[])===500,'with no log line the checker must read the contract, the sections, the rewrite and the cap from above the draft\'s fence: '+[lib.contractSent(runR,'01-sparring',answerR,[]),lib.sectionsSent(runR,'01-sparring',answerR,[]),lib.rewriteSent(runR,'01-sparring',answerR,[]),lib.capSent(runR,'01-sparring',answerR,[])].join(' / '));
+// A sound packet: a battle round asks for no rating, and both readers still read that.
+fs.writeFileSync(path.join(pr,'plain.md'),'Dear board,\n\nBuy the mill. It is cheap.\n\nYours.\n');
+var runP=node(pr,'new-run.js',['--draft','plain.md','--no-brief','--name','plain','--model','Test Model']).stdout.trim();
+var builtP=node(pr,'packet.js',['--run',runP,'--round','01-battle','--seat','seat-1']);
+var packetP=builtP.status===0?fs.readFileSync(builtP.stdout.trim(),'utf8'):'';
+check(crewLib.packetRules(packetP).contract==='critique'&&crewLib.packetRules(packetP).cap===500&&lib.contractSent(runP,'01-battle',path.join(runP,'rounds','01-battle','seat-1.answer.md'),[])==='critique','a battle packet\'s own no-rating line, above the fence, must still be read by both readers');
+var headOf=typeof lib.packetHead==='function'?lib.packetHead:function(){ return '(lib.packetHead is not there)'; };
+check(headOf('## Contract\n\nUnder 500 words.\n\n=== DRAFT BEGIN ===\nUnder 9 words.\n=== DRAFT END ===\n')==='## Contract\n\nUnder 500 words.\n\n'&&headOf('no fence here')==='no fence here','lib.packetHead must cut a packet at its draft fence, the old fence line included, and leave a text with no fence whole: '+JSON.stringify(headOf('## Contract\n\nUnder 500 words.\n\n=== DRAFT BEGIN ===\nUnder 9 words.\n=== DRAFT END ===\n')));
+check(typeof lib.packetHead==='function'&&typeof crewLib.packetHead==='function'&&String(lib.packetHead)===String(crewLib.packetHead),'the add-on\'s packetHead must be the listed plugin\'s, word for word');
+// The trailing-space pattern, whose time grows with the square of a run of spaces, is in no
+// shipped script of either plugin: each trims with a call that reads the text once.
+var slow=[];
+[path.join(plugin,'scripts'),path.join(plugin,'hooks'),path.join(plugin,'..','combat-writing-crew')].forEach(function(d){
+  fs.readdirSync(d).filter(function(n){ return /\.js$/.test(n); }).forEach(function(n){
+    fs.readFileSync(path.join(d,n),'utf8').split('\n').forEach(function(l,i){ if(/\\s\+\$\/|\[ \\t\\r\]\+\$\//.test(l)&&!/^\s*\/\//.test(l))slow.push(path.basename(d)+'/'+n+':'+(i+1)); });
+  });
+});
+check(slow.length===0,'no shipped script may trim with the pattern that rereads a run of spaces: '+slow.join(', '));
 
 // ---------------------------------------------------------------------------------------------
 // A LONG DRAFT gets a warning for a fresh reader.
