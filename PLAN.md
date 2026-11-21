@@ -678,3 +678,26 @@ Seen and not touched, each its own change:
 Delivers: `plugins/combat-writing/hooks/show-result.js`, the manifest's version and the marketplace's, the sparring, battle and rules skills, the listing README, `tests/show_result_check.js`, `tests/show_result_live.js`, `tests/board_check.js`, the root README, CLAUDE.md, RULINGS.md, `docs/plugin-map.md`, `docs/directory-checklist.md`, PLAN.md.
 
 Status: delivered — 2026-11-21 — draft pull request open; each check was run red on the hook as it stood, then green; the last line of `node tests/run_all.js` on the final head and THE SMOKE's lines with their numbers are in the pull request body. The three live proofs are owed from a plain terminal on a scratch clone of the branch before the merge.
+
+## Part 139 — The seat's live proof starts its seat again; CI reads the proof's fixture (no bump)
+
+Issue 237. The three live proofs were run from a plain terminal on 2026-11-21, on Claude Code 2.1.330, on a clone of Part 138's branch. `tests/show_result_live.js` passed, 21 checks. `tests/session_start_live.js` passed, 11 checks. `tests/seat_scope_live.js` failed 6: the seat never started. Measured cause: the proof built its run with `--model 'live proof'`, which records seat-1 as a named model, and since the start of a seat is held to its record (cw 0.9.7) the hook refuses a start that passes no model for a named seat. The hook did what its rule says. The proof's fixture was older than the rule, no test in CI read the fixture, and the proof is run by hand, so it had been red since that rule landed with nothing to show it. Part 138 changed no seat-scope file.
+
+What is built:
+
+1. The fixture. The proof records seat-1 on the session's own model (`--session-model`), the record a start with no model choice is allowed for.
+2. The fixture is read by CI. `tests/seat_scope_check.js` reads the arguments the live proof hands `new-run.js` from the proof's own source, builds that run, and holds that the hook allows the start the proof asks for, seat-1 with no model choice, and that the proof's task opens with the two lines the hook reads. Run red on the proof as it stood: the hook's refusal, word for word the one the live run printed. Green after item 1.
+3. The proof names a refused start. When the hook refuses the start, the proof's first line says so and quotes the hook's reason; before, its lines blamed the version. The check on the outside file's marker no longer fails when no answer file exists, where it printed that the marker had reached a file that was not there.
+4. `PROVED_ON` in `tests/session_start_live.js` moves to 2.1.330, the version it passed on in that run.
+
+Rehearsed in the build session, from a scratch copy on Claude Code 2.1.330: with item 1 the seat starts. The rehearsal cannot go further: under the session's sandbox a child session writes no transcript, and the hook places a seat by its transcript, so the seat's reads are refused there for a reason a plain terminal does not have. The pass that counts is `node tests/seat_scope_live.js` from a plain terminal on a clone of this branch.
+
+Seen and not touched, each owed to the next change that touches the hooks (it bumps and owes THE SMOKE in any case):
+
+- `PROVED_ON` in `hooks/show-result.js` still reads 2.1.310; its proof passed on 2.1.330 in the run above.
+- `PROVED_ON` in `hooks/seat-scope.js` still reads 2.1.301, and the hook's refusal for a transcript it cannot find names that version; it moves when this proof passes.
+- The other two live proofs build no fixture a rule of a hook can refuse in this way: `session_start_live.js` starts no seat and builds no run, and `show_result_live.js` runs scripts on a run and starts no seat.
+
+Delivers: `tests/seat_scope_live.js`, `tests/seat_scope_check.js`, `tests/session_start_live.js`, `docs/plugin-map.md`, PLAN.md.
+
+Status: delivered — 2026-11-21 — draft pull request open; item 2's check was run red on the proof as it stood, then green; the last line of `node tests/run_all.js` is in the pull request body. No board, hook or script changed, so no bump and THE SMOKE is not owed. The live proof from a plain terminal is owed before the merge.

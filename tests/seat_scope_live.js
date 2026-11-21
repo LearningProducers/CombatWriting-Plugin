@@ -6,7 +6,10 @@
 //
 // What it does: a throwaway plugin in a temporary folder loads the repository's
 // hooks/seat-scope.js (plus a dump hook that records every tool call the seat makes); a scratch
-// project gets a run and one packet through the real new-run.js and packet.js; a harmless file
+// project gets a run and one packet through the real new-run.js and packet.js, seat-1 recorded on
+// the session's own model (--session-model), the record the hook starts with no model choice, as
+// the child is asked to start it (tests/seat_scope_check.js builds this same run and holds that
+// start allowed, so the fixture cannot fall behind the hook's rules unseen); a harmless file
 // with a marker sits outside the run folder; a child `claude -p --plugin-dir` session starts the
 // plugin's cw:seat agent with a two-line task plus four steps: read the outside file, Grep it,
 // cat it with Bash, then read the packet and write the answer. Grep and Bash are allowed to the
@@ -48,7 +51,7 @@ try{
   fs.writeFileSync(outside,'A harmless file outside the run folder. '+marker+'\n');
   fs.writeFileSync(path.join(proj,'draft.md'),'Dear board,\n\nBuy the company. It is cheap.\n\nYours.\n');
   function node(script,args){ return cp.spawnSync(process.execPath,[path.join(scripts,script)].concat(args),{cwd:proj,encoding:'utf8'}); }
-  var run=node('new-run.js',['--draft','draft.md','--name','live','--stage','sparring','--model','live proof']).stdout.trim();
+  var run=node('new-run.js',['--draft','draft.md','--name','live','--stage','sparring','--session-model','live proof']).stdout.trim();
   node('packet.js',['--run',run,'--round','01-sparring','--seat','seat-1']);
   var packet=path.join(run,'rounds','01-sparring','seat-1.packet.md'), answer=path.join(run,'rounds','01-sparring','seat-1.answer.md');
 
@@ -59,7 +62,10 @@ try{
   check(child.status===0,'the child session failed: exit '+child.status+' '+(child.stderr||'').slice(0,400));
   var calls=fs.existsSync(dump)?fs.readFileSync(dump,'utf8').trim().split('\n').filter(Boolean).map(function(l){return JSON.parse(l);}):[];
   var seatCalls=calls.filter(function(c){return c.agent_type==='cw:seat';});
-  check(seatCalls.length>0,'the hook never fired inside the seat (no cw:seat call recorded); the seat is invisible to the hook on this version');
+  // A start the hook refused is named as that, first: nothing after it can be proved, and the lines below would name the wrong cause.
+  var refusedStart=(/Combat Writing seat scope: seat-\d+'s record [^\n`]*/.exec(reply)||[])[0];
+  check(!refusedStart,'the hook refused the start of the seat, so no seat ran and nothing below is proved: "'+refusedStart+'"; the run this proof builds must record seat-1 so that a start with no model choice is allowed (tests/seat_scope_check.js holds that)');
+  check(seatCalls.length>0,refusedStart?'no seat ran (see the line above)':'the hook never fired inside the seat (no cw:seat call recorded); the seat is invisible to the hook on this version');
   check(seatCalls.some(function(c){return c.tool_name==='Read'&&c.file_path===outside;}),'the seat never attempted the outside read, so nothing was proved; reply: '+reply.slice(0,600));
   check(/reads only inside its run folder/.test(reply),'the outside read was not refused with the hook\'s reason; reply: '+reply.slice(0,800));
   ['Grep','Bash'].forEach(function(t){
@@ -73,7 +79,7 @@ try{
   var toolsEnforced=!seatCalls.some(function(c){return c.tool_name==='Grep'||c.tool_name==='Bash';});
   check(seatCalls.some(function(c){return c.tool_name==='Read'&&c.file_path===packet;}),'the seat never read the packet');
   check(fs.existsSync(answer)&&/^RATING: \d{1,2}\/10/.test(fs.readFileSync(answer,'utf8')),'the answer file was not written with the rating line first');
-  check(fs.existsSync(answer)&&fs.readFileSync(answer,'utf8').indexOf(marker)<0,'the outside file\'s marker reached the answer file');
+  check(!fs.existsSync(answer)||fs.readFileSync(answer,'utf8').indexOf(marker)<0,'the outside file\'s marker reached the answer file');
   check(reply.indexOf(marker)<0,'the outside file\'s marker reached the seat\'s reply');
   check(!/crew\.answered/.test(fs.readFileSync(path.join(run,'log.jsonl'),'utf8')),'a provider was called (crew.answered in the log)');
   facts.push('tools: Read, Write in agents/seat.md '+(toolsEnforced?'enforced':'NOT enforced')+' for the plugin subagent on Claude Code '+version);

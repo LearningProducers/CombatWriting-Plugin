@@ -47,6 +47,8 @@
 //     `claude --version` step and the issues address; the source holds that version once.
 //   - The deny output is one JSON line in the documented shape, exit 0; the hook writes nothing
 //     anywhere; hooks.json carries the PreToolUse entry with no matcher (every tool) and a short timeout.
+//   - The live proof's fixture (issue 237): the run tests/seat_scope_live.js builds, read from its
+//     own source and built here, is one whose seat-1 the hook starts with no model choice.
 //
 // Run from the repo root:   node tests/seat_scope_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -236,6 +238,28 @@ check(fs.readFileSync(answer,'utf8')==='RATING: 8/10\nFirst.\n','the hook must n
 var hooks=JSON.parse(fs.readFileSync(path.join(plugin,'hooks','hooks.json'),'utf8'));
 var pre=(hooks.hooks.PreToolUse||[]).filter(function(e){return e.matcher===undefined;});  // the host-output entry (matcher AskUserQuestion, issue 60) sits beside it
 check(pre.length===1&&pre[0].hooks.length===1&&pre[0].hooks[0].type==='command'&&pre[0].hooks[0].command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js"'&&typeof pre[0].hooks[0].timeout==='number'&&pre[0].hooks[0].timeout<=10,'hooks.json: the one PreToolUse entry with no matcher must run seat-scope.js on every tool with a short timeout: '+JSON.stringify(pre));
+// THE LIVE PROOF'S FIXTURE (issue 237). tests/seat_scope_live.js is not run by CI, so nothing
+// read the run it builds, and a rule the hook gained after the proof was written left the proof
+// starting no seat, unseen. The arguments the live proof hands new-run.js are read from its own
+// source and the same run is built here: the start the proof asks for, seat-1 with no model
+// choice and the task the proof writes, must be one the hook allows. A later rule the fixture
+// does not meet fails here.
+var liveSrc=fs.readFileSync(path.join(__dirname,'seat_scope_live.js'),'utf8');
+var liveArgsText=(/node\('new-run\.js',(\[[^\]]*\])\)/.exec(liveSrc)||[])[1], liveArgs=null;
+try{ liveArgs=JSON.parse(String(liveArgsText).replace(/'/g,'"')); }catch(e){}
+check(Array.isArray(liveArgs)&&liveArgs.indexOf('--draft')>=0,'the live proof\'s fixture: tests/seat_scope_live.js must hand new-run.js one literal list of arguments this check can read, got '+JSON.stringify(liveArgsText));
+if(Array.isArray(liveArgs)){
+  var liveProj=path.join(tmp,'live-proj'); fs.mkdirSync(liveProj);
+  fs.writeFileSync(path.join(liveProj,'draft.md'),'Dear board,\n\nBuy the company. It is cheap.\n\nYours.\n');
+  var liveRun=cp.spawnSync(process.execPath,[path.join(scripts,'new-run.js')].concat(liveArgs),{cwd:liveProj,encoding:'utf8'}).stdout.trim();
+  cp.spawnSync(process.execPath,[path.join(scripts,'packet.js'),'--run',liveRun,'--round','01-sparring','--seat','seat-1'],{cwd:liveProj,encoding:'utf8'});
+  var livePacket=path.join(liveRun,'rounds','01-sparring','seat-1.packet.md'), liveAnswer=path.join(liveRun,'rounds','01-sparring','seat-1.answer.md');
+  check(!!liveRun&&fs.existsSync(livePacket),'the live proof\'s fixture: its arguments must build a run with seat-1\'s packet, got '+JSON.stringify(liveRun));
+  var liveStart=start('Packet: '+livePacket+'\nAnswer file: '+liveAnswer+'\nThis is a measurement run.');
+  check(liveStart.status===0&&liveStart.out===''&&liveStart.stderr==='','the live proof\'s fixture: the hook must allow the start the live proof asks for (seat-1, no model choice); it refused with: '+JSON.stringify(liveStart.reason||liveStart.out));
+  check(/'Packet: '\+packet\+'\\nAnswer file: '\+answer\+'\\n/.test(liveSrc),'the live proof\'s fixture: the task the live proof writes must open with the Packet and Answer file lines the hook reads');
+}
+
 var src=fs.readFileSync(hook,'utf8');
 check(src.split('\n')[0]==='// SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0','seat-scope.js: no Shield header on line 1');
 check(!/writeFileSync|appendFileSync|mkdirSync|child_process|\bfetch\(|https?:\/\/|process\.env/.test(src.replace(/\/\/[^\n]*/g,'')),'seat-scope.js: must write nothing, spawn nothing, fetch nothing, read no environment');
