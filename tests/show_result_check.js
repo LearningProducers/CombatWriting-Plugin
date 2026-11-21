@@ -4,6 +4,7 @@
 // through systemMessage when the command ran render-record.js --short, opens the board outside
 // the sandbox when the opener's line says the shell could not or no line reached it (Part 116), re-runs
 // a silenced command from its --run path, and is silent on a command that ran none of the four.
+// Every act is held to a real run folder the command names by a literal --run path (issue 235).
 //
 // Runs the REAL hook as a child process with the hook's stdin JSON (the PostToolUse shape:
 // tool_name, tool_input.command, tool_response {stdout, stderr}), around the REAL short form
@@ -38,11 +39,14 @@
 //     command's literal --run path; a variable in the command and no folder on the line puts a line
 //     naming the miss on the screen, renders nothing, exit 0.
 //   - additionalContext tells the host the lines are on the screen and to print the round line
-//     and the picker only. The output is one JSON line, exit 0, nothing on stderr.
+//     and the picker only; it is handed only when the command names a real run folder by a
+//     literal path (issue 235), and a message for a run the hook cannot place rides with none.
+//     The output is one JSON line, exit 0, nothing on stderr.
 //   - THE SWITCH (issue 216): the hook reads <project>/combat-writing/picker.json, the project read
 //     from the command's literal --run path, and never writes it. Off, the context says to print
-//     the text Next line and open no picker; on, absent, unreadable, a pipe, or a run the hook
-//     cannot place (a shell variable, a tilde, a working folder that is no string), it ends as before. The reading equals lib.readPicker's on the same file.
+//     the text Next line and open no picker; on, absent, unreadable or a pipe, it ends as before;
+//     for a run the hook cannot place (a shell variable, a tilde, a working folder that is no
+//     string) no context is handed at all (issue 235). The reading equals lib.readPicker's on the same file.
 //   - Every quality voice (Part 82, issue 129): with two quality voices listed the hook renders both
 //     for the seat, the line counts them and names the default ("2 voices for seat-1 (Ava (Premium)
 //     the default, 12.5 s)"), the second file is on disk, voices.json's renders names both, and the
@@ -82,6 +86,17 @@
 //     it last. The source: the id pattern equals lib.js's, every read of the measurement goes
 //     through the one bounded reader, which opens without blocking and reads a regular file
 //     alone, and the Packet line is read with no pattern.
+//   - THE REAL RUN (issue 235): a command that only mentions a script's name, with a line in its
+//     output shaped like the opener's failed line and naming a file or a web address, gets
+//     silence and opens nothing; with the real run in the command and another path on the line,
+//     the run's own board is opened and the other never; a run named by a shell variable is not
+//     opened, the script's line shown as printed, no context; a folder that is no run, a
+//     board.html that is a link and a run whose log is a link are never opened and nothing is
+//     written through the link; the voices are not rendered into a round folder holding a link,
+//     for a round named `..`, or in a folder that is no run; a board.html that is a link is
+//     never rebuilt through; with the platform named win32 and a recorder standing in for cmd, a
+//     plain path is handed to cmd /c start and a path holding & never is; the failed-opener
+//     pattern captures no path.
 //   - hooks.json carries the PostToolUse entry on Bash with a timeout that covers the render; the source has
 //     the Shield header, the one PROVED_ON constant, the one MODEL_READ_ON constant, and spawns only the opener.
 //
