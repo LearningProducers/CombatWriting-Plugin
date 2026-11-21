@@ -15,18 +15,28 @@
 // answer file is open to a read because the Write tool refuses to replace a file its caller has
 // not read, and a seat sent back once rewrites its answer.
 //
-// How the hook places the seat: the host starts a seat with a task of two lines, `Packet:
-// <path>` and `Answer file: <path>` (the sparring and battle skills). That task is the first
-// record of the seat's own transcript, which Claude Code keeps beside the session's transcript
-// as <session dir>/<session_id>/subagents/agent-<agent_id>.jsonl (measured on the Claude Code
-// version in PROVED_ON below, the one constant the reason and the tests read; the live proof
-// is tests/seat_scope_live.js). The
-// hook reads that record, takes the two paths, resolves the packet to its run folder
-// (rounds/<round>/<seat>.packet.md, two levels under the run), and judges every Read against
-// the packet and the answer path and every Write against the answer path. No transcript, no
-// task, no packet, no run folder, a symlink to another file, a path that does not exist,
-// malformed input: denied, with the reason, so a seat the hook cannot place does nothing rather
-// than anything.
+// How the hook places the seat: by a record of its own, never by a transcript. The host starts a
+// seat with a task of two lines, `Packet: <path>` and `Answer file: <path>` (the sparring and
+// battle skills), and this hook judges that start call (below). When it allows the start it
+// writes one small file in the plugin's data folder, the folder the host names in
+// CLAUDE_PLUGIN_DATA: <data>/seat-scope/<session_id>/start-<time>-<pid>.json, holding the seat's
+// id, the run folder, the packet and the answer file, each as a resolved path, and the time. No
+// word of the task, the draft or the brief is in it. A seat's own calls carry its agent id and
+// no task (measured on the Claude Code version in PROVED_ON below, the one constant the reason
+// and the tests read; the live proof is tests/seat_scope_live.js), so the seat is bound to its
+// record by its first call that names one of its two files: a seat with no record of its own
+// that reads the packet, or reads or writes the answer file, of a start still waiting in its
+// session takes that start, the file renamed to agent-<agent_id>.json, and every later call of
+// that seat is judged by it. The rename is one step, so two seats never take one start, and a
+// seat that has a record never takes another. Why the first call can be trusted with this: until
+// a seat has been allowed a read it has read nothing but the plugin's agent file and the host's
+// task, so no word of the draft has reached it yet. No data folder, no record, a record the hook
+// cannot read, a symlink to another file, a path that does not exist, malformed input: denied,
+// with the reason, so a seat the hook cannot place does nothing rather than anything.
+//
+// When the records end: a session's folder of records is removed by a later start of a seat,
+// in any session, 30 days after the last start or first call in it; the hook removes its own
+// record files there and the folder when nothing else is in it, and never follows a link.
 //
 // When the hook itself fails: hooks.json sets onFailure "block" on this hook's entry, so the
 // host stops the call when the hook cannot start, exits with an error or runs past its timeout,
@@ -53,13 +63,17 @@
 // and passes the tool's own choice string, and the two differ by design. A start the hook
 // cannot place (no task lines, a packet outside a run's rounds folder, an answer file outside
 // the run, no seats.json, no record for the seat) and the start of an outside seat, which goes
-// through the add-on and never the agent tool, are denied with the reason. Any other call of
+// through the add-on and never the agent tool, are denied with the reason, and so is a start
+// whose record the hook cannot keep (no data folder named, or one it cannot write in): a seat
+// with no record would be refused every call, so it is not started. Any other call of
 // those two tools, and every other tool from a caller that is not a seat, is untouched.
 //
 // Output on deny: one JSON line, hookSpecificOutput.permissionDecision "deny" with the reason,
 // exit 0 (the documented form). On allow: nothing, exit 0, so the session's own permission
-// rules still apply. The hook reads the transcript record and the file system; it writes
-// nothing, calls nothing, reads no environment, and never prints a path from inside the draft.
+// rules still apply. The hook reads the hook input, its own records and the file system, and
+// opens no transcript; it writes its records in the plugin's data folder and nowhere else, calls
+// nothing, reads one environment variable, CLAUDE_PLUGIN_DATA, and never prints a path from
+// inside the draft.
 // Input that does not parse is denied when it names a seat agent type and ignored otherwise.
 // A fault in the hook's own code is answered by who the input says is calling, the parsed input
 // when the fault falls after it was read and the raw input before: refused for a seat and for
@@ -75,6 +89,15 @@ var START_TOOLS=['Agent','Task'];
 var SEAT_TYPES=['cw:seat','seat'];
 var SEAT_TOOLS=['Read','Write'];
 var ISSUES='github.com/LearningProducers/CombatWriting-Plugin/issues';
+// The hook's own records: where, how long, and the only names it writes or removes there.
+var DATA=process.env.CLAUDE_PLUGIN_DATA||'';
+var KEPT_IN='seat-scope';
+var KEPT_DAYS=30;
+var SWEPT_AT_ONCE=20;
+var ID=/^[A-Za-z0-9_-]{1,128}$/;
+var START_FILE=/^start-[0-9a-z]+-\d+\.json$/;
+var RECORD_FILE=/^(?:start|agent|claim)-[A-Za-z0-9_-]+\.json$/;
+var SEAT_PACKET=/^(seat-\d+)\.(?:[a-z0-9-]+\.)?packet\.md$/;
 
 function deny(reason){
   process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:'PreToolUse',permissionDecision:'deny',permissionDecisionReason:'Combat Writing seat scope: '+reason}})+'\n');
@@ -96,30 +119,83 @@ function placeTarget(p,cwd){
   try{ return path.join(fs.realpathSync(path.dirname(abs)),path.basename(abs)); }catch(e){ return null; }
 }
 
-// Where the seat's own transcript should be, for the task and for the reason when it is not there.
-function transcriptPathOf(input){
-  var tp=input.transcript_path, sid=input.session_id, aid=input.agent_id;
-  if(typeof tp!=='string'||typeof sid!=='string'||typeof aid!=='string')return 'no transcript_path, session_id or agent_id in the hook input';
-  if(!/^[A-Za-z0-9_-]+$/.test(sid)||!/^[A-Za-z0-9_-]+$/.test(aid))return 'a session or agent id the hook will not use in a path';
-  return path.join(path.dirname(tp),sid,'subagents','agent-'+aid+'.jsonl');
+// The folder of this session's records, or why there is none.
+function recordsOf(input){
+  if(!DATA||!path.isAbsolute(DATA))return {why:'the host named no data folder for the plugin'};
+  var sid=input.session_id;
+  if(typeof sid!=='string'||!ID.test(sid))return {why:'no session id the hook will use in a path'};
+  return {dir:path.join(DATA,KEPT_IN,sid)};
 }
-// The seat's task: the first user record of the seat's own transcript.
-function taskOf(input){
-  var file=transcriptPathOf(input);
-  if(!path.isAbsolute(file))return null;
-  var text;
-  try{ text=fs.readFileSync(file,'utf8'); }catch(e){ return null; }
-  var lines=text.split('\n');
-  for(var i=0;i<lines.length;i++){
-    if(!lines[i].trim())continue;
-    var rec; try{ rec=JSON.parse(lines[i]); }catch(e){ return null; }
-    if(rec&&rec.type==='user'&&rec.message){
-      var c=rec.message.content;
-      if(Array.isArray(c))c=c.map(function(x){return x&&typeof x.text==='string'?x.text:'';}).join('\n');
-      return typeof c==='string'?c:null;
-    }
+// One record, read back: a plain file of the hook's own shape, a seat's packet inside a run's
+// rounds folder and an answer file inside that run, or null. A link, a file of another shape and
+// a record that names anything else is no record.
+function readRecord(file){
+  try{
+    var st=fs.lstatSync(file);
+    if(!st.isFile()||st.size>65536)return null;
+    var r=JSON.parse(fs.readFileSync(file,'utf8'));
+    if(!r||r.v!==1||typeof r.at!=='number'||typeof r.run!=='string'||typeof r.packet!=='string'||typeof r.answer!=='string')return null;
+    if(!path.isAbsolute(r.run)||!path.isAbsolute(r.packet)||!path.isAbsolute(r.answer))return null;
+    if(!SEAT_PACKET.test(path.basename(r.packet))||!samePath(path.dirname(path.dirname(r.packet)),path.join(r.run,'rounds'))||!inside(r.answer,r.run))return null;
+    return {v:1,at:r.at,seat:typeof r.seat==='string'?r.seat:'',run:r.run,packet:r.packet,answer:r.answer};
+  }catch(e){ return null; }
+}
+// Folders of records no seat has started in or first called from for KEPT_DAYS: the hook's own
+// record files are removed and the folder when it is then empty. Never this session's, never
+// through a link, a few at a time, and a failure here never stops a start.
+function sweep(base,mine){
+  try{
+    var cut=Date.now()-KEPT_DAYS*86400000, done=0;
+    fs.readdirSync(base).some(function(name){
+      if(name===mine||!ID.test(name))return false;
+      var dir=path.join(base,name);
+      try{
+        var st=fs.lstatSync(dir);
+        if(!st.isDirectory()||st.mtimeMs>cut)return false;
+        fs.readdirSync(dir).forEach(function(f){
+          var file=path.join(dir,f);
+          if(RECORD_FILE.test(f)&&fs.lstatSync(file).isFile())fs.unlinkSync(file);
+        });
+        fs.rmdirSync(dir);
+      }catch(e){}
+      return ++done>=SWEPT_AT_ONCE;
+    });
+  }catch(e){}
+}
+// The start the hook allowed, put on record. True, or why it could not be kept.
+function keep(input,rec){
+  var where=recordsOf(input);
+  if(!where.dir)return where.why;
+  try{
+    fs.mkdirSync(where.dir,{recursive:true,mode:0o700});
+    fs.writeFileSync(path.join(where.dir,'start-'+rec.at.toString(36)+'-'+process.pid+'.json'),JSON.stringify(rec)+'\n',{flag:'wx',mode:0o600});
+  }catch(e){ return (e&&e.code?String(e.code):'an error')+' writing in the plugin\'s data folder'; }
+  sweep(path.dirname(where.dir),path.basename(where.dir));
+  return true;
+}
+// A seat with no record of its own, on a call that names a file: the newest start still waiting
+// in its session whose packet (a Read) or answer file (a Read or a Write) is that file becomes
+// the seat's record. Three steps, each one that can fail safely: the start is renamed to a name
+// only this call uses, so no other seat can take it; the seat's record is created, never
+// replaced, so a seat that a call of its own placed a moment ago keeps that one and the start is
+// given back; the spare name is removed. A hook stopped between the steps leaves the seat with
+// no record: refused, never opened. Returns the record, or {waiting: how many starts wait}.
+function take(dir,aid,tool,placed){
+  var names; try{ names=fs.readdirSync(dir); }catch(e){ return {waiting:0}; }
+  var waiting=[];
+  names.forEach(function(n){ if(START_FILE.test(n)){ var r=readRecord(path.join(dir,n)); if(r)waiting.push({name:n,rec:r}); } });
+  var mine=path.join(dir,'agent-'+aid+'.json');
+  var fits=!placed?[]:waiting.filter(function(w){ return (tool==='Read'&&samePath(placed,w.rec.packet))||samePath(placed,w.rec.answer); });
+  fits.sort(function(a,b){ return b.rec.at-a.rec.at||(a.name<b.name?1:-1); });
+  for(var i=0;i<fits.length;i++){
+    var from=path.join(dir,fits[i].name), spare=path.join(dir,'claim-'+aid+'-'+fits[i].name.slice(6));
+    try{ fs.renameSync(from,spare); }catch(e){ continue; }
+    try{ fs.writeFileSync(mine,JSON.stringify(fits[i].rec)+'\n',{flag:'wx',mode:0o600}); }
+    catch(e){ try{ fs.renameSync(spare,from); }catch(e2){} return readRecord(mine)||{waiting:waiting.length}; }
+    try{ fs.unlinkSync(spare); }catch(e){}
+    return fits[i].rec;
   }
-  return null;
+  return {waiting:waiting.length};
 }
 function pathsOf(task){
   var packet=/^Packet:[ \t]*(.+?)[ \t]*$/m.exec(task), answer=/^Answer file:[ \t]*(.+?)[ \t]*$/m.exec(task);
@@ -140,7 +216,7 @@ function judgeStart(input){
   if(!paths)return deny('the call that starts a seat names no packet or answer file (its task opens with the two lines `Packet: <path>` and `Answer file: <path>`, the start call as Claude Code '+START_READ_ON+' writes it); the seat is not started');
   var packet=placeExisting(paths.packet,cwd);
   if(!packet)return deny('the packet named in the seat\'s task cannot be placed; the seat is not started');
-  var runDir=path.dirname(path.dirname(packet)), m=/^(seat-\d+)\.(?:[a-z0-9-]+\.)?packet\.md$/.exec(path.basename(packet));
+  var runDir=path.dirname(path.dirname(packet)), m=SEAT_PACKET.exec(path.basename(packet));
   if(path.basename(runDir)!=='rounds'||!m)return deny('the packet named in the seat\'s task is not a seat\'s packet inside a run\'s rounds folder; the seat is not started');
   runDir=path.dirname(runDir);
   var answer=placeTarget(paths.answer,cwd);
@@ -155,6 +231,8 @@ function judgeStart(input){
   var passed=typeof ti.model==='string'&&ti.model.trim()!=='';
   if(start==='session'&&passed)return deny(id+'\'s record says it runs on the session\'s own model; start '+id+' again with no model choice');
   if(start==='named'&&!passed)return deny(id+'\'s record names '+(typeof seat.model==='string'&&seat.model?seat.model:'a model')+'; start '+id+' again and pass that model as the agent tool\'s model choice');
+  var kept=keep(input,{v:1,at:Date.now(),seat:id,run:runDir,packet:packet,answer:answer});
+  if(kept!==true)return deny('the hook cannot keep the record of this start ('+kept+'), and a seat with no record reads and writes nothing; the seat is not started. No fresh reader can start in this session; outside seats through the add-on are not affected');
   return allow();
 }
 
@@ -193,30 +271,25 @@ process.stdin.on('end',function(){
   var tool=input.tool_name;
   if(SEAT_TOOLS.indexOf(tool)<0)return deny('a seat uses '+SEAT_TOOLS.join(' and ')+' only; '+tool+' is not open to it');
   var cwd=typeof input.cwd==='string'&&input.cwd?input.cwd:process.cwd();
-  var task=taskOf(input);
-  if(!task)return deny('the seat\'s transcript is not where Claude Code '+PROVED_ON+' keeps it ('+transcriptPathOf(input)+'), so no run folder can be placed and nothing is read or written. A newer Claude Code has probably moved it: run `claude --version` and open an issue at '+ISSUES+' naming the version. Outside seats through the add-on are not affected');
-  var paths=pathsOf(task);
-  if(!paths)return deny('the seat\'s task names no packet or answer file; nothing is read or written');
-  var packet=placeExisting(paths.packet,cwd);
-  if(!packet)return deny('the packet named in the task cannot be placed; nothing is read or written');
-  var roundDir=path.dirname(packet), runDir=path.dirname(roundDir);
-  if(path.basename(runDir)!=='rounds'||!/\.packet\.md$/.test(path.basename(packet)))return deny('the packet named in the task is not inside a run\'s rounds folder; nothing is read or written');
-  runDir=path.dirname(runDir);
-  var answer=placeTarget(paths.answer,cwd);
-  if(!answer||!inside(answer,runDir))return deny('the answer file named in the task is not inside the run folder; nothing is read or written');
+  var aid=input.agent_id, where=recordsOf(input);
+  if(where.dir&&(typeof aid!=='string'||!ID.test(aid)))return deny('the call carries no agent id the hook will use in a path; nothing is read or written');
   var target=input.tool_input&&typeof input.tool_input.file_path==='string'?input.tool_input.file_path:null;
-  if(!target)return deny('the call names no file; nothing is read or written');
+  if(where.dir&&!target)return deny('the call names no file; nothing is read or written');
+  // The file the call names, resolved: a Read's must exist; a Write's may not yet. The resolved
+  // path is what is compared, so a link beside the packet that points at another file is that
+  // other file. The file asked for is never named in a reason: its path may be the draft's words.
+  var placed=!target?null:tool==='Read'?placeExisting(target,cwd):placeTarget(target,cwd);
+  var rec=where.dir?readRecord(path.join(where.dir,'agent-'+aid+'.json')):null;
+  if(!rec&&where.dir)rec=take(where.dir,aid,tool,placed);
+  if(!rec||rec.waiting===0)return deny('no start of this seat is on the hook\'s record ('+(where.dir?'it looked in '+where.dir:where.why)+'), so no packet can be placed and nothing is read or written. The hook records a seat when the agent tool starts it, and was last proved on Claude Code '+PROVED_ON+': if the agent tool started this seat, run `claude --version` and open an issue at '+ISSUES+' naming the version. Outside seats through the add-on are not affected');
+  var packet=rec.packet||null, answer=rec.answer||null;
   if(tool==='Read'){
-    // Two files and no other: the packet, and the answer file once it is on disk. The resolved
-    // path is what is compared, so a link beside the packet that points at another file is that
-    // other file. The file asked for is never named in the reason: its path may be the draft's words.
-    var p=placeExisting(target,cwd);
-    if(!p)return deny('the file cannot be placed (it does not exist, or its path cannot be resolved); a seat reads only its own packet and its own answer file');
-    if(samePath(p,packet)||samePath(p,answer))return allow();
+    // Two files and no other: the packet, and the answer file once it is on disk.
+    if(!placed)return deny('the file cannot be placed (it does not exist, or its path cannot be resolved); a seat reads only its own packet and its own answer file');
+    if(packet&&(samePath(placed,packet)||samePath(placed,answer)))return allow();
     return deny('a seat reads only its own packet and its own answer file; this file is neither');
   }
-  var w=placeTarget(target,cwd);
-  if(!w)return deny('the file cannot be placed; a seat writes only its own answer file');
-  if(!samePath(w,answer))return deny('a seat writes only its own answer file, '+answer);
+  if(!placed)return deny('the file cannot be placed; a seat writes only its own answer file');
+  if(!answer||!samePath(placed,answer))return deny('a seat writes only its own answer file'+(answer?', '+answer:''));
   return allow();
 });
