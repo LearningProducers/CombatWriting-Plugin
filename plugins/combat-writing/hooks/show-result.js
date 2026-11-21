@@ -11,7 +11,8 @@
 // the board itself with the system opener, outside the sandbox (hooks run with the session's
 // full access, the Claude Code docs' word), appends `board.opened {ok, by: "hook"}` to the run's
 // log, and says "Board opened by the plugin" or why not. The board it opens is the run's own
-// board.html and no other file (THE REAL RUN, below). One command may carry both scripts.
+// board.html and no other file, rendered again by the hook before it is opened (THE REAL RUN,
+// below). One command may carry both scripts.
 // When the command ran `speak.js` and its line says the speech engine wrote no sound in that
 // shell (Part 81.1, issue 123, measured 2026-10-28: inside the sandbox `say -o` writes a container
 // with no sound), the hook runs the same script outside the sandbox with `--by hook`, rebuilds the
@@ -54,9 +55,13 @@
 //     line (Part 81.2), else from the command's literal path; it must be a real run folder, and
 //     the round a round of it: a name of the round's form, rounds/<round> a plain directory, and
 //     no symbolic link among that folder's entries. The run is asked again before the rebuild.
+//   - The render before the open. The page the hook opens is the plugin's own render of the run:
+//     the hook runs render-board.js on the run the moment before it opens the board, so a
+//     board.html written by any other hand is replaced by that render and never opened as it
+//     stood. A render that fails or runs past its window opens nothing, and the message says so.
+//     With the voices owed in the same command the board is rendered once, after them.
 //   Named and not cured: the checks are made before the act, and a folder changed between the
-//   check and the act is not seen; the board's own content is the file as it stands in the run,
-//   written by render-board.js when the host ran it, and the hook does not render it again.
+//   check and the act is not seen.
 //
 // THE SILENCED COMMAND (Part 116, issue 179): a command that ran a script of the four but carries
 // none of its lines (the host sent the output to /dev/null) is re-run by the hook from the
@@ -189,6 +194,7 @@ var RUN_ARG=/\s--run\s+\S/, RUN_ENTRIES_MAX=4096, WIN_UNSAFE=/[&|<>^%"\r\n]/;
 var VOICES_NOT_A_RUN='Voices: nothing rendered by the plugin: not a run folder (no seats.json and log.jsonl of a run there as plain files, or a link among its files): ';
 var VOICES_NOT_A_ROUND='Voices: nothing rendered by the plugin: no such round in the run, or a link among its files: ';
 var VOICES_TAIL='; the board reads with the browser.';
+var RENDER_MISS=' (the plugin could not render it again, so it did not open it: ';
 var WIN_REFUSED='its path holds a character the Windows opener reads as its own (& | < > ^ % or a double quote)';
 var CONTEXT_HEAD='Combat Writing: the short form and the board line are on the person\'s screen already, printed by the plugin\'s own hook as the scripts returned. Print nothing from those scripts\' output and never redirect it (no >/dev/null, no file): the hook reads it; print one line naming the round just run, ';
 var CONTEXT=CONTEXT_HEAD+'then open the Next picker.';
@@ -270,7 +276,7 @@ function openedFresh(runDir){
   var t=Date.parse(last.ts||last.at||''); return !isNaN(t)&&(Date.now()-t)<FRESH_MS;
 }
 // The voices rendered outside the sandbox: the same speak.js, then the board when the command built it.
-function renderVoices(runDir,round,rebuild,opened){
+function renderVoices(runDir,round,rebuild,opened,later){
   var r=cp.spawnSync(process.execPath,[path.join(scripts,'speak.js'),'--run',runDir,'--round',round,'--by','hook'],{encoding:'utf8',timeout:RENDER_WAIT_MS});
   var stopped=!!(r.error&&r.error.code==='ETIMEDOUT');
   if(r.error&&!stopped)return 'Voices: the plugin could not start the render: '+(r.error.code||r.error.message)+'; the board reads with the browser.';
@@ -280,6 +286,7 @@ function renderVoices(runDir,round,rebuild,opened){
   var vj=null; try{ vj=JSON.parse(fs.readFileSync(path.join(runDir,'rounds',round,'voices.json'),'utf8')); }catch(e){}
   var ids=vj&&vj.files?Object.keys(vj.files).sort():[];
   if(!ids.length)return stopped?'Voices: the plugin\'s render ran past '+(RENDER_WAIT_MS/1000)+' seconds and was stopped before any file was done; the board reads with the browser this round.':'Voices: nothing rendered by the plugin'+(r.stderr&&String(r.stderr).trim()?': '+String(r.stderr).trim().split('\n')[0].slice(0,REASON_MAX):'')+'; the board reads with the browser.';
+  if(later)rebuild=false; // THE RENDER BEFORE THE OPEN: the hook renders the board once, after this, and opens that render
   if(rebuild&&!isRun(runDir))rebuild=false; // THE REAL RUN: asked again after the render, before the board is written
   if(rebuild)cp.spawnSync(process.execPath,[path.join(scripts,'render-board.js'),'--run',runDir],{encoding:'utf8',timeout:BOARD_WAIT_MS});
   // Part 82: with more than one voice rendered for a seat, the line counts the voices per seat and
@@ -291,7 +298,17 @@ function renderVoices(runDir,round,rebuild,opened){
     if(!multi)return vj.assigned[id]+' for '+id+(secs?' ('+secs+')':'');
     return counts[i]+' voice'+(counts[i]===1?'':'s')+' for '+id+' ('+vj.assigned[id]+' the default'+(secs?', '+secs:'')+')';
   });
-  return 'Voices rendered by the plugin: '+named.join(multi?'; ':', ')+'.'+(stopped?' The render was stopped at '+(RENDER_WAIT_MS/1000)+' seconds; the voices after that are missing.':'')+(rebuild?(opened?' The board was rebuilt after it opened: reload it to hear them.':' The board carries them.'):'');
+  return 'Voices rendered by the plugin: '+named.join(multi?'; ':', ')+'.'+(stopped?' The render was stopped at '+(RENDER_WAIT_MS/1000)+' seconds; the voices after that are missing.':'')+(later?' The board carries them.':rebuild?(opened?' The board was rebuilt after it opened: reload it to hear them.':' The board carries them.'):'');
+}
+// THE RENDER BEFORE THE OPEN: the board rendered by the plugin's own script from the run's files. Null on success, else why not.
+function renderBoard(runDir){
+  var r=cp.spawnSync(process.execPath,[path.join(scripts,'render-board.js'),'--run',runDir],{encoding:'utf8',timeout:BOARD_WAIT_MS});
+  if(r.error)return r.error.code==='ETIMEDOUT'?'the render ran past '+(BOARD_WAIT_MS/1000)+' seconds':'the render could not start: '+(r.error.code||r.error.message);
+  if(r.status!==0){ // the script's own error line when it printed one, never a stack's first line
+    var why=String(r.stderr||'').split('\n').filter(function(l){ return /^(error: |[A-Za-z]*Error: )/.test(l); })[0];
+    return (why||'the render exited '+r.status).slice(0,REASON_MAX);
+  }
+  return null;
 }
 function finish(obj){ process.stdout.write(JSON.stringify(obj)+'\n'); process.exit(0); }
 function silent(){ process.exit(0); }
@@ -548,24 +565,32 @@ process.stdin.on('end',function(){
     }
     if(wantSpeak&&!spoke){ var round=roundOf(command); if(round&&isRound(runDir,round)&&voicesOwed(runDir,round))voices={dir:runDir,round:round}; }
   }
+  // THE REAL RUN: the board the hook opens is the run's own board.html, the run named by the
+  // open-board.js segment's own literal path. The opener's line says only that the shell could
+  // not open it; the path on it is never read.
+  var failed=!!openerLine&&OPENER_FAILED.test(openerLine);
+  var openRun=wantOpener?runDirOf(command,OPENER_RE,cwd):null;
+  if(openRun&&!isRun(openRun))openRun=null;
+  var willOpen=!!(openRun&&(failed||(!openerLine&&!openedFresh(openRun)))&&ownBoard(openRun));
   if(shortForm)parts.push(shortForm);
   if(voices){
     // THE REAL RUN: the voices are rendered, and the board rebuilt after them, in a real run folder and a round of it alone.
     if(!voices.dir)parts.push(RUN_UNKNOWN);
     else if(!isRun(voices.dir))parts.push(VOICES_NOT_A_RUN+voices.dir+VOICES_TAIL);
     else if(!isRound(voices.dir,voices.round))parts.push(VOICES_NOT_A_ROUND+voices.round+VOICES_TAIL);
-    else parts.push(renderVoices(voices.dir,voices.round,wantBoard,!!openerLine));
+    else parts.push(renderVoices(voices.dir,voices.round,wantBoard,!!openerLine,willOpen&&voices.dir===openRun));
   }
   if(runMiss)parts.push(runMiss);
-  // THE REAL RUN: the board the hook opens is the run's own board.html, the run named by the
-  // open-board.js segment's own literal path. The opener's line says only that the shell could
-  // not open it; the path on it is never read. Asked after the voices, which take their time.
-  var failed=!!openerLine&&OPENER_FAILED.test(openerLine);
-  var openRun=wantOpener?runDirOf(command,OPENER_RE,cwd):null;
-  if(openRun&&!isRun(openRun))openRun=null;
-  var board=openRun&&(failed||(!openerLine&&!openedFresh(openRun)))?ownBoard(openRun):null;
+  // THE RENDER BEFORE THE OPEN: the run is asked again after the voices, which take their time;
+  // the plugin's own script renders the board from the run's files; that render is what is opened.
+  var board=null, renderMiss=null;
+  if(willOpen&&isRun(openRun)&&ownBoard(openRun)){
+    renderMiss=renderBoard(openRun);
+    if(!renderMiss&&isRun(openRun))board=ownBoard(openRun);
+  }
   if(!board){
-    if(openerLine)parts.push(openerLine);
+    if(renderMiss)parts.push('Board: '+path.join(openRun,'board.html')+RENDER_MISS+renderMiss+')');
+    else if(openerLine)parts.push(openerLine);
     if(!parts.length)return silent();
     return say(parts);
   }

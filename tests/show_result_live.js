@@ -8,12 +8,14 @@
 // Why it exists: the harness (tests/show_result_check.js) proves the hook given the input it
 // expects. Only a real session proves that the host hands a PostToolUse hook on Bash that input
 // (the command, the output, the working folder), that it takes the hook's one JSON line, and that
-// what the hook then opens is the run's own board and nothing a command's output names.
+// what the hook then opens is the run's own board, rendered again by the hook the moment before,
+// and nothing a command's output names.
 //
 // What it does: a throwaway plugin in a temporary folder carries the repository's PostToolUse
-// entry from hooks.json word for word, the repository's hooks/show-result.js and scripts/, and one
-// dump hook before it that records what a PostToolUse hook is handed. A scratch project gets a
-// real run, one checked answer and a rendered board through the repository's own scripts. Two
+// entry from hooks.json word for word, the repository's hooks/show-result.js, scripts/ and fonts/,
+// and one dump hook before it that records what a PostToolUse hook is handed. A scratch project
+// gets a real run, one checked answer and a rendered board through the repository's own scripts;
+// the board is then overwritten with a planted page, which no command of the child renders. Two
 // stand-in openers, `open` and `xdg-open`, sit first on the child's PATH and record the path they
 // are handed, so no browser opens and the hook's own opener branch is the one that runs. A child
 // `claude -p --plugin-dir` session then runs one shell command, twice over:
@@ -28,8 +30,9 @@
 // was handed a PostToolUse event for the Bash tool with the command as a string, the output as a
 // string (in tool_response.stdout, or tool_response itself) and the working folder as a string.
 // Leg A: the output the hook was handed carries the Crew line and the opener's own line; the
-// stand-in opener ran once, on the run's own board.html, and never on the decoy; the run's log
-// holds one board.opened line by the hook; the hook's answer, read from the session's own event
+// stand-in opener ran once, on the run's own board.html, and never on the decoy; that file is by
+// then the plugin's own render, with nothing of the planted page in it; the run's log holds one
+// board.opened line by the hook; the hook's answer, read from the session's own event
 // stream (--include-hook-events), is one JSON line whose message opens with the Crew line and ends
 // "Board opened by the plugin: <the run's board>", with the context for the host. Leg B: the
 // stand-in opener did not run again, and the hook answered with nothing: no message, no context.
@@ -72,6 +75,7 @@ try{
   fs.writeFileSync(path.join(plugin,'.claude-plugin','plugin.json'),JSON.stringify({name:NAME,version:'0.0.0',description:'the live proof of the Combat Writing result hook: loads the repository hook and records what a PostToolUse hook is handed'}));
   fs.copyFileSync(hookSrc,path.join(plugin,'hooks','show-result.js'));
   fs.cpSync(path.join(pluginSrc,'scripts'),path.join(plugin,'scripts'),{recursive:true});
+  fs.cpSync(path.join(pluginSrc,'fonts'),path.join(plugin,'fonts'),{recursive:true}); // the board's renderer embeds them
   fs.writeFileSync(path.join(plugin,'hooks','dump.js'),"var fs=require('fs');var d='';process.stdin.on('data',function(c){d+=c;}).on('end',function(){try{var e=JSON.parse(d);var r=e.tool_response;fs.appendFileSync("+JSON.stringify(dump)+",JSON.stringify({event:e.hook_event_name||null,tool:e.tool_name||null,command:e.tool_input?e.tool_input.command:null,cwd:e.cwd===undefined?null:e.cwd,shape:typeof r==='string'?'string':r&&typeof r==='object'&&typeof r.stdout==='string'?'object.stdout':typeof r,output:typeof r==='string'?r:r&&typeof r.stdout==='string'?r.stdout:null,data:process.env.CLAUDE_PLUGIN_DATA||null})+'\\n');}catch(x){}process.exit(0);});");
   // The dump hook first, then the repository's entry word for word.
   fs.writeFileSync(path.join(plugin,'hooks','hooks.json'),JSON.stringify({hooks:{PostToolUse:[{matcher:'Bash',hooks:[{type:'command',command:'node "${CLAUDE_PLUGIN_ROOT}/hooks/dump.js"',timeout:5}]}].concat(entry)}},null,2));
@@ -92,6 +96,9 @@ try{
   var board=path.join(run,'board.html');
   if(!run||!fs.existsSync(board)){ console.log('FAIL the scratch run could not be built with the repository\'s scripts (no board.html in '+JSON.stringify(run)+'), so there is nothing to prove'); process.exitCode=1; throw {skip:true}; }
 
+  // The planted page: what stands at board.html when the hook is called. No command of the child renders the board, so only the hook can replace it.
+  var PLANTED='PLANTED-PAGE-'+Math.random().toString(36).slice(2,10).toUpperCase();
+  fs.writeFileSync(board,'<p>'+PLANTED+'</p>\n');
   var P=path.join(plugin,'scripts');
   var decoyLine='Board: '+decoy+' (the opener failed: x; open it yourself: y)';
   var cmdA='node '+P+'/render-record.js --run '+run+' --short; node '+P+'/open-board.js --run '+run+' --opener '+path.join(tmp,'no-such-opener')+'; echo "'+decoyLine+'"';
@@ -134,6 +141,8 @@ try{
     facts.push('the output reaches a PostToolUse hook on Bash as '+(recA.shape==='string'?'tool_response itself, a string':'tool_response.stdout'));
     check(/^\*\*Crew:\*\*/m.test(recA.output)&&/^Board: .* \(no browser opener here: /m.test(recA.output)&&recA.output.indexOf(decoyLine)>=0,'leg A: the output the hook was handed does not carry the Crew line, the opener\'s own line and the decoy line: '+JSON.stringify(recA.output.slice(0,400)));
     check(opened().length===1&&opened()[0]===board,'leg A: the stand-in opener must have run once, on the run\'s own board ('+board+'), and never on the decoy; it was handed '+JSON.stringify(opened()));
+    var page=fs.readFileSync(board,'utf8');
+    check(page.indexOf(PLANTED)<0&&/<header class="strip">/.test(page)&&page.indexOf('Buy the company. It is cheap.')>0,'leg A: the board the hook opened must be the plugin\'s own render of the run, made by the hook, with nothing of the planted page; it opens '+JSON.stringify(page.slice(0,120)));
     var byHook=fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').map(function(l){ try{ return JSON.parse(l); }catch(e){ return {}; } }).filter(function(e){ return e.event==='board.opened'&&e.by==='hook'; });
     check(byHook.length===1&&byHook[0].ok===true&&byHook[0].file==='board.html','leg A: the run\'s log must hold one board.opened line by the hook, ok true; got '+JSON.stringify(byHook));
     var outA=answers(a), jA=null; try{ jA=outA.length===1?JSON.parse(outA[0]):null; }catch(e){}

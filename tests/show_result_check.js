@@ -97,6 +97,13 @@
 //     never rebuilt through; with the platform named win32 and a recorder standing in for cmd, a
 //     plain path is handed to cmd /c start and a path holding & never is; the failed-opener
 //     pattern captures no path.
+//   - THE RENDER BEFORE THE OPEN (issue 235): the hook renders the board with the plugin's own
+//     script the moment before it opens it: a board.html written by another hand is replaced by
+//     that render and nothing of it is left, board.rendered then board.opened on the log; the
+//     same for a silenced opener; with the voices owed in the same command there is one render,
+//     after them, and the line says the board carries them; a hand-made run folder is opened as
+//     the plugin's render of it; a folder the renderer cannot render is not opened, its page
+//     left as it was, the renderer's own error line in the message.
 //   - hooks.json carries the PostToolUse entry on Bash with a timeout that covers the render; the source has
 //     the Shield header, the one PROVED_ON constant, the one MODEL_READ_ON constant, and spawns only the opener.
 //
@@ -181,7 +188,7 @@ var m5=shown('the opener failed, the plugin opens it',call(post(O,failedLine+'\n
 check(m5==='Board opened by the plugin: '+board,'the opener failed: the message, got '+JSON.stringify(m5));
 check(opens().length===1&&opens()[0]===board,'the opener failed: the fake opener must be run once on the board, got '+JSON.stringify(opens()));
 var e5=logOf().slice(before);
-check(e5.length===1&&e5[0].event==='board.opened'&&e5[0].ok===true&&e5[0].by==='hook'&&e5[0].file==='board.html'&&/ok\.js|node/.test(e5[0].opener),'the opener failed: one board.opened line by the hook, got '+JSON.stringify(e5));
+check(e5.length===2&&e5[0].event==='board.rendered'&&e5[1].event==='board.opened'&&e5[1].ok===true&&e5[1].by==='hook'&&e5[1].file==='board.html'&&/ok\.js|node/.test(e5[1].opener),'the opener failed: the board rendered again by the plugin\'s own script, then one board.opened line by the hook, got '+JSON.stringify(e5));
 var m6=shown('the plugin could not open it either',call(post(O,failedLine+'\n'),badOpener));
 check(m6==='Board: '+board+' (the plugin could not open it either: no display here (exit 1); open it yourself: open '+board+')','the plugin could not open it either: the message, got '+JSON.stringify(m6));
 var e6=logOf().slice(-1)[0];
@@ -672,19 +679,49 @@ check(opens().length===2&&rr3.indexOf('Board opened by the plugin')<0,'real run:
 function lookalike(name){ var d=path.join(tmp,name); fs.mkdirSync(d); fs.writeFileSync(path.join(d,'seats.json'),JSON.stringify({seats:[{id:'seat-1',model:'Test Model',company:'Anthropic',start:'session'}]})); fs.writeFileSync(path.join(d,'log.jsonl'),JSON.stringify({ts:new Date().toISOString(),event:'run.created'})+'\n'); fs.writeFileSync(path.join(d,'board.html'),'<p>x</p>\n'); return d; }
 var haveLinks=true; try{ fs.symlinkSync(decoy,path.join(tmp,'link-probe')); }catch(e){ haveLinks=false; }
 var plainLook=lookalike('look-plain');
-var rr4=shown('real run: a hand-made folder with seats.json, log.jsonl and board.html as plain files is a run',call(post('node '+scripts+'/open-board.js --run '+plainLook,failedFor(path.join(plainLook,'board.html'))),okOpener));
-check(rr4==='Board opened by the plugin: '+path.join(plainLook,'board.html')&&opens().length===3,'real run: the plain look-alike is opened (the rule is the files, not who made them); got '+JSON.stringify(rr4));
+// A hand-made folder of plain files passes as a run folder; the page opened in it is the plugin's own render of it, never the page that stood there.
+var rr4=shown('real run: a hand-made folder with seats.json, log.jsonl and board.html as plain files',call(post('node '+scripts+'/open-board.js --run '+plainLook,failedFor(path.join(plainLook,'board.html'))),okOpener));
+check(rr4==='Board opened by the plugin: '+path.join(plainLook,'board.html')&&opens().length===3&&/<header class="strip">/.test(fs.readFileSync(path.join(plainLook,'board.html'),'utf8'))&&fs.readFileSync(path.join(plainLook,'board.html'),'utf8').indexOf('<p>x</p>')<0,'real run: a hand-made run folder is opened as the plugin\'s own render, the page that stood there gone; got '+JSON.stringify(rr4));
+// A folder the renderer cannot render: nothing is opened, the page is left as it was, and the message says why.
+var brokenLook=lookalike('look-broken'); fs.writeFileSync(path.join(brokenLook,'seats.json'),JSON.stringify({seats:[null]}));
+var rr4b=shown('real run: a run folder the renderer cannot render',call(post('node '+scripts+'/open-board.js --run '+brokenLook,failedFor(path.join(brokenLook,'board.html'))),okOpener));
+check(rr4b==='Board: '+path.join(brokenLook,'board.html')+' (the plugin could not render it again, so it did not open it: TypeError: Cannot read properties of null (reading \'id\'))'&&opens().length===3&&fs.readFileSync(path.join(brokenLook,'board.html'),'utf8')==='<p>x</p>\n','real run: a board the plugin cannot render again is not opened, and is left as it was; got '+JSON.stringify(rr4b)+' and '+opens().length+' opens');
+// THE RENDER BEFORE THE OPEN (issue 235): the page the hook opens is the plugin's own render of the run, made by the hook
+// the moment before. A board.html written by another hand is replaced by that render, then opened; nothing of it is left.
+var planted='<p>PLANTED-PAGE</p><script>document.title="planted"</script>\n';
+fs.writeFileSync(board,planted);
+var beforeP=logOf().length, opensP=opens().length;
+var rp=shown('the render before the open: a board.html written by another hand',call(post(O,failedLine+'\n'),okOpener));
+var afterP=fs.readFileSync(board,'utf8'), eP=logOf().slice(beforeP);
+check(rp==='Board opened by the plugin: '+board&&opens().length===opensP+1&&opens()[opensP]===board,'the render before the open: the run\'s board is opened; got '+JSON.stringify(rp));
+check(afterP.indexOf('PLANTED-PAGE')<0&&/<header class="strip">/.test(afterP)&&afterP.indexOf('Dear board, buy the company.')>0,'the render before the open: the page opened must be the plugin\'s own render of the run, with nothing of the page that stood there; got '+JSON.stringify(afterP.slice(0,120)));
+check(eP.length===2&&eP[0].event==='board.rendered'&&eP[1].event==='board.opened'&&eP[1].by==='hook','the render before the open: board.rendered, then board.opened by the hook, on the log; got '+JSON.stringify(eP));
+// The silenced opener (no line reached the hook) is rendered before it is opened too.
+fs.writeFileSync(board,planted);
+var logQ=fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').filter(function(l){ return l.indexOf('"board.opened"')<0; }); fs.writeFileSync(path.join(run,'log.jsonl'),logQ.join('\n')+'\n');
+var rq=shown('the render before the open: the silenced opener',call(post(O+' >/dev/null 2>&1; echo done','done\n'),okOpener));
+check(/Board opened by the plugin: /.test(rq)&&fs.readFileSync(board,'utf8').indexOf('PLANTED-PAGE')<0,'the render before the open: a silenced opener\'s board is rendered again before it is opened; got '+JSON.stringify(rq));
+// With the voices owed in the same command the board is rendered once, after them, and the line says the board carries them.
+fs.readdirSync(path.join(run,'rounds','01-sparring')).filter(function(n){ return /^voices\.json$|\.m4a$/.test(n); }).forEach(function(n){ fs.rmSync(path.join(run,'rounds','01-sparring',n)); });
+fs.writeFileSync(board,planted);
+var beforeV=logOf().length;
+var rv=shown('the render before the open: the voices, the board and a failed opener in one command',call(post(combined,silencedLine+'\n'+failedLine+'\n'),okOpener,sayEnv));
+var eV=logOf().slice(beforeV).map(function(e){ return e.event; });
+check(rv==='Voices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s). The board carries them.\n\nBoard opened by the plugin: '+board,'the render before the open, with the voices: the message; got '+JSON.stringify(rv));
+check(eV.filter(function(e){ return e==='board.rendered'; }).length===1&&eV.indexOf('board.rendered')>eV.indexOf('voices.rendered')&&/data-audio="[^"]*seat-1\.m4a"/.test(fs.readFileSync(board,'utf8')),'the render before the open, with the voices: one render, after the voices, the opened board carrying the file; got '+JSON.stringify(eV));
+fs.rmSync(path.join(run,'rounds','01-sparring','seat-1.m4a'),{force:true}); fs.rmSync(path.join(run,'rounds','01-sparring','voices.json'),{force:true});
+var opensL=opens().length;
 if(!haveLinks)console.log('skip real run: the link legs (no symbolic links on this platform)');
 else{
   // board.html is a link to a file outside the run: not the run's own file, not opened.
   var linkBoard=lookalike('look-link-board'); fs.rmSync(path.join(linkBoard,'board.html')); fs.symlinkSync(decoy,path.join(linkBoard,'board.html'));
   var rr5=bare('real run: board.html is a link',call(post('node '+scripts+'/open-board.js --run '+linkBoard,failedFor(path.join(linkBoard,'board.html'))),okOpener));
-  check(opens().length===3&&rr5.indexOf('Board opened by the plugin')<0,'real run: a board.html that is a link is never opened; got '+JSON.stringify(rr5));
+  check(opens().length===opensL&&rr5.indexOf('Board opened by the plugin')<0,'real run: a board.html that is a link is never opened; got '+JSON.stringify(rr5));
   // log.jsonl is a link to a file outside the run: the hook writes no line through it.
   var outsideLog=path.join(tmp,'outside-log.jsonl'); fs.writeFileSync(outsideLog,'KEEP\n');
   var linkLog=lookalike('look-link-log'); fs.rmSync(path.join(linkLog,'log.jsonl')); fs.symlinkSync(outsideLog,path.join(linkLog,'log.jsonl'));
   bare('real run: log.jsonl is a link',call(post('node '+scripts+'/open-board.js --run '+linkLog,failedFor(path.join(linkLog,'board.html'))),okOpener));
-  check(opens().length===3&&fs.readFileSync(outsideLog,'utf8')==='KEEP\n','real run: a run whose log is a link is no run: nothing opened and no line written through the link; got '+JSON.stringify(fs.readFileSync(outsideLog,'utf8').slice(0,120)));
+  check(opens().length===opensL&&fs.readFileSync(outsideLog,'utf8')==='KEEP\n','real run: a run whose log is a link is no run: nothing opened and no line written through the link; got '+JSON.stringify(fs.readFileSync(outsideLog,'utf8').slice(0,120)));
   // The voices: a link in the round's folder is no place to render into; the file it points at is left as it was.
   var outsideVoices=path.join(tmp,'outside-voices.json'); fs.writeFileSync(outsideVoices,'KEEP\n');
   var vRun=path.join(tmp,'proj-v','combat-writing','runs','v-run'); fs.mkdirSync(path.dirname(vRun),{recursive:true}); fs.cpSync(run,vRun,{recursive:true});
