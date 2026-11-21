@@ -618,3 +618,30 @@ Seen and not touched, each its own change: the add-on's folder carries the same 
 Delivers: the seven skill headers, `plugins/combat-writing/LICENSES/`, the three READMEs and the screen's, `tests/license_check.js`, `tests/readme_check.js`, `tests/fallback_check.js`, `tests/run_all.js`, the four tests that read a header, the comment in `checks.yml`, the two manifests' versions and the marketplace's, the screen's three version files, PLAN.md.
 
 Status: delivered — 2026-11-20 — draft pull request open; each check was run red on the unfixed code first, then green; the counts of `node tests/run_all.js` on the final head, as root and as a user who is not root, are in the pull request body. No board, hook or script changed, so THE SMOKE is not owed.
+
+## Part 137 — The add-on's repairs before the directory submission: a key from two places and no other (crew 0.5.21)
+
+Issue 233, which holds nine repairs of the add-on, `plugins/combat-writing-crew/`, as one change. A review of the add-on before the submission found that it read a provider's usual variable from the person's shell when the masked prompt was empty, and the marketplace brings the add-on with `cw` as a dependency: a person who installed `cw`, chose nothing and typed no key could have a provider seated, and a draft sent to it, on a key put in the shell for other tools. The decision, 2026-11-20: a key comes from the masked prompt, then the person's own key file, and from no other place. The loss was named before the build and accepted: a person whose key stands only in such a variable enters it once, in the prompt or in the file. The rule in CLAUDE.md is rewritten and its record is the last entry of RULINGS.md. No file under `plugins/combat-writing/` changed, and that plugin's version stands.
+
+What is built, item by item, each held in `tests/crew_repairs_check.js` by a check that was run red on the unfixed code first:
+
+1. The key route. `keyFor` looks up the manifest's own variable (the masked prompt's value) and the key file, and nothing else. The table's field for the key file's line is `key_name` (it was `key_env`, a name that would now say what is no longer true); the names themselves are unchanged. The no-key reason names the prompt and the file; `crew_list` and the log carry `key_name` where they carried `env`. Proved at the server, started as the manifest starts it: each of the six usual variables alone, and all six together, with no prompt key and no key file, seats nothing, adds no seat, answers no packet and draws no request. Every statement of the old route in the add-on's README, its manifest, the table's note, the two code files' comments, the root README, CLAUDE.md, `docs/plugin-map.md` and the key rows of the two checklists is corrected.
+2. The scrub removes the key in use by its exact string, whatever its shape, before the pattern rules run. It reads the keys at the moment of the scrub, so it holds for an error raised before any call.
+3. The three tools carry a title and the five annotations the MCP specification names. `crew_list` is read-only; `crew_register` and `crew_answer` write, and both are marked as able to replace what was there (the second fresh reader's record; an earlier answer file on a retry); all three reach outside providers.
+4. `crew_answer` holds the seat id to `seat-` and digits as its first act.
+5. The provider table is the `providers.json` beside the server. The switch that named another file is gone, and the tests stage a copy of the add-on with their own table beside it. The smaller change that kept a switch for tests alone was not taken: the item asks that nothing in shipped code move the table.
+6. A 401 or 403 at the catalog read says the key was refused and gives the configure command.
+7. The size refusal says the number is this add-on's budget for the provider. The numbers stand.
+8. The README's list of what a provider is sent names the reader, the seat's earlier turn, the draft's counts and parts and the retry note, and points at the packet file.
+9. The `anthropic` entry left the table, and with it the one branch of `crew_list` that listed it. The maker name in the table's maker map stays: it names a model's maker in a catalog and is no entry.
+
+Seen and not touched, each its own change:
+
+- The listed plugin still offers the old route in two places: the Seats line `lib.js` prints when no provider has a key, and the help skill's line on a missing key, both of which end by naming the provider's variable. Both are under `plugins/combat-writing/`, which this part does not change, so the issue's last done-when line, that no document in the tree states the old route, is not fully met until `cw` has its own change.
+- `OLLAMA_MODEL` is still read when the `ollama_model` option is empty. It names a local model, is no key, and the seat it turns on is on the person's own machine; the issue's items name keys.
+- The scrub covers error text. A reply's own text and the model id a provider returns are written as the provider sent them.
+- The first 28 entries of RULINGS.md and the earlier Parts of this file and of PLAN_ARCHIVE.md state the old route as the record of their day and stand.
+
+Delivers: `plugins/combat-writing-crew/` (`crew-lib.js`, `server.js`, `providers.json`, `README.md`, the manifest), the marketplace's version line, `tests/crew_repairs_check.js`, `tests/crew_check.js`, `tests/crew_state_check.js`, `tests/marketplace_check.js`, the root README, CLAUDE.md, RULINGS.md, `docs/plugin-map.md`, `docs/directory-checklist-crew.md`, `docs/directory-checklist.md`, PLAN.md.
+
+Status: delivered — 2026-11-20 — draft pull request open; each item's check was run red on the unfixed code, then green after its repair; the last line and the count of `node tests/run_all.js` on the final head are in the pull request body. No real provider was called and no live install was run. No board, hook or script the host runs changed, so THE SMOKE is not owed.

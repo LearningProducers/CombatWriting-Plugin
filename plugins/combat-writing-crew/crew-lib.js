@@ -4,10 +4,10 @@
 // The add-on reads the same run folder the listed plugin writes (combat-writing/runs/<run-id>/
 // in the person's project): seats.json, log.jsonl, rounds/<nn-kind>/<seat>.packet.md, and it
 // writes <seat>.answer.md (or <seat>.sn.answer.md / <seat>.redflag.answer.md) beside the packet
-// plus one log line per event. Nothing else is written anywhere. Keys come from the masked
-// prompt's value first, the conventional environment variable when the prompt is empty, then
-// one NAME=value line in the person's own key file, <home>/.combat-writing/keys, owner-only
-// (Part 36.2, issue 62); never a file inside a project or the plugin.
+// plus one log line per event. Nothing else is written anywhere. A key comes from the masked
+// prompt's value first, then from one NAME=value line in the person's own key file,
+// <home>/.combat-writing/keys, owner-only (Part 36.2, issue 62), and from no other place: never
+// a provider's usual variable in the person's shell, never a file inside a project or the plugin.
 
 var fs=require('fs'), path=require('path'), os=require('os'), http=require('http'), https=require('https'), url=require('url');
 
@@ -27,36 +27,41 @@ function readSeats(runDir){
 }
 function writeSeats(runDir,seatsFile){ fs.writeFileSync(path.join(runDir,'seats.json'),JSON.stringify(seatsFile,null,2)+'\n'); }
 
-// The provider table: providers.json beside this file, or the file CW_CREW_PROVIDERS names
-// (the tests point it at a fake server on localhost; it holds addresses and key NAMES, never keys).
+// The provider table: providers.json beside this file and no other. It names the host each key
+// is sent to, so nothing outside the add-on's own folder can move it: no variable, no argument,
+// no file in the person's project or working directory. (It holds addresses and key NAMES, never
+// keys. The tests copy the add-on into a scratch folder and write their own table beside the copy.)
 function loadProviders(){
-  var p=process.env.CW_CREW_PROVIDERS&&process.env.CW_CREW_PROVIDERS.trim()?process.env.CW_CREW_PROVIDERS:path.join(__dirname,'providers.json');
-  return JSON.parse(readText(p));
+  return JSON.parse(readText(path.join(__dirname,'providers.json')));
 }
 
-// The key route (the third route: Part 36.2, issue 62):
-// the masked prompt's value first (it reaches the server as the environment variable the
-// plugin manifest maps it to); the conventional environment variable only when the prompt's
-// value is empty; then the person's own key file, below. Returns {key, source} or null.
+// The key route, two places and no other (the key file: Part 36.2, issue 62): the masked
+// prompt's value first (the host hands it to the server under the name the plugin manifest maps
+// it to, CW_CREW_<PROVIDER>_KEY, which is the only name keyFor looks up); then the person's own
+// key file, below. A provider's usual variable in the person's shell (the name the key file's
+// line carries) is never looked up, so a person who typed no key into the prompt or the file
+// sends nothing. Returns {key, source} or null.
 //
 // The shapes measured on 2026-10-19 (Claude Code 2.1.303): an option the person never set, or
 // one the host no longer holds, reaches the server as an empty string. A host that substitutes
 // nothing would hand the literal placeholder, ${user_config.<option>}, and that is not a key:
 // it is read as unfilled and never sent to a provider (sent, it draws a 401 and names the wrong
-// cause). The same reading guards the environment variable.
+// cause). The same reading guards a key file's value.
 var PLACEHOLDER=/^\$\{[^}]*\}$/;
 function unfilled(value){ return PLACEHOLDER.test(value); }
+// The one lookup of a key's variable: `name` is a provider's key_prompt_env and nothing else.
+function rawValue(name){ return name?(process.env[name]||'').trim():''; }
 function keyValue(name){
-  var v=name?(process.env[name]||'').trim():'';
+  var v=rawValue(name);
   return unfilled(v)?'':v;
 }
 // The key file (Part 36.2, issue 62; the measurement, Part 36.1): the
 // host's credentials store, where the masked prompt keeps a key, was rebuilt by the host on
 // 2026-10-16 and again on 2026-10-24, each on a Claude Code update, and the key went with it
-// both times while the install stood; no rebuild touches a file. So the third route is one
+// both times while the install stood; no rebuild touches a file. So the second place is one
 // file the person writes by hand in a Terminal, never through a tool call (a key typed into
 // a tool call lands in a transcript): <home>/.combat-writing/keys, NAME=value lines where
-// NAME is the provider's environment name (GROQ_API_KEY=...), # comments and blank lines
+// NAME is the provider's key_name in providers.json (GROQ_API_KEY=...), # comments and blank lines
 // allowed. It is read only when it is a regular file (never a symlink) whose mode has no
 // group or other bits and whose folder has none either; a file that fails that, or carries
 // a line that is not NAME=value, is refused whole, the reason naming the mode or the line
@@ -94,11 +99,9 @@ function keyFor(provider){
   if(provider.keyless)return {key:null,source:'none needed'};
   var fromPrompt=keyValue(provider.key_prompt_env);
   if(fromPrompt)return {key:fromPrompt,source:'prompt'};
-  var fromEnv=keyValue(provider.key_env);
-  if(fromEnv)return {key:fromEnv,source:'environment'};
-  if(provider.key_env){
+  if(provider.key_name){
     var f=readKeyFile();
-    var fromFile=!f.refused&&typeof f.keys[provider.key_env]==='string'?f.keys[provider.key_env].trim():'';
+    var fromFile=!f.refused&&typeof f.keys[provider.key_name]==='string'?f.keys[provider.key_name].trim():'';
     if(fromFile&&!unfilled(fromFile))return {key:fromFile,source:'file'};
   }
   return null;
@@ -107,8 +110,7 @@ function keyFor(provider){
 // ${user_config.<option>} (the host handed the option unfilled); 'file-refused' when a key
 // file is there and was refused (its permissions or a malformed line); else 'empty'.
 function keyShape(provider){
-  var v=provider.key_prompt_env?(process.env[provider.key_prompt_env]||'').trim():'';
-  if(unfilled(v))return 'placeholder';
+  if(unfilled(rawValue(provider.key_prompt_env)))return 'placeholder';
   if(readKeyFile().refused)return 'file-refused';
   return 'empty';
 }
@@ -121,8 +123,8 @@ function keyShape(provider){
 // went with it while the install and the manifest stood unchanged. The next step is one command:
 // the configure dialog, the field typed in and saved; a save with nothing typed says
 // "No configuration changes" and keeps nothing, which is what a person sees who expects the
-// dropped key to still be there. The environment variable and the key file are the standing
-// alternative routes; the file is the one that survives the host (Part 36.2).
+// dropped key to still be there. The key file is the standing second place, the one that
+// survives the host (Part 36.2).
 var CONFIGURE_COMMAND='/plugin configure combat-writing-crew';
 var CAUSES='never entered, or dropped by an update (the host rebuilt its credentials store, where the masked prompt keeps it)';
 // The add-on's own manifest, read once: the field titles the key hints name, and the version the
@@ -142,11 +144,11 @@ function optionTitle(option){
 }
 function keyField(provider){
   var option=provider.key_option||(provider.id+'_api_key');
-  return {next:CONFIGURE_COMMAND,field:option,field_title:optionTitle(option),env:provider.key_env,file:keyFileShown()};
+  return {next:CONFIGURE_COMMAND,field:option,field_title:optionTitle(option),key_name:provider.key_name,file:keyFileShown()};
 }
 function keyNext(provider){
   var f=keyField(provider);
-  return 'Next: '+f.next+', type the key into the '+f.field+' field ('+f.field_title+') and save; a save with nothing typed says No configuration changes and keeps nothing. '+f.env+' in the environment serves when the prompt is empty, and so does a '+f.env+'=<key> line in '+f.file+' (owner-only: chmod 600 the file, chmod 700 its folder; written by hand in a Terminal, never typed into a session).';
+  return 'Next: '+f.next+', type the key into the '+f.field+' field ('+f.field_title+') and save; a save with nothing typed says No configuration changes and keeps nothing. A '+f.key_name+'=<key> line in '+f.file+' serves when the prompt is empty (owner-only: chmod 600 the file, chmod 700 its folder; written by hand in a Terminal, never typed into a session).';
 }
 function keyHint(provider){
   var f=keyField(provider);
@@ -225,7 +227,9 @@ function resolveSeat(seatSpec,catalog,taken){
   return live[0];
 }
 
-// The call budget, the app's two-constraint arithmetic: reservation = ceiling - input clamped into
+// The call budget, the app's two-constraint arithmetic. The numbers are this add-on's own budget
+// for the provider, as providers.json states them, not a limit the provider reported, and the
+// refusal says so: reservation = ceiling - input clamped into
 // [floor, ceiling]; input + reservation never crosses the hard cap; under the floor means refuse.
 function estimateTokens(s){ return s?Math.ceil(String(s).length/4):0; }
 function budgetFor(provider,systemPrompt,userText){
@@ -238,7 +242,7 @@ function budgetFor(provider,systemPrompt,userText){
   var ok=reservation>=b.floor;
   var over=input-b.hard_cap+b.floor;
   return {ok:ok,input:input,reservation:ok?reservation:0,
-    message:ok?'':'Too long to send. This round needs about '+input.toLocaleString()+' tokens of input and the provider allows '+b.hard_cap.toLocaleString()+' per minute, which leaves less than the '+b.floor.toLocaleString()+'-token minimum for a reply. Cut roughly '+over.toLocaleString()+' tokens (about '+(over*4).toLocaleString()+' characters) from the question or the draft and send again.'};
+    message:ok?'':'Too long to send. This round needs about '+input.toLocaleString()+' tokens of input and this add-on\'s budget for '+provider.name+' is '+b.hard_cap.toLocaleString()+' tokens per minute, which leaves less than the '+b.floor.toLocaleString()+'-token minimum for a reply. Cut roughly '+over.toLocaleString()+' tokens (about '+(over*4).toLocaleString()+' characters) from the question or the draft and send again.'};
 }
 
 // What a packet asks of the seat, read from the packet file the listed plugin built: the word
@@ -386,12 +390,32 @@ function stoppedBy(finish,maxTokens,completionTokens,lowered){
 // (user-friendly, org-wide, team-level) stands; and a key-shaped string, sk, gsk, xai or pplx
 // followed by a separator and twelve or more key characters, with [key redacted]. The numbers a
 // cap refusal carries (Limit, Requested) are untouched, so parseCapRefusal still reads them.
-// Named limit: a key with no prefix (Gemini's, Mistral's) is not key-shaped by this rule.
+//
+// The key in use comes out first, whatever its shape (a provider can echo the header it was sent
+// in the refusal it writes): keysInUse reads, at the moment of the scrub, every key keyFor would
+// hand a provider of the table, from the prompt's variable or the key file, and each is replaced
+// as the exact string it is, every time it appears, the longest first, with [key redacted]. No
+// pattern is built from a key, so the marks a regular expression reads are plain characters
+// here; an empty or unfilled value is no key and replaces nothing. A failure to read the table
+// or the file leaves the pattern rules below to do what they can and never fails the scrub.
 var ID_UNDERSCORE=/\b(org|user|proj|acct|team|key)_[A-Za-z0-9]{6,}\b/g;
 var ID_HYPHEN=/\b(org|user|proj|acct|team|key)-(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{6,}\b/g;
 var KEY_SHAPE=/\b(sk|gsk|xai|pplx)[-_][A-Za-z0-9_-]{12,}/g;
+var KEY_MARK='[key redacted]';
+function keysInUse(){
+  var keys=[];
+  try{
+    loadProviders().providers.forEach(function(p){
+      var k=keyFor(p);
+      if(k&&typeof k.key==='string'&&k.key&&keys.indexOf(k.key)<0)keys.push(k.key);
+    });
+  }catch(e){}
+  return keys.sort(function(a,b){return b.length-a.length;});
+}
 function scrubIds(text){
-  return String(text===undefined||text===null?'':text).replace(KEY_SHAPE,'[key redacted]').replace(ID_UNDERSCORE,'$1_[redacted]').replace(ID_HYPHEN,'$1-[redacted]');
+  var out=String(text===undefined||text===null?'':text);
+  keysInUse().forEach(function(k){ if(k)out=out.split(k).join(KEY_MARK); });
+  return out.replace(KEY_SHAPE,KEY_MARK).replace(ID_UNDERSCORE,'$1_[redacted]').replace(ID_HYPHEN,'$1-[redacted]');
 }
 
 module.exports={readText:readText,readManifest:readManifest,manifestVersion:manifestVersion,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,

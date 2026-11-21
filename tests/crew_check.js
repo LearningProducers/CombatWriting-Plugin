@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // crew_check.js: the crew add-on's MCP server takes keys from the masked prompt over the
-// environment over the person's owner-only key file (never a file in the project or the
-// plugin), resolves models from the live catalog without a pinned
+// person's owner-only key file and from no other place (never a provider's usual variable in
+// the person's shell, never a file in the project or the plugin), resolves models from the live catalog without a pinned
 // id, names each seat from the model field the API returns, refuses a packet too long to
 // send, records a failed call as missing, honors the per-minute wait, writes the answer to
 // the right file, and logs a complete line.
 //
 // Runs the REAL server.js from plugins/combat-writing-crew as a child process, speaking
 // newline-delimited JSON-RPC over its stdin and stdout, against a fake OpenAI-compatible
-// server on localhost that records every request. The run folder comes from the listed
+// server on localhost that records every request. The server reads its provider table from
+// the providers.json beside it and nowhere else, so the test stages the add-on: its files
+// copied byte for byte into a scratch folder, and beside the copy a table whose addresses are
+// the fake's. The server started is that copy. The run folder comes from the listed
 // plugin's REAL new-run.js and packet.js. Never a re-implementation.
 //
 // What it pins:
@@ -16,16 +19,17 @@
 //     names crew_list, crew_register and crew_answer. The serverInfo version is the manifest's
 //     (plugins/combat-writing-crew/.claude-plugin/plugin.json), read by the server at start, so
 //     there is one copy (issue 49: server.js had carried 0.2.0 while the manifest said 0.4.5).
-//   - Key route: with both the prompt value and the environment variable set, the request carries
-//     the prompt's value; with the prompt empty, the environment variable; with neither, the seat
-//     is unavailable, the reason names the prompt, the variable and the key file and never a
-//     value, crew_answer records the seat as missing, and the fake server is never called, even
-//     though a .env and a key file holding a key sit in the working directory.
-//   - The key file (Part 36.2, stamped 2026-10-20, issue 62): with the prompt and the variable
+//   - Key route: with both the prompt value and the provider's usual variable set, the request
+//     carries the prompt's value; with the prompt empty and the usual variable set, the seat is
+//     unavailable and the fake server is never called; with neither, the seat is unavailable, the
+//     reason names the prompt and the key file and never a value, crew_answer records the seat as
+//     missing, and the fake server is never called, even though a .env and a key file holding a
+//     key sit in the working directory.
+//   - The key file (Part 36.2, stamped 2026-10-20, issue 62): with the prompt
 //     empty, a NAME=value line in the key file (CW_CREW_KEY_FILE points the tests at one) seats
 //     the provider with key_source "file", the catalog read and the packet carry its value, and
-//     the value is in no log line, tool result or stderr; the prompt beats the variable beats the
-//     file; a file open to others (0644), a folder open to others (0755), a symlink and a line
+//     the value is in no log line, tool result or stderr; the prompt beats the file, and
+//     the usual variable set beside the file changes nothing; a file open to others (0644), a folder open to others (0755), a symlink and a line
 //     that is not NAME=value are each refused whole, the seat unavailable with key_shape
 //     "file-refused" and the reason naming the mode or the line number and never a line's
 //     content, and the provider never called; readKeyFile reads comments, blank lines, quotes and
@@ -35,7 +39,7 @@
 //     holding the literal ${user_config.groq_api_key}, an option the host handed unfilled. Both
 //     are no key: the seat is unavailable, the provider is never called (the literal was sent as a
 //     key before this check and drew a 401), the reason names the cause, and with the literal in
-//     the prompt the environment variable still serves.
+//     the prompt the usual variable still seats nothing.
 //   - The third state of a short crew (ruled 2026-10-13: running, no key; 2026-10-19: the two
 //     causes and the one next step): every no-key entry of crew_list carries the exact next
 //     command (/plugin configure combat-writing-crew), the key field (groq_api_key) and its title
@@ -47,7 +51,7 @@
 //     fields, under the crew line.
 //   - crew_list resolves groq-a to the largest live gpt-oss id and groq-b to the newest live
 //     qwen id, skips the excluded and small-context records, and names makers; a provider with
-//     no key is listed as unavailable; the Anthropic entry is listed as not built; Ollama is off
+//     no key is listed as unavailable; no stub entry is listed; Ollama is off
 //     until a model is named.
 //   - crew_register appends the available seats to seats.json with provider, served_by, company
 //     and a source that names the API response, logs crew.registered, and is idempotent.
@@ -127,6 +131,7 @@ var CREDIT='Combat Writing — Learning Producers Inc., Israel Hernandez, founde
 var failures=[], passes=0;
 function check(cond,msg){ if(process.env.CW_TRACE)process.stderr.write((cond?'ok   ':'FAIL ')+msg.slice(0,90)+'\n'); if(cond)passes++; else failures.push(msg); }
 var proj=fs.mkdtempSync(path.join(os.tmpdir(),'cw-crew-'));
+var staged=fs.mkdtempSync(path.join(os.tmpdir(),'cw-crew-addon-'));
 
 // ---- the fake provider ---------------------------------------------------------------------
 var requests=[]; var rateLimited=false;
@@ -190,7 +195,7 @@ var fake=http.createServer(function(req,res){
 
 // ---- an MCP client over stdio -----------------------------------------------------------
 function startServer(env){
-  var child=cp.spawn(process.execPath,[path.join(crewDir,'server.js')],{cwd:proj,env:env,stdio:['pipe','pipe','pipe']});
+  var child=cp.spawn(process.execPath,[path.join(staged,'server.js')],{cwd:proj,env:env,stdio:['pipe','pipe','pipe']});
   var pending={}, nextId=1, buf='';
   child.stdout.setEncoding('utf8');
   child.stdout.on('data',function(d){buf+=d;var lines=buf.split('\n');buf=lines.pop();lines.forEach(function(l){if(!l.trim())return;var m;try{m=JSON.parse(l);}catch(e){failures.push('server wrote a non-JSON line: '+l.slice(0,80));return;}if(m.id!==undefined&&pending[m.id]){pending[m.id](m);delete pending[m.id];}});});
@@ -206,20 +211,22 @@ function logOf(run){ return fs.readFileSync(path.join(run,'log.jsonl'),'utf8').t
 fake.listen(0,'127.0.0.1',function(){
   var port=fake.address().port;
   var base='http://127.0.0.1:'+port+'/v1';
-  // The test provider table: Groq's shape at the fake address, plus a keyless Ollama entry and the stub.
+  // The test provider table: Groq's shape at the fake address, plus xAI and a keyless Ollama entry.
   var real=JSON.parse(fs.readFileSync(path.join(crewDir,'providers.json'),'utf8'));
   var groq=real.providers.filter(function(p){return p.id==='groq';})[0];
   var ollama=real.providers.filter(function(p){return p.id==='ollama';})[0];
-  var anthropic=real.providers.filter(function(p){return p.id==='anthropic';})[0];
   var xai=real.providers.filter(function(p){return p.id==='xai';})[0];
   // The fake Groq keeps the real budget but a 1.5-second window, so the per-minute wait is exercised in seconds.
-  var table={makers:real.makers,providers:[Object.assign({},groq,{base_url:base,budget:Object.assign({},groq.budget,{window_ms:1500})}),Object.assign({},xai,{base_url:base}),Object.assign({},ollama,{base_url:base}),anthropic]};
-  var tablePath=path.join(proj,'providers-test.json');
-  fs.writeFileSync(tablePath,JSON.stringify(table));
+  var table={makers:real.makers,providers:[Object.assign({},groq,{base_url:base,budget:Object.assign({},groq.budget,{window_ms:1500})}),Object.assign({},xai,{base_url:base}),Object.assign({},ollama,{base_url:base})]};
+  // The staged add-on: the shipped files byte for byte, the test table beside them as providers.json.
+  fs.mkdirSync(path.join(staged,'.claude-plugin'),{recursive:true});
+  ['server.js','crew-lib.js'].forEach(function(f){ fs.copyFileSync(path.join(crewDir,f),path.join(staged,f)); });
+  fs.copyFileSync(path.join(crewDir,'.claude-plugin','plugin.json'),path.join(staged,'.claude-plugin','plugin.json'));
+  fs.writeFileSync(path.join(staged,'providers.json'),JSON.stringify(table));
   // Key-looking files in the working directory, which the server must never read.
   fs.writeFileSync(path.join(proj,'.env'),'GROQ_API_KEY=gsk_FROM_A_FILE_NEVER_READ\n');
   fs.writeFileSync(path.join(proj,'groq.key'),'gsk_FROM_A_FILE_NEVER_READ\n');
-  var baseEnv={PATH:process.env.PATH,HOME:proj,CW_CREW_PROVIDERS:tablePath};
+  var baseEnv={PATH:process.env.PATH,HOME:proj};
 
   // A run from the listed plugin's own scripts.
   fs.writeFileSync(path.join(proj,'draft.md'),'Dear board, buy the company. The ask lands in the first line.\n');
@@ -259,10 +266,9 @@ fake.listen(0,'127.0.0.1',function(){
     check(x.available===false&&/no key/.test(x.reason)&&/XAI_API_KEY/.test(x.reason)&&!/gsk_/.test(JSON.stringify(seats)),'crew_list: xai with no key should be unavailable with names only, got '+JSON.stringify(x));
     var o=seats.filter(function(s){return s.slot==='ollama';})[0]||{};
     check(o.available===false&&/ollama_model/.test(o.reason),'crew_list: ollama should be off until named, got '+JSON.stringify(o));
-    var an=seats.filter(function(s){return s.slot==='anthropic';})[0]||{};
-    check(an.available===false&&/not built/.test(an.reason),'crew_list: anthropic should be a stub, got '+JSON.stringify(an));
+    check(!seats.some(function(s){return s.slot==='anthropic'||/not built/.test(s.reason||'');}),'crew_list: no stub entry should be listed, got '+seats.map(function(s){return s.slot;}).join());
     var catalogReq=requests.filter(function(q){return q.url==='/v1/models';})[0];
-    check(!!catalogReq&&catalogReq.auth==='Bearer gsk_FROM_THE_PROMPT','key route: the catalog read should carry the prompt\'s key over the environment\'s, got '+(catalogReq&&catalogReq.auth));
+    check(!!catalogReq&&catalogReq.auth==='Bearer gsk_FROM_THE_PROMPT','key route: the catalog read should carry the prompt\'s key, the usual variable beside it unread, got '+(catalogReq&&catalogReq.auth));
     return s1.call('crew_register',{run:run});
   }).then(function(r){
     check(!r.isError&&r.data.added&&r.data.added.length===2,'crew_register: expected 2 seats added, got '+JSON.stringify(r.data&&r.data.added));
@@ -432,7 +438,7 @@ fake.listen(0,'127.0.0.1',function(){
     fs.writeFileSync(path.join(run,'rounds','06-battle','seat-2.packet.md'),'# Packet for seat-2\n\n'+new Array(7200).join('word ')+'\n');
     var before=requests.length;
     return s1.call('crew_answer',{run:run,round:'06-battle',seat:'seat-2'}).then(function(r2){
-      check(r2.isError&&r2.data.ok===false&&r2.data.missing===true&&/^Too long to send\. This round needs about [\d,]+ tokens of input and the provider allows 8,000 per minute, which leaves less than the 1,200-token minimum for a reply\. Cut roughly [\d,]+ tokens/.test(r2.data.reason),'too long: '+JSON.stringify(r2.data));
+      check(r2.isError&&r2.data.ok===false&&r2.data.missing===true&&/^Too long to send\. This round needs about [\d,]+ tokens of input and this add-on's budget for Groq is 8,000 tokens per minute, which leaves less than the 1,200-token minimum for a reply\. Cut roughly [\d,]+ tokens/.test(r2.data.reason),'too long: '+JSON.stringify(r2.data));
       check(requests.length===before,'too long: a request was sent anyway');
       check(!fs.existsSync(path.join(run,'rounds','06-battle','seat-2.answer.md')),'too long: an answer file appeared');
       check(logOf(run).some(function(e){return e.event==='crew.refused'&&e.round==='06-battle'&&e.seat==='seat-2'&&/Too long to send/.test(e.reason)&&e.input_tokens>8000;}),'too long: crew.refused not logged');
@@ -624,7 +630,7 @@ fake.listen(0,'127.0.0.1',function(){
       s1.stop();
     });
   }).then(function(){
-    // Key route, second server: the prompt empty, the environment variable set.
+    // Key route, second server: the prompt empty, the provider's usual variable set. It is not read.
     requests.length=0;
     var s2=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'',GROQ_API_KEY:'gsk_FROM_THE_ENVIRONMENT'}));
     return s2.rpc('initialize',{protocolVersion:'2024-11-05',capabilities:{},clientInfo:{name:'t',version:'1'}}).then(function(m){
@@ -632,8 +638,8 @@ fake.listen(0,'127.0.0.1',function(){
       return s2.call('crew_list');
     }).then(function(r){
       var a=(r.data.seats||[]).filter(function(s){return s.slot==='groq-a';})[0]||{};
-      check(a.available===true&&a.key_source==='environment','key route: with the prompt empty the environment variable should serve, got '+JSON.stringify(a));
-      check(requests[0]&&requests[0].auth==='Bearer gsk_FROM_THE_ENVIRONMENT','key route: the request should carry the environment\'s key, got '+(requests[0]&&requests[0].auth));
+      check(a.available===false&&a.key_source===undefined&&/^no key for Groq/.test(a.reason||''),'key route: with the prompt empty the usual variable must seat nothing, got '+JSON.stringify(a));
+      check(requests.length===0&&JSON.stringify(r.raw).indexOf('FROM_THE_ENVIRONMENT')<0,'key route: the usual variable\'s key must go nowhere, got '+requests.length+' request(s)');
       s2.stop();
     });
   }).then(function(){
@@ -646,13 +652,13 @@ fake.listen(0,'127.0.0.1',function(){
       return s3.call('crew_list');
     }).then(function(r){
       var a=(r.data.seats||[]).filter(function(s){return s.slot==='groq-a';})[0]||{};
-      check(a.available===false&&/no key/.test(a.reason)&&/masked prompt/.test(a.reason)&&/GROQ_API_KEY/.test(a.reason)&&!/NEVER_READ/.test(JSON.stringify(r.data)),'key route: with neither set the seat should be unavailable, naming the prompt and the variable, got '+JSON.stringify(a));
+      check(a.available===false&&/no key/.test(a.reason)&&/masked prompt/.test(a.reason)&&/GROQ_API_KEY/.test(a.reason)&&!/NEVER_READ/.test(JSON.stringify(r.data)),'key route: with neither set the seat should be unavailable, naming the prompt and the key file\'s line, got '+JSON.stringify(a));
       check(a.key_shape==='empty','key route: an empty prompt variable is the shape "empty", got '+a.key_shape);
       check(r.data.available===0&&requests.length===0,'key route: with no key the provider must not be called');
       // The third state (ruled 2026-10-13): the next command and the key field, names only.
-      check(a.next==='/plugin configure combat-writing-crew'&&a.field==='groq_api_key'&&a.field_title==='Groq API key'&&a.env==='GROQ_API_KEY','state 3: crew_list must carry next, field, field_title and env, got '+JSON.stringify(a));
-      check(/^no key for Groq: never entered, or dropped by an update \(the host rebuilt its credentials store, where the masked prompt keeps it\)\. Next: \/plugin configure combat-writing-crew, type the key into the groq_api_key field \(Groq API key\) and save; a save with nothing typed says No configuration changes and keeps nothing\. GROQ_API_KEY in the environment serves when the prompt is empty, and so does a GROQ_API_KEY=<key> line in ~\/\.combat-writing\/keys \(owner-only: chmod 600 the file, chmod 700 its folder; written by hand in a Terminal, never typed into a session\)\.$/.test(a.reason),'state 3: the reason must name the two causes, one Next with the command, the field, its title, the save, the variable and the key file, got '+a.reason);
-      check(a.file==='~/.combat-writing/keys','state 3: crew_list must name the key file as the third route, got '+a.file);
+      check(a.next==='/plugin configure combat-writing-crew'&&a.field==='groq_api_key'&&a.field_title==='Groq API key'&&a.key_name==='GROQ_API_KEY'&&!('env' in a),'state 3: crew_list must carry next, field, field_title and key_name, got '+JSON.stringify(a));
+      check(/^no key for Groq: never entered, or dropped by an update \(the host rebuilt its credentials store, where the masked prompt keeps it\)\. Next: \/plugin configure combat-writing-crew, type the key into the groq_api_key field \(Groq API key\) and save; a save with nothing typed says No configuration changes and keeps nothing\. A GROQ_API_KEY=<key> line in ~\/\.combat-writing\/keys serves when the prompt is empty \(owner-only: chmod 600 the file, chmod 700 its folder; written by hand in a Terminal, never typed into a session\)\.$/.test(a.reason),'state 3: the reason must name the two causes, one Next with the command, the field, its title, the save and the key file, got '+a.reason);
+      check(a.file==='~/.combat-writing/keys','state 3: crew_list must name the key file, got '+a.file);
       check(/never entered/.test(a.reason)&&/dropped by an update/.test(a.reason)&&a.reason.split('Next:').length===2&&!/gsk_|NEVER_READ/.test(a.reason),'state 3: both causes, exactly one Next, no value, got '+a.reason);
       var x=(r.data.seats||[]).filter(function(s){return s.slot==='xai';})[0]||{};
       check(x.field==='xai_api_key'&&x.field_title==='xAI API key'&&x.next==='/plugin configure combat-writing-crew','state 3: the xAI entry must name its own field, got '+JSON.stringify(x));
@@ -677,7 +683,7 @@ fake.listen(0,'127.0.0.1',function(){
     });
   }).then(function(){
     // The broken shape (2026-10-19): the host hands the option unfilled, the literal placeholder in the
-    // prompt's variable. It is not a key: never sent, named as the cause; the environment variable still serves.
+    // prompt's variable. It is not a key: never sent, named as the cause; the usual variable beside it still seats nothing.
     requests.length=0;
     var s3b=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'${user_config.groq_api_key}',GROQ_API_KEY:''}));
     return s3b.rpc('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'t',version:'1'}}).then(function(){
@@ -694,7 +700,7 @@ fake.listen(0,'127.0.0.1',function(){
       var s3c=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'${user_config.groq_api_key}',GROQ_API_KEY:'gsk_FROM_THE_ENVIRONMENT'}));
       return s3c.rpc('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'t',version:'1'}}).then(function(){return s3c.call('crew_list');}).then(function(r2){
         var a=(r2.data.seats||[]).filter(function(s){return s.slot==='groq-a';})[0]||{};
-        check(a.available===true&&a.key_source==='environment'&&requests[0]&&requests[0].auth==='Bearer gsk_FROM_THE_ENVIRONMENT','placeholder: with the literal in the prompt the environment variable must serve, got '+JSON.stringify(a)+' auth '+(requests[0]&&requests[0].auth));
+        check(a.available===false&&a.key_shape==='placeholder'&&requests.length===0,'placeholder: with the literal in the prompt the usual variable must seat nothing and nothing must be sent, got '+JSON.stringify(a)+' and '+requests.length+' request(s)');
         s3c.stop();
       });
     });
@@ -760,7 +766,7 @@ fake.listen(0,'127.0.0.1',function(){
     process.env.CW_CREW_KEY_FILE=path.join(kf,'absent','keys'); check(lib.readKeyFile().present===false&&lib.readKeyFile().refused===null,'readKeyFile: no file is no key and no refusal');
     delete process.env.CW_CREW_KEY_FILE;
     check(lib.keyFilePath()===path.join(os.homedir(),'.combat-writing','keys')&&lib.keyFileShown()==='~/.combat-writing/keys'&&lib.KEY_FILE==='.combat-writing/keys','the default key file is <home>/.combat-writing/keys, shown as ~/.combat-writing/keys');
-    // The file alone seats: the prompt and the variable empty.
+    // The file alone seats: the prompt empty.
     requests.length=0;
     var s6=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'',GROQ_API_KEY:'',CW_CREW_KEY_FILE:good}));
     var run6=node('new-run.js',['--draft','draft.md','--name','file','--model','Test Model']).stdout.trim();
@@ -769,7 +775,7 @@ fake.listen(0,'127.0.0.1',function(){
       results6.push(r);
       var a=(r.data.seats||[]).filter(function(s){return s.slot==='groq-a';})[0]||{};
       var x=(r.data.seats||[]).filter(function(s){return s.slot==='xai';})[0]||{};
-      check(a.available===true&&a.key_source==='file'&&x.available===true&&x.key_source==='file'&&r.data.available===3,'key file: with the prompt and the variable empty the file should seat Groq and xAI, got '+JSON.stringify({a:a,x:x,available:r.data.available}));
+      check(a.available===true&&a.key_source==='file'&&x.available===true&&x.key_source==='file'&&r.data.available===3,'key file: with the prompt empty the file should seat Groq and xAI, got '+JSON.stringify({a:a,x:x,available:r.data.available}));
       var cat=requests.filter(function(q){return q.url==='/v1/models';});
       check(cat.length>=1&&cat.every(function(q){return q.auth==='Bearer gsk_FROM_THE_FILE'||q.auth==='Bearer xai_FROM_THE_FILE';}),'key file: the catalog reads should carry the file\'s keys, got '+JSON.stringify(cat.map(function(q){return q.auth;})));
       return s6.call('crew_register',{run:run6});
@@ -789,17 +795,17 @@ fake.listen(0,'127.0.0.1',function(){
       check(everything.indexOf('FROM_THE_FILE')<0,'key file: the key\'s value reached a log line, a tool result or stderr');
       console.log('key file: both Groq seats and the xAI seat from the file; key_source '+e.key_source);
       s6.stop();
-      // The order: the prompt beats the variable beats the file.
+      // The order: the prompt beats the file; the usual variable is never in it.
       requests.length=0;
       var s7=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'gsk_FROM_THE_PROMPT',GROQ_API_KEY:'gsk_FROM_THE_ENVIRONMENT',CW_CREW_KEY_FILE:good}));
       return s7.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'t',version:'1'}}).then(function(){return s7.call('crew_list');}).then(function(r){
         var a=(r.data.seats||[]).filter(function(s){return s.slot==='groq-a';})[0]||{};
-        check(a.key_source==='prompt'&&requests[0]&&requests[0].auth==='Bearer gsk_FROM_THE_PROMPT','order: the prompt beats the variable and the file, got '+a.key_source+' '+(requests[0]&&requests[0].auth));
+        check(a.key_source==='prompt'&&requests[0]&&requests[0].auth==='Bearer gsk_FROM_THE_PROMPT','order: the prompt beats the file, got '+a.key_source+' '+(requests[0]&&requests[0].auth));
         s7.stop(); requests.length=0;
         var s8=startServer(Object.assign({},baseEnv,{CW_CREW_GROQ_KEY:'',GROQ_API_KEY:'gsk_FROM_THE_ENVIRONMENT',CW_CREW_KEY_FILE:good}));
         return s8.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'t',version:'1'}}).then(function(){return s8.call('crew_list');}).then(function(r2){
           var a2=(r2.data.seats||[]).filter(function(s){return s.slot==='groq-a';})[0]||{};
-          check(a2.key_source==='environment'&&requests[0]&&requests[0].auth==='Bearer gsk_FROM_THE_ENVIRONMENT','order: the variable beats the file, got '+a2.key_source+' '+(requests[0]&&requests[0].auth));
+          check(a2.key_source==='file'&&requests[0]&&requests[0].auth==='Bearer gsk_FROM_THE_FILE'&&!requests.some(function(q){return /FROM_THE_ENVIRONMENT/.test(q.auth||'');}),'order: with the prompt empty the file serves and the usual variable is unread, got '+a2.key_source+' '+(requests[0]&&requests[0].auth));
           s8.stop();
         });
       });
@@ -863,7 +869,7 @@ fake.listen(0,'127.0.0.1',function(){
   }).then(function(){
     fake.close();
     (function(){ var hits=[]; (function walk(d){ fs.readdirSync(d).forEach(function(n){ var p=path.join(d,n); if(fs.statSync(p).isDirectory())walk(p); else if(fs.readFileSync(p,'utf8').indexOf(CREDIT)>=0)hits.push(path.relative(proj,p)); }); })(path.join(proj,'combat-writing')); check(hits.length===0,'credit line found in run files (ruled 2026-10-12): '+hits.join(', ')); })();
-    fs.rmSync(proj,{recursive:true,force:true});
+    fs.rmSync(proj,{recursive:true,force:true}); fs.rmSync(staged,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
     console.log((failures.length?'crew_check: '+failures.length+' failure(s), ':'crew_check: all passed, ')+passes+' checks');
     process.exit(failures.length?1:0);

@@ -119,7 +119,7 @@ The seat each key gives, from `providers.json` (no model id is written anywhere;
 | `gemini_api_key` | Google | Google's Gemini line |
 | `ollama_model` | Ollama, on your machine | the local model you name |
 
-A key comes from the masked prompt (`/plugin configure combat-writing-crew`), else the provider's environment variable, else one line in your own owner-only file `~/.combat-writing/keys`. It goes to its provider and nowhere else.
+A key comes from the masked prompt (`/plugin configure combat-writing-crew`), else one line in your own owner-only file `~/.combat-writing/keys`, and from no other place: a key that stands only in a provider's usual variable in your shell is not read. It goes to its provider and nowhere else.
 
 ## 6. The scripts
 
@@ -165,6 +165,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/budget_check.js` | the price of a round, measured before the seats run |
 | `tests/champion_check.js` | shipped, result, insight: the script, the record, the board, the skill |
 | `tests/crew_check.js` | the add-on's server against a fake provider on localhost: keys, catalog, budget, window, truncation |
+| `tests/crew_repairs_check.js` | the add-on's repairs before the submission, on a staged copy of the add-on started as the manifest starts it: a key from the prompt or the key file and from no other place, the key in use scrubbed from error text, the tools' annotations, the seat id's pattern, the provider table beside the server alone, a refused key said, the size refusal's words, what the README says is sent |
 | `tests/crew_state_check.js` | the Seats line when the crew is short, with the next command |
 | `tests/draft_facts_check.js` | the draft's counts, measured by code |
 | `tests/draft_parts_check.js` | the labeled draft: greeting, opening sentence, body, closer |
