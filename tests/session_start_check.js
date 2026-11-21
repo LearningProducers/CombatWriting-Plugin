@@ -13,7 +13,9 @@
 // nothing, and the next start measures again.
 //
 // What it pins, with the REAL hook as a child process, fake `claude` and `say` commands in a folder
-// named by CW_SESSION_PROBE, and a temporary data folder in the hook's CLAUDE_PLUGIN_DATA:
+// that is the whole of the child's PATH (issue 239: the hook reads no switch of the tests'; it
+// finds the two commands the way it finds the real ones), and a temporary data folder in the
+// hook's CLAUDE_PLUGIN_DATA:
 //   - First start, the add-on absent and one quality voice: the ready line, then the add-on line
 //     (lib.ADDON_INSTALL in it), then the voices line naming the count, the voice and the download
 //     path, all in hookSpecificOutput.additionalContext, the context the host reads and the
@@ -30,11 +32,13 @@
 //     the part unmeasured, the line for a lack that was measured still given, NO sentinel, and the
 //     second start measures again; when the measurement comes back at a later start the sentinel
 //     is written then, holding no unmeasured part, and the start after it measures nothing.
-//   - Off a Mac (the fake folder's `platform` file stands in for the platform; with none the
-//     fakes are a Mac's) there is no voice measurement to owe: `say` is never run, the add-on
-//     alone decides, the sentinel is written with `voices` null, and an unmeasured add-on still
-//     writes none. The line that reads the machine's own platform runs under no fake, so it is
-//     held by its text.
+//   - Off a Mac (the fake folder's `platform` file names the platform the child is started
+//     as, through a file of the test's own that node loads before the hook; with none the child
+//     is a Mac) there is no voice measurement to owe: `say` is never run, the add-on alone
+//     decides, the sentinel is written with `voices` null, and an unmeasured add-on still
+//     writes none.
+//   - The tests' old switch is gone (issue 239): CW_SESSION_PROBE naming a folder of commands
+//     runs none of them, and the hook's code reads no variable of that name.
 //   - Every sentinel the suite writes, found by a walk, holds two whole measurements.
 //   - No data folder (no CLAUDE_PLUGIN_DATA): there is no place to remember a start, so the hook
 //     measures at every start and writes nothing: the same lines on the first start and on the
@@ -72,8 +76,17 @@ function fakes(dir,claudeOut,sayOut,claudeExit,sayExit){
 }
 // dataDir reaches the hook as production hands it, in CLAUDE_PLUGIN_DATA; null is a host that names
 // no folder. args is for the one case that proves an argument is ignored.
+// The fakes reach the hook the way the real commands do: the fake folder is the child's whole
+// PATH, so `claude` and `say` are the fakes or are not there. The platform the child is started
+// as is the fake folder's `platform` file, a Mac with none, set by a file of the test's own that
+// node loads before the hook (NODE_OPTIONS); the hook itself reads no switch.
+var asPlatform=path.join(tmp,'as-platform.js');
+fs.writeFileSync(asPlatform,'if(process.env.FAKE_PLATFORM)Object.defineProperty(process,"platform",{value:process.env.FAKE_PLATFORM});\n');
 function run(fakeDir,dataDir,env,args){
-  var e=Object.assign({},process.env,{CW_SESSION_PROBE:fakeDir},env||{});
+  var plat='darwin'; try{ plat=fs.readFileSync(path.join(fakeDir,'platform'),'utf8').trim()||'darwin'; }catch(x){}
+  var e=Object.assign({},process.env,{PATH:fakeDir,NODE_OPTIONS:'--require '+JSON.stringify(asPlatform),FAKE_PLATFORM:plat},env||{});
+  delete e.CW_SESSION_PROBE;
+  if(env&&env.CW_SESSION_PROBE)e.CW_SESSION_PROBE=env.CW_SESSION_PROBE;
   delete e.CLAUDE_PLUGIN_DATA; if(dataDir)e.CLAUDE_PLUGIN_DATA=dataDir;
   var r=cp.spawnSync(process.execPath,[hook].concat(args||[]),{encoding:'utf8',env:e,cwd:tmp});
   var out=null; try{ out=JSON.parse((r.stdout||'').trim().split('\n')[0]); }catch(x){}
@@ -253,10 +266,20 @@ check(cw&&Array.isArray(cw.dependencies)&&cw.dependencies.join()==='combat-writi
 var manifest=JSON.parse(read(path.join(plugin,'.claude-plugin','plugin.json')));
 check(manifest.dependencies===undefined,'plugin.json: declares no dependency (the directory copy must stay installable)');
 var src=read(hook);
-// Every run above sets CW_SESSION_PROBE, so none reaches the line that reads the machine's own
-// platform. It is held by its text: with no fake folder the platform is process.platform, and the
-// voices are owed on darwin alone.
-check(/function platform\(\)\{\s*if\(!probe\)return process\.platform;/.test(src)&&/if\(platform\(\)!=='darwin'\)return \{owed:false,names:null\};/.test(src)&&(src.replace(/\/\/[^\n]*/g,'').match(/process\.platform/g)||[]).length===1,'session-start.js: with no fake folder the platform must be process.platform, read in one place, and the voices owed on darwin alone');
+// The platform is the machine's own, read in one place, and the voices are owed on darwin alone.
+check(/if\(process\.platform!=='darwin'\)return \{owed:false,names:null\};/.test(src)&&(src.replace(/\/\/[^\n]*/g,'').match(/process\.platform/g)||[]).length===1,'session-start.js: the platform must be process.platform, read in one place, and the voices owed on darwin alone');
+// THE TESTS' SWITCH IS GONE (issue 239). CW_SESSION_PROBE named a folder whose `claude` and `say`
+// the hook ran in place of the real ones, so whoever could set a variable in the session chose
+// two programs the hook started at session start. A folder named by it now runs nothing: the
+// commands the hook finds are the ones on its PATH, here the fakes that say the add-on is there.
+var planted=path.join(tmp,'planted'), plantedMark=path.join(tmp,'planted-ran');
+fs.mkdirSync(planted);
+['claude','say'].forEach(function(n){ fs.writeFileSync(path.join(planted,n),'#!/bin/sh\necho ran >> "'+plantedMark+'"\nexit 0\n'); fs.chmodSync(path.join(planted,n),493); });
+var fp=path.join(tmp,'fp'); fakes(fp,LIST_PRESENT,SAY_THREE);
+var pr=run(fp,path.join(tmp,'dp'),{CW_SESSION_PROBE:planted});
+check(!fs.existsSync(plantedMark),'the tests\' switch: a folder named by CW_SESSION_PROBE had its commands run by the hook');
+check(pr.lines.length===1&&callsIn(fp).join()==='plugin list,-v ?','the tests\' switch: the hook must measure with the commands on its PATH, got lines '+JSON.stringify(pr.lines)+' calls '+JSON.stringify(callsIn(fp)));
+check(!/CW_SESSION_PROBE|CW_[A-Z_]+/.test(src.replace(/\/\/[^\n]*/g,'')),'session-start.js: the code reads a CW_ variable; the tests reach it through PATH alone');
 check(!/plugin\s*,\s*['"]install|plugin install/.test(src.replace(/\/\/[^\n]*/g,''))&&!/\bfetch\(|https?:\/\//.test(src.replace(/\/\/[^\n]*/g,'')),'session-start.js: never installs, fetches or holds a URL');
 check(/^- \*\*What one install brings\.\*\*|\*\*What one install brings\.\*\* Installed from the Learning Producers marketplace/m.test(read(path.join(plugin,'README.md'))),'the plugin README has the What one install brings paragraph');
 var help=read(path.join(plugin,'skills','help','SKILL.md'));

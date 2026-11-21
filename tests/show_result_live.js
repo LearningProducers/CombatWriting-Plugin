@@ -106,7 +106,7 @@ try{
 
   // The child's environment: the stand-in openers first on the PATH, no plugin variable of the
   // parent's and no opener named by a variable, so the hook's own opener branch is what runs.
-  var childEnv=Object.assign({},process.env,{PATH:bin+path.delimiter+(process.env.PATH||'')}); delete childEnv.CLAUDE_PLUGIN_DATA; delete childEnv.CLAUDE_PLUGIN_ROOT; delete childEnv.CW_OPENER;
+  var childEnv=Object.assign({},process.env,{PATH:bin+path.delimiter+(process.env.PATH||'')}); delete childEnv.CLAUDE_PLUGIN_DATA; delete childEnv.CLAUDE_PLUGIN_ROOT;
   function records(){ return fs.existsSync(dump)?fs.readFileSync(dump,'utf8').trim().split('\n').filter(Boolean).map(function(l){return JSON.parse(l);}):[]; }
   function opened(){ return fs.existsSync(marker)?fs.readFileSync(marker,'utf8').trim().split('\n').filter(Boolean):[]; }
   // One child session that runs one command; returns the dump records it added, the events of its stream and its exit.

@@ -27,9 +27,9 @@
 //     the page's language), fewer than three named with the download path. No program downloads
 //     Apple's voices; the line says where they are.
 // The hook installs nothing, downloads nothing, writes only the sentinel (what it measured, dated),
-// and reads CW_SESSION_PROBE, the tests' fake commands, and HOME for the cache. The tests' folder
-// may also hold a `platform` file, which stands in for the platform; with none, the fakes are a
-// Mac's. The data folder is
+// and reads two environment variables, CLAUDE_PLUGIN_DATA and HOME (for the cache). It reads no
+// switch of the tests': `claude` and `say` are found the way any command is, and the tests put
+// their fakes there. The data folder is
 // read from the hook's environment alone, CLAUDE_PLUGIN_DATA, which the host exports to every
 // plugin hook: the command in hooks.json names ${CLAUDE_PLUGIN_ROOT} and no other variable, and
 // an argument is never read. The hook makes the folder itself when it is not there yet.
@@ -44,16 +44,7 @@ var SENTINEL='first-session';
 var VOICES_WANTED=3;
 var BUDGET_MS=5000;
 var dataDir=process.env.CLAUDE_PLUGIN_DATA||null;
-// The tests' fakes: CW_SESSION_PROBE=<dir> names a folder whose `claude` and `say` stand in for the real ones.
-var probe=process.env.CW_SESSION_PROBE||null;
-function cmd(name){ return probe?path.join(probe,name):name; }
-function run(name,args){ try{ return cp.spawnSync(cmd(name),args,{encoding:'utf8',timeout:BUDGET_MS}); }catch(e){ return {error:e}; } }
-// The platform the voices are judged on: the machine's own, or, under the tests' fakes, the name in
-// the fake folder's `platform` file, a Mac when there is none.
-function platform(){
-  if(!probe)return process.platform;
-  try{ return fs.readFileSync(path.join(probe,'platform'),'utf8').trim()||'darwin'; }catch(e){ return 'darwin'; }
-}
+function run(name,args){ try{ return cp.spawnSync(name,args,{encoding:'utf8',timeout:BUDGET_MS}); }catch(e){ return {error:e}; } }
 
 function addonInstalled(){
   var r=run('claude',['plugin','list']);
@@ -68,7 +59,7 @@ function addonInstalled(){
 // owed: whether this machine has a voice list to read (a Mac alone). names: the quality voices
 // read, or null when none were read: not owed, or owed and the list did not come back.
 function qualityVoices(){
-  if(platform()!=='darwin')return {owed:false,names:null};
+  if(process.platform!=='darwin')return {owed:false,names:null};
   var r=run('say',['-v','?']);
   if(!r||r.error||r.status!==0||typeof r.stdout!=='string')return {owed:true,names:null};
   var lang='en';

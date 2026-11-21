@@ -26,9 +26,9 @@
 //     systemMessage key, the field the terminal shows the person (issue 165, 2026-11-04: nothing
 //     prints on the screen at session start, ever).
 //   - The script requires fs, path, child_process and the plugin's lib.js and nothing else, holds
-//     no URL, never installs, reads no argument, and reads three environment variables:
-//     CLAUDE_PLUGIN_DATA (its data folder), HOME (the cache fallback) and CW_SESSION_PROBE (the
-//     tests' fakes).
+//     no URL, never installs, reads no argument, and reads two environment variables:
+//     CLAUDE_PLUGIN_DATA (its data folder) and HOME (the cache fallback); no switch of the
+//     tests' (issue 239).
 //
 // Run from the repo root:   node tests/hook_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -72,14 +72,14 @@ check(script.split('\n')[0]==='// SPDX-License-Identifier: LicenseRef-PolyForm-S
 var code=script.replace(/\/\/[^\n]*/g,'');
 var reqs=(code.match(/require\(['"][^'"]+['"]\)/g)||[]).map(function(r){return r.replace(/require\(['"]|['"]\)/g,'');}).sort();
 check(reqs.join()==='../scripts/lib.js,child_process,fs,path'&&!/\bfetch\(/.test(code)&&!/https?:\/\//.test(code),'session-start.js: requires fs, path, child_process and lib.js only, fetches nothing, holds no URL: '+reqs.join());
-check((code.match(/process\.env\.([A-Z_]+)/g)||[]).filter(function(v,i,a){return a.indexOf(v)===i;}).sort().join()==='process.env.CLAUDE_PLUGIN_DATA,process.env.CW_SESSION_PROBE,process.env.HOME','session-start.js: reads only CLAUDE_PLUGIN_DATA, HOME (the cache fallback) and CW_SESSION_PROBE from the environment');
+check((code.match(/process\.env\.([A-Z_]+)/g)||[]).filter(function(v,i,a){return a.indexOf(v)===i;}).sort().join()==='process.env.CLAUDE_PLUGIN_DATA,process.env.HOME','session-start.js: reads only CLAUDE_PLUGIN_DATA and HOME (the cache fallback) from the environment');
 check(!/plugin install|plugin\s*,\s*['"]install/.test(code),'session-start.js: never installs');
 check(!/process\.argv/.test(code),'session-start.js: reads an argument; the data folder comes from the environment alone');
 
 // A start after the first: the data folder holds the sentinel, so the hook reads, writes and calls nothing.
 var data=fs.mkdtempSync(path.join(os.tmpdir(),'cw-hook-'));
 fs.writeFileSync(path.join(data,'first-session'),'{}\n');
-var env=Object.assign({},process.env,{CLAUDE_PLUGIN_DATA:data,CW_SESSION_PROBE:path.join(data,'no-such-commands')});
+var env=Object.assign({},process.env,{CLAUDE_PLUGIN_DATA:data,PATH:path.join(data,'no-such-commands')});
 var r=cp.spawnSync(process.execPath,[path.join(root,dir,'session-start.js')],{encoding:'utf8',cwd:root,env:env});
 check(fs.readdirSync(data).join()==='first-session'&&fs.readFileSync(path.join(data,'first-session'),'utf8')==='{}\n','session-start.js: a later start wrote in the data folder: '+fs.readdirSync(data).join());
 fs.rmSync(data,{recursive:true,force:true});

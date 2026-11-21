@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // seat_scope_check.js: the seat's reach (ruled 2026-10-16). hooks/seat-scope.js is a PreToolUse
-// hook on every tool: a seat (agent_type cw:seat) uses Read and Write only, reads only inside its
-// run folder and writes only its own answer file, judged on the resolved path; any other tool and
+// hook on every tool: a seat (agent_type cw:seat) uses Read and Write only, reads only its own
+// packet and its own answer file and writes only that answer file, judged on the resolved path
+// (issue 239; it read anything inside its run folder until then); any other tool and
 // any path the hook cannot place is denied; every other caller is left alone but for one call,
 // the one that starts a seat (issue 194): the Agent tool, or Task, its earlier name, with subagent_type cw:seat is held to
 // the seat record's start. The live proof, which needs a running Claude Code, is
@@ -11,7 +12,7 @@
 // Runs the REAL hook as a child process with a hook input on stdin, against a real run made by
 // new-run.js and packet.js in a temporary project, and a fake session layout: the seat's task as
 // the first record of <session dir>/<session_id>/subagents/agent-<agent_id>.jsonl, the layout
-// Claude Code 2.1.301 keeps. Never starts an agent; calls nothing.
+// of the Claude Code version the hook's PROVED_ON constant names. Never starts an agent; calls nothing.
 //
 // What it pins:
 //   - The host (no agent_type) and another agent: no output, exit 0, whatever the path or tool,
@@ -30,12 +31,16 @@
 //     of a record's start equals lib.seatStart over records with and without the field.
 //   - A seat calling Grep, Glob, Bash, WebFetch, Edit or Agent: denied, naming the tool; a seat's
 //     Write of 2 MB outside the run: denied; input that does not parse but names a seat: denied.
-//   - A seat reading the packet, the draft, the brief, a file in a subfolder of the run: allowed
-//     (no output, exit 0); a relative path inside the run: allowed.
+//   - A seat reading its own packet, by an absolute or a relative path: allowed (no output, exit
+//     0); its own answer file once it is on disk: allowed (the Write tool asks for that read
+//     before a rewrite).
+//   - A seat reading anything else in its own run: the draft, the brief, seats.json, the log, a
+//     file in a subfolder, another seat's packet or answer in the same round, the round folder,
+//     the run folder, a link beside its packet that points at another seat's answer: denied,
+//     the reason naming the two files a seat reads.
 //   - A seat reading a file outside the run (the project's own file, a file elsewhere on disk,
-//     the parent folder itself): denied with the reason naming the run folder.
-//   - A symlink inside the run that points outside: denied (resolved path); a file that does not
-//     exist: denied; the run folder itself: denied (the boundary is not inside it).
+//     the parent folder, the home folder), through a symlink or a dotted path: denied; a file
+//     that does not exist: denied.
 //   - A seat writing its own answer file: allowed; the same file by a relative path: allowed;
 //     writing another seat's answer file, the packet, the draft, a file outside: denied; a dangling
 //     symlink or a symlinked folder as a door: denied.
@@ -47,6 +52,11 @@
 //     `claude --version` step and the issues address; the source holds that version once.
 //   - The deny output is one JSON line in the documented shape, exit 0; the hook writes nothing
 //     anywhere; hooks.json carries the PreToolUse entry with no matcher (every tool) and a short timeout.
+//   - The fence fails closed (issue 239): the entry carries onFailure "block", so the host stops
+//     the call when the hook cannot start, exits with an error or times out; a fault inside the
+//     hook's own code is a refusal for a seat's call and for the start of a seat, and silence,
+//     exit 0, for every other caller; a fault before the hook has read who is calling is
+//     answered the same, from the raw input, and each such run is shown to have faulted.
 //   - The live proof's fixture (issue 237): the run tests/seat_scope_live.js builds, read from its
 //     own source and built here, is one whose seat-1 the hook starts with no model choice.
 //
@@ -106,30 +116,47 @@ allowed('host runs Bash',call('Bash','',{agent_type:undefined,agent_id:undefined
 allowed('host runs Grep',call('Grep','',{agent_type:undefined,agent_id:undefined,tool_name:'Grep',tool_input:{pattern:'x'}}));
 allowed('host writes 2 MB',call('Write',path.join(elsewhere,'big.md'),{agent_type:undefined,agent_id:undefined,tool_input:{file_path:path.join(elsewhere,'big.md'),content:new Array(2000001).join('x')}}));
 
-// A seat reading inside.
+// A seat reads two files: its own packet, and its own answer file once it is there (issue 239).
+// Everything else in its own run folder is refused: the draft and the brief are in the packet, and
+// another seat's packet or answer, seats.json and the log are not the seat's to read.
 allowed('seat reads the packet',call('Read',packet));
-allowed('seat reads the draft',call('Read',path.join(run,'draft.md')));
-allowed('seat reads the brief',call('Read',path.join(run,'brief.md')));
-allowed('seat reads a subfolder file',call('Read',path.join(run,'extra','note.md')));
-allowed('seat reads by a relative path',call('Read',path.relative(proj,packet)));
-denied('seat reads the run folder itself (the boundary, not inside it)',call('Read',run),/reads only inside its run folder/);
+allowed('seat reads the packet by a relative path',call('Read',path.relative(proj,packet)));
+denied('seat reads its answer file before it exists',call('Read',answer),/cannot be placed/);
+var OWN=/^Combat Writing seat scope: a seat reads only its own packet and its own answer file; this file is neither$/;
+denied('seat reads the draft in its run',call('Read',path.join(run,'draft.md')),OWN);
+denied('seat reads the brief in its run',call('Read',path.join(run,'brief.md')),OWN);
+denied('seat reads a subfolder file of its run',call('Read',path.join(run,'extra','note.md')),OWN);
+denied('seat reads seats.json',call('Read',path.join(run,'seats.json')),OWN);
+denied('seat reads the log',call('Read',path.join(run,'log.jsonl')),OWN);
+node('packet.js',['--run',run,'--round','01-sparring','--seat','seat-2']);
+var packet2=path.join(run,'rounds','01-sparring','seat-2.packet.md'), answer2=path.join(run,'rounds','01-sparring','seat-2.answer.md');
+fs.writeFileSync(answer2,'RATING: 4/10\nThe other seat\'s read.\n');
+denied('seat reads another seat\'s packet in its round',call('Read',packet2),OWN);
+denied('seat reads another seat\'s answer in its round',call('Read',answer2),OWN);
+denied('seat reads the round folder',call('Read',path.dirname(packet)),OWN);
+denied('seat reads the run folder itself',call('Read',run),OWN);
+fs.symlinkSync(answer2,path.join(run,'rounds','01-sparring','link-to-seat-2.md'));
+denied('seat reads another seat\'s answer through a link beside its packet',call('Read',path.join(run,'rounds','01-sparring','link-to-seat-2.md')),OWN);
+fs.unlinkSync(path.join(run,'rounds','01-sparring','link-to-seat-2.md')); fs.unlinkSync(answer2);
 
 // A seat reading outside.
-denied('seat reads the project file',call('Read',path.join(proj,'secret.txt')),/reads only inside its run folder/);
-denied('seat reads elsewhere on disk',call('Read',path.join(elsewhere,'outside.txt')),/reads only inside its run folder/);
-denied('seat reads the runs parent',call('Read',path.dirname(run)),/reads only inside its run folder/);
-denied('seat reads the home folder',call('Read',os.homedir()),/reads only inside its run folder/);
-denied('seat reads through a symlink out',call('Read',path.join(run,'link-out.txt')),/reads only inside its run folder/);
-denied('seat reads through a symlinked folder',call('Read',path.join(run,'dir-out','outside.txt')),/reads only inside its run folder/);
+denied('seat reads the project file',call('Read',path.join(proj,'secret.txt')),OWN);
+denied('seat reads elsewhere on disk',call('Read',path.join(elsewhere,'outside.txt')),OWN);
+denied('seat reads the runs parent',call('Read',path.dirname(run)),OWN);
+denied('seat reads the home folder',call('Read',os.homedir()),OWN);
+denied('seat reads through a symlink out',call('Read',path.join(run,'link-out.txt')),OWN);
+denied('seat reads through a symlinked folder',call('Read',path.join(run,'dir-out','outside.txt')),OWN);
 denied('seat reads a missing file',call('Read',path.join(run,'nothing.md')),/cannot be placed/);
 denied('seat reads a dangling symlink',call('Read',path.join(run,'dangling.md')),/cannot be placed/);
-denied('seat reads with a dotted escape',call('Read',path.join(run,'..','..','..','secret.txt')),/reads only inside its run folder/);
+denied('seat reads with a dotted escape',call('Read',path.join(run,'..','..','..','secret.txt')),OWN);
 
 // A seat writing.
 allowed('seat writes its answer file',call('Write',answer));
 allowed('seat writes its answer file by a relative path',call('Write',path.relative(proj,answer)));
 fs.writeFileSync(answer,'RATING: 8/10\nFirst.\n');
 allowed('seat rewrites its answer file (the retry)',call('Write',answer));
+allowed('seat reads its own answer file back (the Write tool asks for it before a rewrite)',call('Read',answer));
+allowed('seat reads its own answer file by a relative path',call('Read',path.relative(proj,answer)));
 denied('seat writes another seat\'s answer',call('Write',path.join(run,'rounds','01-sparring','seat-2.answer.md')),/writes only its own answer file/);
 denied('seat writes the packet',call('Write',packet),/writes only its own answer file/);
 denied('seat writes the draft',call('Write',path.join(run,'draft.md')),/writes only its own answer file/);
@@ -163,8 +190,6 @@ denied('seat with array content task',(function(){ fs.writeFileSync(path.join(sd
 
 // The start of a seat (issue 194): the host's Agent call is held to the seat record's start.
 // The run's records: seat-1 named (a pick), seat-2 on the session's own model.
-node('packet.js',['--run',run,'--round','01-sparring','--seat','seat-2']);
-var packet2=path.join(run,'rounds','01-sparring','seat-2.packet.md'), answer2=path.join(run,'rounds','01-sparring','seat-2.answer.md');
 var recs=JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats;
 check(recs[0].start==='named'&&recs[0].model==='Test Model'&&recs[1].start==='session','the run should seat seat-1 named and seat-2 on the session\'s model, got '+JSON.stringify(recs.map(function(r){return r.start;})));
 function taskText(pk,an){ return 'Packet: '+pk+'\nAnswer file: '+an+'\nRead the packet, write your answer to the answer file, reply with one line.'; }
@@ -238,6 +263,47 @@ check(fs.readFileSync(answer,'utf8')==='RATING: 8/10\nFirst.\n','the hook must n
 var hooks=JSON.parse(fs.readFileSync(path.join(plugin,'hooks','hooks.json'),'utf8'));
 var pre=(hooks.hooks.PreToolUse||[]).filter(function(e){return e.matcher===undefined;});  // the host-output entry (matcher AskUserQuestion, issue 60) sits beside it
 check(pre.length===1&&pre[0].hooks.length===1&&pre[0].hooks[0].type==='command'&&pre[0].hooks[0].command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js"'&&typeof pre[0].hooks[0].timeout==='number'&&pre[0].hooks[0].timeout<=10,'hooks.json: the one PreToolUse entry with no matcher must run seat-scope.js on every tool with a short timeout: '+JSON.stringify(pre));
+// THE FENCE FAILS CLOSED (issue 239). A hook that cannot start, exits with an error or runs past
+// its timeout must stop the call it was asked about, never let it through: the entry says so to
+// the host. And an error inside the hook is never one of those failures for a caller that is not
+// a seat: the hook answers it itself, a refusal for a seat and for the start of one, silence for
+// every other caller, so the host's own calls are not stopped by a fault in the plugin's code.
+check(pre.length===1&&pre[0].hooks[0].onFailure==='block','hooks.json: the seat hook\'s entry must carry onFailure "block", so a hook that fails stops the call: '+JSON.stringify(pre));
+var breaker=path.join(tmp,'break-path.js');
+fs.writeFileSync(breaker,'var p=require("path"),n=0;var real=p.dirname;p.dirname=function(x){ if(process.env.BREAK_NOW)throw new Error("a fault inside the hook"); return real.call(p,x); };\nprocess.stdin.on("end",function(){ process.env.BREAK_NOW="1"; });\n');
+function broken(input){
+  var r=cp.spawnSync(process.execPath,['-r',breaker,hook],{input:JSON.stringify(input),encoding:'utf8',cwd:proj});
+  var out=r.stdout.trim(), json=null; try{json=out?JSON.parse(out):null;}catch(e){}
+  return {status:r.status,out:out,json:json,stderr:r.stderr,reason:json&&json.hookSpecificOutput?json.hookSpecificOutput.permissionDecisionReason:''};
+}
+var base={session_id:sid,transcript_path:transcript,cwd:proj,hook_event_name:'PreToolUse'};
+denied('a fault inside the hook, a seat\'s read',broken(Object.assign({},base,{tool_name:'Read',tool_input:{file_path:packet},agent_id:aid,agent_type:'cw:seat'})),/^Combat Writing seat scope: the hook failed \(a fault inside the hook\); a seat does nothing the hook cannot judge$/);
+denied('a fault inside the hook, the start of a seat',broken(Object.assign({},base,{tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'cw:seat'}})),/^Combat Writing seat scope: the hook failed \(a fault inside the hook\); the seat is not started$/);
+// A fault BEFORE the hook has read who is calling: the first thing it does with the parsed input
+// is look the agent type up in its list of seat types, so a lookup that throws there faults every
+// caller's run, the host's included. The breaker leaves a mark when it throws, so silence is
+// proved to be the hook's answer to a fault that happened, and not a run in which nothing failed.
+var earlyMark=path.join(tmp,'early-fault.txt');
+var early=path.join(tmp,'break-early.js');
+fs.writeFileSync(early,'var real=Array.prototype.indexOf,armed=false;\nArray.prototype.indexOf=function(x){ if(armed&&this.length===2&&this[0]==="cw:seat"&&this[1]==="seat"){ armed=false; require("fs").appendFileSync('+JSON.stringify(earlyMark)+',"threw\\n"); throw new Error("an early fault inside the hook"); } return real.apply(this,arguments); };\nprocess.stdin.on("end",function(){ armed=true; });\n');
+function brokenEarly(input){
+  try{ fs.unlinkSync(earlyMark); }catch(e){}
+  var r=cp.spawnSync(process.execPath,['-r',early,hook],{input:JSON.stringify(input),encoding:'utf8',cwd:proj});
+  var out=r.stdout.trim(), json=null; try{json=out?JSON.parse(out):null;}catch(e){}
+  return {status:r.status,out:out,json:json,stderr:r.stderr,threw:fs.existsSync(earlyMark),reason:json&&json.hookSpecificOutput?json.hookSpecificOutput.permissionDecisionReason:''};
+}
+var eh=brokenEarly(Object.assign({},base,{tool_name:'Bash',tool_input:{command:'ls'}}));
+check(eh.threw,'an early fault, the host\'s call: the breaker never threw, so nothing is proved');
+allowed('an early fault never reaches the host\'s own call',eh);
+var ea=brokenEarly(Object.assign({},base,{tool_name:'Read',tool_input:{file_path:packet},agent_id:'x',agent_type:'Explore'}));
+check(ea.threw,'an early fault, another agent\'s call: the breaker never threw, so nothing is proved');
+allowed('an early fault never reaches another agent\'s call',ea);
+var es=brokenEarly(Object.assign({},base,{tool_name:'Read',tool_input:{file_path:packet},agent_id:aid,agent_type:'cw:seat'}));
+check(es.threw,'an early fault, a seat\'s read: the breaker never threw, so nothing is proved');
+denied('an early fault, before the hook has read who calls, still refuses a seat',es,/^Combat Writing seat scope: the hook failed \(an early fault inside the hook\); a seat does nothing the hook cannot judge$/);
+var et=brokenEarly(Object.assign({},base,{tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'cw:seat'}}));
+check(et.threw,'an early fault, the start of a seat: the breaker never threw, so nothing is proved');
+denied('an early fault, before the hook has read who calls, still refuses the start of a seat',et,/^Combat Writing seat scope: the hook failed \(an early fault inside the hook\); the seat is not started$/);
 // THE LIVE PROOF'S FIXTURE (issue 237). tests/seat_scope_live.js is not run by CI, so nothing
 // read the run it builds, and a rule the hook gained after the proof was written left the proof
 // starting no seat, unseen. The arguments the live proof hands new-run.js are read from its own

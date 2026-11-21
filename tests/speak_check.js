@@ -3,8 +3,12 @@
 // answered seat of a round to an audio file in that seat's voice with the Mac's own speech engine,
 // writes rounds/<round>/voices.json for the board, logs voices.rendered, and is silent on success.
 // Runs the REAL speak.js from plugins/combat-writing/scripts against a fixture run in a temporary
-// project, with a fake speech command (--say) that lists voices on `-v ?` and writes the voice name
-// and the text it was handed on `-v V -o OUT -f IN`; the real `say` is never run.
+// project, with a fake speech command that lists voices on `-v ?` and writes the voice name
+// and the text it was handed on `-v V -o OUT -f IN`; the real `say` is never run. The fake
+// reaches the script the way the real command does (issue 239): a folder first on the child's
+// PATH holds it under the name `say`, and a file of this test's own, loaded by node before the
+// script, starts the child as a Mac, so the script looks for the engine at all. The script reads
+// no switch: no --say flag and no variable.
 //
 // What it pins:
 //   - The voice list is read from the command; only Premium or Enhanced voices count; Premium ranks
@@ -21,8 +25,10 @@
 //     stderr, and the other seats still get theirs.
 //   - No quality voice installed: voices.skipped with the reason, no files, exit 0, silent.
 //   - A command that cannot start: voices.skipped, exit 0.
-//   - Off macOS with no command given: voices.skipped naming the platform (forced through
-//     CW_PLATFORM, read only by this harness's wrapper), exit 0.
+//   - Off macOS: voices.skipped naming the platform (the child started as linux by this
+//     harness's own file), exit 0, and the command on the PATH is never run.
+//   - The tests' old switches are gone (issue 239): a command named by --say, or by CW_SAY in the
+//     environment, is never run, on a Mac or off one; the script's code reads no environment.
 //   - The log line voices.rendered carries the round, the assignment and the files.
 //   - A silenced shell (Part 81.1, issue 123): a command that exits 0 and writes an MPEG-4 container
 //     with no sound (ftyp and moov, duration 0, no mdat, the sandbox's output measured 2026-10-28)
@@ -53,9 +59,22 @@ function J(x){ return JSON.stringify(x); }
 function read(p){ return fs.readFileSync(p,'utf8'); }
 function write(p,t){ fs.mkdirSync(path.dirname(p),{recursive:true}); fs.writeFileSync(p,t); }
 function logOf(run){ return read(path.join(run,'log.jsonl')).trim().split('\n').filter(Boolean).map(function(l){return JSON.parse(l);}); }
-function speak(args,env){ return cp.spawnSync(process.execPath,[path.join(scripts,'speak.js')].concat(args),{encoding:'utf8',env:Object.assign({},process.env,env||{})}); }
-
 var tmp=fs.mkdtempSync(path.join(os.tmpdir(),'cw-speak-'));
+// The fake as `say`: a folder that holds it under that name, put first on the child's PATH. No
+// fake (null) is a PATH with no `say` on it at all, an empty folder alone. The child is started as
+// a Mac unless the call names another platform (FAKE_PLATFORM), by a file node loads before the script.
+var asPlatform=path.join(tmp,'as-platform.js');
+fs.writeFileSync(asPlatform,'Object.defineProperty(process,"platform",{value:process.env.FAKE_PLATFORM||"darwin"});\n');
+var emptyBin=path.join(tmp,'empty-bin'); fs.mkdirSync(emptyBin);
+function binFor(fakeFile){
+  var d=fakeFile+'.bin';
+  if(!fs.existsSync(d)){ fs.mkdirSync(d); fs.copyFileSync(fakeFile,path.join(d,'say')); fs.chmodSync(path.join(d,'say'),0o755); }
+  return d;
+}
+function speak(args,env,fakeFile){
+  var e=Object.assign({},process.env,{PATH:fakeFile?binFor(fakeFile)+path.delimiter+(process.env.PATH||''):emptyBin,NODE_OPTIONS:'--require '+JSON.stringify(asPlatform)},env||{});
+  return cp.spawnSync(process.execPath,[path.join(scripts,'speak.js')].concat(args),{encoding:'utf8',env:e});
+}
 var fake=path.join(tmp,'fakesay.sh');
 write(fake,'#!/bin/bash\n'
  +'if [ "$1" = "-v" ] && [ "$2" = "?" ]; then\n'
@@ -97,7 +116,7 @@ write(path.join(rd,'seat-2.answer.md'),'RATING: 6/10\nNot send-ready: the opener
 // seat-3 has no answer this round
 
 // 1. The plain render
-var r1=speak(['--run',run,'--round','01-battle','--say',fake]);
+var r1=speak(['--run',run,'--round','01-battle'],null,fake);
 check(r1.status===0&&r1.stdout===''&&r1.stderr==='','render: exit 0 and silent: '+J([r1.status,r1.stdout,r1.stderr]));
 var vj=JSON.parse(read(path.join(rd,'voices.json')));
 check(J(vj.installed)===J(['Ava (Premium)','Zoe (Premium)','Nathan (Enhanced)','Allison (Enhanced)']),'render: installed ranks Premium first, then the founder order, English only: '+J(vj.installed));
@@ -120,38 +139,38 @@ check(lr[0].renders&&lr[0].renders['seat-1']&&lr[0].renders['seat-1']['Nathan (E
 var fiveFake=path.join(tmp,'fakesay-five.sh');
 write(fiveFake,'#!/bin/bash\nif [ "$1" = "-v" ] && [ "$2" = "?" ]; then "'+fake+'" -v "?"; printf "Evan (Enhanced)     en_US    # Hello! My name is Evan.\\n"; exit 0; fi\nexec "'+fake+'" "$@"\n');
 fs.chmodSync(fiveFake,0o755);
-var rcap=speak(['--run',run,'--round','01-battle','--say',fiveFake]);
+var rcap=speak(['--run',run,'--round','01-battle'],null,fiveFake);
 var vjcap=JSON.parse(read(path.join(rd,'voices.json')));
 check(rcap.status===0&&vjcap.installed.length===5&&Object.keys(vjcap.renders['seat-1']).length===4&&Object.keys(vjcap.renders['seat-2']).length===4&&!vjcap.renders['seat-1']['Evan (Enhanced)']&&!fs.existsSync(path.join(rd,'seat-1.evan-enhanced.m4a')),'the cap: four voices a seat at most, the fifth never rendered: '+J([vjcap.installed,Object.keys(vjcap.renders['seat-1'])]));
 // AAC: when the engine lists aac among its MPEG-4 data formats the render carries the flags and the
 // format says so; when the engine refuses the flags, the file is rendered again without them, the
 // refusal recorded once, and the format reads lpcm.
-var raac=speak(['--run',run,'--round','01-battle','--say',fake],{FAKE_SAY_AAC:'1'});
+var raac=speak(['--run',run,'--round','01-battle'],{FAKE_SAY_AAC:'1'},fake);
 var vjaac=JSON.parse(read(path.join(rd,'voices.json')));
 check(raac.status===0&&vjaac.format==='aac 48 kbps'&&vjaac.renders['seat-1']['Ava (Premium)'].format==='aac 48 kbps'&&/\nARGS: --data-format=aac --bit-rate=48000\n/.test(read(path.join(rd,'seat-1.m4a')))&&/\nARGS: --data-format=aac --bit-rate=48000\n/.test(read(path.join(rd,'seat-2.nathan-enhanced.m4a')))&&!vjaac.aac_refused,'aac: listed by the engine, so every render carries the flags and the format says aac: '+J([vjaac.format,vjaac.aac_refused]));
-var rref=speak(['--run',run,'--round','01-battle','--say',fake],{FAKE_SAY_AAC:'1',FAKE_SAY_AAC_REFUSE:'1'});
+var rref=speak(['--run',run,'--round','01-battle'],{FAKE_SAY_AAC:'1',FAKE_SAY_AAC_REFUSE:'1'},fake);
 var vjref=JSON.parse(read(path.join(rd,'voices.json')));
 check(rref.status===0&&rref.stderr===''&&vjref.aac_refused==='fake say: aac refused'&&vjref.renders['seat-1']['Ava (Premium)'].format==='lpcm'&&vjref.renders['seat-2']['Nathan (Enhanced)'].format==='lpcm'&&vjref.files['seat-1']==='seat-1.m4a'&&read(path.join(rd,'seat-1.m4a')).indexOf('ARGS:')<0&&J(vjref.failed)==='{}','aac refused: rendered again without the flags, the refusal recorded, no seat failed: '+J([vjref.aac_refused,vjref.failed,rref.stderr]));
 check(logOf(run).filter(function(e){return e.event==='voices.rendered';}).pop().aac_refused==='fake say: aac refused','aac refused: on the log line');
 
 // 2. --list and --set
-var rl=speak(['--list','--say',fake]);
+var rl=speak(['--list'],null,fake);
 check(rl.status===0&&rl.stdout==='Voices the board would use, best first: Ava (Premium) · Zoe (Premium) · Nathan (Enhanced) · Allison (Enhanced)\n','--list: the installed quality voices, best first: '+J(rl.stdout));
-var rs=speak(['--run',run,'--set','seat-1','Allison','--say',fake]);
+var rs=speak(['--run',run,'--set','seat-1','Allison'],null,fake);
 check(rs.status===0&&/^Voice kept: seat-1 reads in Allison \(Enhanced\) from the next round \(combat-writing\/voices\.json\)\.\n$/.test(rs.stdout),'--set: keeps the voice by its base name and says so: '+J([rs.status,rs.stdout,rs.stderr]));
 check(J(JSON.parse(read(path.join(proj,'combat-writing','voices.json'))))===J({'seat-1':'Allison (Enhanced)'}),'--set: writes the project file');
 check(logOf(run).some(function(e){return e.event==='voices.set'&&e.seat==='seat-1'&&e.voice==='Allison (Enhanced)';}),'--set: logs voices.set in the run');
-var rbad=speak(['--run',run,'--set','seat-1','Daniel','--say',fake]);
+var rbad=speak(['--run',run,'--set','seat-1','Daniel'],null,fake);
 check(rbad.status===2&&/"Daniel" is not an installed Premium or Enhanced voice\. Installed: Ava \(Premium\), Zoe \(Premium\), Nathan \(Enhanced\), Allison \(Enhanced\)/.test(rbad.stderr),'--set: refuses a stock voice and names the installed ones: '+J(rbad.stderr));
 // the kept voice wins and the others go around it
 write(path.join(rd,'seat-3.answer.md'),'RATING: 8/10\nShips as is.\n');
-var r2=speak(['--run',run,'--round','01-battle','--say',fake]);
+var r2=speak(['--run',run,'--round','01-battle'],null,fake);
 var vj2=JSON.parse(read(path.join(rd,'voices.json')));
 check(r2.status===0&&vj2.assigned['seat-1']==='Allison (Enhanced)'&&vj2.assigned['seat-2']==='Ava (Premium)'&&vj2.assigned['seat-3']==='Zoe (Premium)','kept voice: seat-1 Allison by the project file, the others the next distinct from the top: '+J(vj2.assigned));
 check(/^VOICE: Allison \(Enhanced\)\n/.test(read(path.join(rd,'seat-1.m4a')))&&vj2.files['seat-3']==='seat-3.m4a','kept voice: the file is rendered in it and the third seat now has a file');
 
 // 3. One seat's render fails
-var r3=speak(['--run',run,'--round','01-battle','--say',fake],{FAKE_SAY_FAIL_VOICE:'Ava (Premium)'});
+var r3=speak(['--run',run,'--round','01-battle'],{FAKE_SAY_FAIL_VOICE:'Ava (Premium)'},fake);
 var vj3=JSON.parse(read(path.join(rd,'voices.json')));
 check(r3.status===0&&!vj3.files['seat-2']&&vj3.failed['seat-2']==='fake say: refused Ava (Premium)'&&vj3.files['seat-1']==='seat-1.m4a'&&vj3.files['seat-3']==='seat-3.m4a'&&!fs.existsSync(path.join(rd,'seat-2.m4a')),'a failed seat: no file, the reason recorded, the others rendered: '+J(vj3));
 check(/voice file for seat-2 not rendered: fake say: refused Ava \(Premium\); the board reads that seat with the browser/.test(r3.stderr),'a failed seat: named on stderr: '+J(r3.stderr));
@@ -159,33 +178,46 @@ check(J(Object.keys(vj3.renders['seat-1']))===J(['Allison (Enhanced)','Zoe (Prem
 check(logOf(run).some(function(e){return e.event==='voices.rendered'&&e.failed&&e.failed['seat-2'];}),'a failed seat: on the log line');
 
 // 4. No quality voice installed
-var r4=speak(['--run',run,'--round','01-battle','--say',fake],{FAKE_SAY_NONE:'1'});
+var r4=speak(['--run',run,'--round','01-battle'],{FAKE_SAY_NONE:'1'},fake);
 var sk=logOf(run).filter(function(e){return e.event==='voices.skipped';});
 check(r4.status===0&&r4.stdout===''&&sk.length===1&&/no voice named Premium or Enhanced is installed/.test(sk[0].reason)&&sk[0].installed===2,'no quality voice: skipped with the reason and the count, silent: '+J([r4.status,sk]));
 
 // 5. A command that cannot start
-var r5=speak(['--run',run,'--round','01-battle','--say',path.join(tmp,'no-such-say')]);
+var r5=speak(['--run',run,'--round','01-battle'],null,null);
 var sk5=logOf(run).filter(function(e){return e.event==='voices.skipped';});
 check(r5.status===0&&sk5.length===2&&/could not start/.test(sk5[1].reason),'a command that cannot start: skipped, exit 0: '+J([r5.status,sk5[1]]));
 
-// 6. Off macOS with no command: the platform named (the harness fakes the platform through a wrapper)
-var wrap=path.join(tmp,'wrap.js');
-write(wrap,'Object.defineProperty(process,"platform",{value:"linux"});require('+J(path.join(scripts,'speak.js'))+');');
-var r6=cp.spawnSync(process.execPath,[wrap,'--run',run,'--round','01-battle'],{encoding:'utf8',env:Object.assign({},process.env,{CW_SAY:''})});
+// 6. Off macOS: the platform named, and the `say` on the PATH never run
+var ranMark=path.join(tmp,'recorder-ran');
+var recorder=path.join(tmp,'recorder.sh');
+write(recorder,'#!/bin/bash\necho "$@" >> "'+ranMark+'"\nexec "'+fake+'" "$@"\n'); fs.chmodSync(recorder,0o755);
+var r6=speak(['--run',run,'--round','01-battle'],{FAKE_PLATFORM:'linux'},recorder);
 var sk6=logOf(run).filter(function(e){return e.event==='voices.skipped';});
-check(r6.status===0&&sk6.length===3&&/not macOS/.test(sk6[2].reason),'off macOS: skipped naming the platform, exit 0: '+J([r6.status,r6.stderr,sk6[2]]));
+check(r6.status===0&&sk6.length===3&&/not macOS/.test(sk6[2].reason)&&!fs.existsSync(ranMark),'off macOS: skipped naming the platform, exit 0, no command run: '+J([r6.status,r6.stderr,sk6[2],fs.existsSync(ranMark)]));
+
+// 6b. THE TESTS' SWITCHES ARE GONE (issue 239). --say and CW_SAY each named a command the script
+// ran as the speech engine, on any platform, so whoever could set a variable where the script runs
+// chose a program it started; the result hook starts this script outside the sandbox. Neither is
+// read now: off a Mac nothing runs, and on a Mac the engine is the `say` the PATH holds.
+var r6b=speak(['--run',run,'--round','01-battle','--say',recorder],{FAKE_PLATFORM:'linux',CW_SAY:recorder},null);
+var sk6b=logOf(run).filter(function(e){return e.event==='voices.skipped';});
+check(r6b.status===0&&!fs.existsSync(ranMark)&&sk6b.length===4&&/not macOS/.test(sk6b[3].reason),'the switches: a command named by --say and by CW_SAY must never run off a Mac: '+J([r6b.status,fs.existsSync(ranMark),sk6b[3]]));
+var r6c=speak(['--run',run,'--round','01-battle','--say',recorder],{CW_SAY:recorder},fake);
+check(r6c.status===0&&!fs.existsSync(ranMark)&&/^VOICE: /.test(read(path.join(rd,'seat-2.m4a'))),'the switches: on a Mac the engine is the `say` on the PATH, never the command --say or CW_SAY names: '+J([r6c.status,fs.existsSync(ranMark)]));
+var speakCode=read(path.join(scripts,'speak.js')).replace(/\/\/[^\n]*/g,'');
+check(!/process\.env/.test(speakCode)&&!/args\.say\b/.test(speakCode),'speak.js: the code reads the environment or a --say flag; the tests reach it through the PATH alone');
 
 // 7. Usage
-var r7=speak(['--round','01-battle','--say',fake]);
+var r7=speak(['--round','01-battle'],null,fake);
 check(r7.status===2&&/--run is required/.test(r7.stderr),'usage: --run required');
-var r8=speak(['--run',run,'--say',fake]);
+var r8=speak(['--run',run],null,fake);
 check(r8.status===2&&/--round is required/.test(r8.stderr),'usage: --round required');
 
 // 8. A silenced shell: the container has no sound
 write(path.join(rd,'seat-2.answer.md'),'RATING: 6/10\nNot send-ready: the opener is a compliment.\n');
 fs.readdirSync(rd).filter(function(f){return /\.m4a$/.test(f);}).forEach(function(f){ fs.unlinkSync(path.join(rd,f)); }); // the earlier scenarios' files
 var renderedBefore9=logOf(run).filter(function(e){return e.event==='voices.rendered';}).length;
-var r9=speak(['--run',run,'--round','01-battle','--say',fakeM4a],{FAKE_M4A_SECONDS:'0'});
+var r9=speak(['--run',run,'--round','01-battle'],{FAKE_M4A_SECONDS:'0'},fakeM4a);
 var vj9=JSON.parse(read(path.join(rd,'voices.json')));
 check(r9.status===0&&r9.stdout==='Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1, seat-2, seat-3 owed for round 01-battle of '+run+'.\n'&&r9.stderr==='','silenced: one stdout line naming the seats owed, the round and the run folder: '+J([r9.status,r9.stdout,r9.stderr]));
 check(J(vj9.files)==='{}'&&J(vj9.silenced)===J(['seat-1','seat-2','seat-3'])&&J(vj9.failed)==='{}'&&vj9.assigned['seat-1']==='Allison (Enhanced)','silenced: voices.json lists the seats as silenced with no files, the assignment kept: '+J(vj9));
@@ -196,7 +228,7 @@ check(ls9.length===1&&ls9[0].round==='01-battle'&&J(ls9[0].seats)===J(['seat-1',
 check(logOf(run).filter(function(e){return e.event==='voices.rendered';}).length===renderedBefore9,'silenced: no voices.rendered line for a round nothing rendered');
 
 // 9. A container with sound, rendered by the hook
-var r10=speak(['--run',run,'--round','01-battle','--say',fakeM4a,'--by','hook'],{FAKE_M4A_SECONDS:'38.25'});
+var r10=speak(['--run',run,'--round','01-battle','--by','hook'],{FAKE_M4A_SECONDS:'38.25'},fakeM4a);
 var vj10=JSON.parse(read(path.join(rd,'voices.json')));
 check(r10.status===0&&r10.stdout===''&&r10.stderr===''&&J(vj10.files)===J({'seat-1':'seat-1.m4a','seat-2':'seat-2.m4a','seat-3':'seat-3.m4a'})&&J(vj10.silenced)==='[]','with sound: every seat has a file, silent and quiet: '+J([r10.status,r10.stdout,r10.stderr,vj10.files,vj10.silenced]));
 check(vj10.seconds['seat-1']===38.3&&vj10.seconds['seat-3']===38.3,'with sound: the length in seconds read from the container, one decimal: '+J(vj10.seconds));
