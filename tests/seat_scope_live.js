@@ -3,11 +3,13 @@
 // needs a running Claude Code on this machine (the `claude` binary, or CLAUDE_BIN), starts one
 // real seat, and spends two short model calls, one for each leg. Run it after a Claude Code
 // update, before trusting the hook on that version; it prints the version it passed on, for the
-// checklist row. Run it from a plain terminal: a session started from a sandboxed shell writes no
-// transcript, and the hook then refuses the seat every read.
+// checklist row. Run it from a plain terminal: the hook keeps its record of a seat's start in the
+// plugin's data folder, and in a sandboxed shell the host cannot make that folder and the hook
+// cannot write in it, so no seat is started there.
 //
 // What it does: a throwaway plugin in a temporary folder loads the repository's
-// hooks/seat-scope.js (plus a dump hook that records every tool call the seat makes); a scratch
+// hooks/seat-scope.js (plus a dump hook that records every tool call the seat makes and the data
+// folder the host handed the plugin); a scratch
 // project gets a run and one packet through the real new-run.js and packet.js, seat-1 recorded on
 // the session's own model (--session-model), the record the hook starts with no model choice, as
 // the child is asked to start it (tests/seat_scope_check.js builds this same run and holds that
@@ -25,7 +27,13 @@
 // agents/seat.md is enforced on this version); the packet was read; the answer file was written
 // with the rating line first and nothing from either file in it; neither marker is anywhere in
 // the seat's reply; no provider was called (the run's log has no crew.answered line; no MCP tool
-// was allowed to the session).
+// was allowed to the session). And THE RECORD (issue 241): the seat was placed by the hook's own
+// record and not by a transcript. The data folder the host handed the plugin holds, under
+// seat-scope/<session>/, one record of this seat, agent-<agent id>.json, naming this run's packet
+// and answer file, and no start is left waiting there: the start call put it on record, the
+// seat's refused calls left it waiting, and its read of the packet took it. The hook's code
+// names no transcript (tests/seat_scope_check.js holds that), so the record is all it had. The
+// proof removes its own session's records from that folder after, and leaves the folder.
 //
 // The second leg, THE FENCE FAILS CLOSED (issue 239): a second throwaway plugin carries the
 // repository's own PreToolUse entry, its timeout and its onFailure field copied from
@@ -57,7 +65,7 @@ try{
   var plugin=path.join(tmp,'plugin'), proj=path.join(tmp,'proj'), dump=path.join(tmp,'calls.jsonl');
   fs.mkdirSync(path.join(plugin,'.claude-plugin'),{recursive:true}); fs.mkdirSync(path.join(plugin,'hooks')); fs.mkdirSync(proj);
   fs.writeFileSync(path.join(plugin,'.claude-plugin','plugin.json'),JSON.stringify({name:'cw-seat-scope-live',version:'0.0.0',description:'the live proof of the Combat Writing seat scope: loads the repository hook and records the seat\'s tool calls'}));
-  fs.writeFileSync(path.join(plugin,'hooks','dump.js'),"var fs=require('fs');var d='';process.stdin.on('data',function(c){d+=c;}).on('end',function(){try{var e=JSON.parse(d);fs.appendFileSync("+JSON.stringify(dump)+",JSON.stringify({agent_type:e.agent_type||null,tool_name:e.tool_name,file_path:e.tool_input&&e.tool_input.file_path||null})+'\\n');}catch(x){}process.exit(0);});");
+  fs.writeFileSync(path.join(plugin,'hooks','dump.js'),"var fs=require('fs');var d='';process.stdin.on('data',function(c){d+=c;}).on('end',function(){try{var e=JSON.parse(d);fs.appendFileSync("+JSON.stringify(dump)+",JSON.stringify({agent_type:e.agent_type||null,agent_id:e.agent_id||null,session_id:e.session_id||null,data:process.env.CLAUDE_PLUGIN_DATA||null,tool_name:e.tool_name,file_path:e.tool_input&&e.tool_input.file_path||null})+'\\n');}catch(x){}process.exit(0);});");
   fs.writeFileSync(path.join(plugin,'hooks','hooks.json'),JSON.stringify({hooks:{PreToolUse:[{hooks:[{type:'command',command:'node "${CLAUDE_PLUGIN_ROOT}/hooks/dump.js"',timeout:5},{type:'command',command:'node '+JSON.stringify(hook),timeout:5}]}]}},null,2));
   var marker='OUTSIDE-MARKER-'+Math.random().toString(36).slice(2,10).toUpperCase();
   var marker2='OTHER-SEAT-MARKER-'+Math.random().toString(36).slice(2,10).toUpperCase();
@@ -102,6 +110,20 @@ try{
   check(reply.indexOf(marker)<0,'the outside file\'s marker reached the seat\'s reply');
   check(!/crew\.answered/.test(fs.readFileSync(path.join(run,'log.jsonl'),'utf8')),'a provider was called (crew.answered in the log)');
   facts.push('tools: Read, Write in agents/seat.md '+(toolsEnforced?'enforced':'NOT enforced')+' for the plugin subagent on Claude Code '+version);
+
+  // THE RECORD: the seat was placed by the hook's own record in the plugin's data folder.
+  var first=seatCalls[0]||{}, dataDir=(calls.filter(function(c){return c.data;})[0]||{}).data||null;
+  var session=(calls.filter(function(c){return c.session_id;})[0]||{}).session_id||null;
+  var kept=dataDir&&session&&/^[A-Za-z0-9_-]+$/.test(session)?path.join(dataDir,'seat-scope',session):null;
+  var keptNames=[]; try{ keptNames=fs.readdirSync(kept); }catch(e){}
+  var mine=null; try{ mine=JSON.parse(fs.readFileSync(path.join(kept,'agent-'+first.agent_id+'.json'),'utf8')); }catch(e){}
+  check(!!dataDir,'the host handed the plugin no data folder (CLAUDE_PLUGIN_DATA), so the hook could keep no record and no seat could start');
+  check(!!mine&&mine.packet===fs.realpathSync(packet)&&path.basename(mine.answer)===path.basename(answer)&&mine.seat==='seat-1','the hook\'s record of this seat is not in the data folder ('+kept+'), or names another packet: '+JSON.stringify(mine)+'; found '+JSON.stringify(keptNames));
+  check(keptNames.filter(function(n){return /^start-/.test(n);}).length===0&&keptNames.filter(function(n){return /^agent-/.test(n);}).length===1,'one start was put on record and one seat took it, so the session\'s records must be that one seat\'s: '+JSON.stringify(keptNames));
+  facts.push('the seat was placed by the hook\'s record'+(mine?' ('+path.join('seat-scope',String(session),'agent-'+first.agent_id+'.json')+' in the plugin\'s data folder)':': NOT FOUND')+' on Claude Code '+version);
+  // This proof's own records are removed, the folder of the child session it started; the data
+  // folder, the host's, is left.
+  if(kept){ keptNames.forEach(function(n){ if(/^(?:start|agent|claim)-[A-Za-z0-9_-]+\.json$/.test(n)){ try{ fs.unlinkSync(path.join(kept,n)); }catch(e){} } }); try{ fs.rmdirSync(kept); }catch(e){} }
 
   // THE FENCE FAILS CLOSED: the repository's own entry, a command that cannot start.
   var entry=(((JSON.parse(fs.readFileSync(path.join(repo,'plugins','combat-writing','hooks','hooks.json'),'utf8')).hooks||{}).PreToolUse||[]).filter(function(e){return e.matcher===undefined;})[0]||{hooks:[{}]}).hooks[0];

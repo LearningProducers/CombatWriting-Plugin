@@ -10,9 +10,11 @@
 // whose shape was read from transcripts (the hook's START_READ_ON constant).
 //
 // Runs the REAL hook as a child process with a hook input on stdin, against a real run made by
-// new-run.js and packet.js in a temporary project, and a fake session layout: the seat's task as
-// the first record of <session dir>/<session_id>/subagents/agent-<agent_id>.jsonl, the layout
-// of the Claude Code version the hook's PROVED_ON constant names. Never starts an agent; calls nothing.
+// new-run.js and packet.js in a temporary project, with a temporary folder named in
+// CLAUDE_PLUGIN_DATA as the plugin's data folder. A seat is placed the way the host places one:
+// the start call first, which the hook puts on record, then the seat's own calls under an agent
+// id. No transcript is written anywhere but for the one check that plants one to show the hook
+// does not read it. Never starts an agent; calls nothing.
 //
 // What it pins:
 //   - The host (no agent_type) and another agent: no output, exit 0, whatever the path or tool,
@@ -44,14 +46,46 @@
 //   - A seat writing its own answer file: allowed; the same file by a relative path: allowed;
 //     writing another seat's answer file, the packet, the draft, a file outside: denied; a dangling
 //     symlink or a symlinked folder as a door: denied.
-//   - No transcript for the agent, a task without the two lines, a packet path that does not
-//     exist, a packet outside a rounds folder, an answer file outside the run, a tool other than
-//     Read or Write, no file_path, malformed JSON for a seat: denied (fail closed); malformed JSON
-//     with no agent_type readable: nothing (not ours to judge). The no-transcript reason names the
-//     Claude Code version from the hook's one PROVED_ON constant, the path looked for, the
-//     `claude --version` step and the issues address; the source holds that version once.
+//   - THE RECORD (issue 241). The hook opens no transcript: a seat whose start is on record is
+//     allowed its packet with no transcript anywhere, and a seat with a transcript that names
+//     its task and no start on record is refused; the hook's code names no transcript. An
+//     allowed start writes one record in <data>/seat-scope/<session>/, the seat's id, the run,
+//     the packet, the answer file and the time and nothing else, readable by its owner alone; a
+//     refused start writes none. A seat with no record of its own is refused every file but the
+//     packet or the answer file of a start still waiting in its session, and its first call
+//     that names one of those (a Read of the packet, a Read or a Write of the answer file)
+//     binds it; a refused call binds nothing. One start places one seat: a second seat asking
+//     for the same packet is refused, eight at once leave one placed, and a seat that has a
+//     record never takes a second, two calls of its own at once included (real processes
+//     side by side, at the end of this file). A start in one
+//     session places no seat of another. A start sent again for the same packet places the
+//     next seat. A seat that reads its packet and its answer file in the same moment is allowed
+//     both: the call that did not take the start waits for the seat's record. A record written
+//     by another hand that names a file outside a rounds folder, an answer outside its run or
+//     a folder that is no run, one that is not JSON and one that is a link are no record; a
+//     damaged record of a seat's own takes no start; a taking cut short leaves the seat
+//     refused after the wait, which ends near its half second, and another seat's spare name
+//     is not waited on; a start that cannot be renamed and a record that cannot be written are
+//     faults answered as such; a link or a file standing where the folder
+//     of records or a session's folder should be is never written or read through, with a
+//     start waiting behind the link. The record holds no text of the task or the draft beyond
+//     what its paths carry: of the draft, or of the brief when a run starts from it alone, the
+//     run folder's own name.
+//   - No data folder named, a relative one, or one the hook cannot write in: the start of a
+//     seat is refused with the reason and a seat is refused every call; every other caller is
+//     untouched. A session or agent id that is no plain name is never used in a path.
+//   - The records end: a session's folder 30 days past its last start is removed at a later
+//     start, twenty folders at one start at the most, the hook's own record files alone, a folder holding anything else left standing
+//     with that file in it, a session's folder that is a link not entered, a younger folder
+//     untouched.
+//   - A tool other than Read or Write, no file_path, malformed JSON for a seat: denied (fail
+//     closed); malformed JSON with no agent_type readable: nothing (not ours to judge). The
+//     no-record reason names the Claude Code version from the hook's one PROVED_ON constant,
+//     the folder looked in, the `claude --version` step and the issues address; the source
+//     holds that version once.
 //   - The deny output is one JSON line in the documented shape, exit 0; the hook writes nothing
-//     anywhere; hooks.json carries the PreToolUse entry with no matcher (every tool) and a short timeout.
+//     in the run or the project, and in the data folder its records alone; it reads one
+//     environment variable, CLAUDE_PLUGIN_DATA; hooks.json carries the PreToolUse entry with no matcher (every tool) and a short timeout.
 //   - The fence fails closed (issue 239): the entry carries onFailure "block", so the host stops
 //     the call when the hook cannot start, exits with an error or times out; a fault inside the
 //     hook's own code is a refusal for a seat's call and for the start of a seat, and silence,
@@ -78,7 +112,8 @@ fs.writeFileSync(path.join(proj,'brief.md'),'CEO. Get a yes.\n');
 fs.writeFileSync(path.join(proj,'secret.txt'),'a file in the project, outside the run\n');
 fs.writeFileSync(path.join(elsewhere,'outside.txt'),'a file elsewhere on disk\n');
 function node(script,args){ return cp.spawnSync(process.execPath,[path.join(scripts,script)].concat(args),{cwd:proj,encoding:'utf8'}); }
-var run=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','scope','--model','Test Model']).stdout.trim();
+// The run is named as the commands name one, from the draft's first words, so what a path carries of the draft is in view.
+var run=node('new-run.js',['--draft','draft.md','--brief','brief.md','--name','dear-board-buy-the-company','--model','Test Model']).stdout.trim();
 node('packet.js',['--run',run,'--round','01-sparring','--seat','seat-1']);
 var packet=path.join(run,'rounds','01-sparring','seat-1.packet.md');
 var answer=path.join(run,'rounds','01-sparring','seat-1.answer.md');
@@ -87,24 +122,44 @@ fs.symlinkSync(path.join(elsewhere,'outside.txt'),path.join(run,'link-out.txt'))
 fs.symlinkSync(elsewhere,path.join(run,'dir-out'));
 fs.symlinkSync(path.join(run,'missing.md'),path.join(run,'dangling.md'));
 
-// The fake session layout: the parent transcript at <dir>/<sid>.jsonl, the seat's at <dir>/<sid>/subagents/agent-<aid>.jsonl.
+// The plugin's data folder: the hook makes it. The host still sends a transcript_path with every
+// call; nothing is at it, and the hook never opens it.
+var data=path.join(tmp,'data');
 var sdir=path.join(tmp,'sessions'); var sid='sess-1', aid='agent1';
-fs.mkdirSync(path.join(sdir,sid,'subagents'),{recursive:true});
-var transcript=path.join(sdir,sid+'.jsonl'); fs.writeFileSync(transcript,'');
-function seatTask(text,agentId){
-  fs.writeFileSync(path.join(sdir,sid,'subagents','agent-'+(agentId||aid)+'.jsonl'),JSON.stringify({type:'user',message:{role:'user',content:text}})+'\n'+JSON.stringify({type:'assistant',message:{role:'assistant',content:[{type:'text',text:'ok'}]}})+'\n');
+var transcript=path.join(sdir,sid+'.jsonl');
+function hookEnv(over){ var e=Object.assign({},process.env); delete e.CLAUDE_PLUGIN_DATA; return Object.assign(e,over===undefined?{CLAUDE_PLUGIN_DATA:data}:over); }
+function shaped(r){
+  if(r.status===null&&r.error)r={status:'timed out',stdout:'',stderr:String(r.error.code||r.error)};
+  var out=(r.stdout||'').trim(), json=null; try{json=out?JSON.parse(out):null;}catch(e){}
+  return {status:r.status,out:out,json:json,stderr:r.stderr,reason:json&&json.hookSpecificOutput?json.hookSpecificOutput.permissionDecisionReason:''};
 }
-seatTask('Packet: '+packet+'\nAnswer file: '+answer+'\nRead the packet, write your answer to the answer file, reply with one line.');
-
-function call(tool,filePath,extra){
+function call(tool,filePath,extra,env){
   var input=typeof extra==='string'?extra:Object.assign({session_id:sid,transcript_path:transcript,cwd:proj,hook_event_name:'PreToolUse',tool_name:tool,tool_input:{file_path:filePath},agent_id:aid,agent_type:'cw:seat'},extra||{});
   var raw=typeof input==='string'?input:JSON.stringify(input);
-  var r=cp.spawnSync(process.execPath,[hook],{input:raw,encoding:'utf8',cwd:proj});
-  var out=r.stdout.trim(), json=null; try{json=out?JSON.parse(out):null;}catch(e){}
-  return {status:r.status,out:out,json:json,stderr:r.stderr,reason:json&&json.hookSpecificOutput?json.hookSpecificOutput.permissionDecisionReason:''};
+  return shaped(cp.spawnSync(process.execPath,[hook],{input:raw,encoding:'utf8',cwd:proj,env:hookEnv(env),timeout:20000}));
 }
 function allowed(name,r){ check(r.status===0&&r.out===''&&r.stderr==='',name+': expected silence and exit 0, got exit '+r.status+' out '+JSON.stringify(r.out)+' err '+r.stderr); }
 function denied(name,r,re){ check(r.status===0&&!!r.json&&r.json.hookSpecificOutput&&r.json.hookSpecificOutput.hookEventName==='PreToolUse'&&r.json.hookSpecificOutput.permissionDecision==='deny'&&Object.keys(r.json).join(',')==='hookSpecificOutput'&&r.stderr==='',name+': expected a deny line and exit 0, got exit '+r.status+' out '+JSON.stringify(r.out)+' err '+r.stderr); if(re)check(re.test(r.reason),name+': reason "'+r.reason+'" does not match '+re); }
+// The start call the host makes. Its own session unless one is named, so the starts judged
+// further down leave no start waiting in a session a seat of this test calls from.
+function taskText(pk,an){ return 'Packet: '+pk+'\nAnswer file: '+an+'\nRead the packet, write your answer to the answer file, reply with one line.'; }
+function start(prompt,model,extra,env){
+  var ti={description:'a seat reads',prompt:prompt,subagent_type:'cw:seat'};
+  if(model!==undefined)ti.model=model;
+  return call('Agent','',Object.assign({session_id:'sess-starts',agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:ti},extra||{}),env);
+}
+// The hook's records for a session: the starts still waiting, the seats placed, anything else.
+function kept(session,re){ try{ return fs.readdirSync(path.join(data,'seat-scope',session)).filter(function(n){ return re.test(n); }).sort(); }catch(e){ return []; } }
+function waiting(session){ return kept(session,/^start-/); }
+function placedSeats(session){ return kept(session,/^agent-/); }
+function strays(session){ return kept(session,/^(?!start-|agent-)/); }
+// A seat of another session and agent id, as a function that makes its calls.
+function as(session,agent){ return function(tool,filePath,extra){ return call(tool,filePath,Object.assign({session_id:session,agent_id:agent},extra||{})); }; }
+// The run's records: seat-1 named (a pick), seat-2 on the session's own model.
+var recs=JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats;
+check(recs[0].start==='named'&&recs[0].model==='Test Model'&&recs[1].start==='session','the run should seat seat-1 named and seat-2 on the session\'s model, got '+JSON.stringify(recs.map(function(r){return r.start;})));
+node('packet.js',['--run',run,'--round','01-sparring','--seat','seat-2']);
+var packet2=path.join(run,'rounds','01-sparring','seat-2.packet.md'), answer2=path.join(run,'rounds','01-sparring','seat-2.answer.md');
 
 // Not a seat: untouched.
 allowed('host reads outside',call('Read',path.join(proj,'secret.txt'),{agent_type:undefined,agent_id:undefined}));
@@ -119,17 +174,49 @@ allowed('host writes 2 MB',call('Write',path.join(elsewhere,'big.md'),{agent_typ
 // A seat reads two files: its own packet, and its own answer file once it is there (issue 239).
 // Everything else in its own run folder is refused: the draft and the brief are in the packet, and
 // another seat's packet or answer, seats.json and the log are not the seat's to read.
-allowed('seat reads the packet',call('Read',packet));
-allowed('seat reads the packet by a relative path',call('Read',path.relative(proj,packet)));
-denied('seat reads its answer file before it exists',call('Read',answer),/cannot be placed/);
+// THE RECORD (issue 241). The start goes on record; until the seat names one of its two files it
+// has no record of its own, is refused, and the start waits; its read of the packet binds it.
+denied('a refused start (a named record, no model) is not put on record',start(taskText(packet,answer),undefined,{session_id:sid}),/seat-1's record names Test Model/);
+check(waiting(sid).length===0&&!fs.existsSync(data),'a refused start wrote in the data folder: '+JSON.stringify(waiting(sid)));
+denied('a seat with no start on record at all',call('Read',packet),/^Combat Writing seat scope: no start of this seat is on the hook's record \(it looked in /);
+allowed('the start of seat-1 goes on record',start(taskText(packet,answer),'a-choice-string',{session_id:sid}));
+check(waiting(sid).length===1&&placedSeats(sid).length===0,'an allowed start must leave one start waiting in its session, got '+JSON.stringify(kept(sid,/./)));
+var startFile=path.join(data,'seat-scope',sid,waiting(sid)[0]||'no-start-on-record');
+var startRec=null; try{ startRec=JSON.parse(fs.readFileSync(startFile,'utf8')); }catch(e){}
+check(!!startRec&&Object.keys(startRec).sort().join(',')==='answer,at,packet,run,seat,v'&&startRec.v===1&&startRec.seat==='seat-1'&&startRec.packet===fs.realpathSync(packet)&&startRec.run===fs.realpathSync(run)&&path.basename(startRec.answer)==='seat-1.answer.md'&&typeof startRec.at==='number','the record must hold the seat, the run, the packet, the answer file and the time, resolved, and nothing else: '+JSON.stringify(startRec));
+// What the record holds of the task and the draft: paths and no text. The three paths are the run
+// folder and two files under it by their fixed names, so the one part of the record made from the
+// draft is the run folder's own name, which the commands make from the draft's first words (from
+// the brief's when a run starts from the brief alone).
+check(!/Read the packet|reply with one line|Dear board|buy the company/.test(JSON.stringify(startRec)),'the record must hold no text of the task or the draft: '+JSON.stringify(startRec));
+check(!!startRec&&/-dear-board-buy-the-company$/.test(path.basename(startRec.run))&&path.relative(startRec.run,startRec.packet)===path.join('rounds','01-sparring','seat-1.packet.md')&&path.relative(startRec.run,startRec.answer)===path.join('rounds','01-sparring','seat-1.answer.md'),'the record\'s three paths must be the run folder, whose name carries the draft\'s first words, and the two files under it by their fixed names: '+JSON.stringify(startRec));
+check(!!startRec&&JSON.stringify(startRec).split(startRec.run).join('').indexOf('dear-board')<0,'outside the run folder\'s path the record must carry nothing made from the draft: '+JSON.stringify(startRec));
+if(process.platform!=='win32'){
+  check(fs.existsSync(startFile)&&(fs.statSync(startFile).mode&0o777)===0o600,'the record must be readable by its owner alone');
+  check(fs.existsSync(startFile)&&(fs.statSync(path.dirname(startFile)).mode&0o077)===0,'the session\'s folder of records must be open to its owner alone');
+}
 var OWN=/^Combat Writing seat scope: a seat reads only its own packet and its own answer file; this file is neither$/;
+denied('a seat not yet placed reads the draft',call('Read',path.join(run,'draft.md')),OWN);
+denied('a seat not yet placed reads another seat\'s packet',call('Read',packet2),OWN);
+denied('a seat not yet placed writes outside',call('Write',path.join(elsewhere,'x.md')),/^Combat Writing seat scope: a seat writes only its own answer file$/);
+denied('a seat not yet placed reads a missing file',call('Read',path.join(run,'nothing.md')),/cannot be placed/);
+denied('a seat not yet placed writes its own packet: a write takes a start by the answer file alone',call('Write',packet),/^Combat Writing seat scope: a seat writes only its own answer file$/);
+check(waiting(sid).length===1&&placedSeats(sid).length===0,'a refused call must bind nothing and leave the start waiting, got '+JSON.stringify(kept(sid,/./)));
+check(!fs.existsSync(path.join(sdir,sid)),'the test planted no transcript for this seat, so what follows is the hook placing it by its record alone');
+allowed('seat reads the packet, with a start on record and no transcript anywhere',call('Read',packet));
+check(waiting(sid).length===0&&placedSeats(sid).join(',')==='agent-'+aid+'.json'&&strays(sid).length===0,'the seat\'s first read of its packet must turn the waiting start into its record, got '+JSON.stringify(kept(sid,/./)));
+allowed('seat reads the packet by a relative path',call('Read',path.relative(proj,packet)));
+// A transcript that names the task, where the hook once looked, and no start on record: refused.
+fs.mkdirSync(path.join(sdir,'sess-ghost','subagents'),{recursive:true});
+fs.writeFileSync(path.join(sdir,'sess-ghost','subagents','agent-ghost.jsonl'),JSON.stringify({type:'user',message:{role:'user',content:taskText(packet,answer)}})+'\n');
+denied('a seat with a transcript naming its task and no start on record is refused',call('Read',packet,{session_id:'sess-ghost',agent_id:'ghost',transcript_path:path.join(sdir,'sess-ghost.jsonl')}),/no start of this seat is on the hook's record/);
+check(!/transcript/i.test(fs.readFileSync(hook,'utf8').replace(/\/\/[^\n]*/g,'')),'seat-scope.js: the code must name no transcript (the hook input\'s transcript_path is never read)');
+denied('seat reads its answer file before it exists',call('Read',answer),/cannot be placed/);
 denied('seat reads the draft in its run',call('Read',path.join(run,'draft.md')),OWN);
 denied('seat reads the brief in its run',call('Read',path.join(run,'brief.md')),OWN);
 denied('seat reads a subfolder file of its run',call('Read',path.join(run,'extra','note.md')),OWN);
 denied('seat reads seats.json',call('Read',path.join(run,'seats.json')),OWN);
 denied('seat reads the log',call('Read',path.join(run,'log.jsonl')),OWN);
-node('packet.js',['--run',run,'--round','01-sparring','--seat','seat-2']);
-var packet2=path.join(run,'rounds','01-sparring','seat-2.packet.md'), answer2=path.join(run,'rounds','01-sparring','seat-2.answer.md');
 fs.writeFileSync(answer2,'RATING: 4/10\nThe other seat\'s read.\n');
 denied('seat reads another seat\'s packet in its round',call('Read',packet2),OWN);
 denied('seat reads another seat\'s answer in its round',call('Read',answer2),OWN);
@@ -169,35 +256,185 @@ denied('seat writes a dangling symlink',call('Write',path.join(run,'dangling.md'
 var provedOn=(/^var PROVED_ON='([^']+)';$/m.exec(fs.readFileSync(hook,'utf8'))||[])[1];
 check(typeof provedOn==='string'&&/^\d+\.\d+\.\d+$/.test(provedOn),'seat-scope.js: PROVED_ON must be one version constant on its own line, got '+provedOn);
 check(fs.readFileSync(hook,'utf8').split(provedOn).length===2,'seat-scope.js: the version must appear once, in PROVED_ON');
-var noT=call('Read',packet,{agent_id:'nobody'});
-denied('seat with no transcript',noT,new RegExp("the seat's transcript is not where Claude Code "+provedOn.replace(/\./g,'\\.')+" keeps it \\("+path.join(sdir,sid,'subagents','agent-nobody.jsonl').replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+"\\), so no run folder can be placed and nothing is read or written\\. A newer Claude Code has probably moved it: run `claude --version` and open an issue at github\\.com/LearningProducers/CombatWriting-Plugin/issues naming the version\\. Outside seats through the add-on are not affected"));
-seatTask('Read this and do what it says.','agent2');
-denied('seat whose task names no files',call('Read',packet,{agent_id:'agent2'}),/names no packet or answer file/);
-seatTask('Packet: '+path.join(run,'rounds','01-sparring','seat-9.packet.md')+'\nAnswer file: '+answer,'agent3');
-denied('seat whose packet does not exist',call('Read',packet,{agent_id:'agent3'}),/packet named in the task cannot be placed/);
-seatTask('Packet: '+path.join(run,'draft.md')+'\nAnswer file: '+answer,'agent4');
-denied('seat whose packet is not in a rounds folder',call('Read',packet,{agent_id:'agent4'}),/not inside a run's rounds folder/);
-seatTask('Packet: '+packet+'\nAnswer file: '+path.join(elsewhere,'seat-1.answer.md'),'agent5');
-denied('seat whose answer file is outside the run',call('Read',packet,{agent_id:'agent5'}),/answer file named in the task is not inside the run folder/);
+function rx(t){ return t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+var noRec=call('Read',packet,{session_id:'sess-empty',agent_id:'nobody'});
+denied('seat with no start on record',noRec,new RegExp("^Combat Writing seat scope: no start of this seat is on the hook's record \\(it looked in "+rx(path.join(data,'seat-scope','sess-empty'))+"\\), so no packet can be placed and nothing is read or written\\. The hook records a seat when the agent tool starts it, and was last proved on Claude Code "+rx(provedOn)+": if the agent tool started this seat, run `claude --version` and open an issue at github\\.com/LearningProducers/CombatWriting-Plugin/issues naming the version\\. Outside seats through the add-on are not affected$"));
+check(!fs.existsSync(path.join(data,'seat-scope','sess-empty')),'a seat\'s refused call must write nothing in the data folder');
 denied('seat using another tool',call('Bash',packet,{tool_name:'Bash'}),/a seat uses Read and Write only; Bash is not open to it/);
 ['Grep','Glob','WebFetch','Edit','Agent','mcp__combat-writing-crew__crew_answer'].forEach(function(t){ denied('seat using '+t,call(t,packet,{tool_name:t,tool_input:{pattern:'x',command:'x',url:'x',file_path:packet}}),new RegExp('a seat uses Read and Write only; '+t.replace(/[^A-Za-z0-9_]/g,'.')+' is not open to it')); });
 denied('seat writes 2 MB outside',call('Write',path.join(elsewhere,'big.md'),{tool_input:{file_path:path.join(elsewhere,'big.md'),content:new Array(2000001).join('x')}}),/writes only its own answer file/);
 allowed('seat writes 2 MB to its answer file',call('Write',answer,{tool_input:{file_path:answer,content:new Array(2000001).join('x')}}));
 denied('seat with input that does not parse',call('Read','','{"hook_event_name":"PreToolUse","tool_name":"Write","agent_type":"cw:seat"'),/hook input could not be read/);
 denied('seat call with no file_path',call('Read',undefined),/names no file/);
-denied('seat with a hostile agent id',call('Read',packet,{agent_id:'../../x'}),/a session or agent id the hook will not use in a path/);
-denied('seat with array content task',(function(){ fs.writeFileSync(path.join(sdir,sid,'subagents','agent-agent6.jsonl'),JSON.stringify({type:'user',message:{role:'user',content:[{type:'text',text:'Packet: nowhere.md\nAnswer file: '+answer}]}})+'\n'); return call('Read',packet,{agent_id:'agent6'}); })(),/packet named in the task cannot be placed/);
+denied('seat with a hostile agent id',call('Read',packet,{agent_id:'../../x'}),/the call carries no agent id the hook will use in a path/);
+denied('seat with no agent id',call('Read',packet,{agent_id:undefined}),/the call carries no agent id the hook will use in a path/);
+denied('seat with a hostile session id',call('Read',packet,{session_id:'../sess-1'}),/no start of this seat is on the hook's record \(no session id the hook will use in a path\)/);
+denied('start with a hostile session id',start(taskText(packet2,answer2),undefined,{session_id:'../../x'}),/^Combat Writing seat scope: the hook cannot keep the record of this start \(no session id the hook will use in a path\), and a seat with no record reads and writes nothing; the seat is not started\./);
+check(fs.readdirSync(tmp).sort().join(',')==='data,elsewhere,proj,sessions'&&fs.existsSync(data)&&fs.readdirSync(data).join(',')==='seat-scope','an id that is no plain name was used in a path, or no record was kept at all: '+fs.readdirSync(tmp).join(','));
+
+// ONE START PLACES ONE SEAT. Two starts in one session, two seats: each takes its own, neither
+// reads or writes the other's, and a seat that has a record never takes a second.
+var two='sess-two', A=as(two,'seatA'), B=as(two,'seatB'), C=as(two,'seatC');
+allowed('two seats: the start of seat-1',start(taskText(packet,answer),'m',{session_id:two}));
+allowed('two seats: the start of seat-2',start(taskText(packet2,answer2),undefined,{session_id:two}));
+check(waiting(two).length===2,'two starts must wait in the session, got '+JSON.stringify(kept(two,/./)));
+allowed('two seats: A reads seat-1\'s packet and is placed',A('Read',packet));
+denied('two seats: A, placed, asks for seat-2\'s packet while that start still waits',A('Read',packet2),OWN);
+denied('two seats: A, placed, writes seat-2\'s answer while that start still waits',A('Write',answer2),/writes only its own answer file, /);
+check(waiting(two).length===1&&placedSeats(two).join(',')==='agent-seatA.json','a placed seat must never take a second start, got '+JSON.stringify(kept(two,/./)));
+allowed('two seats: B writes seat-2\'s answer file as its first call and is placed by it',B('Write',answer2));
+allowed('two seats: B reads seat-2\'s packet',B('Read',packet2));
+denied('two seats: B asks for seat-1\'s packet',B('Read',packet),OWN);
+denied('two seats: B writes seat-1\'s answer',B('Write',answer),/writes only its own answer file, /);
+denied('two seats: a third seat asks for a packet whose start is taken',C('Read',packet),/no start of this seat is on the hook's record/);
+check(waiting(two).length===0&&placedSeats(two).join(',')==='agent-seatA.json,agent-seatB.json'&&strays(two).length===0,'two starts, two seats placed and nothing else, got '+JSON.stringify(kept(two,/./)));
+// A start sent again for the same packet (a seat sent back once) places the next seat, and that
+// seat may read the answer file first, the read the Write tool asks for before a rewrite.
+allowed('sent back: seat-1 is started again',start(taskText(packet,answer),'m',{session_id:two}));
+allowed('sent back: the new seat reads the answer file first and is placed by it',C('Read',answer));
+allowed('sent back: the new seat rewrites the answer file',C('Write',answer));
+allowed('sent back: the new seat reads the packet',C('Read',packet));
+allowed('sent back: the first seat keeps its record',A('Read',packet));
+// A start in one session places no seat of another.
+allowed('another session: a start waits in its own session',start(taskText(packet2,answer2),undefined,{session_id:'sess-here'}));
+denied('another session: a seat of another session asks for that packet',as('sess-there','x')('Read',packet2),/no start of this seat is on the hook's record/);
+check(waiting('sess-here').length===1,'a seat of another session took a start: '+JSON.stringify(kept('sess-here',/./)));
+// Records by another hand: a file of the hook's name that is not the hook's shape places no seat.
+var planted=path.join(data,'seat-scope','sess-planted'); fs.mkdirSync(planted,{recursive:true});
+var P=as('sess-planted','p');
+function gone(file){ try{ fs.unlinkSync(file); }catch(e){} }
+function plant(name,rec){ kept('sess-planted',/./).forEach(function(n){ gone(path.join(planted,n)); }); fs.writeFileSync(path.join(planted,name),typeof rec==='string'?rec:JSON.stringify(rec)+'\n'); }
+var realRun=fs.realpathSync(run), realPacket=fs.realpathSync(packet), realAnswer=path.join(realRun,'rounds','01-sparring','seat-1.answer.md');
+plant('start-a1-1.json',{v:1,at:1,seat:'seat-1',run:realRun,packet:path.join(realRun,'draft.md'),answer:realAnswer});
+denied('a planted record whose packet is the draft opens no draft',P('Read',path.join(run,'draft.md')),/no start of this seat is on the hook's record/);
+plant('start-a1-1.json',{v:1,at:1,seat:'seat-1',run:realRun,packet:fs.realpathSync(path.join(proj,'secret.txt')),answer:realAnswer});
+denied('a planted record whose packet is a file outside any run opens nothing',P('Read',path.join(proj,'secret.txt')),/no start of this seat is on the hook's record/);
+plant('start-a1-1.json',{v:1,at:1,seat:'seat-1',run:realRun,packet:realPacket,answer:path.join(fs.realpathSync(elsewhere),'seat-1.answer.md')});
+denied('a planted record whose answer file is outside its run places no seat',P('Read',packet),/no start of this seat is on the hook's record/);
+denied('a planted record whose answer file is outside its run opens no write there',P('Write',path.join(elsewhere,'seat-1.answer.md')),/no start of this seat is on the hook's record/);
+plant('start-a1-1.json',{v:1,at:1,seat:'seat-1',run:fs.realpathSync(elsewhere),packet:realPacket,answer:path.join(fs.realpathSync(elsewhere),'seat-1.answer.md')});
+denied('a planted record whose run is not the packet\'s run places no seat',P('Read',packet),/no start of this seat is on the hook's record/);
+plant('start-a1-1.json','{not json');
+denied('a planted record that is not JSON places no seat',P('Read',packet),/no start of this seat is on the hook's record/);
+kept('sess-planted',/./).forEach(function(n){ gone(path.join(planted,n)); });
+var good=path.join(tmp,'elsewhere','good-record.json'); fs.writeFileSync(good,JSON.stringify({v:1,at:1,seat:'seat-1',run:realRun,packet:realPacket,answer:realAnswer})+'\n');
+fs.symlinkSync(good,path.join(planted,'start-a1-1.json'));
+denied('a planted record that is a link places no seat',P('Read',packet),/no start of this seat is on the hook's record/);
+kept('sess-planted',/./).forEach(function(n){ gone(path.join(planted,n)); });
+fs.symlinkSync(good,path.join(planted,'agent-p.json'));
+denied('a seat\'s own record that is a link is no record',P('Read',packet),/no start of this seat is on the hook's record/);
+gone(path.join(planted,'agent-p.json')); gone(good);
+// Three paths that agree with each other, in a folder that is no run (it holds no seats.json).
+var norun=path.join(fs.realpathSync(elsewhere),'norun'); fs.mkdirSync(path.join(norun,'rounds','01-sparring'),{recursive:true});
+fs.writeFileSync(path.join(norun,'rounds','01-sparring','seat-1.packet.md'),'not a packet of any run\n');
+plant('start-a1-1.json',{v:1,at:1,seat:'seat-1',run:norun,packet:path.join(norun,'rounds','01-sparring','seat-1.packet.md'),answer:path.join(norun,'rounds','01-sparring','seat-1.answer.md')});
+denied('a planted record whose folder is no run (no seats.json) places no seat',P('Read',path.join(norun,'rounds','01-sparring','seat-1.packet.md')),/no start of this seat is on the hook's record/);
+denied('a planted record whose folder is no run opens no write there',P('Write',path.join(norun,'rounds','01-sparring','seat-1.answer.md')),/no start of this seat is on the hook's record/);
+fs.symlinkSync(path.join(realRun,'seats.json'),path.join(norun,'seats.json'));
+denied('a planted record whose folder holds a seats.json that is a link is no run',P('Read',path.join(norun,'rounds','01-sparring','seat-1.packet.md')),/no start of this seat is on the hook's record/);
+kept('sess-planted',/./).forEach(function(n){ gone(path.join(planted,n)); });
+// A seat whose own record is damaged has a record that cannot be read: it is refused, and it
+// takes no start that waits, its own file standing in the way.
+allowed('a damaged record: a start waits in the session',start(taskText(packet2,answer2),undefined,{session_id:'sess-planted'}));
+fs.writeFileSync(path.join(planted,'agent-p.json'),'{not json');
+denied('a seat whose own record is damaged takes no waiting start',P('Read',packet2),OWN);
+check(waiting('sess-planted').length===1&&fs.readFileSync(path.join(planted,'agent-p.json'),'utf8')==='{not json'&&strays('sess-planted').length===0,'a seat with a damaged record must leave the waiting start and its own file as they were, got '+JSON.stringify(kept('sess-planted',/./)));
+gone(path.join(planted,'agent-p.json'));
+// A hook stopped between its steps leaves a spare name carrying the seat's id and no record: that
+// seat is refused, after the short wait for a record that never comes, and nothing is opened.
+var stillWaiting=waiting('sess-planted')[0];
+check(!!stillWaiting,'the start that waited for the damaged seat\'s session is gone, so the next check has nothing to cut short');
+if(!stillWaiting){ kept('sess-planted',/./).forEach(function(n){ gone(path.join(planted,n)); }); start(taskText(packet2,answer2),undefined,{session_id:'sess-planted'}); stillWaiting=waiting('sess-planted')[0]||'start-none-0.json'; fs.writeFileSync(path.join(planted,stillWaiting),fs.existsSync(path.join(planted,stillWaiting))?fs.readFileSync(path.join(planted,stillWaiting)):'{}\n'); }
+var spareName='claim-p-'+stillWaiting.slice(6);
+fs.renameSync(path.join(planted,stillWaiting),path.join(planted,spareName));
+var slow=Date.now(), stuck=P('Read',packet2); slow=Date.now()-slow;
+denied('a seat whose taking was cut short is refused, never opened',stuck,/no start of this seat is on the hook's record/);
+check(slow<3000,'a seat whose taking was cut short must be answered well inside the hook\'s five seconds, took '+slow+' ms');
+check(kept('sess-planted',/./).join(',')===spareName,'the spare name of a taking cut short must be left as it was, got '+JSON.stringify(kept('sess-planted',/./)));
+var waited=timed(function(){ return P('Read',packet2); }), unwaited=timed(function(){ return as('sess-planted','nobody-here')('Read',packet2); });
+check(waited.ms>=unwaited.ms+400&&waited.ms<unwaited.ms+1500,'the wait for a taking cut short must end near its half second: '+waited.ms+' ms, against '+unwaited.ms+' ms for a seat with nothing to wait for');
+gone(path.join(planted,spareName));
+// The wait is for the seat's own taking alone. Another seat's spare name, and one whose id only
+// begins with this seat's id and a dash, are not this seat's: the refusal comes as fast as one
+// with no spare name standing, well short of the half second a wait would add.
+// Each time is the least of three runs, so one slow run on a loaded machine decides nothing.
+function timed(fn){ var best=null; for(var i=0;i<3;i++){ var t=Date.now(), r=fn(), ms=Date.now()-t; if(!best||ms<best.ms)best={r:r,ms:ms}; } return best; }
+var plain=timed(function(){ return P('Read',packet2); });
+fs.writeFileSync(path.join(planted,'claim-other-zz-9.json'),'{}\n'); fs.writeFileSync(path.join(planted,'claim-p-b-zz-9.json'),'{}\n');
+var others=timed(function(){ return P('Read',packet2); });
+denied('a seat beside another seat\'s spare name is refused',others.r,/no start of this seat is on the hook's record/);
+check(others.ms<plain.ms+300,'a seat must not wait on another seat\'s spare name: refused in '+others.ms+' ms, against '+plain.ms+' ms with no spare name standing');
+gone(path.join(planted,'claim-other-zz-9.json')); gone(path.join(planted,'claim-p-b-zz-9.json'));
+// A start the hook cannot rename, for a cause other than its being gone, is a fault of the hook's
+// and is answered as one: refused with the cause, never a word about the file asked for.
+if(process.platform!=='win32'&&typeof process.getuid==='function'&&process.getuid()!==0){
+  allowed('a folder that cannot be written: a start waits in it first',start(taskText(packet2,answer2),undefined,{session_id:'sess-locked'}));
+  var lockedDir=path.join(data,'seat-scope','sess-locked');
+  check(fs.existsSync(lockedDir),'the start for the locked folder was not kept in its own session\'s folder, so the next check has nothing to lock');
+  if(fs.existsSync(lockedDir))fs.chmodSync(lockedDir,0o500);
+  denied('a start that cannot be renamed is a fault, answered as one',as('sess-locked','q')('Read',packet2),/^Combat Writing seat scope: the hook failed \(E[A-Z]+\); a seat does nothing the hook cannot judge$/);
+  if(fs.existsSync(lockedDir))fs.chmodSync(lockedDir,0o700);
+  check(waiting('sess-locked').length===1&&placedSeats('sess-locked').length===0,'a start that could not be renamed must still wait: '+JSON.stringify(kept('sess-locked',/./)));
+}
+// A link is never a folder of the hook's. A session's folder that is a link: no start is put on
+// record through it and no seat is placed from it. The same for the folder of records itself.
+var away=path.join(fs.realpathSync(elsewhere),'away'); fs.mkdirSync(away);
+fs.writeFileSync(path.join(away,'start-zz-9.json'),JSON.stringify({v:1,at:9,seat:'seat-2',run:realRun,packet:fs.realpathSync(packet2),answer:path.join(realRun,'rounds','01-sparring','seat-2.answer.md')})+'\n');
+fs.symlinkSync(away,path.join(data,'seat-scope','sess-linked'));
+denied('a session\'s folder that is a link: the start of a seat is refused',start(taskText(packet2,answer2),undefined,{session_id:'sess-linked'}),/^Combat Writing seat scope: the hook cannot keep the record of this start \(where its folder of records should be, a link or a file stands, and the hook writes through neither, in the plugin's data folder\), and a seat with no record reads and writes nothing; the seat is not started\./);
+denied('a session\'s folder that is a link: a record waiting behind it places no seat',as('sess-linked','q')('Read',packet2),/no start of this seat is on the hook's record/);
+check(fs.readdirSync(away).join(',')==='start-zz-9.json','a session\'s folder that is a link was written through or changed: '+fs.readdirSync(away).join(','));
+fs.unlinkSync(path.join(data,'seat-scope','sess-linked'));
+var data2=path.join(fs.realpathSync(elsewhere),'data2'), away2=path.join(fs.realpathSync(elsewhere),'away2'); fs.mkdirSync(data2); fs.mkdirSync(away2);
+fs.mkdirSync(path.join(away2,'sess-x'));
+fs.writeFileSync(path.join(away2,'sess-x','start-zz-9.json'),JSON.stringify({v:1,at:9,seat:'seat-2',run:realRun,packet:fs.realpathSync(packet2),answer:path.join(realRun,'rounds','01-sparring','seat-2.answer.md')})+'\n');
+fs.symlinkSync(away2,path.join(data2,'seat-scope'));
+denied('the folder of records itself a link: the start of a seat is refused',start(taskText(packet2,answer2),undefined,{session_id:'sess-x'},{CLAUDE_PLUGIN_DATA:data2}),/a link or a file stands, and the hook writes through neither/);
+denied('the folder of records itself a link: a start waiting behind it places no seat',call('Read',packet2,{session_id:'sess-x',agent_id:'q'},{CLAUDE_PLUGIN_DATA:data2}),/no start of this seat is on the hook's record/);
+check(fs.readdirSync(away2).join(',')==='sess-x'&&fs.readdirSync(path.join(away2,'sess-x')).join(',')==='start-zz-9.json','the folder of records that is a link was written through or read through: '+fs.readdirSync(away2).join(',')+' / '+fs.readdirSync(path.join(away2,'sess-x')).join(','));
+// A plain file standing where a session's folder should be: the same refusal, the file left.
+fs.writeFileSync(path.join(data,'seat-scope','sess-file'),'x\n');
+denied('a file standing where a session\'s folder should be: the start of a seat is refused',start(taskText(packet2,answer2),undefined,{session_id:'sess-file'}),/a link or a file stands, and the hook writes through neither/);
+denied('a file standing where a session\'s folder should be: a seat is refused',as('sess-file','q')('Read',packet2),/no start of this seat is on the hook's record/);
+check(fs.readFileSync(path.join(data,'seat-scope','sess-file'),'utf8')==='x\n','the file standing where a session\'s folder should be was changed');
+gone(path.join(data,'seat-scope','sess-file'));
+
+// NO DATA FOLDER, or one the hook cannot write in: no record can be kept, so no seat is started
+// and no seat's call is allowed; every other caller is untouched.
+var NOKEEP=/^Combat Writing seat scope: the hook cannot keep the record of this start \(the host named no data folder for the plugin\), and a seat with no record reads and writes nothing; the seat is not started\. No fresh reader can start in this session; outside seats through the add-on are not affected$/;
+denied('no data folder named: the start of a seat is refused',start(taskText(packet2,answer2),undefined,{},{}),NOKEEP);
+denied('a relative data folder is none: the start of a seat is refused',start(taskText(packet2,answer2),undefined,{},{CLAUDE_PLUGIN_DATA:'data'}),NOKEEP);
+check(!fs.existsSync(path.join(proj,'data')),'a relative data folder was written in');
+denied('no data folder named: a seat\'s read of its packet is refused',call('Read',packet,{},{}),/^Combat Writing seat scope: no start of this seat is on the hook's record \(the host named no data folder for the plugin\), so no packet can be placed and nothing is read or written\./);
+denied('no data folder named: a seat\'s write is refused',call('Write',answer,{},{}),/no start of this seat is on the hook's record/);
+allowed('no data folder named: the host\'s own call is untouched',call('Bash','',{agent_type:undefined,agent_id:undefined,tool_name:'Bash',tool_input:{command:'ls'}},{}));
+allowed('no data folder named: the start of another agent type is untouched',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{description:'d',prompt:'x',subagent_type:'Explore'}},{}));
+var blocked=path.join(tmp,'elsewhere','a-file-not-a-folder'); fs.writeFileSync(blocked,'x\n');
+denied('a data folder the hook cannot write in: the start of a seat is refused',start(taskText(packet2,answer2),undefined,{},{CLAUDE_PLUGIN_DATA:blocked}),/^Combat Writing seat scope: the hook cannot keep the record of this start \(E[A-Z]+ writing in the plugin's data folder\), and a seat with no record reads and writes nothing; the seat is not started\./);
+check(fs.readFileSync(blocked,'utf8')==='x\n','the file standing where the data folder was named must be left as it was');
+fs.unlinkSync(blocked);
+
+// THE RECORDS END. A session's folder 30 days past its last start is removed at a later start:
+// the hook's own files, and the folder when nothing else is in it. A session's folder that is a
+// link is not entered.
+var base=path.join(data,'seat-scope'), old=new Date(Date.now()-31*86400000), young=new Date(Date.now()-29*86400000);
+function aged(name,files,when){ var d=path.join(base,name); fs.mkdirSync(d,{recursive:true}); files.forEach(function(f){ fs.writeFileSync(path.join(d,f),'{}\n'); }); fs.utimesSync(d,when,when); return d; }
+var oldDir=aged('sess-old',['start-abc-12.json','agent-someone.json','claim-someone-abc-12.json'],old);
+var mixedDir=aged('sess-mixed',['agent-someone.json','notes.txt'],old);
+var youngDir=aged('sess-young',['agent-someone.json'],young);
+var linkTarget=path.join(tmp,'elsewhere','linked'); fs.mkdirSync(linkTarget); fs.writeFileSync(path.join(linkTarget,'agent-someone.json'),'{}\n'); fs.utimesSync(linkTarget,old,old);
+fs.symlinkSync(linkTarget,path.join(base,'sess-link'));
+fs.writeFileSync(path.join(base,'a-file'),'x\n');
+allowed('the records end: a later start of a seat, in another session',start(taskText(packet2,answer2),undefined,{session_id:'sess-sweeper'}));
+check(!fs.existsSync(oldDir),'a session\'s records 31 days past its last start must be removed at a later start');
+check(fs.existsSync(mixedDir)&&fs.readdirSync(mixedDir).join(',')==='notes.txt','in an old folder that holds a file that is not the hook\'s, the hook\'s records go and that file and the folder stay: '+(fs.existsSync(mixedDir)?fs.readdirSync(mixedDir).join(','):'folder gone'));
+check(fs.existsSync(path.join(youngDir,'agent-someone.json')),'a session\'s records 29 days old must stay');
+check(fs.existsSync(path.join(linkTarget,'agent-someone.json'))&&fs.lstatSync(path.join(base,'sess-link')).isSymbolicLink(),'a link in the records folder must never be followed or removed');
+check(fs.readFileSync(path.join(base,'a-file'),'utf8')==='x\n','a file in the records folder that is no session\'s folder must be left alone');
+check(placedSeats(sid).join(',')==='agent-'+aid+'.json'&&placedSeats(two).length===3,'the records of sessions in use must stay: '+JSON.stringify(placedSeats(sid))+' '+JSON.stringify(placedSeats(two)));
+fs.unlinkSync(path.join(base,'sess-link')); fs.unlinkSync(path.join(base,'a-file'));
 
 // The start of a seat (issue 194): the host's Agent call is held to the seat record's start.
-// The run's records: seat-1 named (a pick), seat-2 on the session's own model.
-var recs=JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats;
-check(recs[0].start==='named'&&recs[0].model==='Test Model'&&recs[1].start==='session','the run should seat seat-1 named and seat-2 on the session\'s model, got '+JSON.stringify(recs.map(function(r){return r.start;})));
-function taskText(pk,an){ return 'Packet: '+pk+'\nAnswer file: '+an+'\nRead the packet, write your answer to the answer file, reply with one line.'; }
-function start(prompt,model,extra){
-  var ti={description:'a seat reads',prompt:prompt,subagent_type:'cw:seat'};
-  if(model!==undefined)ti.model=model;
-  return call('Agent','',Object.assign({agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:ti},extra||{}));
-}
 denied('start: session record, a model passed',start(taskText(packet2,answer2),'a-choice-string'),/^Combat Writing seat scope: seat-2's record says it runs on the session's own model; start seat-2 again with no model choice$/);
 allowed('start: session record, no model',start(taskText(packet2,answer2)));
 allowed('start: session record, an empty model is no model',start(taskText(packet2,answer2),'  '));
@@ -258,6 +495,14 @@ allowed('host start call with no tool_input',call('Agent','',{agent_type:undefin
 var written=fs.readdirSync(run).sort().join(',');
 check(written==='brief.md,dangling.md,dir-out,draft.md,extra,link-out.txt,log.jsonl,rounds,seats.json','run folder changed by the hook: '+written);
 check(fs.readFileSync(answer,'utf8')==='RATING: 8/10\nFirst.\n','the hook must not touch the answer file');
+check(fs.readdirSync(proj).sort().join(',')==='brief.md,combat-writing,draft.md,secret.txt','the project folder changed: '+fs.readdirSync(proj).sort().join(','));
+// In the data folder: its one folder of records, a folder per session, and in each the hook's
+// own three kinds of file and nothing else.
+var foreign=[];
+if(!fs.existsSync(path.join(data,'seat-scope')))fs.mkdirSync(path.join(data,'seat-scope'),{recursive:true}), foreign.push('(the hook kept no record at all)');
+fs.readdirSync(data).forEach(function(n){ if(n!=='seat-scope')foreign.push(n); });
+fs.readdirSync(path.join(data,'seat-scope')).forEach(function(sess){ if(sess==='sess-mixed')return; fs.readdirSync(path.join(data,'seat-scope',sess)).forEach(function(f){ if(!/^(?:start-[0-9a-z]+-\d+|agent-[A-Za-z0-9_-]+)\.json$/.test(f))foreign.push(sess+'/'+f); }); });
+check(foreign.length===0,'the hook wrote something in the data folder that is not a record: '+foreign.join(', '));
 
 // hooks.json carries the entry; the script is clean.
 var hooks=JSON.parse(fs.readFileSync(path.join(plugin,'hooks','hooks.json'),'utf8'));
@@ -270,11 +515,9 @@ check(pre.length===1&&pre[0].hooks.length===1&&pre[0].hooks[0].type==='command'&
 // every other caller, so the host's own calls are not stopped by a fault in the plugin's code.
 check(pre.length===1&&pre[0].hooks[0].onFailure==='block','hooks.json: the seat hook\'s entry must carry onFailure "block", so a hook that fails stops the call: '+JSON.stringify(pre));
 var breaker=path.join(tmp,'break-path.js');
-fs.writeFileSync(breaker,'var p=require("path"),n=0;var real=p.dirname;p.dirname=function(x){ if(process.env.BREAK_NOW)throw new Error("a fault inside the hook"); return real.call(p,x); };\nprocess.stdin.on("end",function(){ process.env.BREAK_NOW="1"; });\n');
+fs.writeFileSync(breaker,'var p=require("path");["dirname","join"].forEach(function(k){ var real=p[k]; p[k]=function(){ if(process.env.BREAK_NOW)throw new Error("a fault inside the hook"); return real.apply(p,arguments); }; });\nprocess.stdin.on("end",function(){ process.env.BREAK_NOW="1"; });\n');
 function broken(input){
-  var r=cp.spawnSync(process.execPath,['-r',breaker,hook],{input:JSON.stringify(input),encoding:'utf8',cwd:proj});
-  var out=r.stdout.trim(), json=null; try{json=out?JSON.parse(out):null;}catch(e){}
-  return {status:r.status,out:out,json:json,stderr:r.stderr,reason:json&&json.hookSpecificOutput?json.hookSpecificOutput.permissionDecisionReason:''};
+  return shaped(cp.spawnSync(process.execPath,['-r',breaker,hook],{input:JSON.stringify(input),encoding:'utf8',cwd:proj,env:hookEnv()}));
 }
 var base={session_id:sid,transcript_path:transcript,cwd:proj,hook_event_name:'PreToolUse'};
 denied('a fault inside the hook, a seat\'s read',broken(Object.assign({},base,{tool_name:'Read',tool_input:{file_path:packet},agent_id:aid,agent_type:'cw:seat'})),/^Combat Writing seat scope: the hook failed \(a fault inside the hook\); a seat does nothing the hook cannot judge$/);
@@ -288,9 +531,9 @@ var early=path.join(tmp,'break-early.js');
 fs.writeFileSync(early,'var real=Array.prototype.indexOf,armed=false;\nArray.prototype.indexOf=function(x){ if(armed&&this.length===2&&this[0]==="cw:seat"&&this[1]==="seat"){ armed=false; require("fs").appendFileSync('+JSON.stringify(earlyMark)+',"threw\\n"); throw new Error("an early fault inside the hook"); } return real.apply(this,arguments); };\nprocess.stdin.on("end",function(){ armed=true; });\n');
 function brokenEarly(input){
   try{ fs.unlinkSync(earlyMark); }catch(e){}
-  var r=cp.spawnSync(process.execPath,['-r',early,hook],{input:JSON.stringify(input),encoding:'utf8',cwd:proj});
-  var out=r.stdout.trim(), json=null; try{json=out?JSON.parse(out):null;}catch(e){}
-  return {status:r.status,out:out,json:json,stderr:r.stderr,threw:fs.existsSync(earlyMark),reason:json&&json.hookSpecificOutput?json.hookSpecificOutput.permissionDecisionReason:''};
+  var r=shaped(cp.spawnSync(process.execPath,['-r',early,hook],{input:JSON.stringify(input),encoding:'utf8',cwd:proj,env:hookEnv()}));
+  r.threw=fs.existsSync(earlyMark);
+  return r;
 }
 var eh=brokenEarly(Object.assign({},base,{tool_name:'Bash',tool_input:{command:'ls'}}));
 check(eh.threw,'an early fault, the host\'s call: the breaker never threw, so nothing is proved');
@@ -304,6 +547,25 @@ denied('an early fault, before the hook has read who calls, still refuses a seat
 var et=brokenEarly(Object.assign({},base,{tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'cw:seat'}}));
 check(et.threw,'an early fault, the start of a seat: the breaker never threw, so nothing is proved');
 denied('an early fault, before the hook has read who calls, still refuses the start of a seat',et,/^Combat Writing seat scope: the hook failed \(an early fault inside the hook\); the seat is not started$/);
+// A record the hook cannot write, for a cause other than its being there already (a full disk),
+// is a fault answered as one: the seat is refused with the cause, the start is given back and
+// waits, and no half-written record or spare name is left.
+var full=path.join(tmp,'break-full.js');
+fs.writeFileSync(full,'var fs=require("fs"),p=require("path"),real=fs.writeFileSync;fs.writeFileSync=function(f){ if(/^agent-/.test(p.basename(String(f)))){ var e=new Error("no space left on device"); e.code="ENOSPC"; throw e; } return real.apply(fs,arguments); };\n');
+allowed('a full disk: a start goes on record',start(taskText(packet2,answer2),undefined,{session_id:'sess-full'}));
+var fullRun=shaped(cp.spawnSync(process.execPath,['-r',full,hook],{input:JSON.stringify(Object.assign({},base,{session_id:'sess-full',tool_name:'Read',tool_input:{file_path:packet2},agent_id:'f',agent_type:'cw:seat'})),encoding:'utf8',cwd:proj,env:hookEnv(),timeout:20000}));
+denied('a record that cannot be written is a fault, answered as one',fullRun,/^Combat Writing seat scope: the hook failed \(ENOSPC\); a seat does nothing the hook cannot judge$/);
+check(waiting('sess-full').length===1&&placedSeats('sess-full').length===0&&strays('sess-full').length===0,'after a record that could not be written the start must wait again and nothing else must stand: '+JSON.stringify(kept('sess-full',/./)));
+allowed('a full disk: the same seat is placed once the record can be written',as('sess-full','f')('Read',packet2));
+// TWENTY AT A START. One start of a seat removes the records of at most twenty sessions that
+// have stood their 30 days; the rest go at the next. A data folder of its own, 23 old sessions.
+var data3=path.join(tmp,'data3'), base3=path.join(data3,'seat-scope');
+for(var k=0;k<23;k++){ var od=path.join(base3,'old-'+k); fs.mkdirSync(od,{recursive:true}); fs.writeFileSync(path.join(od,'agent-x.json'),'{}\n'); fs.utimesSync(od,old,old); }
+function oldLeft(){ return fs.readdirSync(base3).filter(function(n){ return /^old-/.test(n); }).length; }
+allowed('twenty at a start: the first later start',start(taskText(packet2,answer2),undefined,{session_id:'sess-a'},{CLAUDE_PLUGIN_DATA:data3}));
+check(oldLeft()===3,'one start must remove the records of twenty old sessions and leave the other three, left '+oldLeft());
+allowed('twenty at a start: the next start',start(taskText(packet2,answer2),undefined,{session_id:'sess-b'},{CLAUDE_PLUGIN_DATA:data3}));
+check(oldLeft()===0,'the next start must remove the rest, left '+oldLeft());
 // THE LIVE PROOF'S FIXTURE (issue 237). tests/seat_scope_live.js is not run by CI, so nothing
 // read the run it builds, and a rule the hook gained after the proof was written left the proof
 // starting no seat, unseen. The arguments the live proof hands new-run.js are read from its own
@@ -326,11 +588,81 @@ if(Array.isArray(liveArgs)){
   check(/'Packet: '\+packet\+'\\nAnswer file: '\+answer\+'\\n/.test(liveSrc),'the live proof\'s fixture: the task the live proof writes must open with the Packet and Answer file lines the hook reads');
 }
 
-var src=fs.readFileSync(hook,'utf8');
+var src=fs.readFileSync(hook,'utf8'), code=src.replace(/\/\/[^\n]*/g,'');
 check(src.split('\n')[0]==='// SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0','seat-scope.js: no Shield header on line 1');
-check(!/writeFileSync|appendFileSync|mkdirSync|child_process|\bfetch\(|https?:\/\/|process\.env/.test(src.replace(/\/\/[^\n]*/g,'')),'seat-scope.js: must write nothing, spawn nothing, fetch nothing, read no environment');
+check(!/appendFileSync|child_process|\bfetch\(|https?:\/\/|process\.argv/.test(code),'seat-scope.js: must spawn nothing, fetch nothing and read no argument');
+check((code.match(/process\.env\.?[A-Za-z_\[]*/g)||[]).join(',')==='process.env.CLAUDE_PLUGIN_DATA','seat-scope.js: reads one environment variable, CLAUDE_PLUGIN_DATA, once: '+(code.match(/process\.env\.?[A-Za-z_\[]*/g)||[]).join(','));
+check((code.match(/require\('[^']+'\)/g)||[]).join(',')==="require('fs'),require('path')",'seat-scope.js: requires fs and path alone');
 
-fs.rmSync(tmp,{recursive:true,force:true});
-failures.forEach(function(f){console.log('FAIL '+f);});
-console.log((failures.length?'seat_scope_check: '+failures.length+' failure(s), ':'seat_scope_check: all passed, ')+passes+' checks');
-process.exit(failures.length?1:0);
+// AT ONCE. The claim is one rename, so calls that land together cannot share a start. Eight seats
+// ask for one waiting packet in the same moment: one is placed. One seat makes two calls in the
+// same moment, each naming the packet of a different waiting start: it is placed by one, and the
+// other start still waits for its own seat. Run as real processes side by side.
+function together(inputs){
+  return Promise.all(inputs.map(function(input){ return new Promise(function(done){
+    var c=cp.spawn(process.execPath,[hook],{cwd:proj,env:hookEnv()}), out='';
+    c.stdout.on('data',function(d){ out+=d; }); c.on('close',function(status){ done({status:status,out:out.trim()}); });
+    c.stdin.end(JSON.stringify(input));
+  }); }));
+}
+function seatInput(session,agent,tool,file){ return {session_id:session,transcript_path:transcript,cwd:proj,hook_event_name:'PreToolUse',tool_name:tool,tool_input:{file_path:file},agent_id:agent,agent_type:'cw:seat'}; }
+var rounds=[0,1,2,3,4];
+allowed('at once: one start waits for eight seats',start(taskText(packet,answer),'m',{session_id:'sess-eight'}));
+rounds.forEach(function(i){
+  allowed('at once: seat-1\'s start, pair '+i,start(taskText(packet,answer),'m',{session_id:'sess-pair-'+i}));
+  allowed('at once: seat-2\'s start, pair '+i,start(taskText(packet2,answer2),undefined,{session_id:'sess-pair-'+i}));
+});
+var boths=[0,1,2,3,4,5,6,7,8,9,10,11];
+boths.forEach(function(i){ allowed('at once: seat-1\'s start, its own two files, pair '+i,start(taskText(packet,answer),'m',{session_id:'sess-both-'+i})); });
+together([0,1,2,3,4,5,6,7].map(function(i){ return seatInput('sess-eight','racer'+i,'Read',packet); })).then(function(rs){
+  var let_in=rs.filter(function(r){ return r.status===0&&r.out===''; }).length, refused=rs.filter(function(r){ return r.status===0&&/"permissionDecision":"deny"/.test(r.out); }).length;
+  check(let_in===1&&refused===7,'at once: eight seats asked for one waiting packet; one must be placed and seven refused, got '+let_in+' placed and '+refused+' refused');
+  check(waiting('sess-eight').length===0&&placedSeats('sess-eight').length===1&&strays('sess-eight').length===0,'at once: one record must stand for the one start, got '+JSON.stringify(kept('sess-eight',/./)));
+  return rounds.reduce(function(chain,i){ return chain.then(function(){
+    return together([seatInput('sess-pair-'+i,'twin','Read',packet),seatInput('sess-pair-'+i,'twin','Read',packet2)]).then(function(pair){
+      var ok=pair.filter(function(r){ return r.status===0&&r.out===''; }).length;
+      check(ok===1,'at once, pair '+i+': one seat asked for two waiting packets in the same moment; one call must be allowed, got '+ok);
+      check(waiting('sess-pair-'+i).length===1&&placedSeats('sess-pair-'+i).join(',')==='agent-twin.json'&&strays('sess-pair-'+i).length===0,'at once, pair '+i+': the seat must hold one record and the other start must still wait, got '+JSON.stringify(kept('sess-pair-'+i,/./)));
+      var left=null; try{ left=JSON.parse(fs.readFileSync(path.join(data,'seat-scope','sess-pair-'+i,waiting('sess-pair-'+i)[0]),'utf8')); }catch(e){}
+      var mine=null; try{ mine=JSON.parse(fs.readFileSync(path.join(data,'seat-scope','sess-pair-'+i,'agent-twin.json'),'utf8')); }catch(e){}
+      check(!!left&&!!mine&&left.packet!==mine.packet,'at once, pair '+i+': the start still waiting must be the one the seat did not take');
+    });
+  }); },Promise.resolve());
+}).then(function(){
+  // One seat, two calls in the same moment, each naming one of ITS OWN two files, the packet and
+  // the answer file of one waiting start (a seat sent back opens that way: both files are on
+  // disk). One call takes the start; the other must wait for the seat's record and be judged by
+  // it, never refused a file that is the seat's own.
+  return boths.reduce(function(chain,i){ return chain.then(function(){
+    return together([seatInput('sess-both-'+i,'both','Read',packet),seatInput('sess-both-'+i,'both','Read',answer)]).then(function(pair){
+      var ok=pair.filter(function(r){ return r.status===0&&r.out===''; }).length;
+      check(ok===2,'at once, its own two files, pair '+i+': one seat read its packet and its answer file in the same moment; both are its own and both must be allowed, got '+ok+' allowed: '+pair.map(function(r){ return r.out.slice(0,200); }).join(' | '));
+      check(waiting('sess-both-'+i).length===0&&placedSeats('sess-both-'+i).join(',')==='agent-both.json'&&strays('sess-both-'+i).length===0,'at once, its own two files, pair '+i+': the seat must hold the one record and nothing else must stand, got '+JSON.stringify(kept('sess-both-'+i,/./)));
+    });
+  }); },Promise.resolve());
+}).then(function(){
+  // The wait itself, with no luck in it. The state a call meets when another call of its seat is
+  // taking a start is set by hand: the start under the seat's spare name, no record yet. The
+  // hook is started on the seat's read of its packet; 350 ms later this test does what the other
+  // call would, writes the seat's record and removes the spare name. The hook must have waited
+  // and must allow the read. (On a machine that takes longer than 350 ms to start the hook this
+  // check proves nothing and does not fail; the pairs above hold the same thing by another road.)
+  var sess='sess-wait', dir=path.join(data,'seat-scope',sess);
+  allowed('the wait: a start goes on record',start(taskText(packet,answer),'m',{session_id:sess}));
+  var st=waiting(sess)[0]||'start-none-0.json', rec='{}';
+  try{ rec=fs.readFileSync(path.join(dir,st),'utf8'); }catch(e){}
+  var spare=path.join(dir,'claim-waiter-'+st.slice(6));
+  try{ fs.renameSync(path.join(dir,st),spare); }catch(e){}
+  var began=Date.now();
+  setTimeout(function(){ try{ fs.writeFileSync(path.join(dir,'agent-waiter.json'),rec,{flag:'wx'}); fs.unlinkSync(spare); }catch(e){} },350);
+  return together([seatInput(sess,'waiter','Read',packet)]).then(function(rs){
+    var took=Date.now()-began;
+    check(rs[0].status===0&&rs[0].out==='','the wait: a call that lands while its own seat\'s start is being taken must wait for the seat\'s record and be allowed, got '+rs[0].out.slice(0,220));
+    check(took>=340,'the wait: the hook answered in '+took+' ms, before the record was written, so it did not wait');
+  });
+}).catch(function(e){ failures.push('at once: the check itself failed: '+(e&&e.stack||e)); }).then(function(){
+  fs.rmSync(tmp,{recursive:true,force:true});
+  failures.forEach(function(f){console.log('FAIL '+f);});
+  console.log((failures.length?'seat_scope_check: '+failures.length+' failure(s), ':'seat_scope_check: all passed, ')+passes+' checks');
+  process.exit(failures.length?1:0);
+});
