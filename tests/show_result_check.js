@@ -173,7 +173,7 @@ function fakeEnv(opener,extra){
   var env=Object.assign({},process.env,extra||{}), front=[];
   if(!(extra&&extra.CW_OPENER))delete env.CW_OPENER;
   if(opener)front.push(openerBin(opener));
-  if(env.WITH_FAKE_SAY){ front.push(standIn(path.join(tmp,'say.bin'),['say'],path.join(tmp,'fakesay.js'))); env.NODE_OPTIONS='--require '+asMac; }
+  if(env.WITH_FAKE_SAY){ front.push(standIn(path.join(tmp,'say.bin'),['say'],path.join(tmp,'fakesay.js'))); env.NODE_OPTIONS='--require '+JSON.stringify(asMac); }
   delete env.WITH_FAKE_SAY;
   if(front.length)env.PATH=front.concat([process.env.PATH||'']).join(path.delimiter);
   return env;

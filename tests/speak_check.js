@@ -72,7 +72,7 @@ function binFor(fakeFile){
   return d;
 }
 function speak(args,env,fakeFile){
-  var e=Object.assign({},process.env,{PATH:fakeFile?binFor(fakeFile)+path.delimiter+(process.env.PATH||''):emptyBin,NODE_OPTIONS:'--require '+asPlatform},env||{});
+  var e=Object.assign({},process.env,{PATH:fakeFile?binFor(fakeFile)+path.delimiter+(process.env.PATH||''):emptyBin,NODE_OPTIONS:'--require '+JSON.stringify(asPlatform)},env||{});
   return cp.spawnSync(process.execPath,[path.join(scripts,'speak.js')].concat(args),{encoding:'utf8',env:e});
 }
 var fake=path.join(tmp,'fakesay.sh');

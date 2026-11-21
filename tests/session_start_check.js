@@ -84,7 +84,7 @@ var asPlatform=path.join(tmp,'as-platform.js');
 fs.writeFileSync(asPlatform,'if(process.env.FAKE_PLATFORM)Object.defineProperty(process,"platform",{value:process.env.FAKE_PLATFORM});\n');
 function run(fakeDir,dataDir,env,args){
   var plat='darwin'; try{ plat=fs.readFileSync(path.join(fakeDir,'platform'),'utf8').trim()||'darwin'; }catch(x){}
-  var e=Object.assign({},process.env,{PATH:fakeDir,NODE_OPTIONS:'--require '+asPlatform,FAKE_PLATFORM:plat},env||{});
+  var e=Object.assign({},process.env,{PATH:fakeDir,NODE_OPTIONS:'--require '+JSON.stringify(asPlatform),FAKE_PLATFORM:plat},env||{});
   delete e.CW_SESSION_PROBE;
   if(env&&env.CW_SESSION_PROBE)e.CW_SESSION_PROBE=env.CW_SESSION_PROBE;
   delete e.CLAUDE_PLUGIN_DATA; if(dataDir)e.CLAUDE_PLUGIN_DATA=dataDir;
