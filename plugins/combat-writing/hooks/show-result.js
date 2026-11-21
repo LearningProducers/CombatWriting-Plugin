@@ -36,12 +36,16 @@
 //
 // THE REAL RUN (issue 235). The hook runs outside the sandbox the host's shell runs in, so what
 // it acts on is held to one thing: a real run folder. A command counts only when the segment that
-// names one of the scripts also carries a --run value: a command that only mentions a script's
-// name gets no message, no context and no act. The run a command names is its literal --run path
-// (a token holding `$` or a backtick is no path; a relative one is placed under the hook input's
-// working folder, and is no path when that is no string). A real run folder is a directory that
-// holds seats.json and log.jsonl as plain files, the first a small JSON object with at least one
-// seat, and no symbolic link among its entries (at most RUN_ENTRIES_MAX are read; more is no run).
+// names one of the scripts also carries a --run value (a backslash at a line's end joins the two
+// lines first): a command that only mentions a script's name gets no message, no context and no
+// act. The run a command names is its literal --run path (a token holding `$` or a backtick is no
+// path; a relative one is placed under the hook input's working folder, and is no path when that
+// is no string). A real run folder is a directory that holds seats.json and log.jsonl as plain
+// files, the first a small JSON object with at least one seat, and nothing but plain files and
+// plain folders in it, in its rounds folder and in each round's folder: no symbolic link, no file
+// with a second name (a hard link), no pipe and no device, because the scripts the hook starts
+// read those files outside the sandbox and a link is a file from anywhere. At most
+// RUN_ENTRIES_MAX entries are read across the three levels; more is no run.
 //   - The board. The hook opens <run>/board.html, the run being the open-board.js segment's own
 //     literal --run path and a real run folder, and the file a plain file there. The opener's
 //     line is matched to learn that the shell could not open it; no path is ever taken from it.
@@ -49,19 +53,25 @@
 //     is shown as printed, and it carries the command that opens the board by hand. On Windows
 //     the opener is `cmd /c start`, and cmd reads & | < > ^ % and a double quote in a path as its
 //     own, so a board whose path holds one is not handed to it and the message says so.
-//   - The context. The host is handed the context only when the command names a real run folder
-//     by a literal path. Every message for the person is as it was.
-//   - The voices and the board rebuilt after them. The folder still comes from the script's own
-//     line (Part 81.2), else from the command's literal path; it must be a real run folder, and
-//     the round a round of it: a name of the round's form, rounds/<round> a plain directory, and
-//     no symbolic link among that folder's entries. The run is asked again before the rebuild.
 //   - The render before the open. The page the hook opens is the plugin's own render of the run:
 //     the hook runs render-board.js on the run the moment before it opens the board, so a
 //     board.html written by any other hand is replaced by that render and never opened as it
 //     stood. A render that fails or runs past its window opens nothing, and the message says so.
 //     With the voices owed in the same command the board is rendered once, after them.
+//   - The context, and the short form rendered again for a silenced command. Both take the run
+//     from the command's literal path: the host is handed the context only when the command
+//     names a real run folder that way. Every message for the person is as it was.
+//   - The measured model. The line is written only to the log of a real run folder, the run
+//     being the check-answer.js segment's literal --run path.
+//   - The voices and the board rebuilt after them. These alone take the folder from somewhere
+//     else: the script's own line in the command's output (Part 81.2), else the command's literal
+//     path. Whichever names it, it must be a real run folder, and the round a round of it: a name
+//     of the round's form and rounds/<round> a plain directory. The run is asked again before the
+//     rebuild. So a line of output can point the voices at another real run folder, where the
+//     plugin's own script writes that round's own voice files, and at nothing else.
 //   Named and not cured: the checks are made before the act, and a folder changed between the
-//   check and the act is not seen.
+//   check and the act is not seen; files outside the run folder that the scripts read (the
+//   project's voices.json) are not asked what they are.
 //
 // THE SILENCED COMMAND (Part 116, issue 179): a command that ran a script of the four but carries
 // none of its lines (the host sent the output to /dev/null) is re-run by the hook from the
@@ -133,10 +143,10 @@
 // project comes from the command's literal --run path (<project>/combat-writing/runs/<run>/),
 // the file is read through the bounded reader, and with the picker off the context says to
 // print the text Next line and open no picker. No file, a file that is no regular file or is
-// over SMALL_BYTES, a file that does not parse, any value but off, a run named by a shell
-// variable or written with a tilde (the shell expands both, the hook cannot) and a run folder
-// anywhere else all read as on, and the context ends as it always
-// has. pickerOff mirrors lib.readPicker, so the hook still requires fs, path and child_process
+// over SMALL_BYTES, a file that does not parse, any value but off and a run folder that is not
+// under <project>/combat-writing/runs/ all read as on, and the context ends as it always has.
+// A run named by a shell variable or written with a tilde (the shell expands both, the hook
+// cannot) gets no context at all (THE REAL RUN). pickerOff mirrors lib.readPicker, so the hook still requires fs, path and child_process
 // alone; tests/show_result_check.js holds the two equal on the same files. The hook never
 // writes the file.
 //
@@ -190,7 +200,7 @@ var scripts=path.join(__dirname,'..','scripts');
 var STARVED_UNKNOWN='Combat Writing: the command hid the scripts\' output and named the run folder with a shell variable, so the plugin could not re-run them; rerun them with the run folder spelled out and the output left alone.';
 var STARVED_NOT_A_RUN='Combat Writing: the command hid the scripts\' output and its --run path is not a run folder (no seats.json and log.jsonl of a run there as plain files, or a link among its files), so the plugin re-ran nothing: ';
 // THE REAL RUN (issue 235): a script segment counts when it carries a --run value; the entries read of a folder; the characters cmd reads as its own.
-var RUN_ARG=/\s--run\s+\S/, RUN_ENTRIES_MAX=4096, WIN_UNSAFE=/[&|<>^%"\r\n]/;
+var RUN_ARG=/\s--run\s+\S/, RUN_ENTRIES_MAX=16384, WIN_UNSAFE=/[&|<>^%"\r\n]/;
 var VOICES_NOT_A_RUN='Voices: nothing rendered by the plugin: not a run folder (no seats.json and log.jsonl of a run there as plain files, or a link among its files): ';
 var VOICES_NOT_A_ROUND='Voices: nothing rendered by the plugin: no such round in the run, or a link among its files: ';
 var VOICES_TAIL='; the board reads with the browser.';
@@ -200,7 +210,7 @@ var CONTEXT_HEAD='Combat Writing: the short form and the board line are on the p
 var CONTEXT=CONTEXT_HEAD+'then open the Next picker.';
 var CONTEXT_OFF=CONTEXT_HEAD+'then the text Next line, and open no picker: the Next picker is off for this project (combat-writing/picker.json; picker.js --run <folder> prints the text Next line under its first line).';
 
-function segmentsOf(command){ return String(command||'').split(/;|&&|\|\||\||\n/); }
+function segmentsOf(command){ return String(command||'').replace(/\\\r?\n/g,' ').split(/;|&&|\|\||\||\n/); } // a backslash at a line's end joins the two lines
 function hasSegment(command,re){ return segmentsOf(command).some(function(s){return re.test(s);}); }
 // THE REAL RUN: a segment that names the script and carries a --run value; a mention of the name alone is no run of it.
 function ran(command,re){ return segmentsOf(command).some(function(s){return re.test(s)&&RUN_ARG.test(s);}); }
@@ -208,23 +218,39 @@ function ran(command,re){ return segmentsOf(command).some(function(s){return re.
 function placed(p,cwd){ if(typeof p!=='string'||!p)return null; if(path.isAbsolute(p))return path.resolve(p); return typeof cwd==='string'&&cwd?path.resolve(cwd,p):null; }
 function plainFile(p){ try{ return fs.lstatSync(p).isFile(); }catch(e){ return false; } }
 function plainDir(p){ try{ return fs.lstatSync(p).isDirectory(); }catch(e){ return false; } }
-// No symbolic link among a folder's entries; false when the folder cannot be listed or holds more than RUN_ENTRIES_MAX.
-function noLinks(dir){
-  var list; try{ list=fs.readdirSync(dir,{withFileTypes:true}); }catch(e){ return false; }
-  return list.length<=RUN_ENTRIES_MAX&&!list.some(function(d){ return d.isSymbolicLink(); });
+// A folder's entries when every one is a plain file with one name or a plain folder: no symbolic
+// link, no hard link, no pipe, no device. Null when one is anything else, when the folder cannot
+// be listed, and when the entries run past what the budget has left.
+function plainEntries(dir,budget){
+  var list; try{ list=fs.readdirSync(dir,{withFileTypes:true}); }catch(e){ return null; }
+  if(list.length>budget.left)return null;
+  budget.left-=list.length;
+  for(var i=0;i<list.length;i++){
+    if(list[i].isDirectory())continue;
+    if(!list[i].isFile())return null;
+    try{ if(fs.lstatSync(path.join(dir,list[i].name)).nlink!==1)return null; }catch(e){ return null; }
+  }
+  return list;
 }
-// A real run folder: seats.json and log.jsonl as plain files, at least one seat, no link among its entries.
+// A real run folder: seats.json and log.jsonl as plain files, at least one seat, and plain files
+// and plain folders alone in it, in its rounds folder and in each round's folder.
 function isRun(dir){
-  if(typeof dir!=='string'||!dir||!noLinks(dir))return false;
+  if(typeof dir!=='string'||!dir)return false;
+  var budget={left:RUN_ENTRIES_MAX}, top=plainEntries(dir,budget); if(!top)return false;
   if(!plainFile(path.join(dir,'seats.json'))||!plainFile(path.join(dir,'log.jsonl')))return false;
+  var rounds=path.join(dir,'rounds');
+  if(top.some(function(d){ return d.name==='rounds'; })){
+    if(!plainDir(rounds))return false;
+    var each=plainEntries(rounds,budget); if(!each)return false;
+    for(var i=0;i<each.length;i++){ if(each[i].isDirectory()&&!plainEntries(path.join(rounds,each[i].name),budget))return false; }
+  }
   var j=smallJson(path.join(dir,'seats.json')).value;
   return !!(j&&Array.isArray(j.seats)&&j.seats.length);
 }
-// A round of a run: a name of the round's form, rounds/<round> a plain directory, no link among its entries.
+// A round of a run: a name of the round's form and rounds/<round> a plain directory. What is in it was asked by isRun.
 function isRound(runDir,round){
   if(typeof round!=='string'||!ROUND_RE.test(round))return false;
-  var dir=path.join(runDir,'rounds',round);
-  return plainDir(path.join(runDir,'rounds'))&&plainDir(dir)&&noLinks(dir);
+  return plainDir(path.join(runDir,'rounds'))&&plainDir(path.join(runDir,'rounds',round));
 }
 // The run's own board: board.html, a plain file in the run folder; null when it is anything else.
 function ownBoard(runDir){ var b=path.join(runDir,'board.html'); return plainFile(b)?b:null; }
@@ -501,6 +527,7 @@ function sessionModelOf(tp){
 function measureSeats(input,command){
   var cwd=typeof input.cwd==='string'&&input.cwd?input.cwd:process.cwd(), session;
   checksOf(command,cwd).forEach(function(check){ try{
+    if(!isRun(check.run))return; // THE REAL RUN: the line is written to the log of a real run folder alone
     var place=seatOf(check); if(!place)return;
     var logFile=path.join(check.run,'log.jsonl'), log=bytesOf(logFile,LOG_BYTES,true); if(!log)return;
     var found=transcriptOf(input,place.packet,cwd); if(!found)return;

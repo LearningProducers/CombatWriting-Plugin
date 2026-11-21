@@ -4,7 +4,8 @@
 // through systemMessage when the command ran render-record.js --short, opens the board outside
 // the sandbox when the opener's line says the shell could not or no line reached it (Part 116), re-runs
 // a silenced command from its --run path, and is silent on a command that ran none of the four.
-// Every act is held to a real run folder the command names by a literal --run path (issue 235).
+// Every act is held to a real run folder (issue 235): the command's literal --run path names it,
+// and for the voices the script's own line.
 //
 // Runs the REAL hook as a child process with the hook's stdin JSON (the PostToolUse shape:
 // tool_name, tool_input.command, tool_response {stdout, stderr}), around the REAL short form
@@ -104,6 +105,12 @@
 //     after them, and the line says the board carries them; a hand-made run folder is opened as
 //     the plugin's render of it; a folder the renderer cannot render is not opened, its page
 //     left as it was, the renderer's own error line in the message.
+//   - THE RUN FOLDER, ALL THE WAY DOWN (issue 235): a seat's answer that is a symbolic link, or a
+//     hard link, to a file outside the run is never read into a render by the hook (not on the
+//     open, not on the record rendered again for a silenced command) and its board is not
+//     opened; a run whose log is a link gets no seat.model line through it; a pipe in a round's
+//     folder is never waited on; a command continued over two lines with a backslash is one
+//     command.
 //   - hooks.json carries the PostToolUse entry on Bash with a timeout that covers the render; the source has
 //     the Shield header, the one PROVED_ON constant, the one MODEL_READ_ON constant, and spawns only the opener.
 //
@@ -651,10 +658,11 @@ var backRun=node('picker.js',['--on']);
 check(backRun.status===0&&!fs.existsSync(pickerFile)&&isOn(call(post(S,freshShort()+'\n'))),'the switch, the way back: after picker.js --on the context ends "'+ON_TAIL+'"');
 
 // THE REAL RUN (issue 235). The hook acts outside the sandbox, so what it acts on is held to one
-// thing: a real run folder the command itself names by a literal --run path. It opens that run's
-// own board.html and no other file, never a path read from the command's output; it hands the
-// host context only then; the voices it renders and the board it rebuilds are held to a real run
-// and to a round of it; a link among the run's files makes the folder no run.
+// thing: a real run folder. The board's run is the one the command itself names by a literal
+// --run path: the hook opens that run's own board.html and no other file, never a path read from
+// the command's output, and hands the host context only for a run named that way; the voices it
+// renders and the board it rebuilds stay on the folder the script's own line names, held to a
+// real run and to a round of it; a link among the run's files makes the folder no run.
 fs.rmSync(marker,{force:true});
 var decoy=path.join(tmp,'decoy.html'); fs.writeFileSync(decoy,'<p>not a board</p>\n');
 function failedFor(p){ return 'Board: '+p+' (the opener failed: x; open it yourself: y)\n'; }
@@ -728,7 +736,7 @@ else{
   var vRound=path.join(vRun,'rounds','01-sparring'); fs.readdirSync(vRound).filter(function(n){ return /^voices\.json$|\.m4a$/.test(n); }).forEach(function(n){ fs.rmSync(path.join(vRound,n)); });
   fs.symlinkSync(outsideVoices,path.join(vRound,'voices.json'));
   var vSilenced='Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1 owed for round 01-sparring of '+vRun+'.';
-  var rr6=shown('real run: a link in the round\'s folder',call(post('node '+path.join(scripts,'speak.js')+' --run '+vRun+' --round 01-sparring',vSilenced+'\n'),null,sayEnv));
+  var rr6=bare('real run: a link in the round\'s folder',call(post('node '+path.join(scripts,'speak.js')+' --run '+vRun+' --round 01-sparring',vSilenced+'\n'),null,sayEnv));
   check(fs.readFileSync(outsideVoices,'utf8')==='KEEP\n'&&!fs.existsSync(path.join(vRound,'seat-1.m4a'))&&/^Voices: nothing rendered by the plugin: /.test(rr6),'real run: the voices are not rendered into a round folder holding a link, and the file the link names is untouched; got '+JSON.stringify(rr6)+' and '+JSON.stringify(fs.readFileSync(outsideVoices,'utf8').slice(0,80)));
   // The board rebuilt after the voices: a board.html that is a link is never written through.
   var outsideBoard=path.join(tmp,'outside-board.txt'); fs.writeFileSync(outsideBoard,'KEEP\n');
@@ -739,6 +747,48 @@ else{
   call(post('node '+path.join(scripts,'speak.js')+' --run '+bRun+' --round 01-sparring && node '+path.join(scripts,'render-board.js')+' --run '+bRun,bSilenced+'\n'),null,sayEnv);
   check(fs.readFileSync(outsideBoard,'utf8')==='KEEP\n','real run: a board.html that is a link is never rebuilt through; the file it names holds '+JSON.stringify(fs.readFileSync(outsideBoard,'utf8').slice(0,80)));
 }
+// THE RUN FOLDER, ALL THE WAY DOWN (issue 235, the read before the pull request opened). The hook's renders run
+// outside the sandbox and read the run's files, so a link in the run's tree is a file from anywhere read into the
+// board, the record or a voice. A run folder holds plain files and plain folders alone, down through its rounds.
+var SECRET_TEXT='OUTSIDE-SECRET-LINE';
+var outsideSecret=path.join(tmp,'outside-secret.txt'); fs.writeFileSync(outsideSecret,'RATING: 8/10\n'+SECRET_TEXT+'\n');
+function copyRun(name){ var d=path.join(tmp,'proj-'+name,'combat-writing','runs',name+'-run'); fs.mkdirSync(path.dirname(d),{recursive:true}); fs.cpSync(run,d,{recursive:true}); fs.readdirSync(path.join(d,'rounds','01-sparring')).filter(function(n){ return /^voices\.json$|\.m4a$/.test(n); }).forEach(function(n){ fs.rmSync(path.join(d,'rounds','01-sparring',n)); }); return d; }
+function readAll(d){ return ['board.html','record.md'].map(function(n){ try{ return fs.readFileSync(path.join(d,n),'utf8'); }catch(e){ return ''; } }).join('\n'); }
+if(haveLinks){
+  // A seat's answer that is a symbolic link to a file outside the run: nothing is rendered from it, nothing opened.
+  var sRun=copyRun('s'), sAnswer=path.join(sRun,'rounds','01-sparring','seat-1.answer.md'); fs.rmSync(sAnswer); fs.symlinkSync(outsideSecret,sAnswer);
+  var opensS=opens().length;
+  var rs1=call(post('node '+scripts+'/open-board.js --run '+sRun,failedFor(path.join(sRun,'board.html'))),okOpener);
+  check(rs1.status===0&&opens().length===opensS&&readAll(sRun).indexOf(SECRET_TEXT)<0,'the run folder all the way down: an answer that is a symbolic link is never read into a render by the hook, and its board is not opened; opens '+opens().length+' against '+opensS+', the secret on the page: '+(readAll(sRun).indexOf(SECRET_TEXT)>=0));
+  // The same through the silenced command: the hook renders no record and no short form from a run that holds a link.
+  var rs2=call(post('node '+scripts+'/render-record.js --run '+sRun+' --short >/dev/null 2>&1; echo done','done\n'),okOpener);
+  check(rs2.status===0&&readAll(sRun).indexOf(SECRET_TEXT)<0&&String(rs2.out).indexOf(SECRET_TEXT)<0&&(!rs2.json||!rs2.json.hookSpecificOutput),'the run folder all the way down: the record is not rendered again from a run that holds a link, and no context is handed; got '+JSON.stringify(String(rs2.out).slice(0,200)));
+  // A hard link is a link too: a second name for a file that lives outside the run.
+  var hRun=copyRun('h'), hAnswer=path.join(hRun,'rounds','01-sparring','seat-1.answer.md'), hardOk=true; fs.rmSync(hAnswer);
+  try{ fs.linkSync(outsideSecret,hAnswer); }catch(e){ hardOk=false; }
+  if(!hardOk)console.log('skip the run folder all the way down: the hard link leg (no hard links on this platform)');
+  else{
+    var opensH=opens().length;
+    call(post('node '+scripts+'/open-board.js --run '+hRun,failedFor(path.join(hRun,'board.html'))),okOpener);
+    check(opens().length===opensH&&readAll(hRun).indexOf(SECRET_TEXT)<0,'the run folder all the way down: an answer that is a hard link to a file outside the run is never read into a render by the hook; the secret on the page: '+(readAll(hRun).indexOf(SECRET_TEXT)>=0));
+  }
+  // THE MEASURED MODEL under the same rule: a run whose log is a link gets no seat.model line through it.
+  var outsideM=path.join(tmp,'outside-measured.jsonl'); fs.writeFileSync(outsideM,'KEEP\n');
+  var mLink=handRun('measure-link-log',true); fs.rmSync(path.join(mLink.dir,'log.jsonl')); fs.symlinkSync(outsideM,path.join(mLink.dir,'log.jsonl'));
+  var hLink=hostAt('h-measure-link'); agentAt(hLink,'a',taskFor(mLink.packet,mLink.answer),['test-id-1'],{agentType:'cw:seat'},5);
+  timed(hLink,mLink.answer,mLink.dir,5000);
+  check(fs.readFileSync(outsideM,'utf8')==='KEEP\n','the measured model: a run whose log.jsonl is a link is no run, and no seat.model line is written through the link; the file it names holds '+JSON.stringify(fs.readFileSync(outsideM,'utf8').slice(0,120)));
+}
+// A pipe in a round's folder is no file of a run: the hook does not wait on it and renders nothing.
+if(haveFifo){
+  var fRun=copyRun('f'); fifo(path.join(fRun,'rounds','01-sparring','voices.json'));
+  var tP=Date.now(), rP=cp.spawnSync(process.execPath,[hook],{input:JSON.stringify(post('node '+path.join(scripts,'speak.js')+' --run '+fRun+' --round 01-sparring >/dev/null 2>&1; echo done','done\n')),encoding:'utf8',cwd:proj,timeout:8000,killSignal:'SIGKILL',env:Object.assign({},process.env,sayEnv)});
+  check(rP.status===0&&Date.now()-tP<8000,'the run folder all the way down: a pipe in a round\'s folder is never waited on; exit '+rP.status+' after '+(Date.now()-tP)+' ms');
+}
+// A command written over two lines with a backslash is one command: the run on the second line is the command's own.
+var opensC=opens().length;
+var rc1=shown('real run: a command continued over two lines',call(post('node '+scripts+'/open-board.js \\\n  --run '+run,failedLine+'\n'),okOpener));
+check(rc1==='Board opened by the plugin: '+board&&opens().length===opensC+1,'real run: a backslash at a line\'s end joins the two lines, and the board is opened; got '+JSON.stringify(rc1));
 // The voices: the round on the script's line must be a round of the run. A line naming `..` renders nothing and writes nothing above the rounds.
 var dRun=path.join(tmp,'proj-d','combat-writing','runs','d-run'); fs.mkdirSync(path.dirname(dRun),{recursive:true}); fs.cpSync(run,dRun,{recursive:true});
 var dFiles=fs.readdirSync(dRun).sort().join(',');
