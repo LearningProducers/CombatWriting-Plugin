@@ -442,7 +442,7 @@ function seatOf(check){
   try{ if(!fs.statSync(packet).isFile())return null; }catch(e){ return null; }
   return {seat:m[1],round:rel[1],packet:packet};
 }
-// A transcript's task: its first user record, from the file's first bytes (the rule of seat-scope.js).
+// A transcript's task: its first user record, from the file's first bytes.
 function taskOf(file){
   var part=bytesOf(file,TASK_BYTES,false); if(!part)return null;
   var lines=part.text.split('\n');

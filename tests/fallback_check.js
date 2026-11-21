@@ -69,12 +69,14 @@ var run=newRun('fall');
 ['seat-1','seat-2'].forEach(function(s){ node('packet.js',['--run',run,'--round','01-sparring','--seat',s]); });
 check(lib.modelsLine(seatsOf(run),logOf(run))==='Not on this session\'s model ('+SM+'): seat-2 on Test Model B.','before any fallback: the Models line names seat-2 alone, got '+lib.modelsLine(seatsOf(run),logOf(run)));
 
-// The start call the host makes, fed to the real hook.
+// The start call the host makes, fed to the real hook, which puts an allowed start on record in
+// the plugin's data folder (issue 241): a folder of this test's own, beside the project.
+var hookData=fs.mkdtempSync(path.join(os.tmpdir(),'cw-fallback-data-'));
 function startCall(seatId,model){
   var pk=path.join(run,'rounds','01-sparring',seatId+'.packet.md'), an=path.join(run,'rounds','01-sparring',seatId+'.answer.md');
   var ti={description:'a seat reads',prompt:'Packet: '+pk+'\nAnswer file: '+an+'\nRead the packet, write your answer to the answer file, reply with one line.',subagent_type:'cw:seat'};
   if(model!==undefined)ti.model=model;
-  var r=cp.spawnSync(process.execPath,[hook],{input:JSON.stringify({session_id:'s',transcript_path:path.join(proj,'s.jsonl'),cwd:proj,hook_event_name:'PreToolUse',tool_name:'Agent',tool_input:ti}),encoding:'utf8',cwd:proj});
+  var r=cp.spawnSync(process.execPath,[hook],{input:JSON.stringify({session_id:'s',transcript_path:path.join(proj,'s.jsonl'),cwd:proj,hook_event_name:'PreToolUse',tool_name:'Agent',tool_input:ti}),encoding:'utf8',cwd:proj,env:Object.assign({},process.env,{CLAUDE_PLUGIN_DATA:hookData})});
   var reason=''; try{ reason=JSON.parse(r.stdout).hookSpecificOutput.permissionDecisionReason; }catch(e){}
   return {status:r.status,out:r.stdout.trim(),reason:reason};
 }
@@ -219,6 +221,6 @@ if(have){
 var rules=read(path.join(plugin,'skills','combat-writing','SKILL.md'));
 check(/\| `\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/seat-fallback\.js --run <folder> --seat seat-1\\\|seat-2 --to session\\\|"<model>" --reason "<one line>" \[--round <nn-kind>\]` \| Records that a fresh reader's start fell to another model\./.test(rules),'rules skill: the seat-fallback.js row');
 
-fs.rmSync(proj,{recursive:true,force:true});
+fs.rmSync(proj,{recursive:true,force:true}); fs.rmSync(hookData,{recursive:true,force:true});
 if(failures.length){ failures.forEach(function(f){console.log('FAIL '+f);}); console.log('fallback_check: '+failures.length+' failure(s), '+checks+' checks'); process.exit(1); }
 console.log('fallback_check: all passed ('+checks+' checks)');
