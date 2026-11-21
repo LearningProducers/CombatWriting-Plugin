@@ -1,10 +1,19 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // seat-scope.js: the seat's reach. A PreToolUse hook on every tool. A fresh
-// reader (the `seat` agent, agent_type `cw:seat`) uses Read and Write only, reads only inside
-// its run folder and writes only its own answer file, both judged on the resolved path; any
-// other tool, and any path the hook cannot place, is denied. Every other caller, the host and
-// any other agent, is left alone but for one call, the one that starts a seat (below): the hook
-// prints nothing and exits 0, in about 20 ms.
+// reader (the `seat` agent, agent_type `cw:seat`) uses Read and Write only, reads two files, its
+// own packet and its own answer file, and writes that answer file alone, each judged on the
+// resolved path; any other tool, any other file and any path the hook cannot place is denied.
+// Every other caller, the host and any other agent, is left alone but for one call, the one that
+// starts a seat (below): the hook prints nothing and exits 0, in about 20 ms.
+//
+// The two files, and why no more: the packet carries the draft, the brief, the reader and the
+// other seats' answers of the round before, written into it by packet.js, and names no file by
+// path, so a path inside it is the draft's own words and never a grant. Everything else in the
+// run folder (the draft and the brief as files, seats.json, the log, another seat's packet, and
+// another seat's answer to the round in progress) stays closed, so that no seat reads another's
+// new answer before giving its own is held here and not by the seat's instructions alone. The
+// answer file is open to a read because the Write tool refuses to replace a file its caller has
+// not read, and a seat sent back once rewrites its answer.
 //
 // How the hook places the seat: the host starts a seat with a task of two lines, `Packet:
 // <path>` and `Answer file: <path>` (the sparring and battle skills). That task is the first
@@ -14,9 +23,20 @@
 // is tests/seat_scope_live.js). The
 // hook reads that record, takes the two paths, resolves the packet to its run folder
 // (rounds/<round>/<seat>.packet.md, two levels under the run), and judges every Read against
-// the run folder and every Write against the answer path. No transcript, no task, no packet,
-// no run folder, a symlink out, a path that does not exist, malformed input: denied, with
-// the reason, so a seat the hook cannot place does nothing rather than anything.
+// the packet and the answer path and every Write against the answer path. No transcript, no
+// task, no packet, no run folder, a symlink to another file, a path that does not exist,
+// malformed input: denied, with the reason, so a seat the hook cannot place does nothing rather
+// than anything.
+//
+// When the hook itself fails: hooks.json sets onFailure "block" on this hook's entry, so the
+// host stops the call when the hook cannot start, exits with an error or runs past its timeout,
+// where without the field it would let the call through (the field is read by Claude Code
+// 2.1.295 and later; an earlier host ignores it and lets the call through, as before). The host
+// cannot tell a seat from any other caller there: the entry has no matcher, so a hook that
+// cannot run stops every tool call of the session until Node is there or the plugin is switched
+// off. A fault inside this file's own code is therefore never left to the host: it is caught
+// below and answered here, a refusal for a seat's call and for the start of a seat, silence and
+// exit 0 for every other caller.
 //
 // How a seat starts: the one judgment on a caller that is not a seat. The call that starts a
 // fresh reader is the Agent tool (Task, its earlier name, is judged the same way) with
@@ -40,12 +60,13 @@
 // exit 0 (the documented form). On allow: nothing, exit 0, so the session's own permission
 // rules still apply. The hook reads the transcript record and the file system; it writes
 // nothing, calls nothing, reads no environment, and never prints a path from inside the draft.
-// Input that does not parse is denied when it names a seat agent type and ignored otherwise.
+// Input that does not parse is denied when it names a seat agent type and ignored otherwise;
+// a fault in the hook's own code is answered the same way, by who the input says is calling.
 
 var fs=require('fs'), path=require('path');
 
 // The Claude Code version the live proof last ran on (tests/seat_scope_live.js). One copy.
-var PROVED_ON='2.1.301';
+var PROVED_ON='2.1.330';
 // The Claude Code versions the start call's shape was read on, from the host's transcripts. One copy.
 var START_READ_ON='2.1.319 to 2.1.322';
 var START_TOOLS=['Agent','Task'];
@@ -135,6 +156,17 @@ function judgeStart(input){
   return allow();
 }
 
+// A fault in this file's own code is answered here and never left to the host, whose onFailure
+// "block" would stop the call whoever made it: a refusal for a seat and for the start of one,
+// silence for every other caller. `who` is set as soon as the input says who is calling.
+var who=null;
+process.on('uncaughtException',function(e){
+  var why='the hook failed ('+(e&&e.code?String(e.code):String(e&&e.message||e).split('\n')[0].slice(0,120))+')';
+  if(who==='seat')return deny(why+'; a seat does nothing the hook cannot judge');
+  if(who==='start')return deny(why+'; the seat is not started');
+  process.exit(0);
+});
+
 var raw='';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data',function(c){ raw+=c; });
@@ -149,10 +181,11 @@ process.stdin.on('end',function(){
   if(SEAT_TYPES.indexOf(input.agent_type)<0){
     // The host or another agent: one judgment, the call that starts a seat; everything else untouched.
     var ti=input.tool_input;
-    if(START_TOOLS.indexOf(input.tool_name)>=0&&ti&&typeof ti==='object'&&SEAT_TYPES.indexOf(ti.subagent_type)>=0)return judgeStart(input);
+    if(START_TOOLS.indexOf(input.tool_name)>=0&&ti&&typeof ti==='object'&&SEAT_TYPES.indexOf(ti.subagent_type)>=0){ who='start'; return judgeStart(input); }
     return allow();
   }
   // From here on the caller is a seat: anything the hook cannot place is denied.
+  who='seat';
   var tool=input.tool_name;
   if(SEAT_TOOLS.indexOf(tool)<0)return deny('a seat uses '+SEAT_TOOLS.join(' and ')+' only; '+tool+' is not open to it');
   var cwd=typeof input.cwd==='string'&&input.cwd?input.cwd:process.cwd();
@@ -170,10 +203,13 @@ process.stdin.on('end',function(){
   var target=input.tool_input&&typeof input.tool_input.file_path==='string'?input.tool_input.file_path:null;
   if(!target)return deny('the call names no file; nothing is read or written');
   if(tool==='Read'){
+    // Two files and no other: the packet, and the answer file once it is on disk. The resolved
+    // path is what is compared, so a link beside the packet that points at another file is that
+    // other file. The file asked for is never named in the reason: its path may be the draft's words.
     var p=placeExisting(target,cwd);
-    if(!p)return deny('the file cannot be placed (it does not exist, or its path cannot be resolved); a seat reads only inside its run folder');
-    if(!inside(p,runDir))return deny('a seat reads only inside its run folder, '+runDir);
-    return allow();
+    if(!p)return deny('the file cannot be placed (it does not exist, or its path cannot be resolved); a seat reads only its own packet and its own answer file');
+    if(samePath(p,packet)||samePath(p,answer))return allow();
+    return deny('a seat reads only its own packet and its own answer file; this file is neither');
   }
   var w=placeTarget(target,cwd);
   if(!w)return deny('the file cannot be placed; a seat writes only its own answer file');

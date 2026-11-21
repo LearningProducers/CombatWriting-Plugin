@@ -701,3 +701,12 @@ Seen and not touched, each owed to the next change that touches the hooks (it bu
 Delivers: `tests/seat_scope_live.js`, `tests/seat_scope_check.js`, `tests/session_start_live.js`, `docs/plugin-map.md`, PLAN.md.
 
 Status: delivered — 2026-11-21 — draft pull request open; item 2's check was run red on the proof as it stood, then green; the last line of `node tests/run_all.js` is in the pull request body. No board, hook or script changed, so no bump and THE SMOKE is not owed. The live proof from a plain terminal is owed before the merge.
+
+## Part 140 — The seat's fence fails closed and opens two files; the tests' switches leave shipped code (cw 0.9.19)
+
+Issue 239. Being built: the first commit holds items 1 and 2 of the list this part will carry, each with its check run red on the hook as it stood.
+
+1. The fence fails closed. The seat hook's entry in `hooks/hooks.json` carries `onFailure` `block`, so the host stops the call when the hook cannot start, exits with an error or runs past its timeout. A fault in the hook's own code is answered by the hook: a refusal for a seat and for the start of one, silence for every other caller.
+2. A seat reads two files: its own packet, and its own answer file once it is on disk. Everything else in its run folder is closed to it.
+
+Status: in progress — 2026-11-21 — draft pull request open on the first green commit; the rest of the part follows on the same branch.
