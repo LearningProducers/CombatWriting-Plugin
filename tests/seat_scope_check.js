@@ -55,7 +55,8 @@
 //   - The fence fails closed (issue 239): the entry carries onFailure "block", so the host stops
 //     the call when the hook cannot start, exits with an error or times out; a fault inside the
 //     hook's own code is a refusal for a seat's call and for the start of a seat, and silence,
-//     exit 0, for every other caller.
+//     exit 0, for every other caller; a fault before the hook has read who is calling is
+//     answered the same, from the raw input, and each such run is shown to have faulted.
 //   - The live proof's fixture (issue 237): the run tests/seat_scope_live.js builds, read from its
 //     own source and built here, is one whose seat-1 the hook starts with no model choice.
 //
@@ -278,8 +279,31 @@ function broken(input){
 var base={session_id:sid,transcript_path:transcript,cwd:proj,hook_event_name:'PreToolUse'};
 denied('a fault inside the hook, a seat\'s read',broken(Object.assign({},base,{tool_name:'Read',tool_input:{file_path:packet},agent_id:aid,agent_type:'cw:seat'})),/^Combat Writing seat scope: the hook failed \(a fault inside the hook\); a seat does nothing the hook cannot judge$/);
 denied('a fault inside the hook, the start of a seat',broken(Object.assign({},base,{tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'cw:seat'}})),/^Combat Writing seat scope: the hook failed \(a fault inside the hook\); the seat is not started$/);
-allowed('a fault inside the hook never reaches the host\'s own call',broken(Object.assign({},base,{tool_name:'Bash',tool_input:{command:'ls'}})));
-allowed('a fault inside the hook never reaches another agent\'s call',broken(Object.assign({},base,{tool_name:'Read',tool_input:{file_path:packet},agent_id:'x',agent_type:'Explore'})));
+// A fault BEFORE the hook has read who is calling: the first thing it does with the parsed input
+// is look the agent type up in its list of seat types, so a lookup that throws there faults every
+// caller's run, the host's included. The breaker leaves a mark when it throws, so silence is
+// proved to be the hook's answer to a fault that happened, and not a run in which nothing failed.
+var earlyMark=path.join(tmp,'early-fault.txt');
+var early=path.join(tmp,'break-early.js');
+fs.writeFileSync(early,'var real=Array.prototype.indexOf,armed=false;\nArray.prototype.indexOf=function(x){ if(armed&&this.length===2&&this[0]==="cw:seat"&&this[1]==="seat"){ armed=false; require("fs").appendFileSync('+JSON.stringify(earlyMark)+',"threw\\n"); throw new Error("an early fault inside the hook"); } return real.apply(this,arguments); };\nprocess.stdin.on("end",function(){ armed=true; });\n');
+function brokenEarly(input){
+  try{ fs.unlinkSync(earlyMark); }catch(e){}
+  var r=cp.spawnSync(process.execPath,['-r',early,hook],{input:JSON.stringify(input),encoding:'utf8',cwd:proj});
+  var out=r.stdout.trim(), json=null; try{json=out?JSON.parse(out):null;}catch(e){}
+  return {status:r.status,out:out,json:json,stderr:r.stderr,threw:fs.existsSync(earlyMark),reason:json&&json.hookSpecificOutput?json.hookSpecificOutput.permissionDecisionReason:''};
+}
+var eh=brokenEarly(Object.assign({},base,{tool_name:'Bash',tool_input:{command:'ls'}}));
+check(eh.threw,'an early fault, the host\'s call: the breaker never threw, so nothing is proved');
+allowed('an early fault never reaches the host\'s own call',eh);
+var ea=brokenEarly(Object.assign({},base,{tool_name:'Read',tool_input:{file_path:packet},agent_id:'x',agent_type:'Explore'}));
+check(ea.threw,'an early fault, another agent\'s call: the breaker never threw, so nothing is proved');
+allowed('an early fault never reaches another agent\'s call',ea);
+var es=brokenEarly(Object.assign({},base,{tool_name:'Read',tool_input:{file_path:packet},agent_id:aid,agent_type:'cw:seat'}));
+check(es.threw,'an early fault, a seat\'s read: the breaker never threw, so nothing is proved');
+denied('an early fault, before the hook has read who calls, still refuses a seat',es,/^Combat Writing seat scope: the hook failed \(an early fault inside the hook\); a seat does nothing the hook cannot judge$/);
+var et=brokenEarly(Object.assign({},base,{tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'cw:seat'}}));
+check(et.threw,'an early fault, the start of a seat: the breaker never threw, so nothing is proved');
+denied('an early fault, before the hook has read who calls, still refuses the start of a seat',et,/^Combat Writing seat scope: the hook failed \(an early fault inside the hook\); the seat is not started$/);
 // THE LIVE PROOF'S FIXTURE (issue 237). tests/seat_scope_live.js is not run by CI, so nothing
 // read the run it builds, and a rule the hook gained after the proof was written left the proof
 // starting no seat, unseen. The arguments the live proof hands new-run.js are read from its own

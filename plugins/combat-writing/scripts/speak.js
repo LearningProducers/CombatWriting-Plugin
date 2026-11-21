@@ -37,7 +37,7 @@
 // browser by seat id; `--set` still seeds the voice rendered first. The disk cost is the person's
 // project's: with three quality voices and three seats, nine files a round.
 //
-// WHERE IT DOES NOTHING. Off macOS with no --say command: logs voices.skipped {reason} and exits 0
+// WHERE IT DOES NOTHING. Off macOS: logs voices.skipped {reason} and exits 0
 // silently; the board keeps the browser path and says so. No quality voice installed: the same,
 // with the reason named, so the person knows what to download. A `say` that cannot start (ENOENT):
 // the same.

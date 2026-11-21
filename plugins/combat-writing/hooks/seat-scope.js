@@ -61,8 +61,9 @@
 // rules still apply. The hook reads the transcript record and the file system; it writes
 // nothing, calls nothing, reads no environment, and never prints a path from inside the draft.
 // Input that does not parse is denied when it names a seat agent type and ignored otherwise.
-// A fault in the hook's own code is answered by who the parsed input says is calling: refused
-// for a seat and for the start of a seat, silence and exit 0 for every other caller.
+// A fault in the hook's own code is answered by who the input says is calling, the parsed input
+// when the fault falls after it was read and the raw input before: refused for a seat and for
+// the start of a seat, silence and exit 0 for every other caller.
 
 var fs=require('fs'), path=require('path');
 
@@ -159,16 +160,18 @@ function judgeStart(input){
 
 // A fault in this file's own code is answered here and never left to the host, whose onFailure
 // "block" would stop the call whoever made it: a refusal for a seat and for the start of one,
-// silence for every other caller. `who` is set as soon as the input says who is calling.
-var who=null;
+// silence for every other caller. `who` is set as soon as the input says who is calling; a
+// fault before that is answered from the raw input, read the way input that does not parse is
+// read, so a seat is refused however early the fault falls.
+var who=null, raw='';
 process.on('uncaughtException',function(e){
   var why='the hook failed ('+(e&&e.code?String(e.code):String(e&&e.message||e).split('\n')[0].slice(0,120))+')';
-  if(who==='seat')return deny(why+'; a seat does nothing the hook cannot judge');
-  if(who==='start')return deny(why+'; the seat is not started');
+  var w=who||(/"agent_type"\s*:\s*"(?:cw:)?seat"/.test(raw)?'seat':/"subagent_type"\s*:\s*"(?:cw:)?seat"/.test(raw)?'start':null);
+  if(w==='seat')return deny(why+'; a seat does nothing the hook cannot judge');
+  if(w==='start')return deny(why+'; the seat is not started');
   process.exit(0);
 });
 
-var raw='';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data',function(c){ raw+=c; });
 process.stdin.on('end',function(){
