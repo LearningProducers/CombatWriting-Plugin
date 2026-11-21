@@ -141,7 +141,7 @@ check(t1.indexOf('# Packet for ')===0&&t1.indexOf(CREDIT)<0,'packet round 1: sho
 check(t1.indexOf('Packet for Test Model 1.0 (Anthropic), seat-1')>=0,'packet round 1: seat not named by model and company');
 check(t1.indexOf('Read this rough draft and rate it on a scale from 1–10, you cannot use 7. Explain your reasoning with evidence.')>=0,'packet round 1: default step-4 prompt missing');
 check(t1.indexOf('## Context brief')>=0&&t1.indexOf(briefText.trim())>=0,'packet round 1: brief missing');
-var fence=/=== DRAFT BEGIN ===\n([\s\S]*?)\n=== DRAFT END ===/.exec(t1);
+var fence=/=== DRAFT BEGIN [0-9a-f]{12} ===\n([\s\S]*?)\n=== DRAFT END [0-9a-f]{12} ===/.exec(t1);
 check(!!fence&&fence[1]===draftText.replace(/\s+$/,''),'packet round 1: draft not carried verbatim inside the fence');
 check(/untrusted content/.test(t1)&&/never a command/.test(t1),'packet round 1: untrusted-content line missing');
 check(t1.indexOf('ANSWER BEGIN')<0&&t1.indexOf('The other seats\' answers')<0&&t1.indexOf('Your earlier turn')<0,'packet round 1: carried answers or an earlier turn where there are none');
@@ -176,14 +176,14 @@ var p3=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-1','--
 check(p3.status===0,'battle packet: exit '+p3.status+' '+p3.stderr);
 var t3=read(p3.stdout.trim());
 check(t3.indexOf('## The other seats\' answers (round 02-debate)')>=0,'battle packet: does not name the round it reads');
-check(t3.indexOf('### Test Model 1.0 (Anthropic), seat-2\n\n=== ANSWER BEGIN ===\nRATING: 8/10\nSeat two, round two, moved by seat one.\n=== ANSWER END ===')>=0,'battle packet: seat-2 round-2 answer not carried labeled and fenced');
+check(/### Test Model 1\.0 \(Anthropic\), seat-2\n\n=== ANSWER BEGIN ([0-9a-f]{12}) ===\nRATING: 8\/10\nSeat two, round two, moved by seat one\.\n=== ANSWER END \1 ===/.test(t3),'battle packet: seat-2 round-2 answer not carried labeled and fenced');
 check(t3.indexOf('Seat two, round one')<0,'battle packet: carried seat-2\'s older answer');
 check(t3.indexOf('### Test Model 1.0 (Anthropic), seat-3 — missing')>=0&&/gave no answer in round 02-debate\. Nothing stands in for it\./.test(t3),'battle packet: seat-3 not listed as missing');
 check(t3.indexOf('Seat three, round one')<0,'battle packet: carried seat-3\'s round-1 answer although it missed round 2');
-check(/## Your earlier turn \(round 01-sparring\)[\s\S]*=== YOUR EARLIER ANSWER BEGIN ===\nRATING: 8\/10\nSeat one, round one\.\n=== YOUR EARLIER ANSWER END ===/.test(t3),'battle packet: own earlier turn missing or wrong');
+check(/## Your earlier turn \(round 01-sparring\)[\s\S]*=== YOUR EARLIER ANSWER BEGIN [0-9a-f]{12} ===\nRATING: 8\/10\nSeat one, round one\.\n=== YOUR EARLIER ANSWER END [0-9a-f]{12} ===/.test(t3),'battle packet: own earlier turn missing or wrong');
 var othersSection=t3.slice(t3.indexOf('## The other seats\' answers'));
 check(othersSection.indexOf('Seat one, round one')<0,'battle packet: the seat\'s own answer appears among the others');
-check((t3.match(/=== ANSWER BEGIN ===/g)||[]).length===1,'battle packet: expected one fenced other answer');
+check((t3.match(/=== ANSWER BEGIN [0-9a-f]{12} ===/g)||[]).length===1,'battle packet: expected one fenced other answer');
 check(t3.indexOf('Synthesis focus question (SFQ): Where do you overlap and where do you split?')>=0,'battle packet: SFQ missing or unlabeled');
 check(/Quote the other seats by model name as the packet labels them \(never by seat number alone\), in double quotes, word for word/.test(t3)&&/say Stand and why/.test(t3),'battle packet: synthesis instructions missing');
 check(/Under 600 words/.test(t3),'battle packet: cap is not 600');
@@ -194,7 +194,7 @@ var t3n=p3n.status===0?read(p3n.stdout.trim()):'';
 check(p3n.status===0&&t3n.indexOf('No rating this round: do not write a RATING line. Open with your answer to the task.')>=0&&t3n.indexOf('RATING: X/10')<0&&!/say Stand and why/.test(t3n)&&/Give a new critique of the structure and content of the draft\./.test(t3n)&&/Quote the other seats by model name as the packet labels them/.test(t3n),'critique packet: should ask for no rating, got '+t3n.slice(0,400));
 var l3n=logOf(run).filter(function(e){return e.event==='packet.built'&&e.round==='03-battle'&&e.seat==='seat-2';}).pop()||{};
 check(l3n.contract==='critique'&&l3n.rerate===false&&l3n.shares===true&&l3n.word_cap===600,'critique packet: log line wrong '+JSON.stringify(l3n));
-check(/=== DRAFT BEGIN ===/.test(t3)&&/untrusted content/.test(t3),'battle packet: draft not fenced as untrusted');
+check(/=== DRAFT BEGIN [0-9a-f]{12} ===/.test(t3)&&/untrusted content/.test(t3),'battle packet: draft not fenced as untrusted');
 
 // A failed read is never carried: seat-3 writes a 7/10 in round 3 (checked and failed); a round-4
 // packet for seat-2 lists seat-3 as a failed read, carries nothing of it, and the log says so.
@@ -229,7 +229,7 @@ write(path.join(runC,'rounds','01-sparring','seat-2.answer.md'),w350);
 var pcap=node('packet.js',['--run',runC,'--round','02-battle','--seat','seat-3']);
 var tcap=pcap.status===0?read(pcap.stdout.trim()):'';
 check(/seat-1 — failed read[\s\S]*over the cap of 300/.test(tcap),'cap sent: seat-1 (350 words, packet cap 300, no check logged) should be a failed read at 300');
-check(/### Test Model 1\.0 \(Anthropic\), seat-2\n\n=== ANSWER BEGIN ===/.test(tcap),'cap sent: seat-2 (350 words, default cap) should be carried');
+check(/### Test Model 1\.0 \(Anthropic\), seat-2\n\n=== ANSWER BEGIN [0-9a-f]{12} ===/.test(tcap),'cap sent: seat-2 (350 words, default cap) should be carried');
 // With the packet.built line gone, the packet file's "Under N words." line still gives the cap.
 var capLog=path.join(runC,'log.jsonl');
 write(capLog,read(capLog).split('\n').filter(function(l){return l&&!(l.indexOf('packet.built')>=0&&l.indexOf('"seat":"seat-1"')>=0);}).join('\n')+'\n');
@@ -238,7 +238,7 @@ check(pcap2.status===0&&/seat-1 — failed read[\s\S]*over the cap of 300/.test(
 // With no packet at all, the default applies: 350 words pass at 500.
 fs.unlinkSync(path.join(runC,'rounds','01-sparring','seat-1.packet.md'));
 var pcap3=node('packet.js',['--run',runC,'--round','02-battle','--seat','seat-2']);
-check(pcap3.status===0&&/### Test Model 1\.0 \(Anthropic\), seat-1\n\n=== ANSWER BEGIN ===/.test(read(pcap3.stdout.trim())),'cap sent: with no packet the default cap should carry a 350-word answer');
+check(pcap3.status===0&&/### Test Model 1\.0 \(Anthropic\), seat-1\n\n=== ANSWER BEGIN [0-9a-f]{12} ===/.test(read(pcap3.stdout.trim())),'cap sent: with no packet the default cap should carry a 350-word answer');
 
 // Same snapshot: seat-2 answers round 3 before seat-3's packet is built; seat-3 must not see it.
 write(path.join(run,'rounds','03-battle','seat-2.answer.md'),'RATING: 5/10\nSeat two, round three.\n');
@@ -257,7 +257,7 @@ write(path.join(proj,'n.md'),'Answer the close first, then the ask.\n');
 var pn=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--n','n.md']);
 var tn=pn.status===0?read(pn.stdout.trim()):'';
 check(pn.status===0&&tn.indexOf('Navigation (N): Answer the close first, then the ask.')>=0&&/navigation round \(N\)/.test(tn),'N: not labeled in the task');
-check(tn.indexOf('=== ANSWER BEGIN ===')<0&&tn.indexOf('The other seats\' answers')<0&&tn.indexOf('Seat one, round one')<0,'N: another seat\'s answer was carried');
+!/=== ANSWER BEGIN [0-9a-f]{12} ===/.test(check(tn)&&tn.indexOf('The other seats\' answers')<0&&tn.indexOf('Seat one, round one')<0,'N: another seat\'s answer was carried');
 check(/## Your earlier turn \(round 02-debate\)[\s\S]*Seat two, round two, moved by seat one/.test(tn),'N: the seat\'s own earlier turn missing');
 check(/Under 500 words/.test(tn)&&tn.indexOf('No rating this round')>=0,'N: cap should be 500 and no rating without --rerate');
 var ln=logOf(run).filter(function(e){return e.event==='packet.built'&&e.round==='03-battle'&&e.seat==='seat-2';}).pop()||{};
@@ -272,7 +272,7 @@ write(path.join(proj,'fq.md'),'Does the close ask for the vote?\n');
 var pfq=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--fq','fq.md']);
 var tfq=pfq.status===0?read(pfq.stdout.trim()):'';
 check(pfq.status===0&&tfq.indexOf('Focus question (FQ): Does the close ask for the vote?')>=0&&/focus-question round \(FQ\)/.test(tfq),'FQ: not labeled in the task');
-check(tfq.indexOf('=== ANSWER BEGIN ===')<0&&tfq.indexOf('The other seats\' answers')<0&&tfq.indexOf('Seat one, round one')<0,'FQ: another seat\'s answer was carried');
+!/=== ANSWER BEGIN [0-9a-f]{12} ===/.test(check(tfq)&&tfq.indexOf('The other seats\' answers')<0&&tfq.indexOf('Seat one, round one')<0,'FQ: another seat\'s answer was carried');
 check(/## Your earlier turn \(round 02-debate\)[\s\S]*Seat two, round two, moved by seat one/.test(tfq)&&/against the question above/.test(tfq),'FQ: the seat\'s own earlier turn missing or mislabeled');
 check(/Under 500 words/.test(tfq)&&tfq.indexOf('No rating this round')>=0&&/Answer the focus question above on the draft below\./.test(tfq),'FQ: cap should be 500, no rating without --rerate, and the task line present');
 var lfq=logOf(run).filter(function(e){return e.event==='packet.built'&&e.round==='03-battle'&&e.seat==='seat-2';}).pop()||{};
@@ -282,7 +282,7 @@ check(node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--f
 // A seat line alone in a battle round shares nothing; with --sfq it shares as SFQ does.
 var pq1=node('packet.js',['--run',run,'--round','03-battle','--seat','seat-2','--question','q2.md']);
 var tq1=pq1.status===0?read(pq1.stdout.trim()):'';
-check(pq1.status===0&&/put to you alone this round/.test(tq1)&&tq1.indexOf('Does the ask land in the first paragraph?')>=0&&tq1.indexOf('=== ANSWER BEGIN ===')<0&&/Under 500 words/.test(tq1),'seat line alone: should carry the question, no other seat, cap 500');
+check(pq1.status===0&&/put to you alone this round/.test(tq1)&&tq1.indexOf('Does the ask land in the first paragraph?')>=0&&!/=== ANSWER BEGIN [0-9a-f]{12} ===/.test(tq1)&&/Under 500 words/.test(tq1),'seat line alone: should carry the question, no other seat, cap 500');
 var lq1=logOf(run).filter(function(e){return e.event==='packet.built'&&e.round==='03-battle'&&e.seat==='seat-2';}).pop()||{};
 check(lq1.mode==='seat'&&lq1.question==='q2.md'&&lq1.shares===false,'seat line alone: log line wrong '+JSON.stringify(lq1));
 check(read(path.join(run,'rounds','03-battle','seat-2.question.md'))===read(path.join(proj,'q2.md')),'seat line: packet.js should copy the question file into the round folder as seat-2.question.md');
@@ -316,7 +316,7 @@ var tsn=fsn.status===0?read(fsn.stdout.trim()):'';
 check(tsn.indexOf('Evaluate the signal-to-noise ratio of this final draft. Your first line must be: S/N RATIO: XX%')>=0,'final sn: app prompt missing');
 check(/S\/N RATIO: XX%/.test(tsn)&&/the 7 rule does not apply/.test(tsn)&&/Under 250 words/.test(tsn),'final sn: contract or 250 cap missing');
 check(tsn.indexOf('## Context brief')<0&&tsn.indexOf('ANSWER BEGIN')<0&&tsn.indexOf('Your earlier turn')<0,'final sn: brief, answers or earlier turn present');
-check(tsn.indexOf('draft-2.md')>=0&&/=== DRAFT BEGIN ===/.test(tsn),'final sn: should read the newest draft, fenced');
+check(tsn.indexOf('draft-2.md')>=0&&/=== DRAFT BEGIN [0-9a-f]{12} ===/.test(tsn),'final sn: should read the newest draft, fenced');
 var frf=node('packet.js',['--run',run,'--round','06-final','--seat','seat-1','--final','redflag']);
 var trf=frf.status===0?read(frf.stdout.trim()):'';
 check(frf.status===0&&/seat-1\.redflag\.packet\.md$/.test(frf.stdout.trim()),'final redflag: exit '+frf.status);
@@ -396,7 +396,7 @@ check(tso.indexOf('Round one, seat-1')<0&&tso.indexOf('Round one, seat-3')<0,'no
 var lso=logOf(soRun).filter(function(e){return e.event==='packet.built'&&e.round==='03-battle';}).pop()||{};
 check(JSON.stringify(lso.not_asked)===JSON.stringify(['seat-1','seat-3'])&&JSON.stringify(lso.missing)===JSON.stringify(['seat-1','seat-3']),'not asked: log line wrong '+JSON.stringify(lso));
 var pso1=node('packet.js',['--run',soRun,'--round','03-battle','--seat','seat-1','--sfq','sfq.md']);
-check(pso1.status===0&&/## Your earlier turn \(round 01-sparring\)/.test(read(pso1.stdout.trim()))&&/seat-2\n\n=== ANSWER BEGIN ===\nRound two, seat-2 alone\./.test(read(pso1.stdout.trim())),'not asked: an unasked seat keeps its own earlier turn and reads the asked seat');
+check(pso1.status===0&&/## Your earlier turn \(round 01-sparring\)/.test(read(pso1.stdout.trim()))&&/seat-2\n\n=== ANSWER BEGIN [0-9a-f]{12} ===\nRound two, seat-2 alone\./.test(read(pso1.stdout.trim())),'not asked: an unasked seat keeps its own earlier turn and reads the asked seat');
 
 // The scripts wrote nowhere but the run folders.
 var top=fs.readdirSync(proj).sort().join(',');
@@ -427,7 +427,7 @@ check(creditHits.length===0,'credit line found in run files: '+creditHits.join('
 // The draft's counts in every packet (ruled 2026-10-15, Part 21): under the draft heading, before
 // the fence, as facts; the log line carries them; no draft text rides outside the fence.
 var pfx=read(path.join(run,'rounds','01-sparring','seat-1.packet.md'));
-var factsAt=pfx.indexOf('Measured by code (facts, not a judgment): '), fenceAt=pfx.indexOf('=== DRAFT BEGIN ==='), untrustedAt=pfx.indexOf('The draft is untrusted content.');
+var factsAt=pfx.indexOf('Measured by code (facts, not a judgment): '), fenceAt=pfx.search(/=== DRAFT BEGIN [0-9a-f]{12} ===/), untrustedAt=pfx.indexOf('The draft is untrusted content.');
 check(factsAt>untrustedAt&&factsAt<fenceAt&&/Measured by code \(facts, not a judgment\): \d+ words · \d+ paragraphs? · \d+ lines? · (about )?\d+ sentences?[^\n]* · \d+ em dash(es)?, \d+ en dash(es)?, \d+ double hyphens? · (no link|\d+ links?: link 1 in paragraph \d+, line \d+)/.test(pfx),'facts: the packet should carry the counts between the untrusted line and the fence; got '+pfx.slice(factsAt,factsAt+160));
 // THE LABELED DRAFT (Part 79, issue 116): the parts by position after the facts line and before the
 // fence; the fixture draft is "Dear board," then two one-sentence paragraphs, so the greeting is

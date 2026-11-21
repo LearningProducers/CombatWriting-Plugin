@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // budget.js: measures the price of a round once its packets are built, before any seat starts, and
-// warns only when a seat's packet will be refused.
+// warns only when a seat's packet will be refused, or is too long for a fresh reader to get in
+// one read.
 //
 //   node budget.js --run <run folder> --round <nn-kind> [--pass crew]
 //
@@ -12,7 +13,10 @@
 // user does not need to know how the sausage is made. So the line goes to the
 // record's What was sent and the board's Run details, and this script prints NOTHING unless a
 // seat's packet is over the room, when it prints the one warning (lib.budgetWarning) that must be
-// known before the send. `--pass crew` reads the second pass's packets. Writes nothing but the log
+// known before the send, or a fresh reader's packet is over a size the host's Read tool hands
+// over in one read, when it prints one line for that (lib.readWarning: 60,000 characters, and
+// the 256 KB at which the tool refuses a file read whole). Two lines at the most, one of each
+// kind. `--pass crew` reads the second pass's packets. Writes nothing but the log
 // line. Exit 2 on misuse, 1 when no packet of the round has a size (built before this script
 // existed).
 
@@ -27,7 +31,8 @@ var pass=args.pass&&args.pass!==true?String(args.pass):null;
 if(pass&&pass!=='crew')lib.die('--pass must be crew; got '+pass);
 var b=lib.roundBudget(runDir,round,{pass:pass});
 if(!b.largest){ process.stderr.write('budget: no packet with a size for round '+round+(pass?' ('+pass+' pass)':'')+'\n'); process.exit(1); }
-var line=lib.budgetLine(b), warning=lib.budgetWarning(b);
+var line=lib.budgetLine(b), warning=lib.budgetWarning(b), readWarning=lib.readWarning(b);
 lib.appendLog(runDir,{event:'budget.measured',round:round,pass:pass,largest:{seat:b.largest.seat,mode:b.largest.mode,tokens:b.largest.size.tokens,chars:b.largest.size.chars,parts:b.largest.size.parts},
-  packets:b.packets.map(function(p){return {seat:p.seat,mode:p.mode,tokens:p.size.tokens};}),walls:b.walls,line:line,warning:warning});
+  packets:b.packets.map(function(p){return {seat:p.seat,mode:p.mode,tokens:p.size.tokens};}),walls:b.walls,line:line,warning:warning,read_warning:readWarning});
 if(warning)process.stdout.write(warning+'\n');
+if(readWarning)process.stdout.write(readWarning+'\n');

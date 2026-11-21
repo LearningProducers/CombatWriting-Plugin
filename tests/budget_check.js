@@ -96,10 +96,14 @@ var r2=node('budget.js',['--run',run,'--round','02-battle']);
 var t2=built(run,'02-battle','seat-2').size.tokens, t3=built(run,'02-battle','seat-3').size.tokens;
 var over2=t2-(8000-1200), over3=t3-(8000-1200);
 check(over2>0&&over3>0,'fixture: the big prompt should put both outside packets over the room, got '+t2+' and '+t3);
-var l2=r2.stdout.trim();
+// Two lines at the most, one of each kind: the room an outside seat's provider allows, then the
+// size a fresh reader gets in one read (issue 243). The prompt here is long enough for both.
+var out2=r2.stdout.trim().split('\n'), l2=out2[0];
+check(out2.length===2&&/^Round 02: seat-1's packet is over 60,000 characters \([\d,]+\), /.test(out2[1])&&out2[1].indexOf('seat-2')<0&&out2[1].indexOf('seat-3')<0,'budget.js: the second line is the fresh reader\'s, and names no outside seat, got '+out2.slice(1).join(' / '));
 check(r2.status===0&&/^Round 02: seat-2's packet, about [\d,]+ tokens, is over the room Groq allows \(8,000 a minute per model with 1,200 kept for the reply\) by about [\d,]+ tokens \([\d,]+ characters\); seat-3's packet, about [\d,]+ tokens, is over the room Groq allows \(8,000 a minute per model with 1,200 kept for the reply\) by about [\d,]+ tokens \([\d,]+ characters\); the add-on will refuse it before it is sent\. Cut that much from the prompt or the brief, or run the round with less carried\.$/.test(l2),'budget.js: the warning on the terminal, got '+l2);
 check(l2.indexOf('seat-2\'s packet, about '+String(t2).replace(/\B(?=(\d{3})+(?!\d))/g,',')+' tokens, is over the room Groq allows (8,000 a minute per model with 1,200 kept for the reply) by about '+String(over2).replace(/\B(?=(\d{3})+(?!\d))/g,',')+' tokens ('+String(over2*4).replace(/\B(?=(\d{3})+(?!\d))/g,',')+' characters)')===0+'Round 02: '.length,'budget.js: the overrun numbers should be the packet\'s, got '+l2);
 var bp2=logOf(run).filter(function(e){return e.event==='budget.measured'&&e.round==='02-battle';}).pop();
+check(!!bp2&&bp2.read_warning===out2[1],'budget.measured: the fresh reader\'s line in the log as read_warning, got '+JSON.stringify(bp2&&bp2.read_warning));
 check(!!bp2&&bp2.warning===l2&&bp2.walls[0].over.length===2&&bp2.walls[0].over[0].over_by===over2&&/^Round 02 packets: up to about [\d,]+ tokens \(seat-\d\): the prompt [\d,]+, the other seats' answers [\d,]+/.test(bp2.line)&&/is over the room by about/.test(bp2.line),'budget.measured: the warning, the overrun and the line in the log, got '+JSON.stringify(bp2&&bp2.walls));
 
 // 5. A final round.

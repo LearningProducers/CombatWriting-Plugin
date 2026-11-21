@@ -130,8 +130,8 @@ Twenty-one files in `plugins/combat-writing/scripts/`, plain Node, no dependenci
 | Script | Called when | What it writes |
 |---|---|---|
 | `lib.js` | by every other script | nothing; the shared rules (the contract lines, the paste keywords, the draft's counts, the word caps, the bands) |
-| `new-run.js` | a run starts | the run folder, `draft.md`, `brief.md`, `reader.md`, `seats.json`; the project's brief; the gitignore on the first run |
-| `add-draft.js` | `draft:` or `reader:` on an existing run | `draft-N.md`, `reader.md` |
+| `new-run.js` | a run starts | the run folder, `draft.md`, `brief.md`, `reader.md`, `seats.json`; the project's brief; the gitignore on the first run; nothing at all for a draft with no words, which it refuses |
+| `add-draft.js` | `draft:` or `reader:` on an existing run | `draft-N.md`, `reader.md`; nothing for a draft with no words, which it refuses |
 | `brief.js` | `brief update:` | one dated line on the project's or the named brief, and on the run's |
 | `briefs.js` | `/cw:briefs` | nothing; prints the list |
 | `runs.js` | `/cw:runs`, `run:` | nothing; prints the list, the one folder, or under `--pick` the JSON array the runs picker reads |
@@ -140,12 +140,12 @@ Twenty-one files in `plugins/combat-writing/scripts/`, plain Node, no dependenci
 | `seat-fallback.js` | the host's tool refused a fresh reader's start or does not offer its model | one log line, `seat.fallback` (from, to, the reason; its time is the when), and that seat's record in the run's `seats.json` |
 | `crew-state.js` | the add-on is absent or down | one log line saying which, for the Seats line |
 | `announce.js` | the round's kind and seats are known | one log line; prints the forming line |
-| `budget.js` | every packet of a round is built | one log line with each packet's size and each provider's room; prints a warning only when a packet is over a wall |
-| `packet.js` | before any seat starts | each seat's `packet.md`, from files on disk only: the draft with its counts and parts, the brief, the reader, the previous round's answers, the seat's own earlier turn, the contract |
-| `check-answer.js` | a seat's answer lands | the log line; on a second overrun, the answer cut at the cap |
+| `budget.js` | every packet of a round is built | one log line with each packet's size and each provider's room; prints a line only when a packet is over a provider's wall, or a fresh reader's packet is too long to come back in one read |
+| `packet.js` | before any seat starts | each seat's `packet.md`, from files on disk only: the draft with its counts and parts, fenced on a mark drawn for that packet, the brief, the reader, the previous round's answers, the seat's own earlier turn, the contract |
+| `check-answer.js` | a seat's answer lands | the log line, its reasons in the checker's own words with no word of the answer; on a second overrun, the answer cut at the cap |
 | `check-flip.js` | after a rated round | the log line: Stand, flip valid, flip invalid |
-| `champion.js` | `/cw:champion` | `canon.md`, the result line, the vault line |
-| `render-record.js` | after every round; `--short` prints the terminal's short form | `record.md` |
+| `champion.js` | `/cw:champion` | `canon.md`, the result line, the vault line; with `--next`, nothing: it prints the Next line |
+| `render-record.js` | after every round; `--short` prints the terminal's short form | `record.md`, with a Log line when a line of the run's log could not be read |
 | `render-board.js` | after every round | `board.html` (the four faces under `fonts/` embedded as data) |
 | `render-state.js` | the screen, or anything reading the run | `state.json` with `--write`; else prints it |
 | `open-board.js` | after every round and after `shipped` | one log line; opens the board in your browser |
@@ -186,6 +186,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/open_board_check.js` | the opener: its exit read, the failed line named |
 | `tests/order_check.js` | any stage may be skipped |
 | `tests/packet_check.js` | the packet from files only, the previous round carried, the contract |
+| `tests/packet_run_check.js` | the packet and the run: every fence line on a mark drawn for the packet, so no line of a draft or of a carried answer closes a fence; a check's reason with no word of the answer; a draft with no words refused; a long packet said before the round; a line of the log that cannot be read counted and said; a run from a brief alone named; the Next line of champion printed by a script |
 | `tests/paste_check.js` | THE PASTE RULE, the same words in three skills |
 | `tests/picker_check.js` | THE PICKER RULE, the same words in three skills: the off switch per project, the text Next line at once, the way back, and a closed picker that remembers nothing |
 | `tests/places_check.js` | the two lists that end "Nothing is written anywhere else", the help's "Where files land" and the listing README's paragraph, name every place section 4 names and no other |
@@ -202,7 +203,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/rulings_check.js` | CLAUDE.md's short wall and its record: the first 28 entries of RULINGS.md equal to their hashes, every bullet of "What is ruled about the method" closed by the tests that hold it or by its words, CLAUDE.md under one ceiling in characters |
 | `tests/runs_check.js` | open runs and the way back |
 | `tests/second_copy_check.js` | a fact with a home is never copied: no version string in the root README or docs/, the listing README's card equal to the skill's |
-| `tests/seat_scope_check.js` | the seat's reach and the start of a seat held to its record, the real hook on a real run; a seat placed by the hook's own record and by no transcript, one start placing one seat, a seat's two calls at once on its own two files both allowed, no data folder starting none, a link or a file standing in for a folder of records never written or read through, the record holding no text of the draft beyond what its paths carry, the records removed at a later start once a session has stood 30 days, twenty sessions at a start at the most; the run the live proof builds held to a start the hook allows |
+| `tests/seat_scope_check.js` | the seat's reach and the start of a seat held to its record, the real hook on a real run; a seat placed by the hook's own record and by no transcript, one start placing one seat, a seat's two calls at once on its own two files both allowed, no data folder starting none, a link or a file standing in for a folder of records never written or read through, the record holding no text of the draft beyond what its paths carry, the records removed at a later start once a session has stood 30 days, twenty sessions at a start at the most, a record left half written removed, the last look after the wait; the sentences a fresh read corrected, searched for in every `.md` and `.js` file but the plan's archive; the run the live proof builds held to a start the hook allows |
 | `tests/seat_scope_live.js` | not in CI: one real seat through a throwaway plugin, placed by the hook's record in the plugin's data folder, and a second session whose hook cannot start, rerun after every Claude Code update |
 | `tests/sections_check.js` | Answer, then To the crew, when the round shares |
 | `tests/session_start_check.js` | the first-session line; the data folder from the environment alone; every start measured when the hook cannot see its sentinel (no folder named, or one that cannot be made); no sentinel after a start where a measurement did not come back, the start after it measuring again, and the sentinel written at the first start where both did; off a Mac the add-on alone decides |

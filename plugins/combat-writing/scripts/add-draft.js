@@ -16,6 +16,9 @@
 // reader.md, the newest standing (a reader may change with a revised draft, rare), logged
 // reader.set with the draft it came with; with --reader alone no draft is added. Never the
 // project's brief: the reader is one run's and travels with it.
+//
+// A draft with no words (an empty file, or spaces and line ends alone, by lib.wordCount) is
+// refused with one line, exit 2, before anything is written: no draft file, no reader, no log line.
 
 var fs=require('fs'), path=require('path');
 var lib=require('./lib.js');
@@ -28,6 +31,7 @@ if(!hasFile&&!hasReader)lib.die('--file <path> is required (or --reader <file> a
 var runDir=path.resolve(args.run);
 lib.readSeats(runDir);
 if(hasFile&&!fs.existsSync(args.file))lib.die('file not found: '+args.file);
+if(hasFile&&!lib.wordCount(lib.readText(args.file)))lib.die(lib.NO_WORDS+args.file+'; nothing was added to the run');
 if(hasReader&&!fs.existsSync(args.reader))lib.die('reader not found: '+args.reader);
 var stage=(args.stage&&args.stage!==true)?String(args.stage).toLowerCase():null;
 var name=null;

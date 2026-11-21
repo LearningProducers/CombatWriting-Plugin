@@ -406,6 +406,9 @@ html.push('<h2>Run details</h2>');
 html.push('<p class="meta"><strong>Crew:</strong> '+esc(seats.map(lib.seatLabel).join('; '))+'. '+(companies.length===1?'One company\'s models ('+esc(companies[0])+').':companies.length+' companies: '+esc(companies.join(', '))+'.')+' '+esc(lib.nameSources(seats))+'</p>');
 lib.crewStateLines(runDir,seats,log).forEach(function(l){ html.push('<p class="meta"><strong>Seats:</strong> '+esc(l)+'</p>'); });
 if(modelsLine)html.push('<p class="meta"><strong>Models:</strong> '+esc(modelsLine)+'</p>');
+// Lines of the log that could not be read, counted and said (lib.logDamageLine), as the record says them.
+var damageLine=lib.logDamageLine(lib.logDamage(runDir));
+if(damageLine)html.push('<p class="meta"><strong>Log:</strong> '+esc(damageLine)+'</p>');
 // The models measured, the record's lines: which model wrote each fresh reader's replies, round by round.
 var measuredLines=lib.measuredLines(seats,log);
 if(measuredLines.length)html.push('<p class="meta"><strong>'+esc(lib.MEASURED_HEADING)+':</strong> '+esc(lib.MEASURED_NOTE)+measuredLines.map(function(l){ return '<br>'+esc(l); }).join('')+'</p>');

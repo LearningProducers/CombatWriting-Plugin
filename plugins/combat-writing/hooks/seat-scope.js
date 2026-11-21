@@ -25,7 +25,8 @@
 // text of the task, the draft or the brief is in it but what those paths carry: the task's two
 // paths, resolved, and in them the run folder's own name, which the commands make from the
 // first words of the draft, or of the brief when a run starts from the brief alone (the script,
-// handed no name, uses the draft's file name). A seat's own calls carry its agent id and
+// handed no name, uses the draft's file name, or the brief's when no draft is given). A seat's
+// own calls carry its agent id and
 // no task (measured on the Claude Code version in PROVED_ON below, the one constant the reason
 // and the tests read; the live proof is tests/seat_scope_live.js), so the seat is bound to its
 // record by its first call that names one of its two files: a seat with no record of its own
@@ -37,13 +38,13 @@
 // start of its session its call names, so until it is placed the hook trusts the seat to name
 // its own. Until a seat has been allowed a call it has read no packet: it has read the plugin's
 // agent file, the host's task and what the host hands every agent it starts. The task is the
-// host's writing, with one part that is not: a seat sent back is started with the checker's
-// reason in its task, and that reason can quote the first 80 characters of the answer that
-// failed, a seat's words. And one seat with no record has read a packet: a seat whose record is
-// gone, removed after its 30 days or left under a session id the host no longer uses. It is
-// refused every call but one that names a file of a start then waiting in its session, which it
-// would take as any seat with no record does; the skills start a fresh seat for every read and
-// message none. No data folder, no record, a record the hook cannot read, a symlink to another file, a path that does not exist, malformed input: denied,
+// host's writing: a seat sent back is started with the checker's reason in its task, and a
+// reason is the checker's own words and the numbers it measured, with no word of the answer
+// that failed (checkAnswer in scripts/lib.js). And one seat with no record has read a packet: a
+// seat whose record is gone, removed after its 30 days or left under a session id the host no
+// longer uses. It is refused every call but a read of the packet, or a read or write of the
+// answer file, of a start then waiting in its session, which it would take as any seat with no
+// record does; the skills start a fresh seat for every read and message none. No data folder, no record, a record the hook cannot read, a symlink to another file, a path that does not exist, malformed input: denied,
 // with the reason, so a seat the hook cannot place does nothing rather than anything.
 //
 // When the records end: a session's folder of records is removed by a later start of a seat,
@@ -110,7 +111,7 @@ var KEPT_IN='seat-scope';
 var KEPT_DAYS=30;
 var SWEPT_AT_ONCE=20;
 // A call's wait for another call of the same seat that is taking a start at that moment: a look
-// every WAIT_MS, and no new look once WAIT_FOR ms have passed since the first.
+// every WAIT_MS until WAIT_FOR ms have passed since the first, then one more.
 var WAIT_MS=10, WAIT_FOR=500;
 var ID=/^[A-Za-z0-9_-]{1,128}$/;
 var START_FILE=/^start-[0-9a-z]+-\d+\.json$/;
@@ -207,8 +208,10 @@ function keep(input,rec){
 // call, and the next is tried; a rename refused for any other cause is a fault, answered as one);
 // the seat's record is created, never
 // replaced, so a seat that a call of its own placed a moment ago keeps that one and the start is
-// given back; the spare name is removed. A hook stopped between the steps leaves the seat with
-// no record, judged from then on as any seat with no record is. A call that took nothing may have landed with another call
+// given back; the spare name is removed. A hook stopped between the rename and the record leaves
+// the seat with no record, judged from then on as any seat with no record is; one stopped after
+// the record is written leaves the record, and beside it the spare name, which the sweep removes
+// with the session's folder. A call that took nothing may have landed with another call
 // of the same seat that is taking a start at that moment (a seat reading its packet and its
 // answer file in one turn): the spare name carries the seat's id and stands until the seat's
 // record is written, so the call waits for that record, looking every 10 ms until half a second
@@ -283,7 +286,7 @@ function judgeStart(input){
   if(start==='session'&&passed)return deny(id+'\'s record says it runs on the session\'s own model; start '+id+' again with no model choice');
   if(start==='named'&&!passed)return deny(id+'\'s record names '+(typeof seat.model==='string'&&seat.model?seat.model:'a model')+'; start '+id+' again and pass that model as the agent tool\'s model choice');
   var kept=keep(input,{v:1,at:Date.now(),seat:id,run:runDir,packet:packet,answer:answer});
-  if(kept!==true)return deny('the hook cannot keep the record of this start ('+kept+'), and a seat with no record reads and writes nothing; the seat is not started. No fresh reader can start in this session; outside seats through the add-on are not affected');
+  if(kept!==true)return deny('the hook cannot keep the record of this start ('+kept+'), and a seat whose start is not on record cannot be placed by it; the seat is not started. No fresh reader can start in this session; outside seats through the add-on are not affected');
   return allow();
 }
 

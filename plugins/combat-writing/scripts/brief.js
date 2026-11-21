@@ -66,7 +66,7 @@ var paragraph=lib.briefUpdateParagraph(text,date);
 // Append after a blank line; a file that is empty or missing holds the update alone.
 function appendTo(file){
   var had=fs.existsSync(file)?lib.readText(file):'';
-  var out=had.replace(/\s+$/,'');
+  var out=had.trimEnd();
   out=(out?out+'\n\n':'')+paragraph+'\n';
   fs.mkdirSync(path.dirname(file),{recursive:true});
   fs.writeFileSync(file,out);

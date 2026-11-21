@@ -302,7 +302,7 @@ fake.listen(0,'127.0.0.1',function(){
     var seats=JSON.parse(fs.readFileSync(path.join(run,'seats.json'),'utf8')).seats;
     check(seats[1].model==='qwen/qwen3.6-27b-0725','crew_answer: seats.json should carry the returned id, got '+seats[1].model);
     var req=requests.filter(function(q){return q.url==='/v1/chat/completions';})[0];
-    check(!!req&&req.auth==='Bearer gsk_FROM_THE_PROMPT'&&req.body.model==='qwen/qwen3.6-27b'&&req.body.messages.length===2&&req.body.messages[0].role==='system'&&/RATING: X\/10/.test(req.body.messages[0].content)&&req.body.messages[1].content.indexOf('=== DRAFT BEGIN ===')>=0&&req.body.max_tokens>=1200&&req.body.max_tokens<=2800&&req.body.reasoning_effort==='none','crew_answer: request wrong (seat-2 is the Qwen seat, extras none) '+JSON.stringify(req&&{auth:req.auth,model:req.body.model,max:req.body.max_tokens,extras:req.body.reasoning_effort}));
+    check(!!req&&req.auth==='Bearer gsk_FROM_THE_PROMPT'&&req.body.model==='qwen/qwen3.6-27b'&&req.body.messages.length===2&&req.body.messages[0].role==='system'&&/RATING: X\/10/.test(req.body.messages[0].content)&&req.body.messages[1].content.search(/=== DRAFT BEGIN [0-9a-f]{12} ===/)>=0&&req.body.max_tokens>=1200&&req.body.max_tokens<=2800&&req.body.reasoning_effort==='none','crew_answer: request wrong (seat-2 is the Qwen seat, extras none) '+JSON.stringify(req&&{auth:req.auth,model:req.body.model,max:req.body.max_tokens,extras:req.body.reasoning_effort}));
     check(!!req&&/Under 500 words in all, the first line included/.test(req.body.messages[0].content)&&/An answer over the cap is sent back once with a lower target; a second overrun is cut at the last sentence before 500 words\./.test(req.body.messages[0].content)&&/The packet carries the draft's counts measured by code \(words, paragraphs, lines, sentences, dashes, where each link sits\): those are facts, and a count of yours that differs from them is wrong\./.test(req.body.messages[0].content),'system line: the cap must be stated as a number, got '+(req&&req.body.messages[0].content.slice(0,400)));
     console.log('system line (sparring, rating): '+(req?req.body.messages[0].content:''));
     check(req.body.messages[1].content===fs.readFileSync(path.join(run,'rounds','01-sparring','seat-2.packet.md'),'utf8'),'crew_answer: the user message must be the packet file, verbatim');
@@ -336,7 +336,7 @@ fake.listen(0,'127.0.0.1',function(){
     node('check-answer.js',[path.join(run,'rounds','01-sparring','seat-3.answer.md'),'--run',run]);
     ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','02-battle','--seat',s,'--rerate']); });
     var p1=fs.readFileSync(path.join(run,'rounds','02-battle','seat-1.packet.md'),'utf8');
-    check(/### qwen\/qwen3\.6-27b-0725 \(Alibaba, served by Groq\), seat-2\n\n=== ANSWER BEGIN ===\nRATING: 8\/10/.test(p1),'battle packet: the outside seat\'s answer is not carried under its returned id');
+    check(/### qwen\/qwen3\.6-27b-0725 \(Alibaba, served by Groq\), seat-2\n\n=== ANSWER BEGIN [0-9a-f]{12} ===\nRATING: 8\/10/.test(p1),'battle packet: the outside seat\'s answer is not carried under its returned id');
     fs.writeFileSync(path.join(run,'rounds','02-battle','seat-1.answer.md'),'RATING: 8/10\nseat-2 wrote "The ask lands." and that moved me from 6 to 8.\n');
     var cf=node('check-flip.js',['--run',run,'--round','02-battle','--seat','seat-1']);
     check(cf.status===0&&/"status":"flip-valid"/.test(cf.stdout)&&/"cited":"seat-2"/.test(cf.stdout),'check-flip: a quote of the outside seat should validate, got '+cf.stdout.split('\n')[0]);
@@ -475,7 +475,7 @@ fake.listen(0,'127.0.0.1',function(){
       // only seat-2 answered): seat-2 carried from there, seat-3 listed as missing, nothing standing in.
       ['seat-1','seat-2','seat-3'].forEach(function(s){ node('packet.js',['--run',run,'--round','09-battle','--seat',s]); });
       var p3=fs.readFileSync(path.join(run,'rounds','09-battle','seat-1.packet.md'),'utf8');
-      check(/## The other seats' answers \(round 07-battle\)/.test(p3)&&/seat-2\n\n=== ANSWER BEGIN ===/.test(p3)&&/seat-3 — missing/.test(p3),'after failures: the next packet should read the latest round with a sound answer and list seat-3 as missing');
+      check(/## The other seats' answers \(round 07-battle\)/.test(p3)&&/seat-2\n\n=== ANSWER BEGIN [0-9a-f]{12} ===/.test(p3)&&/seat-3 — missing/.test(p3),'after failures: the next packet should read the latest round with a sound answer and list seat-3 as missing');
     });
   }).then(function(){
     // A refusal on the per-minute output limit (issue 56): it is answered by one resend at once with max_tokens

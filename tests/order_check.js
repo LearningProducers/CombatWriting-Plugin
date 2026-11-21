@@ -152,7 +152,7 @@ check(c.status===0&&/no rating this round/.test(c.stdout),'check-answer on the f
 // Sparring after battle reads alone; debate shares.
 var q=node('packet.js',['--run',run,'--round','02-sparring','--seat','seat-1']);
 var pq=read(path.join(run,'rounds','02-sparring','seat-1.packet.md'));
-check(q.status===0&&/RATING: X\/10/.test(pq)&&/Your earlier turn \(round 01-battle\)/.test(pq)&&pq.indexOf('=== ANSWER BEGIN ===')<0&&/Read this rough draft and rate it/.test(pq)&&/against a fresh read of the draft/.test(pq),'02-sparring after battle: must be a read alone with a rating and the seat\'s own earlier turn');
+check(q.status===0&&/RATING: X\/10/.test(pq)&&/Your earlier turn \(round 01-battle\)/.test(pq)&&!/=== ANSWER BEGIN [0-9a-f]{12} ===/.test(pq)&&/Read this rough draft and rate it/.test(pq)&&/against a fresh read of the draft/.test(pq),'02-sparring after battle: must be a read alone with a rating and the seat\'s own earlier turn');
 var ql=logOf(run).filter(function(e){return e.event==='packet.built';}).pop();
 check(ql.mode==='read'&&ql.shares===false&&ql.first_round===false&&ql.own_previous==='01-battle','02-sparring log line wrong: '+JSON.stringify(ql));
 fs.rmSync(path.join(run,'rounds','02-sparring'),{recursive:true});
@@ -162,7 +162,7 @@ seatsFile.seats.push({id:'seat-2',model:'maker/other-model-9b',company:'Other Ma
 fs.writeFileSync(path.join(run,'seats.json'),JSON.stringify(seatsFile,null,2)+'\n');
 var d=node('packet.js',['--run',run,'--round','02-debate','--seat','seat-2']);
 var pd=read(path.join(run,'rounds','02-debate','seat-2.packet.md'));
-check(d.status===0&&/The other seats' answers \(round 01-battle\)/.test(pd)&&/=== ANSWER BEGIN ===/.test(pd)&&/Under 600 words/.test(pd),'02-debate after battle: must share the first round\'s answers at the 600 cap');
+check(d.status===0&&/The other seats' answers \(round 01-battle\)/.test(pd)&&/=== ANSWER BEGIN [0-9a-f]{12} ===/.test(pd)&&/Under 600 words/.test(pd),'02-debate after battle: must share the first round\'s answers at the 600 cap');
 fs.rmSync(path.join(run,'rounds','02-debate'),{recursive:true});
 
 // The record, the board and the short form say where the run started, and carry the Next line.

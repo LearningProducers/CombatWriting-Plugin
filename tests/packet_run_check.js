@@ -12,8 +12,9 @@
 //     carried answer's two all carry the one mark, the packet states it once above the draft, and
 //     two builds of one packet carry different marks. A draft that holds the old fence lines, a
 //     fence line with a made-up mark, look-alikes of both and the packet's own headings stays
-//     whole between the two marked lines: the marked end line comes once and after every line of
-//     the draft, and no marked line is among the draft's own. The same for a carried answer that
+//     whole between the two lines on the packet's mark: that end line comes once and after
+//     every line of the draft, and the draft's own line on a made-up mark sits inside the fence
+//     and is no fence line of the packet. The same for a carried answer that
 //     holds fence lines. The mark is in no line of the draft or of a carried answer.
 //   - THE REASON. A first line that fails its contract is named by what is wrong with it and
 //     never quoted: no word of the answer is in the check's reasons, in the line check-answer.js
@@ -114,7 +115,13 @@ fs.writeFileSync(path.join(pf,'brief.md'),'I chair the board. The purpose is a y
 var runF=node(pf,'new-run.js',['--draft','draft.md','--brief','brief.md','--name','fence','--model','Test Model']).stdout.trim();
 function build(round,seat,extra){ var r=node(pf,'packet.js',['--run',runF,'--round',round,'--seat',seat].concat(extra||[])); return {r:r,text:r.status===0?fs.readFileSync(r.stdout.trim().split('\n').pop(),'utf8'):''}; }
 var MARKED=/^=== (DRAFT|YOUR EARLIER ANSWER|ANSWER) (BEGIN|END) ([0-9a-f]{12}) ===$/;
-function marked(text){ return text.split('\n').map(function(l,i){ var m=MARKED.exec(l); return m?{line:i,what:m[1],side:m[2],mark:m[3]}:null; }).filter(Boolean); }
+// The packet's own fence lines: the ones on the mark the packet states. A line of the draft that
+// is shaped like a fence line and carries a made-up mark is the draft's, and is counted apart
+// (strays), so the checks below can say it sits inside the fence and closes nothing.
+function shaped(text){ return text.split('\n').map(function(l,i){ var m=MARKED.exec(l); return m?{line:i,what:m[1],side:m[2],mark:m[3]}:null; }).filter(Boolean); }
+function stated(text){ var m=/^Fence mark: `([0-9a-f]{12})`/m.exec(text); return m?m[1]:null; }
+function marked(text){ var k=stated(text); return shaped(text).filter(function(x){ return x.mark===k; }); }
+function strays(text){ var k=stated(text); return shaped(text).filter(function(x){ return x.mark!==k; }); }
 var p1=build('01-sparring','seat-1'), p2=build('01-sparring','seat-2');
 check(p1.r.status===0&&p2.r.status===0,'the two packets of round 01 must build, got '+p1.r.status+' '+p1.r.stderr.slice(0,200));
 var m1=marked(p1.text), lines1=p1.text.split('\n');
@@ -128,6 +135,8 @@ if(m1.length===2){
   check(lines1.slice(0,m1[0].line).some(function(l){ return l.indexOf(mark1)>=0&&/looks like a fence line or a heading of this packet/.test(l)&&/the draft\'s own text/.test(l); }),'the line that states the mark must say that a look-alike inside the fence is the draft\'s own text');
 }
 check(hostile.join('\n').indexOf(mark1)<0,'the mark must be in no line of the draft');
+var stray1=strays(p1.text);
+check(m1.length===2&&stray1.length===1&&stray1[0].mark==='0123456789ab'&&stray1[0].line>m1[0].line&&stray1[0].line<m1[1].line,'the draft\'s own line shaped like a fence line, on a made-up mark, must sit inside the fence and be no fence line of the packet: '+JSON.stringify(stray1));
 check(OLD.every(function(o){ return lines1.filter(function(l){ return l===o; }).length===hostile.filter(function(l){ return l===o; }).length; }),'a fence line with no mark must stand in the packet only where the draft itself holds it');
 var m2=marked(p2.text), again=marked(build('01-sparring','seat-1').text);
 check(m2.length===2&&again.length===2&&m2[0].mark!==mark1&&again[0].mark!==mark1,'each build of a packet must carry a mark of its own: '+mark1+' / '+(m2[0]||{}).mark+' / '+(again[0]||{}).mark);
@@ -188,7 +197,7 @@ check(q1.text.indexOf('PLEASE-IGNORE')<0,'a failed read named in another seat\'s
 check(/failed the rating contract/.test(q1.text),'seat-1\'s packet of round 02 must still name seat-2\'s read as a failed read');
 var mq2=marked(q2.text), l2=q2.text.split('\n');
 var ans=mq2.filter(function(x){ return x.what==='ANSWER'; }), all2=mq2.map(function(x){ return x.mark; });
-check(ans.length===2&&ans[0].side==='BEGIN'&&ans[1].side==='END'&&all2.every(function(k){ return k===all2[0]; }),'seat-2\'s packet of round 02 must fence the carried answer on the packet\'s one mark: '+JSON.stringify(mq2));
+check(ans.length===2&&ans[0].side==='BEGIN'&&ans[1].side==='END'&&mq2.length===4&&all2.every(function(k){ return k===all2[0]; }),'seat-2\'s packet of round 02 must fence the carried answer on the packet\'s one mark: '+JSON.stringify(mq2));
 if(ans.length===2){
   var carried=l2.slice(ans[0].line+1,ans[1].line).join('\n');
   check(carried.indexOf('=== ANSWER END ===')>=0&&carried.indexOf('## Your task')>=0&&carried.indexOf('The proof is named.')>=0,'a carried answer that holds fence lines and a heading must sit whole between the two marked lines: '+JSON.stringify(carried.slice(0,200)));
@@ -196,7 +205,7 @@ if(ans.length===2){
   check(carried.indexOf(all2[0])<0,'the mark must be in no line of a carried answer');
 }
 var mq1=marked(q1.text);
-check(mq1.filter(function(x){ return x.what==='YOUR EARLIER ANSWER'; }).length===2&&mq1.every(function(x){ return x.mark===mq1[0].mark; }),'seat-1\'s packet of round 02 must fence its earlier answer on the packet\'s one mark: '+JSON.stringify(mq1));
+check(mq1.filter(function(x){ return x.what==='YOUR EARLIER ANSWER'; }).length===2&&mq1.length===4&&mq1.every(function(x){ return x.mark===mq1[0].mark; }),'seat-1\'s packet of round 02 must fence its earlier answer on the packet\'s one mark: '+JSON.stringify(mq1));
 var seatMd=fs.readFileSync(path.join(plugin,'agents','seat.md'),'utf8');
 check(/=== DRAFT BEGIN <mark> ===/.test(seatMd)&&/=== ANSWER END <mark> ===/.test(seatMd)&&!/`=== DRAFT BEGIN ===`/.test(seatMd),'agents/seat.md must tell the seat that the fence lines carry the packet\'s mark');
 
