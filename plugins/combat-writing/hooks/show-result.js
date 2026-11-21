@@ -10,7 +10,8 @@
 // no desktop: Claude Code's sandbox has no Launch Services, measured 2026-10-24), the hook opens
 // the board itself with the system opener, outside the sandbox (hooks run with the session's
 // full access, the Claude Code docs' word), appends `board.opened {ok, by: "hook"}` to the run's
-// log, and says "Board opened by the plugin" or why not. One command may carry both scripts.
+// log, and says "Board opened by the plugin" or why not. The board it opens is the run's own
+// board.html and no other file (THE REAL RUN, below). One command may carry both scripts.
 // When the command ran `speak.js` and its line says the speech engine wrote no sound in that
 // shell (Part 81.1, issue 123, measured 2026-10-28: inside the sandbox `say -o` writes a container
 // with no sound), the hook runs the same script outside the sandbox with `--by hook`, rebuilds the
@@ -31,6 +32,31 @@
 // the scripts' output into collapsed shell lines and narrated, and a hook that refused the Next
 // picker until the host printed (hooks/host-output.js, issues 60 and 68) could not make it
 // print: it produced red refusals and the host waited out the loop cap. Retired by this hook.
+//
+// THE REAL RUN (issue 235). The hook runs outside the sandbox the host's shell runs in, so what
+// it acts on is held to one thing: a real run folder. A command counts only when the segment that
+// names one of the scripts also carries a --run value: a command that only mentions a script's
+// name gets no message, no context and no act. The run a command names is its literal --run path
+// (a token holding `$` or a backtick is no path; a relative one is placed under the hook input's
+// working folder, and is no path when that is no string). A real run folder is a directory that
+// holds seats.json and log.jsonl as plain files, the first a small JSON object with at least one
+// seat, and no symbolic link among its entries (at most RUN_ENTRIES_MAX are read; more is no run).
+//   - The board. The hook opens <run>/board.html, the run being the open-board.js segment's own
+//     literal --run path and a real run folder, and the file a plain file there. The opener's
+//     line is matched to learn that the shell could not open it; no path is ever taken from it.
+//     A run named by a shell variable or a tilde is not opened by the hook: the script's own line
+//     is shown as printed, and it carries the command that opens the board by hand. On Windows
+//     the opener is `cmd /c start`, and cmd reads & | < > ^ % and a double quote in a path as its
+//     own, so a board whose path holds one is not handed to it and the message says so.
+//   - The context. The host is handed the context only when the command names a real run folder
+//     by a literal path. Every message for the person is as it was.
+//   - The voices and the board rebuilt after them. The folder still comes from the script's own
+//     line (Part 81.2), else from the command's literal path; it must be a real run folder, and
+//     the round a round of it: a name of the round's form, rounds/<round> a plain directory, and
+//     no symbolic link among that folder's entries. The run is asked again before the rebuild.
+//   Named and not cured: the checks are made before the act, and a folder changed between the
+//   check and the act is not seen; the board's own content is the file as it stands in the run,
+//   written by render-board.js when the host ran it, and the hook does not render it again.
 //
 // THE SILENCED COMMAND (Part 116, issue 179): a command that ran a script of the four but carries
 // none of its lines (the host sent the output to /dev/null) is re-run by the hook from the
@@ -110,9 +136,10 @@
 // writes the file.
 //
 // Silent (no output, exit 0) on any other event, tool or command, and on input it cannot read.
-// It reads the hook input and, from the run folder, seats.json (its existence, and one seat's record),
-// the seat's packet's existence,
-// the round's voices.json, the log's board.opened and seat.model lines and board.html's existence;
+// It reads the hook input and, from the run folder, the names and kinds of its entries, seats.json
+// (its seats, and one seat's record), the seat's packet's existence, the names and kinds of a
+// round folder's entries,
+// the round's voices.json, the log's board.opened and seat.model lines and what board.html is;
 // from the project the run sits in, combat-writing/picker.json (THE SWITCH);
 // from the session's folder, the files named under THE MEASURED MODEL; it writes log lines to the
 // run and nothing else, one when it opened the board and one per seat's model it measured; it
@@ -151,17 +178,50 @@ var RUN_UNKNOWN='Voices: the plugin could not tell which run the speech command 
 // are twelve files, about 17 s; the window holds three times that and hooks.json's timeout covers
 // the window plus the board.
 var RENDER_WAIT_MS=60000, BOARD_WAIT_MS=15000;
-var OPENER_FAILED=/^Board: (.+?) \((?:the opener failed|no browser opener here): /;
+var OPENER_FAILED=/^Board: .+? \((?:the opener failed|no browser opener here): /;
 var OPENER_LINE=/^Board(?: opened in your browser)?: /;
 var EXIT_WAIT_MS=3000, REASON_MAX=200, FRESH_MS=120000;
 var scripts=path.join(__dirname,'..','scripts');
 var STARVED_UNKNOWN='Combat Writing: the command hid the scripts\' output and named the run folder with a shell variable, so the plugin could not re-run them; rerun them with the run folder spelled out and the output left alone.';
-var STARVED_NOT_A_RUN='Combat Writing: the command hid the scripts\' output and its --run path is not a run folder (no seats.json there), so the plugin re-ran nothing: ';
+var STARVED_NOT_A_RUN='Combat Writing: the command hid the scripts\' output and its --run path is not a run folder (no seats.json and log.jsonl of a run there as plain files, or a link among its files), so the plugin re-ran nothing: ';
+// THE REAL RUN (issue 235): a script segment counts when it carries a --run value; the entries read of a folder; the characters cmd reads as its own.
+var RUN_ARG=/\s--run\s+\S/, RUN_ENTRIES_MAX=4096, WIN_UNSAFE=/[&|<>^%"\r\n]/;
+var VOICES_NOT_A_RUN='Voices: nothing rendered by the plugin: not a run folder (no seats.json and log.jsonl of a run there as plain files, or a link among its files): ';
+var VOICES_NOT_A_ROUND='Voices: nothing rendered by the plugin: no such round in the run, or a link among its files: ';
+var VOICES_TAIL='; the board reads with the browser.';
+var WIN_REFUSED='its path holds a character the Windows opener reads as its own (& | < > ^ % or a double quote)';
 var CONTEXT_HEAD='Combat Writing: the short form and the board line are on the person\'s screen already, printed by the plugin\'s own hook as the scripts returned. Print nothing from those scripts\' output and never redirect it (no >/dev/null, no file): the hook reads it; print one line naming the round just run, ';
 var CONTEXT=CONTEXT_HEAD+'then open the Next picker.';
 var CONTEXT_OFF=CONTEXT_HEAD+'then the text Next line, and open no picker: the Next picker is off for this project (combat-writing/picker.json; picker.js --run <folder> prints the text Next line under its first line).';
 
-function hasSegment(command,re){ return String(command||'').split(/;|&&|\|\||\||\n/).some(function(s){return re.test(s);}); }
+function segmentsOf(command){ return String(command||'').split(/;|&&|\|\||\||\n/); }
+function hasSegment(command,re){ return segmentsOf(command).some(function(s){return re.test(s);}); }
+// THE REAL RUN: a segment that names the script and carries a --run value; a mention of the name alone is no run of it.
+function ran(command,re){ return segmentsOf(command).some(function(s){return re.test(s)&&RUN_ARG.test(s);}); }
+// A path as written, placed: an absolute one as it is, a relative one under the working folder when that is a string, else none.
+function placed(p,cwd){ if(typeof p!=='string'||!p)return null; if(path.isAbsolute(p))return path.resolve(p); return typeof cwd==='string'&&cwd?path.resolve(cwd,p):null; }
+function plainFile(p){ try{ return fs.lstatSync(p).isFile(); }catch(e){ return false; } }
+function plainDir(p){ try{ return fs.lstatSync(p).isDirectory(); }catch(e){ return false; } }
+// No symbolic link among a folder's entries; false when the folder cannot be listed or holds more than RUN_ENTRIES_MAX.
+function noLinks(dir){
+  var list; try{ list=fs.readdirSync(dir,{withFileTypes:true}); }catch(e){ return false; }
+  return list.length<=RUN_ENTRIES_MAX&&!list.some(function(d){ return d.isSymbolicLink(); });
+}
+// A real run folder: seats.json and log.jsonl as plain files, at least one seat, no link among its entries.
+function isRun(dir){
+  if(typeof dir!=='string'||!dir||!noLinks(dir))return false;
+  if(!plainFile(path.join(dir,'seats.json'))||!plainFile(path.join(dir,'log.jsonl')))return false;
+  var j=smallJson(path.join(dir,'seats.json')).value;
+  return !!(j&&Array.isArray(j.seats)&&j.seats.length);
+}
+// A round of a run: a name of the round's form, rounds/<round> a plain directory, no link among its entries.
+function isRound(runDir,round){
+  if(typeof round!=='string'||!ROUND_RE.test(round))return false;
+  var dir=path.join(runDir,'rounds',round);
+  return plainDir(path.join(runDir,'rounds'))&&plainDir(dir)&&noLinks(dir);
+}
+// The run's own board: board.html, a plain file in the run folder; null when it is anything else.
+function ownBoard(runDir){ var b=path.join(runDir,'board.html'); return plainFile(b)?b:null; }
 function textOf(resp){
   if(typeof resp==='string')return resp;
   if(resp&&typeof resp==='object'){ var s=typeof resp.stdout==='string'?resp.stdout:''; if(typeof resp.stderr==='string'&&resp.stderr.trim())s+=(s?'\n':'')+resp.stderr; return s; }
@@ -184,11 +244,11 @@ function openerLineOf(text){
 // The --run value in the command's segment that ran the script named by re, resolved from the cwd:
 // the fallback for a silenced line that names no run folder (a speak.js older than Part 81.2).
 function runDirOf(command,re,cwd){
-  var seg=String(command||'').split(/;|&&|\|\||\||\n/).filter(function(x){return re.test(x);})[0]||'';
+  var seg=segmentsOf(command).filter(function(x){return re.test(x)&&RUN_ARG.test(x);})[0]||'';
   var m=/--run\s+(?:"([^"]+)"|'([^']+)'|(\S+))/.exec(seg);
   var token=m?(m[1]||m[2]||m[3]):'';
   if(!token||/[$`]/.test(token))return null; // a shell variable or a substitution is no path: the shell expanded it, the hook cannot
-  return path.resolve(cwd||process.cwd(),token);
+  return placed(token,cwd);
 }
 // The --round value in the command's speak.js segment, literal only (Part 116).
 function roundOf(command){
@@ -220,6 +280,7 @@ function renderVoices(runDir,round,rebuild,opened){
   var vj=null; try{ vj=JSON.parse(fs.readFileSync(path.join(runDir,'rounds',round,'voices.json'),'utf8')); }catch(e){}
   var ids=vj&&vj.files?Object.keys(vj.files).sort():[];
   if(!ids.length)return stopped?'Voices: the plugin\'s render ran past '+(RENDER_WAIT_MS/1000)+' seconds and was stopped before any file was done; the board reads with the browser this round.':'Voices: nothing rendered by the plugin'+(r.stderr&&String(r.stderr).trim()?': '+String(r.stderr).trim().split('\n')[0].slice(0,REASON_MAX):'')+'; the board reads with the browser.';
+  if(rebuild&&!isRun(runDir))rebuild=false; // THE REAL RUN: asked again after the render, before the board is written
   if(rebuild)cp.spawnSync(process.execPath,[path.join(scripts,'render-board.js'),'--run',runDir],{encoding:'utf8',timeout:BOARD_WAIT_MS});
   // Part 82: with more than one voice rendered for a seat, the line counts the voices per seat and
   // names the default; with one voice a seat, the Part 81.1 shape.
@@ -241,7 +302,10 @@ function openBoard(board,done){
   var override=(process.env.CW_OPENER||'').trim();
   if(override){ var parts=override.split(/\s+/); cmd=parts[0]; argv=parts.slice(1).concat([board]); }
   else if(process.platform==='darwin'){ cmd='open'; argv=[board]; }
-  else if(process.platform==='win32'){ cmd='cmd'; argv=['/c','start','',board]; }
+  else if(process.platform==='win32'){
+    if(WIN_UNSAFE.test(board))return done(false,WIN_REFUSED,'cmd'); // THE REAL RUN: cmd would read the character as its own
+    cmd='cmd'; argv=['/c','start','',board];
+  }
   else { cmd='xdg-open'; argv=[board]; }
   var settled=false, stderr='', child;
   function settle(ok,reason){ if(settled)return; settled=true; done(ok,reason,cmd); }
@@ -299,14 +363,6 @@ function pickerOff(runDir){
   if(path.basename(parent)!=='runs'||path.basename(grand)!=='combat-writing')return false;
   var j=smallJson(path.join(grand,'picker.json'));
   return !!(j.value&&!Array.isArray(j.value)&&j.value.picker==='off');
-}
-// The context for a command: the off one when a literal --run path in it names a run whose
-// project has the picker off, else the one the hook has always handed over.
-function contextFor(command,cwd){
-  try{
-    var dir=runDirOf(command,SHORT_RE,cwd)||runDirOf(command,OPENER_RE,cwd)||runDirOf(command,BOARD_RE,cwd)||runDirOf(command,SPEAK_RE,cwd);
-    return dir&&pickerOff(dir)?CONTEXT_OFF:CONTEXT;
-  }catch(e){ return CONTEXT; } // a path the hook cannot resolve (a working folder that is no string) is the default too
 }
 // The checks a command ran: the answer file (the first word that is no option, as check-answer.js
 // reads its arguments) and the --run folder of each check-answer.js segment, literal paths only.
@@ -455,12 +511,19 @@ process.stdin.on('end',function(){
   try{ input=JSON.parse(raw); }catch(e){ return silent(); }
   if(!input||input.hook_event_name!=='PostToolUse'||input.tool_name!=='Bash')return silent();
   var command=input.tool_input&&input.tool_input.command;
-  var wantShort=hasSegment(command,SHORT_RE), wantOpener=hasSegment(command,OPENER_RE), wantSpeak=hasSegment(command,SPEAK_RE), wantBoard=hasSegment(command,BOARD_RE);
+  var cwd=typeof input.cwd==='string'&&input.cwd?input.cwd:null;
+  // THE REAL RUN: a script counts when its segment carries a --run value; a mention of its name is no run of it.
+  var wantShort=ran(command,SHORT_RE), wantOpener=ran(command,OPENER_RE), wantSpeak=ran(command,SPEAK_RE), wantBoard=ran(command,BOARD_RE);
   // THE MEASURED MODEL: one log line per seat checked, no output; a miss or a fault is silence.
   if(hasSegment(command,CHECK_RE)){ try{ measureSeats(input,command); }catch(e){} }
   if(!wantShort&&!wantOpener&&!wantSpeak)return silent();
   var text=textOf(input.tool_response);
-  var context=contextFor(command,input.cwd);
+  // THE REAL RUN: the run the command names by a literal path, and whether it is a real run folder.
+  // The context is handed only then (THE SWITCH decides how it ends); a run the hook cannot place gets none.
+  var named=runDirOf(command,SHORT_RE,cwd)||runDirOf(command,OPENER_RE,cwd)||runDirOf(command,BOARD_RE,cwd)||runDirOf(command,SPEAK_RE,cwd);
+  var runDir=named&&isRun(named)?named:null;
+  var context=runDir?(pickerOff(runDir)?CONTEXT_OFF:CONTEXT):null;
+  function say(parts){ var out={systemMessage:parts.join('\n\n')}; if(context)out.hookSpecificOutput={hookEventName:'PostToolUse',additionalContext:context}; finish(out); }
   var parts=[];
   var shortForm=wantShort?shortFormOf(text):null;
   var openerLine=wantOpener?openerLineOf(text):null;
@@ -475,36 +538,40 @@ process.stdin.on('end',function(){
   // missing or lists silenced seats, and the board is opened unless the log's last board.opened
   // is a fresh success. A shell variable for the run names the miss on the screen, as before.
   var starved=(wantShort&&!shortForm)||(wantOpener&&!openerLine)||(wantSpeak&&!spoke);
-  var runDir=null, runMiss=null;
-  if(starved){
-    runDir=runDirOf(command,SHORT_RE,input.cwd)||runDirOf(command,OPENER_RE,input.cwd)||runDirOf(command,BOARD_RE,input.cwd)||runDirOf(command,SPEAK_RE,input.cwd);
-    if(!runDir)runMiss=STARVED_UNKNOWN;
-    else if(!fs.existsSync(path.join(runDir,'seats.json'))){ runMiss=STARVED_NOT_A_RUN+runDir; runDir=null; }
-  }
-  if(runDir){
+  var runMiss=starved&&!runDir?(named?STARVED_NOT_A_RUN+named:STARVED_UNKNOWN):null;
+  // Where the voices are owed: the folder on the script's own line (Part 81.2), else the command's literal path.
+  var voices=silencedLine?{dir:silencedLine[2]?placed(silencedLine[2],cwd):runDirOf(command,SPEAK_RE,cwd),round:silencedLine[1]}:null;
+  if(starved&&runDir){
     if(wantShort&&!shortForm){
       var rr=cp.spawnSync(process.execPath,[path.join(scripts,'render-record.js'),'--run',runDir,'--short'],{encoding:'utf8',timeout:BOARD_WAIT_MS});
       shortForm=shortFormOf(String(rr.stdout||''));
     }
-    if(wantSpeak&&!spoke){ var round=roundOf(command); if(round&&voicesOwed(runDir,round))silencedLine=[null,round,runDir]; }
+    if(wantSpeak&&!spoke){ var round=roundOf(command); if(round&&isRound(runDir,round)&&voicesOwed(runDir,round))voices={dir:runDir,round:round}; }
   }
   if(shortForm)parts.push(shortForm);
-  if(silencedLine){
-    var voicesDir=silencedLine[2]?path.resolve(input.cwd||process.cwd(),silencedLine[2]):runDirOf(command,SPEAK_RE,input.cwd);
-    parts.push(voicesDir?renderVoices(voicesDir,silencedLine[1],wantBoard,!!openerLine):RUN_UNKNOWN);
+  if(voices){
+    // THE REAL RUN: the voices are rendered, and the board rebuilt after them, in a real run folder and a round of it alone.
+    if(!voices.dir)parts.push(RUN_UNKNOWN);
+    else if(!isRun(voices.dir))parts.push(VOICES_NOT_A_RUN+voices.dir+VOICES_TAIL);
+    else if(!isRound(voices.dir,voices.round))parts.push(VOICES_NOT_A_ROUND+voices.round+VOICES_TAIL);
+    else parts.push(renderVoices(voices.dir,voices.round,wantBoard,!!openerLine));
   }
   if(runMiss)parts.push(runMiss);
-  var failed=openerLine&&OPENER_FAILED.exec(openerLine);
-  var board=failed?failed[1]:null;
-  if(!board&&wantOpener&&!openerLine&&runDir){ var b=path.join(runDir,'board.html'); if(fs.existsSync(b)&&!openedFresh(runDir))board=b; }
+  // THE REAL RUN: the board the hook opens is the run's own board.html, the run named by the
+  // open-board.js segment's own literal path. The opener's line says only that the shell could
+  // not open it; the path on it is never read. Asked after the voices, which take their time.
+  var failed=!!openerLine&&OPENER_FAILED.test(openerLine);
+  var openRun=wantOpener?runDirOf(command,OPENER_RE,cwd):null;
+  if(openRun&&!isRun(openRun))openRun=null;
+  var board=openRun&&(failed||(!openerLine&&!openedFresh(openRun)))?ownBoard(openRun):null;
   if(!board){
     if(openerLine)parts.push(openerLine);
     if(!parts.length)return silent();
-    return finish({systemMessage:parts.join('\n\n'),hookSpecificOutput:{hookEventName:'PostToolUse',additionalContext:context}});
+    return say(parts);
   }
   openBoard(board,function(ok,reason,cmd){
     logOpened(board,ok,reason,cmd);
     parts.push(ok?'Board opened by the plugin: '+board:'Board: '+board+' (the plugin could not open it either: '+reason+'; open it yourself: open '+board+')');
-    finish({systemMessage:parts.join('\n\n'),hookSpecificOutput:{hookEventName:'PostToolUse',additionalContext:context}});
+    say(parts);
   });
 });

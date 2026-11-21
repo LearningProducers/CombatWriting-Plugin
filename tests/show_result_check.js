@@ -134,6 +134,9 @@ function post(command,stdout,extra){ return Object.assign({session_id:'s',transc
 function silent(name,r){ check(r.status===0&&r.out===''&&r.stderr==='',name+': expected silence and exit 0, got exit '+r.status+' out '+JSON.stringify(r.out.slice(0,120))+' err '+r.stderr); }
 function shown(name,r){ check(r.status===0&&!!r.json&&typeof r.json.systemMessage==='string'&&r.json.hookSpecificOutput&&r.json.hookSpecificOutput.hookEventName==='PostToolUse'&&/on the person's screen already/.test(r.json.hookSpecificOutput.additionalContext)&&Object.keys(r.json).sort().join(',')==='hookSpecificOutput,systemMessage'&&r.stderr===''&&r.out.split('\n').length===1,name+': expected one JSON line with systemMessage and the context, got exit '+r.status+' out '+JSON.stringify(r.out.slice(0,200))+' err '+r.stderr); return r.json?r.json.systemMessage:''; }
 
+// A message on the person's screen and no context for the host: the command named no real run folder by a literal path (issue 235).
+function bare(name,r){ check(r.status===0&&!!r.json&&typeof r.json.systemMessage==='string'&&Object.keys(r.json).join(',')==='systemMessage'&&r.stderr===''&&r.out.split('\n').length===1,name+': expected one JSON line with systemMessage and no context, got exit '+r.status+' out '+JSON.stringify(r.out.slice(0,200))+' err '+r.stderr); return r.json?r.json.systemMessage:''; }
+
 var S='node '+scripts+'/render-record.js --run '+run+' --short', B='node '+scripts+'/render-board.js --run '+run, O='node '+scripts+'/open-board.js --run '+run;
 
 // Silent.
@@ -143,8 +146,8 @@ silent('neither script',call(post('ls '+run,'draft.md\n')));
 silent('a script only mentioned in an argument',call(post('grep -n short '+scripts+'/render-record.js','217: --short\n')));
 silent('stdin that does not parse',call('{not json'));
 var m0=shown('a --short result with no short form: re-rendered from the run path (Part 116)',call(post(S,'Error: no seats.json\n')));
-var m0b=shown('a --short result with no short form on a path that is not a run',call(post('node '+scripts+'/render-record.js --run '+proj+' --short','Error: no seats.json\n')));
-check(/is not a run folder \(no seats\.json there\)/.test(m0b)&&m0b.indexOf('**Crew:**')<0,'a --short result on a non-run path: the miss names the path, not a shell variable, got '+JSON.stringify(m0b.slice(0,160)));
+var m0b=bare('a --short result with no short form on a path that is not a run',call(post('node '+scripts+'/render-record.js --run '+proj+' --short','Error: no seats.json\n')));
+check(/is not a run folder \(/.test(m0b)&&m0b.indexOf(proj)>0&&m0b.indexOf('**Crew:**')<0,'a --short result on a non-run path: the miss names the path, not a shell variable, got '+JSON.stringify(m0b.slice(0,160)));
 check(m0===freshShort(),'a --short result with no short form: the hook renders the short form itself, got '+JSON.stringify(m0.slice(0,120)));
 
 // The short form.
@@ -154,7 +157,7 @@ var m2=shown('the short form behind a pipe',call(post('cd '+proj+' && '+S+' 2>&1
 check(m2===expected,'the short form behind a pipe: same message');
 var m3=shown('tool_response as a string',call(post(S,shortForm,{tool_response:shortForm})));
 check(m3===expected,'tool_response as a string: same message');
-var m4=shown('the 2026-10-26 shape',call(post('S='+scripts+'; R='+run+'; node $S/render-record.js --run $R --short; echo ===BOARD; node $S/render-board.js --run $R; echo ===OPEN; node $S/open-board.js --run $R','Exit code 1\n'+shortForm+'===BOARD\n'+board+'\n===OPEN\n'+openedLine+'\n')));
+var m4=bare('the 2026-10-26 shape: a run named by shell variables, the short form shown, no context',call(post('S='+scripts+'; R='+run+'; node $S/render-record.js --run $R --short; echo ===BOARD; node $S/render-board.js --run $R; echo ===OPEN; node $S/open-board.js --run $R','Exit code 1\n'+shortForm+'===BOARD\n'+board+'\n===OPEN\n'+openedLine+'\n')));
 check(m4===expected+'\n\n'+openedLine,'the combined command: the short form then the opener\'s line, nothing else, got '+JSON.stringify(m4.slice(-160)));
 
 // The opener.
@@ -221,17 +224,17 @@ fs.unlinkSync(voiceFile);
 // The run folder (Part 81.2): a command written with a shell variable, the line naming the run.
 var speakVar='R='+run+'; node '+path.join(scripts,'speak.js')+' --run $R --round 01-sparring';
 var renderedBefore=logOf().filter(function(e){return e.event==='voices.rendered';}).length;
-var v6=shown('a shell variable in the command, the run on the line',call(post(speakVar,silencedLine+'\n'),null,sayEnv));
+var v6=bare('a shell variable in the command, the run on the line',call(post(speakVar,silencedLine+'\n'),null,sayEnv));
 check(v6==='Voices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).'&&fs.existsSync(voiceFile),'a shell variable in the command: rendered from the line\'s run folder, got '+JSON.stringify(v6));
 check(logOf().filter(function(e){return e.event==='voices.rendered';}).length===renderedBefore+1&&logOf().slice(-1)[0].by==='hook','a shell variable in the command: one voices.rendered line by hook');
 fs.unlinkSync(voiceFile);
-var v7=shown('a shell variable in the command, no run on the line',call(post(speakVar,silencedLineOld+'\n'),null,sayEnv));
+var v7=bare('a shell variable in the command, no run on the line',call(post(speakVar,silencedLineOld+'\n'),null,sayEnv));
 check(v7==='Voices: the plugin could not tell which run the speech command ran on (the line named none and the command carried no literal --run path); nothing rendered. Rerun speak.js with the run folder spelled out.','a shell variable and no run on the line: the miss named, got '+JSON.stringify(v7));
 check(!fs.existsSync(voiceFile)&&logOf().filter(function(e){return e.event==='voices.rendered';}).length===renderedBefore+1,'a shell variable and no run on the line: nothing rendered, no log line');
 var v8=shown('the literal path in the command, no run on the line',call(post(speakCmd,silencedLineOld+'\n'),null,sayEnv));
 check(v8==='Voices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).'&&fs.existsSync(voiceFile),'the literal path and the old line: rendered from the command, got '+JSON.stringify(v8));
 fs.unlinkSync(voiceFile);
-var v9=shown('the short form, a shell variable and the run on the line',call(post('R='+run+'; node '+path.join(scripts,'render-record.js')+' --run $R --short; '+speakVar,shortForm+silencedLine+'\n'),null,sayEnv));
+var v9=bare('the short form, a shell variable and the run on the line',call(post('R='+run+'; node '+path.join(scripts,'render-record.js')+' --run $R --short; '+speakVar,shortForm+silencedLine+'\n'),null,sayEnv));
 check(v9===expected+'\n\nVoices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).','the short form then the voices with a shell variable: the order, got '+JSON.stringify(v9.slice(-120)));
 fs.unlinkSync(voiceFile);
 // Every quality voice (Part 82): two voices listed, both rendered, the line counts them.
@@ -273,7 +276,7 @@ check(lastQ.event==='board.opened'&&lastQ.by==='hook'&&lastQ.ok===true,'the sile
 check(fs.existsSync(voiceFile)&&fs.statSync(voiceFile).size>300&&/data-audio="rounds\/01-sparring\/seat-1\.m4a"/.test(fs.readFileSync(board,'utf8')),'the silenced command: the voice file is on disk and the rebuilt board carries it');
 var q2=shown('the silenced command, voices already on disk',call(post(quiet,'done\n'),okOpener,sayEnv));
 check(q2.indexOf(freshShort())===0&&q2.indexOf('Voices')<0&&/Board opened by the plugin: /.test(q2)&&opens().length===2,'the silenced command: a round with its voices on disk is not rendered again, the board still opened, got '+JSON.stringify(q2.slice(0,60))+' ... '+JSON.stringify(q2.slice(-80)));
-var q3=shown('the silenced command with a shell variable for the run',call(post('S='+scripts+'; R='+run+'; node $S/render-record.js --run $R --short >/dev/null 2>&1; node $S/open-board.js --run $R >/dev/null 2>&1; echo done','done\n'),okOpener));
+var q3=bare('the silenced command with a shell variable for the run',call(post('S='+scripts+'; R='+run+'; node $S/render-record.js --run $R --short >/dev/null 2>&1; node $S/open-board.js --run $R >/dev/null 2>&1; echo done','done\n'),okOpener));
 check(/shell variable/.test(q3)&&q3.indexOf('**Crew:**')<0&&opens().length===2,'the silenced command with a variable: the miss is named, nothing rendered, nothing opened, got '+JSON.stringify(q3.slice(0,160)));
 fs.appendFileSync(path.join(run,'log.jsonl'),JSON.stringify({ts:new Date().toISOString(),event:'board.opened',file:'board.html',opener:'open',ok:true,reason:null})+'\n');
 var q4=call(post(O+' >/dev/null 2>&1; echo done','done\n'),okOpener);
@@ -584,15 +587,15 @@ check(swOff.json&&swOff.json.systemMessage===freshShort(),'the switch, off: the 
 // The opener's line alone, in the same project, carries the same context.
 var swOffOpener=call(post(O,failedLine+'\n'),okOpener);
 check(isOff(swOffOpener),'the switch, off, the opener alone: the context must be the off one; got '+JSON.stringify(ctxOf(swOffOpener).slice(-160)));
-// A run named by a shell variable: the hook cannot place the project, so the line is the default.
+// A run named by a shell variable: the hook cannot place the run, so it hands no context (issue 235; it handed the default line before).
 var swVar=call(post('node '+scripts+'/render-record.js --run $R --short',freshShort()+'\n'));
-check(isOn(swVar),'the switch, off, a shell variable for the run: the hook cannot place the project and must hand the default line; got '+JSON.stringify(ctxOf(swVar).slice(-120)));
+check(bare('the switch, off, a shell variable for the run',swVar)===freshShort()&&ctxOf(swVar)==='','the switch, off, a shell variable for the run: the short form on the screen and no context; got '+JSON.stringify(ctxOf(swVar).slice(-120)));
 // A run written with a tilde: the shell expands it for the script, the hook cannot (issue 220).
 var swTilde=call(post('node '+scripts+'/render-record.js --run ~/combat-writing/runs/'+path.basename(run)+' --short',freshShort()+'\n'));
-check(isOn(swTilde),'the switch, off, a tilde in the run path: the hook cannot place the project and must hand the default line; got '+JSON.stringify(ctxOf(swTilde).slice(-120)));
-// A working folder that is no string, with a relative run path: the default line, exit 0, never a crash.
+check(bare('the switch, off, a tilde in the run path',swTilde)===freshShort()&&ctxOf(swTilde)==='','the switch, off, a tilde in the run path: the hook cannot place the run and hands no context (issue 235); got '+JSON.stringify(ctxOf(swTilde).slice(-120)));
+// A working folder that is no string, with a relative run path: the run cannot be placed, so no context (issue 235), exit 0, never a crash.
 var swCwd=call(post('node '+scripts+'/render-record.js --run combat-writing/runs/'+path.basename(run)+' --short',freshShort()+'\n',{cwd:5}));
-check(swCwd.status===0&&swCwd.stderr===''&&isOn(swCwd),'the switch, a working folder that is no string: exit 0 and the default line; got exit '+swCwd.status+' '+swCwd.stderr.slice(0,160));
+check(swCwd.status===0&&swCwd.stderr===''&&bare('the switch, a working folder that is no string',swCwd)===freshShort()&&ctxOf(swCwd)==='','the switch, a working folder that is no string: exit 0, the short form and no context; got exit '+swCwd.status+' '+swCwd.stderr.slice(0,160));
 // A relative run path under a real working folder is placed, and reads off.
 var swRel=call(post('node '+scripts+'/render-record.js --run combat-writing/runs/'+path.basename(run)+' --short',freshShort()+'\n'));
 check(isOff(swRel),'the switch, off, a relative run path: placed under the working folder and read as off; got '+JSON.stringify(ctxOf(swRel).slice(-160)));
@@ -624,6 +627,91 @@ node('picker.js',['--run',run,'--off']);
 check(isOff(call(post(S,freshShort()+'\n'))),'the switch: off again before the way back');
 var backRun=node('picker.js',['--on']);
 check(backRun.status===0&&!fs.existsSync(pickerFile)&&isOn(call(post(S,freshShort()+'\n'))),'the switch, the way back: after picker.js --on the context ends "'+ON_TAIL+'"');
+
+// THE REAL RUN (issue 235). The hook acts outside the sandbox, so what it acts on is held to one
+// thing: a real run folder the command itself names by a literal --run path. It opens that run's
+// own board.html and no other file, never a path read from the command's output; it hands the
+// host context only then; the voices it renders and the board it rebuilds are held to a real run
+// and to a round of it; a link among the run's files makes the folder no run.
+fs.rmSync(marker,{force:true});
+var decoy=path.join(tmp,'decoy.html'); fs.writeFileSync(decoy,'<p>not a board</p>\n');
+function failedFor(p){ return 'Board: '+p+' (the opener failed: x; open it yourself: y)\n'; }
+// A command that only mentions a script, with a line in its output shaped like the opener's: silence, nothing opened.
+silent('real run: a command that only mentions open-board.js, a failed line naming another file',call(post('cat notes.txt # open-board.js',failedFor(decoy)),okOpener));
+silent('real run: the same with a web address on a no-opener line',call(post('cat notes.txt # open-board.js','Board: https://example.invalid/x?y=1 (no browser opener here: x)\n'),okOpener));
+silent('real run: a command that only mentions render-record.js --short, a short form in its output',call(post('cat notes.txt # render-record.js --short',shortForm)));
+check(opens().length===0,'real run: a command that only mentions a script opens nothing, got '+JSON.stringify(opens()));
+// The command names the real run; its output names another file: the run's own board is opened, the other never.
+var rr1=shown('real run: the output names another file',call(post(O,failedFor(decoy)),okOpener));
+check(rr1==='Board opened by the plugin: '+board&&opens().length===1&&opens()[0]===board,'real run: the board opened is the run\'s own, from the command\'s path, never the path on the line; got '+JSON.stringify(rr1)+' and '+JSON.stringify(opens()));
+var rr1b=shown('real run: the output names a web address',call(post(O,'Board: https://example.invalid/x?y=1 (no browser opener here: x)\n'),okOpener));
+check(rr1b==='Board opened by the plugin: '+board&&opens().length===2&&opens()[1]===board,'real run: a web address on the line is never opened; got '+JSON.stringify(opens()));
+// A shell variable for the run: the hook cannot place it, opens nothing, shows the script's own line (which carries the command to open it by hand) and hands no context.
+var rr2=bare('real run: a shell variable for the run and a failed opener',call(post('R='+run+'; node '+scripts+'/open-board.js --run $R',failedLine+'\n'),okOpener));
+check(rr2===failedLine&&opens().length===2,'real run: a run named by a shell variable is not opened by the hook, the script\'s line shown as printed; got '+JSON.stringify(rr2)+' and '+opens().length+' opens');
+// A literal path that is no run folder: a board.html in it is not opened, no context.
+var notRun=path.join(tmp,'not-a-run'); fs.mkdirSync(notRun); fs.writeFileSync(path.join(notRun,'board.html'),'<p>x</p>\n');
+var rr3=bare('real run: a folder with a board.html and no run in it',call(post('node '+scripts+'/open-board.js --run '+notRun,failedFor(path.join(notRun,'board.html'))),okOpener));
+check(opens().length===2&&rr3.indexOf('Board opened by the plugin')<0,'real run: a board.html in a folder that is no run is not opened; got '+JSON.stringify(rr3));
+// A folder made to look like a run: seats.json and log.jsonl as files, with a link in it.
+function lookalike(name){ var d=path.join(tmp,name); fs.mkdirSync(d); fs.writeFileSync(path.join(d,'seats.json'),JSON.stringify({seats:[{id:'seat-1',model:'Test Model',company:'Anthropic',start:'session'}]})); fs.writeFileSync(path.join(d,'log.jsonl'),JSON.stringify({ts:new Date().toISOString(),event:'run.created'})+'\n'); fs.writeFileSync(path.join(d,'board.html'),'<p>x</p>\n'); return d; }
+var haveLinks=true; try{ fs.symlinkSync(decoy,path.join(tmp,'link-probe')); }catch(e){ haveLinks=false; }
+var plainLook=lookalike('look-plain');
+var rr4=shown('real run: a hand-made folder with seats.json, log.jsonl and board.html as plain files is a run',call(post('node '+scripts+'/open-board.js --run '+plainLook,failedFor(path.join(plainLook,'board.html'))),okOpener));
+check(rr4==='Board opened by the plugin: '+path.join(plainLook,'board.html')&&opens().length===3,'real run: the plain look-alike is opened (the rule is the files, not who made them); got '+JSON.stringify(rr4));
+if(!haveLinks)console.log('skip real run: the link legs (no symbolic links on this platform)');
+else{
+  // board.html is a link to a file outside the run: not the run's own file, not opened.
+  var linkBoard=lookalike('look-link-board'); fs.rmSync(path.join(linkBoard,'board.html')); fs.symlinkSync(decoy,path.join(linkBoard,'board.html'));
+  var rr5=bare('real run: board.html is a link',call(post('node '+scripts+'/open-board.js --run '+linkBoard,failedFor(path.join(linkBoard,'board.html'))),okOpener));
+  check(opens().length===3&&rr5.indexOf('Board opened by the plugin')<0,'real run: a board.html that is a link is never opened; got '+JSON.stringify(rr5));
+  // log.jsonl is a link to a file outside the run: the hook writes no line through it.
+  var outsideLog=path.join(tmp,'outside-log.jsonl'); fs.writeFileSync(outsideLog,'KEEP\n');
+  var linkLog=lookalike('look-link-log'); fs.rmSync(path.join(linkLog,'log.jsonl')); fs.symlinkSync(outsideLog,path.join(linkLog,'log.jsonl'));
+  bare('real run: log.jsonl is a link',call(post('node '+scripts+'/open-board.js --run '+linkLog,failedFor(path.join(linkLog,'board.html'))),okOpener));
+  check(opens().length===3&&fs.readFileSync(outsideLog,'utf8')==='KEEP\n','real run: a run whose log is a link is no run: nothing opened and no line written through the link; got '+JSON.stringify(fs.readFileSync(outsideLog,'utf8').slice(0,120)));
+  // The voices: a link in the round's folder is no place to render into; the file it points at is left as it was.
+  var outsideVoices=path.join(tmp,'outside-voices.json'); fs.writeFileSync(outsideVoices,'KEEP\n');
+  var vRun=path.join(tmp,'proj-v','combat-writing','runs','v-run'); fs.mkdirSync(path.dirname(vRun),{recursive:true}); fs.cpSync(run,vRun,{recursive:true});
+  var vRound=path.join(vRun,'rounds','01-sparring'); fs.readdirSync(vRound).filter(function(n){ return /^voices\.json$|\.m4a$/.test(n); }).forEach(function(n){ fs.rmSync(path.join(vRound,n)); });
+  fs.symlinkSync(outsideVoices,path.join(vRound,'voices.json'));
+  var vSilenced='Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1 owed for round 01-sparring of '+vRun+'.';
+  var rr6=shown('real run: a link in the round\'s folder',call(post('node '+path.join(scripts,'speak.js')+' --run '+vRun+' --round 01-sparring',vSilenced+'\n'),null,sayEnv));
+  check(fs.readFileSync(outsideVoices,'utf8')==='KEEP\n'&&!fs.existsSync(path.join(vRound,'seat-1.m4a'))&&/^Voices: nothing rendered by the plugin: /.test(rr6),'real run: the voices are not rendered into a round folder holding a link, and the file the link names is untouched; got '+JSON.stringify(rr6)+' and '+JSON.stringify(fs.readFileSync(outsideVoices,'utf8').slice(0,80)));
+  // The board rebuilt after the voices: a board.html that is a link is never written through.
+  var outsideBoard=path.join(tmp,'outside-board.txt'); fs.writeFileSync(outsideBoard,'KEEP\n');
+  var bRun=path.join(tmp,'proj-b','combat-writing','runs','b-run'); fs.mkdirSync(path.dirname(bRun),{recursive:true}); fs.cpSync(run,bRun,{recursive:true});
+  var bRound=path.join(bRun,'rounds','01-sparring'); fs.readdirSync(bRound).filter(function(n){ return /^voices\.json$|\.m4a$/.test(n); }).forEach(function(n){ fs.rmSync(path.join(bRound,n)); });
+  fs.rmSync(path.join(bRun,'board.html')); fs.symlinkSync(outsideBoard,path.join(bRun,'board.html'));
+  var bSilenced='Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1 owed for round 01-sparring of '+bRun+'.';
+  call(post('node '+path.join(scripts,'speak.js')+' --run '+bRun+' --round 01-sparring && node '+path.join(scripts,'render-board.js')+' --run '+bRun,bSilenced+'\n'),null,sayEnv);
+  check(fs.readFileSync(outsideBoard,'utf8')==='KEEP\n','real run: a board.html that is a link is never rebuilt through; the file it names holds '+JSON.stringify(fs.readFileSync(outsideBoard,'utf8').slice(0,80)));
+}
+// The voices: the round on the script's line must be a round of the run. A line naming `..` renders nothing and writes nothing above the rounds.
+var dRun=path.join(tmp,'proj-d','combat-writing','runs','d-run'); fs.mkdirSync(path.dirname(dRun),{recursive:true}); fs.cpSync(run,dRun,{recursive:true});
+var dFiles=fs.readdirSync(dRun).sort().join(',');
+var rr7=shown('real run: a round that is no round of the run',call(post('node '+path.join(scripts,'speak.js')+' --run '+dRun+' --round 01-sparring','Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1 owed for round .. of '+dRun+'.\n'),null,sayEnv));
+check(/^Voices: nothing rendered by the plugin: /.test(rr7)&&fs.readdirSync(dRun).sort().join(',')===dFiles,'real run: a round named `..` is no round: nothing rendered, the run folder as it was; got '+JSON.stringify(rr7)+' and '+fs.readdirSync(dRun).sort().join(','));
+// The voices: the script's line names a folder that is no run: nothing is started there.
+var rr8=bare('real run: the script\'s line names a folder that is no run',call(post('R=x; node '+path.join(scripts,'speak.js')+' --run $R --round 01-sparring','Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1 owed for round 01-sparring of '+notRun+'.\n'),null,sayEnv));
+check(/^Voices: nothing rendered by the plugin: not a run folder/.test(rr8)&&fs.readdirSync(notRun).join(',')==='board.html','real run: a line naming a folder that is no run renders nothing there; got '+JSON.stringify(rr8));
+// The Windows opener: cmd reads `&`, `|`, `<`, `>`, `^`, `%` and `"` in a path as its own, so a board whose path holds one
+// is not handed to it. Run here with the platform named win32 and a stand-in `cmd` first on the PATH that records its words.
+if(process.platform==='win32')console.log('skip real run: the Windows opener legs (they stand in for cmd, and here cmd is real)');
+else{
+  var winPre=path.join(tmp,'as-win32.js'); fs.writeFileSync(winPre,'Object.defineProperty(process,"platform",{value:"win32"});\n');
+  var fakeBin=path.join(tmp,'fakebin'), cmdLog=path.join(tmp,'cmd.log'); fs.mkdirSync(fakeBin);
+  fs.writeFileSync(path.join(fakeBin,'cmd'),'#!/bin/sh\nprintf \'%s\\n\' "$*" >> '+JSON.stringify(cmdLog)+'\nexit 0\n'); fs.chmodSync(path.join(fakeBin,'cmd'),0o755);
+  function asWin(input){ var env=Object.assign({},process.env,{PATH:fakeBin+path.delimiter+process.env.PATH}); delete env.CW_OPENER; var r=cp.spawnSync(process.execPath,['-r',winPre,hook],{input:JSON.stringify(input),encoding:'utf8',cwd:proj,env:env}); var j=null; try{ j=JSON.parse(r.stdout.trim()); }catch(e){} return {status:r.status,json:j,out:r.stdout.trim(),stderr:r.stderr}; }
+  function cmdCalls(){ return fs.existsSync(cmdLog)?fs.readFileSync(cmdLog,'utf8').trim().split('\n').filter(Boolean):[]; }
+  var w1=asWin(post(O,failedLine+'\n'));
+  check(w1.status===0&&cmdCalls().length===1&&cmdCalls()[0]==='/c start  '+board&&!!w1.json&&w1.json.systemMessage==='Board opened by the plugin: '+board,'real run, the Windows opener: a plain path is handed to cmd /c start "" <board>; got '+JSON.stringify(cmdCalls())+' and '+JSON.stringify(w1.out.slice(0,160)));
+  var ampRun=path.join(tmp,'r&d','combat-writing','runs','x&y'); fs.mkdirSync(path.dirname(ampRun),{recursive:true}); fs.cpSync(run,ampRun,{recursive:true});
+  var w2=asWin(post('node '+scripts+'/open-board.js --run "'+ampRun+'"',failedFor(path.join(ampRun,'board.html'))));
+  check(w2.status===0&&cmdCalls().length===1&&!!w2.json&&/the plugin could not open it either: .*Windows opener/.test(w2.json.systemMessage),'real run, the Windows opener: a board whose path holds & is never handed to cmd, and the message says why; got '+JSON.stringify(cmdCalls())+' and '+JSON.stringify(w2.out.slice(0,200)));
+}
+// The source: the opener's line is matched and never mined for a path.
+check(!/failed\[1\]/.test(src)&&/^var OPENER_FAILED=\/\^Board: \.\+\? /m.test(src),'show-result.js: the failed-opener pattern captures no path, and no path is taken from the line');
 
 fs.rmSync(tmp,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
