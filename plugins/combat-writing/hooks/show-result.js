@@ -163,14 +163,15 @@
 // from the session's folder, the files named under THE MEASURED MODEL; it writes log lines to the
 // run and nothing else, one when it opened the board and one per seat's model it measured; it
 // spawns the opener and the plugin's own speak.js, render-board.js and
-// render-record.js and nothing else; it reads one environment variable, CW_OPENER, which the tests set to a fake
-// opener and no one else sets (speak.js reads its own, CW_SAY, from the inherited environment). The version
+// render-record.js and nothing else; it reads no environment variable, and neither does speak.js:
+// the opener and the speech engine are found the way any command is, by name, and the tests put
+// their stand-ins first on the child's PATH. The version
 // in PROVED_ON is the Claude Code version the hook's input shape and the message's display were
 // measured on; the checklist row records the live pass.
 
 var fs=require('fs'), path=require('path'), cp=require('child_process');
 
-var PROVED_ON='2.1.310';
+var PROVED_ON='2.1.330';
 // The Claude Code versions the seat's and the session's transcript shapes were read on (THE MEASURED MODEL). One copy.
 var MODEL_READ_ON='2.1.319 to 2.1.322';
 var CHECK_RE=/check-answer\.js\b/, ROUND_RE=/^\d\d-[a-z][a-z0-9-]*$/, ANSWER_RE=/^(seat-\d+)((?:\.[a-z]+)?)\.answer\.md$/;
@@ -346,9 +347,7 @@ function silent(){ process.exit(0); }
 // The board opened outside the sandbox: the same opener open-board.js uses, the exit read the same way.
 function openBoard(board,done){
   var cmd, argv;
-  var override=(process.env.CW_OPENER||'').trim();
-  if(override){ var parts=override.split(/\s+/); cmd=parts[0]; argv=parts.slice(1).concat([board]); }
-  else if(process.platform==='darwin'){ cmd='open'; argv=[board]; }
+  if(process.platform==='darwin'){ cmd='open'; argv=[board]; }
   else if(process.platform==='win32'){
     if(WIN_UNSAFE.test(board))return done(false,WIN_REFUSED,'cmd'); // THE REAL RUN: cmd would read the character as its own
     cmd='cmd'; argv=['/c','start','',board];

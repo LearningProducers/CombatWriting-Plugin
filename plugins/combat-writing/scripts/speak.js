@@ -9,10 +9,9 @@
 //   node speak.js --run <run folder> --round <nn-kind>            render the round's answers
 //   node speak.js --run <run folder> --set <seat id> "<Voice Name>"  keep a voice for a seat, next rounds on
 //   node speak.js --list                                           the installed voices the rule would use
-//   [--say "<command>"]  the speech command for the tests (a fake); CW_SAY in the environment does the same
 //   [--root <dir>]       the project root for voices.json (default: derived from the run folder)
 //
-// WHAT IT DOES. On macOS (or whenever a --say command is given), asks the engine for its voice list
+// WHAT IT DOES. On macOS, asks the engine for its voice list
 // (`say -v ?`), keeps the voices named Premium or Enhanced (the quality floor, Part 76), ranks them
 // Premium above Enhanced, then by a fixed order (Ava, Nathan, Allison, then the rest), then by
 // name, and gives seat k the k-th distinct one, seat-1 included, wrapping; a voice kept for a seat
@@ -66,16 +65,15 @@ var fs=require('fs'), path=require('path'), os=require('os'), cp=require('child_
 var lib=require('./lib.js');
 
 var args=lib.parseArgs(process.argv.slice(2));
-var sayCmd=(args.say&&args.say!==true?String(args.say):'')||process.env.CW_SAY||'';
 var VOICES_FILE='voices.json';
 
-function sayArgv(){ return sayCmd?sayCmd.split(/\s+/).filter(Boolean):['say']; }
+// The engine is the Mac's own `say`, found the way any command is. The script reads no flag and no
+// environment variable that names another program: the tests put a stand-in named `say` first on
+// the child's PATH.
 function runSay(extra,opts){
-  var a=sayArgv();
-  return cp.spawnSync(a[0],a.slice(1).concat(extra),Object.assign({encoding:'utf8',timeout:120000},opts||{}));
+  return cp.spawnSync('say',extra,Object.assign({encoding:'utf8',timeout:120000},opts||{}));
 }
 function engineHere(){
-  if(sayCmd)return {ok:true};
   if(process.platform!=='darwin')return {ok:false,reason:'not macOS: the Mac speech engine is not here; the board keeps the browser voices'};
   return {ok:true};
 }
@@ -209,7 +207,7 @@ var assigned=assign(seats,ranked,readPrefs(runDir));
 var by=args.by&&args.by!==true?String(args.by):'host';
 var aac=aacHere(), aacRefused=null;
 var files={}, seconds={}, bytes={}, failed={}, silenced=[], renders={}, rendersFailed={};
-var engine=sayCmd?'speech command (given)':'macOS say';
+var engine='macOS say';
 function writeRecord(){
   var record={engine:engine,format:aac?AAC_FORMAT:'lpcm',installed:ranked,assigned:assigned,files:files,seconds:seconds,bytes:bytes,renders:renders,renders_failed:rendersFailed,failed:failed,silenced:silenced};
   if(aacRefused)record.aac_refused=aacRefused;

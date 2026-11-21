@@ -115,7 +115,8 @@ fs.readdirSync(scripts).filter(function(n){return /\.js$/.test(n)&&n!=='open-boa
 });
 var speakSrc=fs.readFileSync(path.join(scripts,'speak.js'),'utf8');
 check(!/\b(https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(speakSrc)&&!/require\(['"](https?|net|dgram)['"]\)/.test(speakSrc)&&!/\bfetch\(/.test(speakSrc),'speak.js: must make no network call');
-check(/\['say'\]/.test(speakSrc)&&/spawnSync\(a\[0\]/.test(speakSrc),'speak.js: runs the speech engine (say) or the command the tests give, nothing else');
+var speakCode=speakSrc.replace(/\/\/[^\n]*/g,'');
+check((speakCode.match(/\bcp\.[A-Za-z]+\(/g)||[]).join()==='cp.spawnSync('&&/cp\.spawnSync\('say',/.test(speakCode),'speak.js: runs the speech engine by its name, `say`, in one place, and nothing else (issue 239: no command given by a flag or a variable)');
 
 failures.forEach(function(f){ process.stdout.write('FAIL '+f+'\n'); });
 process.stdout.write('open_board_check: '+(failures.length?failures.length+' failure(s), ':'all passed, ')+(passes+failures.length)+' checks\n');

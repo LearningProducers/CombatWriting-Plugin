@@ -10,7 +10,9 @@
 // Runs the REAL hook as a child process with the hook's stdin JSON (the PostToolUse shape:
 // tool_name, tool_input.command, tool_response {stdout, stderr}), around the REAL short form
 // render-record.js prints for a real run and the REAL lines open-board.js prints with a failing
-// opener and with none; the board is opened through a fake opener named by CW_OPENER.
+// opener and with none; the board is opened through a fake opener the hook finds the way it finds
+// the real one (issue 239): a folder first on the hook's PATH holds it under the names `open` and
+// `xdg-open`. The hook reads no switch of the tests'.
 //
 // What it pins:
 //   - Silent (no output, exit 0): another event, another tool, a command that ran neither script,
@@ -27,8 +29,9 @@
 //   - One combined command (the three scripts in one Bash call, the 2026-10-26 shape) yields the
 //     short form and the opener's result in one message.
 //   - The voices (Part 81.1, issue 123): when the command ran speak.js and its line says the engine
-//     wrote no sound in that shell, the hook runs speak.js itself (here with a fake command through
-//     CW_SAY that writes an MPEG-4 container with sound) and says "Voices rendered by the plugin"
+//     wrote no sound in that shell, the hook runs speak.js itself (here with a fake command named
+//     `say` first on the PATH, the child started as a Mac by a file of this test's own, that
+//     writes an MPEG-4 container with sound) and says "Voices rendered by the plugin"
 //     naming the voice, the seat and the length in seconds, the file on disk with voices.json and the
 //     log line by hook; with render-board.js in the same command the board is rebuilt and carries
 //     the file, and with the opener too the message says to reload; a render still silent says so;
@@ -153,8 +156,30 @@ var badOpener=path.join(tmp,'bad.js'); fs.writeFileSync(badOpener,'process.stder
 function logOf(){ return fs.readFileSync(path.join(run,'log.jsonl'),'utf8').trim().split('\n').map(function(l){return JSON.parse(l);}); }
 function opens(){ return fs.existsSync(marker)?fs.readFileSync(marker,'utf8').trim().split('\n').filter(Boolean):[]; }
 
+// The fakes reach the hook and the script it starts the way the real programs do, through the
+// PATH. A fake opener is a folder holding it as `open` and `xdg-open`, so the hook finds it on a
+// Mac and off one. The fake speech command is a folder holding it as `say`; a call that wants it
+// passes WITH_FAKE_SAY, read here and never by the hook, and that child is started as a Mac by
+// a file node loads first, so speak.js looks for the engine at all.
+function standIn(dir,names,script){
+  if(fs.existsSync(dir))return dir;
+  fs.mkdirSync(dir);
+  names.forEach(function(n){ var f=path.join(dir,n); fs.writeFileSync(f,'#!/bin/sh\nexec '+JSON.stringify(process.execPath)+' '+JSON.stringify(script)+' "$@"\n'); fs.chmodSync(f,0o755); });
+  return dir;
+}
+function openerBin(script){ return standIn(script+'.bin',['open','xdg-open'],script); }
+var asMac=path.join(tmp,'as-mac.js'); fs.writeFileSync(asMac,'Object.defineProperty(process,"platform",{value:"darwin"});\n');
+function fakeEnv(opener,extra){
+  var env=Object.assign({},process.env,extra||{}), front=[];
+  if(!(extra&&extra.CW_OPENER))delete env.CW_OPENER;
+  if(opener)front.push(openerBin(opener));
+  if(env.WITH_FAKE_SAY){ front.push(standIn(path.join(tmp,'say.bin'),['say'],path.join(tmp,'fakesay.js'))); env.NODE_OPTIONS='--require '+asMac; }
+  delete env.WITH_FAKE_SAY;
+  if(front.length)env.PATH=front.concat([process.env.PATH||'']).join(path.delimiter);
+  return env;
+}
 function call(input,opener,extra){
-  var env=Object.assign({},process.env,extra||{}); delete env.CW_OPENER; if(opener)env.CW_OPENER=process.execPath+' '+opener;
+  var env=fakeEnv(opener,extra);
   var raw=typeof input==='string'?input:JSON.stringify(input);
   var r=cp.spawnSync(process.execPath,[hook],{input:raw,encoding:'utf8',cwd:proj,env:env});
   var out=r.stdout.trim(), json=null; try{json=out?JSON.parse(out):null;}catch(e){}
@@ -196,7 +221,7 @@ var m5=shown('the opener failed, the plugin opens it',call(post(O,failedLine+'\n
 check(m5==='Board opened by the plugin: '+board,'the opener failed: the message, got '+JSON.stringify(m5));
 check(opens().length===1&&opens()[0]===board,'the opener failed: the fake opener must be run once on the board, got '+JSON.stringify(opens()));
 var e5=logOf().slice(before);
-check(e5.length===2&&e5[0].event==='board.rendered'&&e5[1].event==='board.opened'&&e5[1].ok===true&&e5[1].by==='hook'&&e5[1].file==='board.html'&&/ok\.js|node/.test(e5[1].opener),'the opener failed: the board rendered again by the plugin\'s own script, then one board.opened line by the hook, got '+JSON.stringify(e5));
+check(e5.length===2&&e5[0].event==='board.rendered'&&e5[1].event==='board.opened'&&e5[1].ok===true&&e5[1].by==='hook'&&e5[1].file==='board.html'&&/^(open|xdg-open)$/.test(e5[1].opener),'the opener failed: the board rendered again by the plugin\'s own script, then one board.opened line by the hook, got '+JSON.stringify(e5));
 var m6=shown('the plugin could not open it either',call(post(O,failedLine+'\n'),badOpener));
 check(m6==='Board: '+board+' (the plugin could not open it either: no display here (exit 1); open it yourself: open '+board+')','the plugin could not open it either: the message, got '+JSON.stringify(m6));
 var e6=logOf().slice(-1)[0];
@@ -222,12 +247,12 @@ fs.writeFileSync(fakeSay,'var fs=require("fs");var a=process.argv.slice(2);\n'
  +'var parts=[atom("ftyp",Buffer.from("M4A \\0\\0\\0\\0M4A mp42isom","latin1")),atom("moov",atom("mvhd",mv))];\n'
  +'if(sec>0)parts.push(atom("mdat",Buffer.alloc(256,1)));\n'
  +'fs.writeFileSync(out,Buffer.concat(parts));\n');
-var sayEnv={CW_SAY:process.execPath+' '+fakeSay,FAKE_M4A_SECONDS:'12.5'};
+var sayEnv={WITH_FAKE_SAY:'1',FAKE_M4A_SECONDS:'12.5'};
 var speakCmd='node '+path.join(scripts,'speak.js')+' --run '+run+' --round 01-sparring';
 var silencedLineOld='Voices: the speech engine wrote no sound in this shell (a sandbox); seat-1 owed for round 01-sparring.';
 var silencedLine=silencedLineOld.replace(/\.$/,' of '+run+'.');
 var voiceFile=path.join(run,'rounds','01-sparring','seat-1.m4a');
-var realSilenced=node('speak.js',['--run',run,'--round','01-sparring','--say',sayEnv.CW_SAY]).stdout;
+var realSilenced=cp.spawnSync(process.execPath,[path.join(scripts,'speak.js'),'--run',run,'--round','01-sparring'],{cwd:proj,encoding:'utf8',env:fakeEnv(null,{WITH_FAKE_SAY:'1'})}).stdout;
 check(realSilenced===silencedLine+'\n','the real speak.js prints the silenced line with the run folder: '+JSON.stringify(realSilenced));
 var v1=shown('the voices: silenced in the shell',call(post(speakCmd,silencedLine+'\n'),null,sayEnv));
 check(v1==='Voices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).','the voices: the message names the voice, the seat and the seconds, got '+JSON.stringify(v1));
@@ -243,7 +268,7 @@ check(v2==='Voices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s). Th
 check(/data-audio="[^"]*seat-1\.m4a"/.test(fs.readFileSync(board,'utf8')),'the voices with the board: the rebuilt board carries the file');
 var v3=shown('the voices with the board alone',call(post(speakCmd+' && node '+path.join(scripts,'render-board.js')+' --run '+run,silencedLine+'\n'),null,sayEnv));
 check(v3==='Voices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s). The board carries them.','the voices with the board alone: the message, got '+JSON.stringify(v3));
-var v4=shown('the voices still silent outside',call(post(speakCmd,silencedLine+'\n'),null,{CW_SAY:sayEnv.CW_SAY,FAKE_M4A_SECONDS:'0'}));
+var v4=shown('the voices still silent outside',call(post(speakCmd,silencedLine+'\n'),null,{WITH_FAKE_SAY:'1',FAKE_M4A_SECONDS:'0'}));
 check(v4==='Voices: the speech engine wrote no sound outside the sandbox either; the board reads with the browser.','the voices still silent outside: the message, got '+JSON.stringify(v4));
 check(!fs.existsSync(voiceFile),'the voices still silent outside: no silent file left on disk');
 var v5=shown('speak.js that printed nothing: re-run while the round owes voices (Part 116)',call(post(speakCmd,''),null,sayEnv));
@@ -268,7 +293,7 @@ var v9=bare('the short form, a shell variable and the run on the line',call(post
 check(v9===expected+'\n\nVoices rendered by the plugin: Ava (Premium) for seat-1 (12.5 s).','the short form then the voices with a shell variable: the order, got '+JSON.stringify(v9.slice(-120)));
 fs.unlinkSync(voiceFile);
 // Every quality voice (Part 82): two voices listed, both rendered, the line counts them.
-var twoEnv={CW_SAY:sayEnv.CW_SAY,FAKE_M4A_SECONDS:'12.5',FAKE_SAY_TWO:'1'};
+var twoEnv={WITH_FAKE_SAY:'1',FAKE_M4A_SECONDS:'12.5',FAKE_SAY_TWO:'1'};
 var secondFile=path.join(run,'rounds','01-sparring','seat-1.nathan-enhanced.m4a');
 var v10=shown('two voices rendered',call(post(speakCmd+' && node '+path.join(scripts,'render-board.js')+' --run '+run,silencedLine+'\n'),null,twoEnv));
 check(v10==='Voices rendered by the plugin: 2 voices for seat-1 (Ava (Premium) the default, 12.5 s). The board carries them.','two voices: the line counts the voices and names the default, got '+JSON.stringify(v10));
@@ -567,7 +592,17 @@ check(lMany.model==='test-id-5','measured: the newest transcript is found among 
 var src=fs.readFileSync(hook,'utf8');
 check(src.split('\n')[0]==='// SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0','show-result.js: no Shield header on line 1');
 check(!/writeFileSync|mkdirSync|\bfetch\(|https?:\/\/|execSync|execFile|cp\.exec\b|\bshell\s*:\s*true/.test(src.replace(/\/\/[^\n]*/g,'')),'show-result.js: must write no file but the log line, fetch nothing, run no shell');
-check((src.match(/process\.env\.[A-Z_]+/g)||[]).join(',')==='process.env.CW_OPENER','show-result.js: the one environment read is CW_OPENER, got '+(src.match(/process\.env\.[A-Z_]+/g)||[]).join(','));
+check(!/process\.env/.test(src.replace(/\/\/[^\n]*/g,'')),'show-result.js: the code reads the environment; it reads none, and the tests reach it through the PATH alone, got '+(src.match(/process\.env\.[A-Z_]+/g)||[]).join(','));
+// THE TESTS' SWITCH IS GONE (issue 239). CW_OPENER named a program the hook ran, outside the
+// sandbox, in place of the system's opener, so whoever could set a variable in the session chose a
+// program the hook started after a round. A program named by it now never runs: the board is
+// opened by the opener the PATH holds.
+var plantedMark=path.join(tmp,'planted-ran.txt');
+var planted=path.join(tmp,'planted.js'); fs.writeFileSync(planted,'require("fs").appendFileSync('+JSON.stringify(plantedMark)+',"ran\\n");process.exit(0);\n');
+var opensBeforeSwitch=opens().length;
+var sw=shown('the tests\' switch: CW_OPENER names a program',call(post('node '+scripts+'/open-board.js --run '+run,failedLine+'\n'),okOpener,{CW_OPENER:process.execPath+' '+planted}));
+check(!fs.existsSync(plantedMark),'the tests\' switch: the program CW_OPENER names was run by the hook');
+check(sw==='Board opened by the plugin: '+board&&opens().length===opensBeforeSwitch+1,'the tests\' switch: the board must be opened by the opener on the PATH, got '+JSON.stringify(sw)+' and '+(opens().length-opensBeforeSwitch)+' open(s)');
 var provedOn=(/^var PROVED_ON='([^']+)';$/m.exec(src)||[])[1];
 check(typeof provedOn==='string'&&/^\d+\.\d+\.\d+$/.test(provedOn)&&src.split(provedOn).length===2,'show-result.js: PROVED_ON must be one version constant on its own line, appearing once, got '+provedOn);
 // THE MEASURED MODEL in the source: the versions the transcript shape was read on in one constant, the
@@ -814,7 +849,7 @@ else{
   var winPre=path.join(tmp,'as-win32.js'); fs.writeFileSync(winPre,'Object.defineProperty(process,"platform",{value:"win32"});\n');
   var fakeBin=path.join(tmp,'fakebin'), cmdLog=path.join(tmp,'cmd.log'); fs.mkdirSync(fakeBin);
   fs.writeFileSync(path.join(fakeBin,'cmd'),'#!/bin/sh\nprintf \'%s\\n\' "$*" >> '+JSON.stringify(cmdLog)+'\nexit 0\n'); fs.chmodSync(path.join(fakeBin,'cmd'),0o755);
-  function asWin(input){ var env=Object.assign({},process.env,{PATH:fakeBin+path.delimiter+process.env.PATH}); delete env.CW_OPENER; var r=cp.spawnSync(process.execPath,['-r',winPre,hook],{input:JSON.stringify(input),encoding:'utf8',cwd:proj,env:env}); var j=null; try{ j=JSON.parse(r.stdout.trim()); }catch(e){} return {status:r.status,json:j,out:r.stdout.trim(),stderr:r.stderr}; }
+  function asWin(input){ var env=Object.assign({},process.env,{PATH:fakeBin+path.delimiter+process.env.PATH}); var r=cp.spawnSync(process.execPath,['-r',winPre,hook],{input:JSON.stringify(input),encoding:'utf8',cwd:proj,env:env}); var j=null; try{ j=JSON.parse(r.stdout.trim()); }catch(e){} return {status:r.status,json:j,out:r.stdout.trim(),stderr:r.stderr}; }
   function cmdCalls(){ return fs.existsSync(cmdLog)?fs.readFileSync(cmdLog,'utf8').trim().split('\n').filter(Boolean):[]; }
   var w1=asWin(post(O,failedLine+'\n'));
   check(w1.status===0&&cmdCalls().length===1&&cmdCalls()[0]==='/c start  '+board&&!!w1.json&&w1.json.systemMessage==='Board opened by the plugin: '+board,'real run, the Windows opener: a plain path is handed to cmd /c start "" <board>; got '+JSON.stringify(cmdCalls())+' and '+JSON.stringify(w1.out.slice(0,160)));
