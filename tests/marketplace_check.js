@@ -33,7 +33,8 @@
 //     list. The add-on's listing text, its manifest description and its README, says Claude
 //     Code plainly (a local MCP server is ignored in chat on claude.ai and loads in the desktop
 //     app only on your own computer) and never names cw as "the listed plugin"; the README
-//     names the three key routes and says why the key file exists; the marketplace's cw entry
+//     names the two places a key comes from and no other (the masked prompt, the key file),
+//     says a key in the person's shell is not read, and says why the key file exists; the marketplace's cw entry
 //     names the add-on as its crew; CLAUDE.md says the add-on is submitted as a second bundle;
 //     the main checklist's add-on row no longer reads n/a and points at the add-on's own page.
 //   - docs/directory-checklist-crew.md, the add-on's own pass: it names the two published
@@ -41,8 +42,9 @@
 //     many rows as the checklist had on the day of the pass (the counts live here, in
 //     CREW_PAGE, and move when the page is re-passed); every row's result is pass, HELD or
 //     n/a; no row carries a date or a version; the row on a credential read from the person's
-//     machine reads HELD, and of the three key routes the masked prompt reads pass and the
-//     environment variable and the key file read HELD.
+//     machine reads HELD, and of the places a key could come from the masked prompt reads pass,
+//     a provider's usual variable in the person's shell reads pass (not read) and the key file
+//     reads HELD.
 //   - When the claude CLI is on PATH, `claude plugin validate --strict` passes on the root,
 //     on both plugin folders and on the listed plugin's component folders; otherwise that
 //     step is reported as skipped.
@@ -111,11 +113,11 @@ keyOptions.forEach(function(k){ check(Object.keys(env).some(function(n){return e
 // the manifest fills from ${user_config.<its key_option>}, and that option is declared sensitive; the field
 // the no-key message names is a field the dialog shows.
 var providers=JSON.parse(read('plugins/combat-writing-crew/providers.json')).providers||[];
-providers.filter(function(p){return p.key_prompt_env&&!p.stub;}).forEach(function(p){
+providers.filter(function(p){return p.key_prompt_env;}).forEach(function(p){
   var option=p.key_option||(p.id+'_api_key');
   check(env[p.key_prompt_env]==='${user_config.'+option+'}','crew: provider '+p.id+' reads '+p.key_prompt_env+', which the manifest maps to '+JSON.stringify(env[p.key_prompt_env])+', expected ${user_config.'+option+'}');
   check(options[option]&&options[option].sensitive===true,'crew: provider '+p.id+' names the field '+option+', which the manifest does not declare as a sensitive option');
-  check(typeof p.key_env==='string'&&/^[A-Z][A-Z0-9_]+_API_KEY$/.test(p.key_env),'crew: provider '+p.id+' has no conventional key_env');
+  check(typeof p.key_name==='string'&&/^[A-Z][A-Z0-9_]+_API_KEY$/.test(p.key_name)&&!('key_env' in p),'crew: provider '+p.id+' should name its key file line under key_name, and carry no key_env');
 });
 var manifestText=read('plugins/combat-writing-crew/.claude-plugin/plugin.json')+read('plugins/combat-writing-crew/providers.json');
 check(!/\b(sk|gsk|xai|pplx)[-_][A-Za-z0-9]{16,}/.test(manifestText),'crew: something that looks like a credential appears in the manifest or provider table');
@@ -188,7 +190,7 @@ Object.keys(crewListing).forEach(function(k){
   check(/Claude Code/.test(t)&&/ignored in chat on claude\.ai/.test(t)&&/loads in the desktop app only on your own computer/.test(t),k+': should say Claude Code plainly: a local MCP server is ignored in chat on claude.ai and loads in the desktop app only on your own computer');
   check(!/\blisted plugin\b/i.test(t),k+': names cw as "the listed plugin", which says this one is not');
 });
-check(/masked prompt/i.test(crewReadme)&&/environment variable/i.test(crewReadme)&&/key file/i.test(crewReadme),'crew README: should name the three key routes: the masked prompt, the environment variable, the key file');
+check(/from two places and no other, the masked prompt first and then your own key file/.test(crewReadme)&&/A key in your shell is not read/.test(crewReadme)&&!/environment variable/i.test(crewReadme)&&!/three routes/i.test(crewReadme),'crew README: should name the two places a key comes from, the masked prompt and the key file, say a key in the shell is not read, and name no third');
 check(/key file exists[^.]*survives a host update/i.test(crewReadme.replace(/\*\*/g,'')),'crew README: should say why the key file exists: it is the route that survives a host update');
 if(market){
   var cwEntry=(market.plugins||[]).filter(function(p){return p.name==='cw';})[0]||{};
@@ -213,7 +215,7 @@ var CREW_PAGE=[
   ['Choices a reviewer always checks',3],
   ['Hooks, skills, commands and agents',4],
   ['The security scan',3],
-  ['The three key routes',3]
+  ['The two places a key comes from',3]
 ];
 if(exists('docs/directory-checklist-crew.md')){
   var page=read('docs/directory-checklist-crew.md');
@@ -243,10 +245,10 @@ if(exists('docs/directory-checklist-crew.md')){
     });
   });
   function resultOf(rows,re){ var r=(rows||[]).filter(function(l){return re.test(l);})[0]; return r?(r.split('|')[2]||'').trim():'(no such row)'; }
-  var runs=sections['What the plugin runs and connects to'], routes=sections['The three key routes'];
+  var runs=sections['What the plugin runs and connects to'], routes=sections['The two places a key comes from'];
   check(/^HELD/.test(resultOf(runs,/already set in the (?:user|person)'s environment/)),'crew checklist: the row on a credential already set in the environment reads "'+resultOf(runs,/already set in the (?:user|person)'s environment/)+'", expected HELD');
   check(/^pass/.test(resultOf(routes,/^\| The masked prompt/)),'crew checklist: the masked prompt reads "'+resultOf(routes,/^\| The masked prompt/)+'", expected pass');
-  check(/^HELD/.test(resultOf(routes,/^\| The environment variable/)),'crew checklist: the environment variable reads "'+resultOf(routes,/^\| The environment variable/)+'", expected HELD');
+  check(/^pass/.test(resultOf(routes,/^\| A provider's usual variable in the person's shell/))&&/not read/.test((routes||[]).filter(function(l){return /usual variable/.test(l);})[0]||''),'crew checklist: a provider\'s usual variable reads "'+resultOf(routes,/^\| A provider's usual variable in the person's shell/)+'", expected pass, not read');
   check(/^HELD/.test(resultOf(routes,/^\| The owner-only key file/)),'crew checklist: the owner-only key file reads "'+resultOf(routes,/^\| The owner-only key file/)+'", expected HELD');
 }
 

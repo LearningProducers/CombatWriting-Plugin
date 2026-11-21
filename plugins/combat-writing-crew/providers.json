@@ -1,5 +1,5 @@
 {
-  "note": "Provider entries for the Combat Writing crew add-on. Each entry names an address, the key it needs (a prompt value first, an environment variable when the prompt is empty, then a NAME=value line in the person's own owner-only key file, <home>/.combat-writing/keys; never a file inside a project or the plugin), the maker map for the ids its catalog returns, the seats it offers as model families (a pattern and a preference, never a pinned id), and its call budget. No model id is written here.",
+  "note": "Provider entries for the Combat Writing crew add-on. Each entry names an address, the key it needs (the masked prompt's value first, handed by the host under key_prompt_env; then a line in the person's own owner-only key file, <home>/.combat-writing/keys, under key_name; from no other place, never a file inside a project or the plugin), the maker map for the ids its catalog returns, the seats it offers as model families (a pattern and a preference, never a pinned id), and its call budget. No model id is written here.",
   "makers": {
     "openai": "OpenAI",
     "qwen": "Alibaba",
@@ -30,7 +30,7 @@
       "api": "openai-chat",
       "base_url": "https://api.groq.com/openai/v1",
       "key_prompt_env": "CW_CREW_GROQ_KEY",
-      "key_env": "GROQ_API_KEY",
+      "key_name": "GROQ_API_KEY",
       "key_option": "groq_api_key",
       "catalog": {
         "exclude": "whisper|orpheus|tts|guard|compound|safeguard|embed",
@@ -50,7 +50,7 @@
       "api": "openai-chat",
       "base_url": "https://api.x.ai/v1",
       "key_prompt_env": "CW_CREW_XAI_KEY",
-      "key_env": "XAI_API_KEY",
+      "key_name": "XAI_API_KEY",
       "key_option": "xai_api_key",
       "seats": [ { "slot": "xai", "family": "xAI's Grok line", "vendor": "grok", "match": "^grok-", "prefer": "newest" } ],
       "budget": { "tpm_ceiling": 7700, "hard_cap": 8000, "floor": 1200, "ceiling": 2800, "rpm": 30 }
@@ -61,7 +61,7 @@
       "api": "openai-chat",
       "base_url": "https://api.perplexity.ai",
       "key_prompt_env": "CW_CREW_PERPLEXITY_KEY",
-      "key_env": "PERPLEXITY_API_KEY",
+      "key_name": "PERPLEXITY_API_KEY",
       "key_option": "perplexity_api_key",
       "seats": [ { "slot": "perplexity", "family": "Perplexity's Sonar line", "vendor": "sonar", "match": "^sonar", "prefer": "newest" } ],
       "budget": { "tpm_ceiling": 7700, "hard_cap": 8000, "floor": 1200, "ceiling": 2800, "rpm": 30 }
@@ -72,7 +72,7 @@
       "api": "openai-chat",
       "base_url": "https://api.openai.com/v1",
       "key_prompt_env": "CW_CREW_OPENAI_KEY",
-      "key_env": "OPENAI_API_KEY",
+      "key_name": "OPENAI_API_KEY",
       "key_option": "openai_api_key",
       "seats": [ { "slot": "openai", "family": "OpenAI's GPT line", "vendor": "gpt", "match": "^gpt-\\d", "prefer": "newest" } ],
       "budget": { "tpm_ceiling": 7700, "hard_cap": 8000, "floor": 1200, "ceiling": 2800, "rpm": 30 }
@@ -83,7 +83,7 @@
       "api": "openai-chat",
       "base_url": "https://api.mistral.ai/v1",
       "key_prompt_env": "CW_CREW_MISTRAL_KEY",
-      "key_env": "MISTRAL_API_KEY",
+      "key_name": "MISTRAL_API_KEY",
       "key_option": "mistral_api_key",
       "seats": [ { "slot": "mistral", "family": "Mistral's large line", "vendor": "mistral", "match": "^mistral-(large|medium)", "prefer": "newest" } ],
       "budget": { "tpm_ceiling": 7700, "hard_cap": 8000, "floor": 1200, "ceiling": 2800, "rpm": 30 }
@@ -94,7 +94,7 @@
       "api": "openai-chat",
       "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
       "key_prompt_env": "CW_CREW_GEMINI_KEY",
-      "key_env": "GEMINI_API_KEY",
+      "key_name": "GEMINI_API_KEY",
       "key_option": "gemini_api_key",
       "seats": [ { "slot": "gemini", "family": "Google's Gemini line", "vendor": "gemini", "match": "gemini-", "prefer": "newest" } ],
       "budget": { "tpm_ceiling": 7700, "hard_cap": 8000, "floor": 1200, "ceiling": 2800, "rpm": 30 }
@@ -105,23 +105,12 @@
       "api": "openai-chat",
       "base_url": "http://localhost:11434/v1",
       "key_prompt_env": "",
-      "key_env": "",
+      "key_name": "",
       "keyless": true,
       "model_prompt_env": "CW_CREW_OLLAMA_MODEL",
       "model_env": "OLLAMA_MODEL",
       "seats": [ { "slot": "ollama", "family": "the local model the person names", "vendor": "", "match": "", "prefer": "named" } ],
       "budget": { "tpm_ceiling": 7700, "hard_cap": 8000, "floor": 1200, "ceiling": 2800, "rpm": 60 }
-    },
-    {
-      "id": "anthropic",
-      "name": "Anthropic",
-      "api": "anthropic-messages",
-      "base_url": "https://api.anthropic.com/v1",
-      "key_prompt_env": "CW_CREW_ANTHROPIC_KEY",
-      "key_env": "ANTHROPIC_API_KEY",
-      "stub": "Claude's seat is the fresh reader inside the listed plugin, which needs no key. An API-key Anthropic seat would use the Messages API, a different shape from OpenAI-compatible chat; this entry is a stub and crew_list reports it as not built.",
-      "seats": [],
-      "budget": { "tpm_ceiling": 7700, "hard_cap": 8000, "floor": 1200, "ceiling": 2800, "rpm": 30 }
     }
   ]
 }

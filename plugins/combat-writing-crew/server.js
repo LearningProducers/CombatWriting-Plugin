@@ -11,12 +11,12 @@
 //   crew_register  adds the available outside seats to a run's seats.json and logs it; the
 //                  listed plugin's packet.js then builds their packets like any seat's. Each
 //                  seat record carries the wall it spends from (`budget`: per_minute, reply_floor,
-//                  reply_ceiling, the provider's numbers; issue 95), which the listed plugin's
+//                  reply_ceiling, the add-on's budget for the provider; issue 95), which the listed plugin's
 //                  budget line reads.
 //   crew_answer    takes a run folder, a round and a seat id (and `read`: rating, sn or
 //                  redflag; and on a retry `note`, the failed check's reasons, appended after
-//                  the packet); reads the packet file; checks it against the provider's call
-//                  budget and reply floor; waits out the per-minute window of that model at
+//                  the packet); reads the packet file; checks it against the add-on's own budget
+//                  for that provider and its reply floor; waits out the per-minute window of that model at
 //                  that provider (issue 93: Groq's limits are per model); sends, with the
 //                  packet's word cap and contract stated in the system line; writes the
 //                  answer file and a log line with the timestamp and the model id the API
@@ -43,25 +43,26 @@
 //                  Every crew.failed and crew.refused line carries the read and a reason; the
 //                  listed plugin's record and board show that reason under the missing seat.
 //
-// Keys: the masked prompt's value first (the manifest maps it to CW_CREW_<PROVIDER>_KEY), the
-// conventional environment variable only when the prompt is empty, then one NAME=value line in
-// the person's own key file, <home>/.combat-writing/keys, owner-only, written by hand (Part
-// 36.2, issue 62; crew-lib.js readKeyFile: a file open to others or with a malformed line is
-// refused whole with the reason named, never a line's content). Never a file inside a project or
-// the plugin. Each key goes only to its own provider. Nothing is sent to Learning Producers. An
+// Keys: the masked prompt's value first (the manifest maps it to CW_CREW_<PROVIDER>_KEY), then
+// one NAME=value line in the person's own key file, <home>/.combat-writing/keys, owner-only,
+// written by hand (Part 36.2, issue 62; crew-lib.js readKeyFile: a file open to others or with
+// a malformed line is refused whole with the reason named, never a line's content), and from no
+// other place: never a provider's usual variable in the person's shell, never a file inside a
+// project or the plugin. Each key goes only to its own provider. Nothing is sent to Learning Producers. An
 // unset or dropped option reaches the server as an empty string (measured 2026-10-19, Claude
 // Code 2.1.303); a literal ${user_config.<option>} is read as unfilled, never as a key. A seat
 // with no key says the two causes (never entered, or dropped by an update), the key file's
 // refusal when there is one, and the next step (the configure dialog, the field typed in and
-// saved; the variable; the file), names only, never a value. key_source on the answer log line
-// names the route that served: prompt, environment or file.
+// saved; the file), names only, never a value. key_source on the answer log line names the place
+// that served: prompt or file.
 //
 // Transport: newline-delimited JSON-RPC 2.0 on stdin/stdout (the MCP stdio transport).
 // Diagnostics go to stderr only. Nothing it writes carries the credit line.
 // A provider's error text, and any thrown error's message, passes through crew-lib.js scrubIds
-// (issue 58) before it reaches a log line, a tool result or stderr: an account id the provider
-// put in its prose (Groq's "in organization `org_…`") lands as org_[redacted], a key-shaped
-// string as [key redacted].
+// (issue 58) before it reaches a log line, a tool result or stderr: the key in use, whatever its
+// shape, lands as [key redacted] every time it appears, an account id the provider put in its
+// prose (Groq's "in organization `org_…`") as org_[redacted], and a key-shaped string as
+// [key redacted].
 
 var fs=require('fs'), path=require('path');
 var lib=require('./crew-lib.js');
@@ -90,7 +91,11 @@ function fetchCatalog(provider,key){
   var headers={};
   if(key)headers['Authorization']='Bearer '+key;
   return lib.request('GET',provider.base_url.replace(/\/$/,'')+'/models',headers,null,30000).then(function(res){
-    if(res.status!==200)throw new Error('catalog read failed: HTTP '+res.status+(res.json&&res.json.error&&res.json.error.message?' '+lib.scrubIds(res.json.error.message):''));
+    if(res.status!==200){
+      var failed=new Error('catalog read failed: HTTP '+res.status+(res.json&&res.json.error&&res.json.error.message?' '+lib.scrubIds(res.json.error.message):''));
+      failed.status=res.status; // read by listSeats: a 401 or 403 is a refused key, not a provider that did not answer
+      throw failed;
+    }
     var records=res.json&&(res.json.data||res.json.models||res.json);
     var list=lib.eligibleCatalog(records,provider.catalog);
     catalogs[provider.id]={at:now,list:list};
@@ -105,15 +110,11 @@ function listSeats(){
   var chain=Promise.resolve();
   table.providers.forEach(function(provider){
     chain=chain.then(function(){
-      if(provider.api==='anthropic-messages'){
-        out.push({slot:'anthropic',provider:provider.id,provider_name:provider.name,available:false,reason:'not built: '+provider.stub});
-        return;
-      }
       var k=lib.keyFor(provider);
       if(!k){
         provider.seats.forEach(function(s){
           var f=lib.keyField(provider);
-          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'no key for '+provider.name+': '+lib.keyHint(provider),key_shape:lib.keyShape(provider),next:f.next,field:f.field,field_title:f.field_title,env:f.env,file:f.file});
+          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'no key for '+provider.name+': '+lib.keyHint(provider),key_shape:lib.keyShape(provider),next:f.next,field:f.field,field_title:f.field_title,key_name:f.key_name,file:f.file});
         });
         return;
       }
@@ -134,8 +135,13 @@ function listSeats(){
           out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:true,model:rec.id,maker:lib.makerOf(rec.id,rec.owned_by,table.makers),served_by:provider.name,key_source:k.source,catalog_size:catalog.length});
         });
       },function(err){
+        // A key the provider refused at the catalog read (401 or 403) says so and gives the next command,
+        // in the words the answer path uses; any other failure reads "did not answer".
+        var refused=err&&(err.status===401||err.status===403);
+        var why=refused?provider.name+' refused the key: '+lib.scrubIds(err.message)+' (the key was refused). '+lib.keyNext(provider)
+          :provider.name+' did not answer: '+lib.scrubIds(err.message);
         provider.seats.forEach(function(s){
-          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:provider.name+' did not answer: '+lib.scrubIds(err.message)});
+          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:why});
         });
       });
     });
@@ -183,7 +189,7 @@ function registerSeats(runDir){
       existing.push(id);
       var seat={id:id,model:s.model,company:s.maker,served_by:s.served_by,provider:s.provider,slot:s.slot,family:s.family,
         source:'the model field the provider\'s API returns ('+s.served_by+'); resolved from the live catalog by family ('+s.family+'), never a pinned id; the record carries the id each answer came back with'};
-      // The wall this seat spends from (issue 95), the provider's budget as providers.json states it, so the
+      // The wall this seat spends from (issue 95), the add-on's budget for the provider as providers.json states it, so the
       // listed plugin's budget line can say the room a packet leaves before any seat starts.
       var prov=providersTable().providers.filter(function(p){return p.id===s.provider;})[0];
       if(prov&&prov.budget)seat.budget={per_minute:prov.budget.hard_cap,reply_floor:prov.budget.floor,reply_ceiling:prov.budget.ceiling};
@@ -193,7 +199,7 @@ function registerSeats(runDir){
     lib.writeSeats(runDir,seatsFile);
     lib.appendLog(runDir,{event:'crew.registered',added:added.map(function(s){return {id:s.id,model:s.model,company:s.company,served_by:s.served_by,provider:s.provider};}),
       replaced:replaced,
-      unavailable:seats.filter(function(s){return !s.available;}).map(function(s){return {slot:s.slot,provider:s.provider,provider_name:s.provider_name,family:s.family,reason:s.reason,key_shape:s.key_shape,next:s.next,field:s.field,field_title:s.field_title,env:s.env,file:s.file};})});
+      unavailable:seats.filter(function(s){return !s.available;}).map(function(s){return {slot:s.slot,provider:s.provider,provider_name:s.provider_name,family:s.family,reason:s.reason,key_shape:s.key_shape,next:s.next,field:s.field,field_title:s.field_title,key_name:s.key_name,file:s.file};})});
     return {added:added,replaced:replaced,unavailable:seats.filter(function(s){return !s.available;}),seats:seatsFile.seats};
   });
 }
@@ -270,10 +276,14 @@ function callProvider(provider,key,seat,systemPrompt,userText,budget,capWords){
   return attempt(0);
 }
 
+// A seat id is `seat-` and digits, the pattern the listed plugin's seat hook holds a seat to. It is
+// checked before anything else in crew_answer, so an id that is not one never reaches a path.
+var SEAT_ID=/^seat-\d+$/;
 function answer(args){
+  var seatId=String(args.seat===undefined||args.seat===null?'':args.seat);
+  if(!SEAT_ID.test(seatId))throw new Error('seat must look like seat-2');
   var runDir=path.resolve(String(args.run||''));
   var round=String(args.round||'');
-  var seatId=String(args.seat||'');
   var read=String(args.read||'rating');
   // A retry note: the failed check's reasons, so an outside seat's second try is not blind. It rides after
   // the packet in the user message, the way the host appends the reasons to a fresh reader's task.
@@ -369,12 +379,22 @@ function answer(args){
 }
 // ---- MCP over stdio ------------------------------------------------------------------------
 
+// Each tool carries a title and the annotations the MCP specification names (ToolAnnotations: title,
+// readOnlyHint, destructiveHint, idempotentHint, openWorldHint), true to what the tool does:
+//   crew_list      writes nothing; it reads each keyed provider's catalog over the network.
+//   crew_register  rewrites the run's seats.json, where it can drop the second fresh reader no round
+//                  has read, and appends a log line on every call; it reads the catalogs too.
+//   crew_answer    sends a packet to a provider, writes the answer file (over the earlier one on a
+//                  retry), can rewrite the seat's model in seats.json, and appends a log line.
+function annotated(title,readOnly,destructive,idempotent){
+  return {title:title,readOnlyHint:readOnly,destructiveHint:destructive,idempotentHint:idempotent,openWorldHint:true};
+}
 var TOOLS=[
-  {name:'crew_list',description:'List the outside seats the Combat Writing crew add-on can seat with the keys present: provider, family, the model id resolved from the live catalog, and for a seat with no key, the exact next command (/plugin configure combat-writing-crew) and the key field to fill, names only, never a value. Call this first to learn whether any outside seat is available, and show the person the next command of every seat they expected and did not get.',
+  {name:'crew_list',title:'List the outside seats',annotations:annotated('List the outside seats',true,false,true),description:'List the outside seats the Combat Writing crew add-on can seat with the keys present: provider, family, the model id resolved from the live catalog, and for a seat with no key, the exact next command (/plugin configure combat-writing-crew) and the key field to fill, names only, never a value. Call this first to learn whether any outside seat is available, and show the person the next command of every seat they expected and did not get.',
     inputSchema:{type:'object',properties:{},additionalProperties:false}},
-  {name:'crew_register',description:'Add every available outside seat to a Combat Writing run: appends them to the run\'s seats.json (named by the model id and its maker, served by the provider) and logs it. Run it once per run after new-run.js and before building packets. Returns the seats added and the ones unavailable with the reason.',
+  {name:'crew_register',title:'Add the outside seats to a run',annotations:annotated('Add the outside seats to a run',false,true,false),description:'Add every available outside seat to a Combat Writing run: appends them to the run\'s seats.json (named by the model id and its maker, served by the provider) and logs it. Run it once per run after new-run.js and before building packets. Returns the seats added and the ones unavailable with the reason.',
     inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder, combat-writing/runs/<run-id>'}},required:['run'],additionalProperties:false}},
-  {name:'crew_answer',description:'Send one outside seat\'s packet for one round to its provider on the person\'s own key and write the answer file beside the packet. Checks the packet against the provider\'s call budget first (refuses with "Too long to send"), waits out the per-minute window, lowers max_tokens and resends once when the provider refuses on its per-minute output limit and that limit can still carry the reply, and records the model id the API returned. Returns the answer path and the id, never the text; `stopped` is set when the provider ended the reply at max_tokens. A failed call leaves the seat missing for the round, with the reason logged for the record and the board.',
+  {name:'crew_answer',title:'Send a seat\'s packet to its provider',annotations:annotated('Send a seat\'s packet to its provider',false,true,false),description:'Send one outside seat\'s packet for one round to its provider on the person\'s own key and write the answer file beside the packet. Checks the packet against the add-on\'s own budget for that provider first (refuses with "Too long to send"), waits out the per-minute window, lowers max_tokens and resends once when the provider refuses on its per-minute output limit and that limit can still carry the reply, and records the model id the API returned. Returns the answer path and the id, never the text; `stopped` is set when the provider ended the reply at max_tokens. A failed call leaves the seat missing for the round, with the reason logged for the record and the board.',
     inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder'},round:{type:'string',description:'the round, such as 02-battle'},seat:{type:'string',description:'the seat id, such as seat-4'},read:{type:'string',enum:['rating','sn','redflag','crew'],description:'rating (default), sn / redflag for the final reads, or crew for the second pass of a first round (the <seat>.crew packet, issue 88)'},note:{type:'string',description:'on a retry only: the failed check\'s reasons, appended after the packet so the seat knows what to fix'}},required:['run','round','seat'],additionalProperties:false}}
 ];
 
