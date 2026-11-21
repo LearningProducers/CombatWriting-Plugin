@@ -37,8 +37,9 @@
 // THE REAL RUN (issue 235). The hook runs outside the sandbox the host's shell runs in, so what
 // it acts on is held to one thing: a real run folder. A command counts only when the segment that
 // names one of the scripts also carries a --run value (a backslash at a line's end joins the two
-// lines first, for every reader of the command: the script segments, the round, a seat's check): a command that only mentions a script's name gets no message, no context and no
-// act. The run a command names is its literal --run path (a token holding `$` or a backtick is no
+// lines first, for every reader of the command: the script segments, the round, a seat's check):
+// a command that only mentions a script's name gets no message, no context and no act.
+// The run a command names is its literal --run path (a token holding `$` or a backtick is no
 // path; a relative one is placed under the hook input's working folder, and is no path when that
 // is no string). A real run folder is a directory that holds seats.json and log.jsonl as plain
 // files, the first a small JSON object with at least one seat, and nothing but plain files and
@@ -69,7 +70,8 @@
 //     of the round's form and rounds/<round> a plain directory. The run is asked again before the
 //     rebuild. So a line of output can point the voices at another real run folder, where the
 //     plugin's own scripts write that round's voice files and, when the command also rendered
-//     the board, render that folder's board again; it reaches no other file.
+//     the board, render that folder's board again, and log both in that run's own log; it
+//     reaches no other file.
 //   Named and not cured: the checks are made before the act, and a folder changed between the
 //   check and the act is not seen; files outside the run folder that the scripts read (the
 //   project's voices.json) are not asked what they are; a folder inside a round's folder is not
