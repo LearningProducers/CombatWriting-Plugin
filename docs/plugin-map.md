@@ -201,7 +201,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/runs_check.js` | open runs and the way back |
 | `tests/second_copy_check.js` | a fact with a home is never copied: no version string in the root README or docs/, the listing README's card equal to the skill's |
 | `tests/seat_scope_check.js` | the seat's reach and the start of a seat held to its record, the real hook on a real run; the run the live proof builds held to a start the hook allows |
-| `tests/seat_scope_live.js` | not in CI: one real seat through a throwaway plugin, rerun after every Claude Code update |
+| `tests/seat_scope_live.js` | not in CI: one real seat through a throwaway plugin, and a second session whose hook cannot start, rerun after every Claude Code update |
 | `tests/sections_check.js` | Answer, then To the crew, when the round shares |
 | `tests/session_start_check.js` | the first-session line; the data folder from the environment alone; every start measured when the hook cannot see its sentinel (no folder named, or one that cannot be made); no sentinel after a start where a measurement did not come back, the start after it measuring again, and the sentinel written at the first start where both did; off a Mac the add-on alone decides |
 | `tests/session_start_live.js` | not in CI: two real session starts through a throwaway plugin, the hook handed no argument and its data folder in the environment; rerun after every Claude Code update |

@@ -704,7 +704,7 @@ Status: delivered — 2026-11-21 — draft pull request open; item 2's check was
 
 ## Part 140 — The seat's fence fails closed and opens two files; the tests' switches leave shipped code (cw 0.9.19)
 
-Issue 239. A review of main before the directory submission read the seat's hook and the code around it. Five of its claims were read against main at `faff7b7`, each reproduced by a check that failed on the code as it stood, and each is cured here. A sixth reproduces and is not cured here; it is named at the foot.
+Issue 239. A review of main before the directory submission read the seat's hook and the code around it. Its claims on that code were read against main at `faff7b7`. Each one cured here was first reproduced by a check that failed on the code as it stood. One more reproduces and is not cured here; it is named under "Measured first, and not built" and under "Seen and not touched".
 
 What is built:
 
