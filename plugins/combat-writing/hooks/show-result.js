@@ -37,7 +37,7 @@
 // THE REAL RUN (issue 235). The hook runs outside the sandbox the host's shell runs in, so what
 // it acts on is held to one thing: a real run folder. A command counts only when the segment that
 // names one of the scripts also carries a --run value (a backslash at a line's end joins the two
-// lines first): a command that only mentions a script's name gets no message, no context and no
+// lines first, for every reader of the command: the script segments, the round, a seat's check): a command that only mentions a script's name gets no message, no context and no
 // act. The run a command names is its literal --run path (a token holding `$` or a backtick is no
 // path; a relative one is placed under the hook input's working folder, and is no path when that
 // is no string). A real run folder is a directory that holds seats.json and log.jsonl as plain
@@ -68,10 +68,12 @@
 //     path. Whichever names it, it must be a real run folder, and the round a round of it: a name
 //     of the round's form and rounds/<round> a plain directory. The run is asked again before the
 //     rebuild. So a line of output can point the voices at another real run folder, where the
-//     plugin's own script writes that round's own voice files, and at nothing else.
+//     plugin's own scripts write that round's voice files and, when the command also rendered
+//     the board, render that folder's board again; it reaches no other file.
 //   Named and not cured: the checks are made before the act, and a folder changed between the
 //   check and the act is not seen; files outside the run folder that the scripts read (the
-//   project's voices.json) are not asked what they are.
+//   project's voices.json) are not asked what they are; a folder inside a round's folder is not
+//   looked into, and no script reads there.
 //
 // THE SILENCED COMMAND (Part 116, issue 179): a command that ran a script of the four but carries
 // none of its lines (the host sent the output to /dev/null) is re-run by the hook from the
@@ -202,7 +204,7 @@ var STARVED_NOT_A_RUN='Combat Writing: the command hid the scripts\' output and 
 // THE REAL RUN (issue 235): a script segment counts when it carries a --run value; the entries read of a folder; the characters cmd reads as its own.
 var RUN_ARG=/\s--run\s+\S/, RUN_ENTRIES_MAX=16384, WIN_UNSAFE=/[&|<>^%"\r\n]/;
 var VOICES_NOT_A_RUN='Voices: nothing rendered by the plugin: not a run folder (no seats.json and log.jsonl of a run there as plain files, or a link among its files): ';
-var VOICES_NOT_A_ROUND='Voices: nothing rendered by the plugin: no such round in the run, or a link among its files: ';
+var VOICES_NOT_A_ROUND='Voices: nothing rendered by the plugin: no such round in the run: ';
 var VOICES_TAIL='; the board reads with the browser.';
 var RENDER_MISS=' (the plugin could not render it again, so it did not open it: ';
 var WIN_REFUSED='its path holds a character the Windows opener reads as its own (& | < > ^ % or a double quote)';
@@ -284,7 +286,7 @@ function runDirOf(command,re,cwd){
 }
 // The --round value in the command's speak.js segment, literal only (Part 116).
 function roundOf(command){
-  var seg=String(command||'').split(/;|&&|\|\||\||\n/).filter(function(x){return SPEAK_RE.test(x);})[0]||'';
+  var seg=segmentsOf(command).filter(function(x){return SPEAK_RE.test(x);})[0]||'';
   var m=/--round\s+(?:"([^"]+)"|'([^']+)'|(\S+))/.exec(seg);
   var token=m?(m[1]||m[2]||m[3]):'';
   return !token||/[$`]/.test(token)?null:token;
@@ -411,7 +413,7 @@ function pickerOff(runDir){
 // reads its arguments) and the --run folder of each check-answer.js segment, literal paths only.
 function checksOf(command,cwd){
   var out=[];
-  String(command||'').split(/;|&&|\|\||\||\n/).forEach(function(seg){
+  segmentsOf(command).forEach(function(seg){
     var at=seg.search(CHECK_RE); if(at<0||out.length>=CHECKS_MAX)return;
     var words=wordsOf(seg.slice(at).replace(/^check-answer\.js["']?/,'')), file=null, run=null;
     for(var i=0;i<words.length;i++){

@@ -110,7 +110,8 @@
 //     open, not on the record rendered again for a silenced command) and its board is not
 //     opened; a run whose log is a link gets no seat.model line through it; a pipe in a round's
 //     folder is never waited on; a command continued over two lines with a backslash is one
-//     command.
+//     command to each of the hook's three readers: the script segments, the round of a silenced
+//     speech command, and a seat's check.
 //   - hooks.json carries the PostToolUse entry on Bash with a timeout that covers the render; the source has
 //     the Shield header, the one PROVED_ON constant, the one MODEL_READ_ON constant, and spawns only the opener.
 //
@@ -789,6 +790,15 @@ if(haveFifo){
 var opensC=opens().length;
 var rc1=shown('real run: a command continued over two lines',call(post('node '+scripts+'/open-board.js \\\n  --run '+run,failedLine+'\n'),okOpener));
 check(rc1==='Board opened by the plugin: '+board&&opens().length===opensC+1,'real run: a backslash at a line\'s end joins the two lines, and the board is opened; got '+JSON.stringify(rc1));
+// The same join in the hook's other two readers of a command: the round of a silenced speech command, and a seat's check.
+fs.readdirSync(path.join(run,'rounds','01-sparring')).filter(function(n){ return /^voices\.json$|\.m4a$/.test(n); }).forEach(function(n){ fs.rmSync(path.join(run,'rounds','01-sparring',n)); });
+var rc2=shown('real run: a silenced speech command continued over two lines',call(post('node '+path.join(scripts,'speak.js')+' --run '+run+' \\\n  --round 01-sparring >/dev/null 2>&1; echo done','done\n'),null,sayEnv));
+check(/^Voices rendered by the plugin: Ava \(Premium\) for seat-1 \(12\.5 s\)\./.test(rc2),'real run: the round is read across a continued line, and the owed voices are rendered; got '+JSON.stringify(rc2));
+fs.readdirSync(path.join(run,'rounds','01-sparring')).filter(function(n){ return /^voices\.json$|\.m4a$/.test(n); }).forEach(function(n){ fs.rmSync(path.join(run,'rounds','01-sparring',n)); });
+var contRun=handRun('continued-check',true), hCont=hostAt('h-continued'); agentAt(hCont,'a',taskFor(contRun.packet,contRun.answer),['test-id-1'],{agentType:'cw:seat'},5);
+var contIn=post('node '+scripts+'/check-answer.js '+contRun.answer+' \\\n  --run '+contRun.dir,'ok\n',{session_id:hCont.sid,transcript_path:hCont.file});
+cp.spawnSync(process.execPath,[hook],{input:JSON.stringify(contIn),encoding:'utf8',cwd:proj,timeout:5000,killSignal:'SIGKILL'});
+check(linesOf(contRun.dir).length===1&&linesOf(contRun.dir)[0].model==='test-id-1','the measured model: a check continued over two lines is one check, and the seat is measured; got '+JSON.stringify(linesOf(contRun.dir)));
 // The voices: the round on the script's line must be a round of the run. A line naming `..` renders nothing and writes nothing above the rounds.
 var dRun=path.join(tmp,'proj-d','combat-writing','runs','d-run'); fs.mkdirSync(path.dirname(dRun),{recursive:true}); fs.cpSync(run,dRun,{recursive:true});
 var dFiles=fs.readdirSync(dRun).sort().join(',');
