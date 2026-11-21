@@ -24,7 +24,8 @@
 // id, the run folder, the packet and the answer file, each as a resolved path, and the time. No
 // text of the task, the draft or the brief is in it but what those paths carry: the task's two
 // paths, resolved, and in them the run folder's own name, which the commands make from the
-// draft's first words. A seat's own calls carry its agent id and
+// first words of the draft, or of the brief when a run starts from the brief alone (the script,
+// handed no name, uses the draft's file name). A seat's own calls carry its agent id and
 // no task (measured on the Claude Code version in PROVED_ON below, the one constant the reason
 // and the tests read; the live proof is tests/seat_scope_live.js), so the seat is bound to its
 // record by its first call that names one of its two files: a seat with no record of its own
@@ -46,8 +47,8 @@
 // with the reason, so a seat the hook cannot place does nothing rather than anything.
 //
 // When the records end: a session's folder of records is removed by a later start of a seat,
-// in any session, once 30 days have passed since the last start or first call in it: 30 days is
-// the least a record stays, and with no later start it stays. The hook removes its own record
+// in any session, once 30 days have passed since the last start or first call in it, at most 20
+// folders at one start: 30 days is the least a record stays, and with no later start it stays. The hook removes its own record
 // files there and the folder when nothing else is in it. A link is never a folder of the hook's:
 // one standing where the folder of records or a session's folder should be is not written
 // through, read through or entered, and a record that is a link is left where it is.
@@ -79,7 +80,7 @@
 // the run, no seats.json, no record for the seat) and the start of an outside seat, which goes
 // through the add-on and never the agent tool, are denied with the reason, and so is a start
 // whose record the hook cannot keep (no data folder named, or one it cannot write in): a seat
-// with no record would be refused every call, so it is not started. Any other call of
+// whose start is not on record could not be placed by it, so it is not started. Any other call of
 // those two tools, and every other tool from a caller that is not a seat, is untouched.
 //
 // Output on deny: one JSON line, hookSpecificOutput.permissionDecision "deny" with the reason,
@@ -207,11 +208,11 @@ function keep(input,rec){
 // the seat's record is created, never
 // replaced, so a seat that a call of its own placed a moment ago keeps that one and the start is
 // given back; the spare name is removed. A hook stopped between the steps leaves the seat with
-// no record: refused, never opened. A call that took nothing may have landed with another call
+// no record, judged from then on as any seat with no record is. A call that took nothing may have landed with another call
 // of the same seat that is taking a start at that moment (a seat reading its packet and its
 // answer file in one turn): the spare name carries the seat's id and stands until the seat's
-// record is written, so the call waits for that record, looking every 10 ms and not again once
-// half a second has passed, and is judged by it. It waits on no other seat's spare name. A
+// record is written, so the call waits for that record, looking every 10 ms until half a second
+// has passed, then once more, and is judged by it. It waits on no other seat's spare name. A
 // record that cannot be written for any cause but that it is already there is a fault: the
 // start is given back and the hook answers as it answers any fault of its own. Returns the
 // record, or {waiting: how many starts wait}.

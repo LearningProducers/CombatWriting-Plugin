@@ -64,16 +64,18 @@
 //     by another hand that names a file outside a rounds folder, an answer outside its run or
 //     a folder that is no run, one that is not JSON and one that is a link are no record; a
 //     damaged record of a seat's own takes no start; a taking cut short leaves the seat
-//     refused after the wait, and another seat's spare name is not waited on; a start that
-//     cannot be renamed is a fault answered as one; a link or a file standing where the folder
+//     refused after the wait, which ends near its half second, and another seat's spare name
+//     is not waited on; a start that cannot be renamed and a record that cannot be written are
+//     faults answered as such; a link or a file standing where the folder
 //     of records or a session's folder should be is never written or read through, with a
 //     start waiting behind the link. The record holds no text of the task or the draft beyond
-//     what its paths carry: of the draft, the run folder's own name.
+//     what its paths carry: of the draft, or of the brief when a run starts from it alone, the
+//     run folder's own name.
 //   - No data folder named, a relative one, or one the hook cannot write in: the start of a
 //     seat is refused with the reason and a seat is refused every call; every other caller is
 //     untouched. A session or agent id that is no plain name is never used in a path.
 //   - The records end: a session's folder 30 days past its last start is removed at a later
-//     start, the hook's own record files alone, a folder holding anything else left standing
+//     start, twenty folders at one start at the most, the hook's own record files alone, a folder holding anything else left standing
 //     with that file in it, a session's folder that is a link not entered, a younger folder
 //     untouched.
 //   - A tool other than Read or Write, no file_path, malformed JSON for a seat: denied (fail
@@ -184,7 +186,8 @@ var startRec=null; try{ startRec=JSON.parse(fs.readFileSync(startFile,'utf8')); 
 check(!!startRec&&Object.keys(startRec).sort().join(',')==='answer,at,packet,run,seat,v'&&startRec.v===1&&startRec.seat==='seat-1'&&startRec.packet===fs.realpathSync(packet)&&startRec.run===fs.realpathSync(run)&&path.basename(startRec.answer)==='seat-1.answer.md'&&typeof startRec.at==='number','the record must hold the seat, the run, the packet, the answer file and the time, resolved, and nothing else: '+JSON.stringify(startRec));
 // What the record holds of the task and the draft: paths and no text. The three paths are the run
 // folder and two files under it by their fixed names, so the one part of the record made from the
-// draft is the run folder's own name, which the commands make from the draft's first words.
+// draft is the run folder's own name, which the commands make from the draft's first words (from
+// the brief's when a run starts from the brief alone).
 check(!/Read the packet|reply with one line|Dear board|buy the company/.test(JSON.stringify(startRec)),'the record must hold no text of the task or the draft: '+JSON.stringify(startRec));
 check(!!startRec&&/-dear-board-buy-the-company$/.test(path.basename(startRec.run))&&path.relative(startRec.run,startRec.packet)===path.join('rounds','01-sparring','seat-1.packet.md')&&path.relative(startRec.run,startRec.answer)===path.join('rounds','01-sparring','seat-1.answer.md'),'the record\'s three paths must be the run folder, whose name carries the draft\'s first words, and the two files under it by their fixed names: '+JSON.stringify(startRec));
 check(!!startRec&&JSON.stringify(startRec).split(startRec.run).join('').indexOf('dear-board')<0,'outside the run folder\'s path the record must carry nothing made from the draft: '+JSON.stringify(startRec));
@@ -348,11 +351,14 @@ var slow=Date.now(), stuck=P('Read',packet2); slow=Date.now()-slow;
 denied('a seat whose taking was cut short is refused, never opened',stuck,/no start of this seat is on the hook's record/);
 check(slow<3000,'a seat whose taking was cut short must be answered well inside the hook\'s five seconds, took '+slow+' ms');
 check(kept('sess-planted',/./).join(',')===spareName,'the spare name of a taking cut short must be left as it was, got '+JSON.stringify(kept('sess-planted',/./)));
+var waited=timed(function(){ return P('Read',packet2); }), unwaited=timed(function(){ return as('sess-planted','nobody-here')('Read',packet2); });
+check(waited.ms>=unwaited.ms+400&&waited.ms<unwaited.ms+1500,'the wait for a taking cut short must end near its half second: '+waited.ms+' ms, against '+unwaited.ms+' ms for a seat with nothing to wait for');
 gone(path.join(planted,spareName));
 // The wait is for the seat's own taking alone. Another seat's spare name, and one whose id only
 // begins with this seat's id and a dash, are not this seat's: the refusal comes as fast as one
 // with no spare name standing, well short of the half second a wait would add.
-function timed(fn){ var t=Date.now(), r=fn(); return {r:r,ms:Date.now()-t}; }
+// Each time is the least of three runs, so one slow run on a loaded machine decides nothing.
+function timed(fn){ var best=null; for(var i=0;i<3;i++){ var t=Date.now(), r=fn(), ms=Date.now()-t; if(!best||ms<best.ms)best={r:r,ms:ms}; } return best; }
 var plain=timed(function(){ return P('Read',packet2); });
 fs.writeFileSync(path.join(planted,'claim-other-zz-9.json'),'{}\n'); fs.writeFileSync(path.join(planted,'claim-p-b-zz-9.json'),'{}\n');
 var others=timed(function(){ return P('Read',packet2); });
@@ -541,6 +547,25 @@ denied('an early fault, before the hook has read who calls, still refuses a seat
 var et=brokenEarly(Object.assign({},base,{tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'cw:seat'}}));
 check(et.threw,'an early fault, the start of a seat: the breaker never threw, so nothing is proved');
 denied('an early fault, before the hook has read who calls, still refuses the start of a seat',et,/^Combat Writing seat scope: the hook failed \(an early fault inside the hook\); the seat is not started$/);
+// A record the hook cannot write, for a cause other than its being there already (a full disk),
+// is a fault answered as one: the seat is refused with the cause, the start is given back and
+// waits, and no half-written record or spare name is left.
+var full=path.join(tmp,'break-full.js');
+fs.writeFileSync(full,'var fs=require("fs"),p=require("path"),real=fs.writeFileSync;fs.writeFileSync=function(f){ if(/^agent-/.test(p.basename(String(f)))){ var e=new Error("no space left on device"); e.code="ENOSPC"; throw e; } return real.apply(fs,arguments); };\n');
+allowed('a full disk: a start goes on record',start(taskText(packet2,answer2),undefined,{session_id:'sess-full'}));
+var fullRun=shaped(cp.spawnSync(process.execPath,['-r',full,hook],{input:JSON.stringify(Object.assign({},base,{session_id:'sess-full',tool_name:'Read',tool_input:{file_path:packet2},agent_id:'f',agent_type:'cw:seat'})),encoding:'utf8',cwd:proj,env:hookEnv(),timeout:20000}));
+denied('a record that cannot be written is a fault, answered as one',fullRun,/^Combat Writing seat scope: the hook failed \(ENOSPC\); a seat does nothing the hook cannot judge$/);
+check(waiting('sess-full').length===1&&placedSeats('sess-full').length===0&&strays('sess-full').length===0,'after a record that could not be written the start must wait again and nothing else must stand: '+JSON.stringify(kept('sess-full',/./)));
+allowed('a full disk: the same seat is placed once the record can be written',as('sess-full','f')('Read',packet2));
+// TWENTY AT A START. One start of a seat removes the records of at most twenty sessions that
+// have stood their 30 days; the rest go at the next. A data folder of its own, 23 old sessions.
+var data3=path.join(tmp,'data3'), base3=path.join(data3,'seat-scope');
+for(var k=0;k<23;k++){ var od=path.join(base3,'old-'+k); fs.mkdirSync(od,{recursive:true}); fs.writeFileSync(path.join(od,'agent-x.json'),'{}\n'); fs.utimesSync(od,old,old); }
+function oldLeft(){ return fs.readdirSync(base3).filter(function(n){ return /^old-/.test(n); }).length; }
+allowed('twenty at a start: the first later start',start(taskText(packet2,answer2),undefined,{session_id:'sess-a'},{CLAUDE_PLUGIN_DATA:data3}));
+check(oldLeft()===3,'one start must remove the records of twenty old sessions and leave the other three, left '+oldLeft());
+allowed('twenty at a start: the next start',start(taskText(packet2,answer2),undefined,{session_id:'sess-b'},{CLAUDE_PLUGIN_DATA:data3}));
+check(oldLeft()===0,'the next start must remove the rest, left '+oldLeft());
 // THE LIVE PROOF'S FIXTURE (issue 237). tests/seat_scope_live.js is not run by CI, so nothing
 // read the run it builds, and a rule the hook gained after the proof was written left the proof
 // starting no seat, unseen. The arguments the live proof hands new-run.js are read from its own

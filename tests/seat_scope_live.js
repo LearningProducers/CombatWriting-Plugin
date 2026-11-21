@@ -31,7 +31,7 @@
 // record and not by a transcript. The data folder the host handed the plugin holds, under
 // seat-scope/<session>/, one record of this seat, agent-<agent id>.json, naming this run's packet
 // and answer file, and no start is left waiting there: the start call put it on record, the
-// seat's four refused calls left it waiting, and its read of the packet took it. The hook's code
+// seat's refused calls left it waiting, and its read of the packet took it. The hook's code
 // names no transcript (tests/seat_scope_check.js holds that), so the record is all it had. The
 // proof removes its own session's records from that folder after, and leaves the folder.
 //
