@@ -38,7 +38,7 @@ var pluginSrc=path.join(repo,'plugins','combat-writing');
 var claude=process.env.CLAUDE_BIN||'claude';
 var NAME='cw-session-start-live';
 // The Claude Code version this proof last passed on, the one home of that number.
-var PROVED_ON='2.1.325';
+var PROVED_ON='2.1.330';
 var failures=[], passes=0, facts=[];
 function check(cond,msg){ if(cond)passes++; else failures.push(msg); }
 function tilde(p){ var h=os.homedir(); return p&&p.indexOf(h)===0?'~'+p.slice(h.length):p; }
