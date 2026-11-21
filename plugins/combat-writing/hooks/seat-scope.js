@@ -60,8 +60,9 @@
 // exit 0 (the documented form). On allow: nothing, exit 0, so the session's own permission
 // rules still apply. The hook reads the transcript record and the file system; it writes
 // nothing, calls nothing, reads no environment, and never prints a path from inside the draft.
-// Input that does not parse is denied when it names a seat agent type and ignored otherwise;
-// a fault in the hook's own code is answered the same way, by who the input says is calling.
+// Input that does not parse is denied when it names a seat agent type and ignored otherwise.
+// A fault in the hook's own code is answered by who the parsed input says is calling: refused
+// for a seat and for the start of a seat, silence and exit 0 for every other caller.
 
 var fs=require('fs'), path=require('path');
 
