@@ -66,7 +66,8 @@
 //     untouched. A session or agent id that is no plain name is never used in a path.
 //   - The records end: a session's folder 30 days past its last start is removed at a later
 //     start, the hook's own record files alone, a folder holding anything else left standing
-//     with that file in it, a link never followed, a younger folder untouched.
+//     with that file in it, a session's folder that is a link not entered, a younger folder
+//     untouched.
 //   - A tool other than Read or Write, no file_path, malformed JSON for a seat: denied (fail
 //     closed); malformed JSON with no agent_type readable: nothing (not ours to judge). The
 //     no-record reason names the Claude Code version from the hook's one PROVED_ON constant,
@@ -282,7 +283,8 @@ check(waiting('sess-here').length===1,'a seat of another session took a start: '
 // Records by another hand: a file of the hook's name that is not the hook's shape places no seat.
 var planted=path.join(data,'seat-scope','sess-planted'); fs.mkdirSync(planted,{recursive:true});
 var P=as('sess-planted','p');
-function plant(name,rec){ fs.writeFileSync(path.join(planted,name),typeof rec==='string'?rec:JSON.stringify(rec)+'\n'); }
+function gone(file){ try{ fs.unlinkSync(file); }catch(e){} }
+function plant(name,rec){ kept('sess-planted',/./).forEach(function(n){ gone(path.join(planted,n)); }); fs.writeFileSync(path.join(planted,name),typeof rec==='string'?rec:JSON.stringify(rec)+'\n'); }
 var realRun=fs.realpathSync(run), realPacket=fs.realpathSync(packet), realAnswer=path.join(realRun,'rounds','01-sparring','seat-1.answer.md');
 plant('start-a1-1.json',{v:1,at:1,seat:'seat-1',run:realRun,packet:path.join(realRun,'draft.md'),answer:realAnswer});
 denied('a planted record whose packet is the draft opens no draft',P('Read',path.join(run,'draft.md')),/no start of this seat is on the hook's record/);
@@ -295,14 +297,14 @@ plant('start-a1-1.json',{v:1,at:1,seat:'seat-1',run:fs.realpathSync(elsewhere),p
 denied('a planted record whose run is not the packet\'s run places no seat',P('Read',packet),/no start of this seat is on the hook's record/);
 plant('start-a1-1.json','{not json');
 denied('a planted record that is not JSON places no seat',P('Read',packet),/no start of this seat is on the hook's record/);
-fs.unlinkSync(path.join(planted,'start-a1-1.json'));
+kept('sess-planted',/./).forEach(function(n){ gone(path.join(planted,n)); });
 var good=path.join(tmp,'elsewhere','good-record.json'); fs.writeFileSync(good,JSON.stringify({v:1,at:1,seat:'seat-1',run:realRun,packet:realPacket,answer:realAnswer})+'\n');
 fs.symlinkSync(good,path.join(planted,'start-a1-1.json'));
 denied('a planted record that is a link places no seat',P('Read',packet),/no start of this seat is on the hook's record/);
-fs.unlinkSync(path.join(planted,'start-a1-1.json'));
+kept('sess-planted',/./).forEach(function(n){ gone(path.join(planted,n)); });
 fs.symlinkSync(good,path.join(planted,'agent-p.json'));
 denied('a seat\'s own record that is a link is no record',P('Read',packet),/no start of this seat is on the hook's record/);
-fs.unlinkSync(path.join(planted,'agent-p.json')); fs.unlinkSync(good);
+gone(path.join(planted,'agent-p.json')); gone(good);
 
 // NO DATA FOLDER, or one the hook cannot write in: no record can be kept, so no seat is started
 // and no seat's call is allowed; every other caller is untouched.
@@ -320,7 +322,8 @@ check(fs.readFileSync(blocked,'utf8')==='x\n','the file standing where the data 
 fs.unlinkSync(blocked);
 
 // THE RECORDS END. A session's folder 30 days past its last start is removed at a later start:
-// the hook's own files, and the folder when nothing else is in it. A link is never followed.
+// the hook's own files, and the folder when nothing else is in it. A session's folder that is a
+// link is not entered.
 var base=path.join(data,'seat-scope'), old=new Date(Date.now()-31*86400000), young=new Date(Date.now()-29*86400000);
 function aged(name,files,when){ var d=path.join(base,name); fs.mkdirSync(d,{recursive:true}); files.forEach(function(f){ fs.writeFileSync(path.join(d,f),'{}\n'); }); fs.utimesSync(d,when,when); return d; }
 var oldDir=aged('sess-old',['start-abc-12.json','agent-someone.json','claim-someone-abc-12.json'],old);

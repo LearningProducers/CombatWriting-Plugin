@@ -26,17 +26,23 @@
 // and the tests read; the live proof is tests/seat_scope_live.js), so the seat is bound to its
 // record by its first call that names one of its two files: a seat with no record of its own
 // that reads the packet, or reads or writes the answer file, of a start still waiting in its
-// session takes that start, the file renamed to agent-<agent_id>.json, and every later call of
-// that seat is judged by it. The rename is one step, so two seats never take one start, and a
-// seat that has a record never takes another. Why the first call can be trusted with this: until
-// a seat has been allowed a read it has read nothing but the plugin's agent file and the host's
-// task, so no word of the draft has reached it yet. No data folder, no record, a record the hook
+// session takes that start, which becomes its record, agent-<agent_id>.json, and every later
+// call of that seat is judged by it. One rename takes the start, so two seats never take one;
+// the seat's record is then created and never replaced, so a seat that has a record never takes
+// another. Why the first call can be trusted with this: until a seat has been allowed a call it
+// has read nothing but the plugin's agent file and the host's task, so no word of the draft has
+// reached it yet. (The one seat with no record that has read a draft is a seat whose record is
+// gone: removed after its 30 days, or left behind under a session id the host no longer uses.
+// It is refused every call; were the host to message it while another start waited, it could
+// take that start by naming its file. The skills start a fresh seat for every read and message
+// none.) No data folder, no record, a record the hook
 // cannot read, a symlink to another file, a path that does not exist, malformed input: denied,
 // with the reason, so a seat the hook cannot place does nothing rather than anything.
 //
 // When the records end: a session's folder of records is removed by a later start of a seat,
 // in any session, 30 days after the last start or first call in it; the hook removes its own
-// record files there and the folder when nothing else is in it, and never follows a link.
+// record files there and the folder when nothing else is in it; a session's folder that is a
+// link is not entered, and a record that is a link is left where it is.
 //
 // When the hook itself fails: hooks.json sets onFailure "block" on this hook's entry, so the
 // host stops the call when the hook cannot start, exits with an error or runs past its timeout,
