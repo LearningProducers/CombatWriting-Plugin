@@ -58,6 +58,8 @@
 //   - Light and dark are both defined (a prefers-color-scheme block and a data-theme scope)
 //     with a toggle.
 //   - Rendering appends board.rendered to the log; a folder with no seats.json exits 2.
+//   - The draft's own text is text (issue 235): a draft holding a script tag, an image with a
+//     handler, bold markup and an ampersand is on the page escaped, and adds no element to it.
 //
 // Run from the repo root:   node tests/board_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -419,6 +421,21 @@ var seat1Frame=/<figure class="frame [^"]*" data-seat="seat-1" data-audio="([^"]
 var renders1=null; try{ renders1=JSON.parse(seat1Frame[3].replace(/&quot;/g,'"').replace(/&amp;/g,'&')); }catch(e){}
 check(!!seat1Frame&&seat1Frame[1]==='rounds/'+rnd+'/seat-1.m4a'&&seat1Frame[2]==='Ava (Premium)'&&!!renders1&&JSON.stringify(renders1)===JSON.stringify({'Ava (Premium)':{src:'rounds/'+rnd+'/seat-1.m4a',seconds:38.2},'Nathan (Enhanced)':{src:'rounds/'+rnd+'/seat-1.nathan-enhanced.m4a',seconds:40.1}}),'board (files): seat-1 carries its file, its voice and the rendered voices on disk, its own first, a listed render missing on disk left out: '+(seat1Frame?seat1Frame.slice(1).join(' | '):'none'));
 check((h1.match(/data-audio=/g)||[]).length===1,'board (files): a seat whose file is listed but missing on disk carries none');
+
+// The draft's own text is text (issue 235): a draft holding a script tag, an image with a handler,
+// bold markup and an ampersand lands in the draft panel escaped, paragraph by paragraph, and
+// nowhere on the page as markup. The seats' words were held above; the draft's were held by no
+// check, so the escape in the draft's paragraphs could go and the suite stayed green.
+fs.writeFileSync(path.join(proj,'markup.md'),'Dear board, <script>alert(27)</script> buy it.\n<img src=x onerror=alert(27)> today.\n\nA second paragraph with <b>bold</b> & an ampersand.\n');
+var mk=node('new-run.js',['--readers','1','--draft','markup.md','--name','markup','--model','Test Model']).stdout.trim();
+node('packet.js',['--run',mk,'--round','01-sparring','--seat','seat-1']);
+write(path.join(mk,'rounds','01-sparring','seat-1.answer.md'),'RATING: 6/10\nThe ask is buried.\n');
+node('check-answer.js',[path.join(mk,'rounds','01-sparring','seat-1.answer.md'),'--run',mk]);
+check(node('render-board.js',['--run',mk]).status===0,'board (the draft as text): render-board.js should exit 0 on a draft holding markup');
+var mkHtml=fs.existsSync(path.join(mk,'board.html'))?fs.readFileSync(path.join(mk,'board.html'),'utf8'):'';
+check(mkHtml.indexOf('<div class="paper"><p>Dear board, &lt;script&gt;alert(27)&lt;/script&gt; buy it.<br>&lt;img src=x onerror=alert(27)&gt; today.</p><p>A second paragraph with &lt;b&gt;bold&lt;/b&gt; &amp; an ampersand.</p></div>')>=0,'board (the draft as text): the draft panel must hold the draft escaped, paragraph by paragraph; got '+JSON.stringify((/<div class="paper">[\s\S]{0,300}/.exec(mkHtml)||[''])[0]));
+check(mkHtml.length>0&&mkHtml.indexOf('<script>alert(27)')<0&&!/<img\b/i.test(mkHtml)&&mkHtml.indexOf('<b>bold</b>')<0&&mkHtml.indexOf('onerror=alert(27)>')<0,'board (the draft as text): the draft\'s markup must reach no part of the page as markup');
+check((mkHtml.match(/<script\b/gi)||[]).length===(html.match(/<script\b/gi)||[]).length,'board (the draft as text): a draft holding a script tag must add no script element to the page, got '+(mkHtml.match(/<script\b/gi)||[]).length+' against '+(html.match(/<script\b/gi)||[]).length);
 fs.rmSync(proj,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'board_check: '+failures.length+' failure(s), ':'board_check: all passed, ')+passes+' checks');
