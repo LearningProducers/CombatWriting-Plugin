@@ -10,8 +10,9 @@
 // other seats' answers of the round before, written into it by packet.js, and names no file by
 // path, so a path inside it is the draft's own words and never a grant. Everything else in the
 // run folder (the draft and the brief as files, seats.json, the log, another seat's packet, and
-// another seat's answer to the round in progress) stays closed, so that no seat reads another's
-// new answer before giving its own is held here and not by the seat's instructions alone. The
+// another seat's answer to the round in progress) stays closed to a seat the hook has placed, so
+// that no seat reads another's new answer before giving its own is held here from that moment
+// and not by the seat's instructions alone; what the hook trusts until then is said below. The
 // answer file is open to a read because the Write tool refuses to replace a file its caller has
 // not read, and a seat sent back once rewrites its answer.
 //
@@ -21,7 +22,9 @@
 // writes one small file in the plugin's data folder, the folder the host names in
 // CLAUDE_PLUGIN_DATA: <data>/seat-scope/<session_id>/start-<time>-<pid>.json, holding the seat's
 // id, the run folder, the packet and the answer file, each as a resolved path, and the time. No
-// word of the task, the draft or the brief is in it. A seat's own calls carry its agent id and
+// text of the task, the draft or the brief is in it but what those paths carry: the task's two
+// paths, resolved, and in them the run folder's own name, which the commands make from the
+// draft's first words. A seat's own calls carry its agent id and
 // no task (measured on the Claude Code version in PROVED_ON below, the one constant the reason
 // and the tests read; the live proof is tests/seat_scope_live.js), so the seat is bound to its
 // record by its first call that names one of its two files: a seat with no record of its own
@@ -29,15 +32,17 @@
 // session takes that start, which becomes its record, agent-<agent_id>.json, and every later
 // call of that seat is judged by it. One rename takes the start, so two seats never take one;
 // the seat's record is then created and never replaced, so a seat that has a record never takes
-// another. What the first call is trusted on: until a seat has been allowed a call it has read
-// the plugin's agent file and the host's task, and no packet. The task is the host's writing,
-// with one part that is not: a seat sent back is started with the checker's reason in its task,
-// and that reason can quote the first 80 characters of the answer that failed, a seat's words.
-// And one seat with no record has read a packet: a seat whose record is gone, removed after its
-// 30 days or left under a session id the host no longer uses. It is refused every call, and the
-// skills start a fresh seat for every read and message none. No data folder, no record, a
-// record the hook
-// cannot read, a symlink to another file, a path that does not exist, malformed input: denied,
+// another. What the first call is trusted on: a seat with no record takes whichever waiting
+// start of its session its call names, so until it is placed the hook trusts the seat to name
+// its own. Until a seat has been allowed a call it has read no packet: it has read the plugin's
+// agent file, the host's task and what the host hands every agent it starts. The task is the
+// host's writing, with one part that is not: a seat sent back is started with the checker's
+// reason in its task, and that reason can quote the first 80 characters of the answer that
+// failed, a seat's words. And one seat with no record has read a packet: a seat whose record is
+// gone, removed after its 30 days or left under a session id the host no longer uses. It is
+// refused every call but one that names a file of a start then waiting in its session, which it
+// would take as any seat with no record does; the skills start a fresh seat for every read and
+// message none. No data folder, no record, a record the hook cannot read, a symlink to another file, a path that does not exist, malformed input: denied,
 // with the reason, so a seat the hook cannot place does nothing rather than anything.
 //
 // When the records end: a session's folder of records is removed by a later start of a seat,
@@ -103,8 +108,9 @@ var DATA=process.env.CLAUDE_PLUGIN_DATA||'';
 var KEPT_IN='seat-scope';
 var KEPT_DAYS=30;
 var SWEPT_AT_ONCE=20;
-// How long a call waits for a call of the same seat that is taking a start at that moment.
-var WAIT_MS=10, WAIT_TRIES=50;
+// A call's wait for another call of the same seat that is taking a start at that moment: a look
+// every WAIT_MS, and no new look once WAIT_FOR ms have passed since the first.
+var WAIT_MS=10, WAIT_FOR=500;
 var ID=/^[A-Za-z0-9_-]{1,128}$/;
 var START_FILE=/^start-[0-9a-z]+-\d+\.json$/;
 var RECORD_FILE=/^(?:start|agent|claim)-[A-Za-z0-9_-]+\.json$/;
@@ -183,7 +189,7 @@ function keep(input,rec){
   var where=recordsOf(input);
   if(!where.dir)return where.why;
   try{
-    var base=path.dirname(where.dir), link='the folder of its records is a link, which the hook will not write through, in the plugin\'s data folder';
+    var base=path.dirname(where.dir), link='where its folder of records should be, a link or a file stands, and the hook writes through neither, in the plugin\'s data folder';
     fs.mkdirSync(base,{recursive:true,mode:0o700});
     if(!plainDir(base))return link;
     try{ fs.mkdirSync(where.dir,{mode:0o700}); }catch(e){ if(!e||e.code!=='EEXIST')throw e; }
@@ -196,14 +202,19 @@ function keep(input,rec){
 // A seat with no record of its own, on a call that names a file: the newest start still waiting
 // in its session whose packet (a Read) or answer file (a Read or a Write) is that file becomes
 // the seat's record. Three steps, each one that can fail safely: the start is renamed to a name
-// only this call uses, so no other seat can take it; the seat's record is created, never
+// only this call uses, so no other seat can take it (a start already gone was taken by another
+// call, and the next is tried; a rename refused for any other cause is a fault, answered as one);
+// the seat's record is created, never
 // replaced, so a seat that a call of its own placed a moment ago keeps that one and the start is
 // given back; the spare name is removed. A hook stopped between the steps leaves the seat with
 // no record: refused, never opened. A call that took nothing may have landed with another call
 // of the same seat that is taking a start at that moment (a seat reading its packet and its
 // answer file in one turn): the spare name carries the seat's id and stands until the seat's
-// record is written, so the call waits for that record, half a second at most, and is judged by
-// it. Returns the record, or {waiting: how many starts wait}.
+// record is written, so the call waits for that record, looking every 10 ms and not again once
+// half a second has passed, and is judged by it. It waits on no other seat's spare name. A
+// record that cannot be written for any cause but that it is already there is a fault: the
+// start is given back and the hook answers as it answers any fault of its own. Returns the
+// record, or {waiting: how many starts wait}.
 function take(dir,aid,tool,placed){
   var names; try{ names=fs.readdirSync(dir); }catch(e){ return {waiting:0}; }
   var waiting=[];
@@ -213,19 +224,25 @@ function take(dir,aid,tool,placed){
   fits.sort(function(a,b){ return b.rec.at-a.rec.at||(a.name<b.name?1:-1); });
   for(var i=0;i<fits.length;i++){
     var from=path.join(dir,fits[i].name), spare=path.join(dir,'claim-'+aid+'-'+fits[i].name.slice(6));
-    try{ fs.renameSync(from,spare); }catch(e){ continue; }
+    try{ fs.renameSync(from,spare); }catch(e){ if(e&&e.code==='ENOENT')continue; throw e; }
     try{ fs.writeFileSync(mine,JSON.stringify(fits[i].rec)+'\n',{flag:'wx',mode:0o600}); }
-    catch(e){ try{ fs.renameSync(spare,from); }catch(e2){} break; }
+    catch(e){
+      var there=!!e&&e.code==='EEXIST';
+      if(!there){ try{ fs.unlinkSync(mine); }catch(e2){} }
+      try{ fs.renameSync(spare,from); }catch(e2){}
+      if(!there)throw e;
+      break;
+    }
     try{ fs.unlinkSync(spare); }catch(e){}
     return fits[i].rec;
   }
-  var own='claim-'+aid+'-';
-  for(var t=0;t<WAIT_TRIES;t++){
+  var own='claim-'+aid+'-', until=Date.now()+WAIT_FOR;
+  for(;;){
     var now=readRecord(mine);
     if(now)return now;
     var taking=false;
-    try{ taking=fs.readdirSync(dir).some(function(n){ return n.indexOf(own)===0; }); }catch(e){}
-    if(!taking)break;
+    try{ taking=fs.readdirSync(dir).some(function(n){ return n.indexOf(own)===0&&START_FILE.test('start-'+n.slice(own.length)); }); }catch(e){}
+    if(!taking||Date.now()>=until)break;
     pause(WAIT_MS);
   }
   return readRecord(mine)||{waiting:waiting.length};
