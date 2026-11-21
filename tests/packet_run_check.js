@@ -19,10 +19,17 @@
 //     never quoted: no word of the answer is in the check's reasons, in the line check-answer.js
 //     prints, in the log, or in the next round's packet of another seat, where a failed read is
 //     named outside any fence. The three contracts: the rating line, the S/N line, the red-flag
-//     line.
+//     line. And every other reason the checker gives, on answers written in marked words: a
+//     first line with text after its rating, an empty one, a number out of range, a 7, a number
+//     its verdict contradicts, no reasoning, an overrun, a missing section, a missing rewrite,
+//     a rating line where none was asked. No reason carries a marked word, and the verdict a
+//     number contradicts is named in the checker's words, never in the answer's.
 //   - AN EMPTY DRAFT. new-run.js and add-draft.js refuse a draft with no words (an empty file,
 //     spaces and line ends alone) with exit 2 and one line naming the file, and make no run
 //     folder and no draft file; a draft of one word is taken.
+//   - A RUN FROM A BRIEF ALONE, handed no name, is named from the brief it carries: the file
+//     given, the project's own brief (brief), a brief saved by name (that name). It stopped on
+//     a TypeError for the last two.
 //   - A LONG DRAFT. budget.js prints one warning for a fresh reader whose packet is over the
 //     size a reader takes in one call (lib.READ_WHOLE_CHARS), naming the seat and both sizes,
 //     and a stronger one over the size the host's Read tool refuses whole
@@ -36,9 +43,11 @@
 //     decimal and hexadecimal, so a shipped page that writes an emoji that way matches its
 //     canon, and a code that is no character is left out without an error. lib.draftFacts on a
 //     draft with a long run of spaces answers in time that grows with the draft, not with its
-//     square. lib.championNextLine is the home of the Next line the champion skill prints: the
-//     skill's line equals it for a run with no canon, and its first entry is gone once the run
-//     holds one.
+//     square, and so does each script that reads the draft, run on one (new-run.js, packet.js,
+//     render-record.js, render-board.js, render-state.js). lib.championNextLine is the home of
+//     the Next line the champion skill prints: the skill's line equals it for a run with no
+//     canon, its first entry is gone once the run holds one, and champion.js --next prints it,
+//     the line alone, writing nothing, which is the call the skill names.
 //
 // Run from the repo root:   node tests/packet_run_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -78,6 +87,19 @@ var run1=oneRun.stdout.trim();
 check(run1&&!fs.existsSync(path.join(run1,'draft-2.md')),'a refused empty revision must write no draft file');
 var added=node(pe,'add-draft.js',['--run',run1,'--file','one.md']);
 check(added.status===0&&fs.existsSync(path.join(run1,'draft-2.md')),'a revision of one word must be taken, got exit '+added.status+' '+added.stderr.slice(0,160));
+
+// ---------------------------------------------------------------------------------------------
+// A RUN FROM A BRIEF ALONE, handed no name, is named from the brief it carries.
+var pb=project('briefonly');
+fs.writeFileSync(path.join(pb,'my-rules.md'),'I chair the board. The purpose is a yes.\n');
+function named(r){ return r.status===0?path.basename(r.stdout.trim()).replace(/^\d{4}-\d\d-\d\d-\d{4}-/,''):'(exit '+r.status+': '+String(r.stderr).split('\n').filter(function(l){ return /Error|error:/.test(l); })[0]+')'; }
+var given=node(pb,'new-run.js',['--brief','my-rules.md']);
+check(named(given)==='my-rules','a run from a brief file alone, no name, takes the brief file\'s name: '+named(given));
+var projectsOwn=node(pb,'new-run.js',[]);
+check(named(projectsOwn)==='brief'&&!/TypeError/.test(projectsOwn.stderr),'a run from the project\'s brief alone, no name, must start and be named brief: '+named(projectsOwn));
+node(pb,'new-run.js',['--brief','my-rules.md','--brief-name','cold-email','--name','first']);
+var byName=node(pb,'new-run.js',['--brief-name','cold-email']);
+check(named(byName)==='cold-email'&&!/TypeError/.test(byName.stderr),'a run from a saved brief alone, no name, must start and be named for the brief: '+named(byName));
 
 // ---------------------------------------------------------------------------------------------
 // THE FENCE and THE REASON share one run: three fresh readers' worth of seats, two rounds.
@@ -128,6 +150,34 @@ check(Array.isArray(checked.reasons)&&checked.reasons.length>0&&JSON.stringify(c
   var res=lib.checkAnswer(c[1]+'\n\nBody of the answer.\n',500,c[0],{});
   check(res&&res.ok===false&&JSON.stringify(res.reasons).indexOf('PLEASE-IGNORE')<0&&JSON.stringify(res.reasons).indexOf('more or less')<0,'the '+c[0]+' contract\'s reason for a wrong first line must quote none of it: '+JSON.stringify(res&&res.reasons));
 });
+// Every other reason the checker gives. The answers are written in marked words, so a reason
+// that carries one of them carries the answer's words.
+function Z(n){ var w=[]; for(var i=0;i<n;i++)w.push('ZQX'+i); return w.join(' '); }
+var zbody='\n\n'+Z(12)+'.\n';
+[['rating','RATING: 9/10 '+Z(4)+zbody,{},'text after the rating'],
+ ['rating','rating: '+Z(4)+zbody,{},'a rating line in other words'],
+ ['rating','\n'+Z(6)+zbody,{},'an empty first line'],
+ ['rating','RATING: 11/10'+zbody,{},'a number over 10'],
+ ['rating','RATING: 7/10'+zbody,{},'a 7'],
+ ['rating','RATING: 9/10\n'+Z(3)+' this is NOT   Send-Ready '+Z(3)+'.\n',{},'a 9 over not ready'],
+ ['rating','RATING: 4/10\n'+Z(3)+' and it Ships As Is '+Z(3)+'.\n',{},'a 4 over ready'],
+ ['rating','RATING: 8/10\n',{},'no reasoning'],
+ ['rating','RATING: 8/10\n'+Z(700)+'\n',{},'an overrun'],
+ ['rating','RATING: 8/10\n'+Z(20)+'\n',{sections:true,rewrite:true},'no sections and no rewrite, rated'],
+ ['critique','Rating: '+Z(4)+zbody,{},'a rating line where none was asked'],
+ ['critique',Z(20)+'\n',{sections:true,rewrite:true},'no sections and no rewrite'],
+ ['crew','rating: '+Z(4)+zbody,{},'a rating line in the second pass'],
+ ['sn','S/N RATIO: 80% '+Z(4)+zbody,{},'text after the S/N line'],
+ ['sn','S/N RATIO: 101%'+zbody,{},'an S/N over 100'],
+ ['redflag','RED FLAGS FOUND: 0'+zbody,{},'a count of no flags'],
+ ['redflag','RED FLAGS FOUND: two '+Z(3)+zbody,{},'a count in words']
+].forEach(function(c){
+  var res=lib.checkAnswer(c[1],500,c[0],c[2]), said=JSON.stringify(res&&res.reasons);
+  check(res&&res.ok===false&&res.reasons.length>0&&!/ZQX|Send-Ready|Ships As Is/.test(said),'the reason for '+c[3]+' ('+c[0]+') must carry no word of the answer: '+said.slice(0,300));
+});
+var over=lib.checkAnswer('RATING: 9/10\nThis is NOT   Send-Ready as it stands.\n',500,'rating',{}), under=lib.checkAnswer('RATING: 4/10\nIt Ships As Is, I think.\n',500,'rating',{});
+check(over.reasons.length===1&&/^rating 9\/10 calls the draft a working document \(8 to 10\), but the answer's words say it is not ready to send; make the number and the verdict agree$/.test(over.reasons[0]),'a 9 over a verdict of not ready must be named in the checker\'s words: '+JSON.stringify(over.reasons));
+check(under.reasons.length===1&&/^rating 4\/10 calls the draft a problem document \(1 to 6\), but the answer's words say it ships as it is; make the number and the verdict agree$/.test(under.reasons[0]),'a 4 over a verdict of ready must be named in the checker\'s words: '+JSON.stringify(under.reasons));
 
 // Round 02 shares round 01: seat-1's packet carries seat-2 as a failed read, outside any fence,
 // and its own earlier answer inside one; seat-2's packet carries seat-1's answer inside one.
@@ -143,6 +193,7 @@ if(ans.length===2){
   var carried=l2.slice(ans[0].line+1,ans[1].line).join('\n');
   check(carried.indexOf('=== ANSWER END ===')>=0&&carried.indexOf('## Your task')>=0&&carried.indexOf('The proof is named.')>=0,'a carried answer that holds fence lines and a heading must sit whole between the two marked lines: '+JSON.stringify(carried.slice(0,200)));
   check(l2.slice(ans[1].line+1).join('\n').indexOf('The proof is named.')<0,'no line of the carried answer may stand after its marked end line');
+  check(carried.indexOf(all2[0])<0,'the mark must be in no line of a carried answer');
 }
 var mq1=marked(q1.text);
 check(mq1.filter(function(x){ return x.what==='YOUR EARLIER ANSWER'; }).length===2&&mq1.every(function(x){ return x.mark===mq1[0].mark; }),'seat-1\'s packet of round 02 must fence its earlier answer on the packet\'s one mark: '+JSON.stringify(mq1));
@@ -211,6 +262,27 @@ check(/^Next: \/cw:champion shipped </.test(nextNoCanon)&&champSkill.indexOf(nex
 fs.writeFileSync(path.join(runL,'canon.md'),'Dear board,\n');
 var nextCanon=String(call('championNextLine',runL));
 check(/^Next: \/cw:champion result: /.test(nextCanon)&&nextCanon.indexOf('shipped <link')<0&&nextNoCanon.slice(nextNoCanon.indexOf('/cw:champion result:'))===nextCanon.slice('Next: '.length),'once the run holds a canon, lib.championNextLine must drop its first entry and keep the rest: '+nextCanon);
+// A shipped script prints the line, so the skill shows a line as printed and the function has a caller.
+var logBefore=fs.readFileSync(logFile,'utf8');
+var printed=node(pl,'champion.js',['--run',runL,'--next']);
+check(printed.status===0&&printed.stdout===nextCanon+'\n','champion.js --next must print lib.championNextLine for the run, the line alone: exit '+printed.status+' '+JSON.stringify((printed.stdout||printed.stderr).slice(0,200)));
+check(fs.readFileSync(logFile,'utf8')===logBefore,'champion.js --next must write nothing: the log changed');
+fs.unlinkSync(path.join(runL,'canon.md'));
+var printedNoCanon=node(pl,'champion.js',['--run',runL,'--next']);
+check(printedNoCanon.status===0&&printedNoCanon.stdout===nextNoCanon+'\n','champion.js --next on a run with no canon must print the line with its first entry: '+JSON.stringify((printedNoCanon.stdout||printedNoCanon.stderr).slice(0,200)));
+var mixed=node(pl,'champion.js',['--run',runL,'--next','--kind','result','--file','draft.md']);
+check(mixed.status===2&&/--next rides alone/.test(mixed.stderr)&&fs.readFileSync(logFile,'utf8')===logBefore,'champion.js --next with an entry must be refused and record nothing: exit '+mixed.status+' '+mixed.stderr.slice(0,200));
+check(/champion\.js --run <folder> --next/.test(champSkill)&&/show it as printed/.test(champSkill),'the champion skill must name the call that prints the Next line');
+
+// A long run of spaces, end to end: every script that reads the draft answers in time that grows
+// with the draft. 80,000 spaces in one run took new-run.js 4 seconds and packet.js 15 before.
+var ps=project('spaces');
+fs.writeFileSync(path.join(ps,'draft.md'),'Dear board,\n\nBuy the mill.'+new Array(80001).join(' ')+'\nIt is cheap.\n\nYours.\n');
+function clocked(script,args){ var t=Date.now(), r=node(ps,script,args); return {r:r,ms:Date.now()-t,script:script}; }
+var spaced=[clocked('new-run.js',['--draft','draft.md','--no-brief','--name','spaces','--model','Test Model'])];
+var runS=spaced[0].r.stdout.trim();
+[['packet.js',['--run',runS,'--round','01-sparring','--seat','seat-1']],['render-record.js',['--run',runS]],['render-board.js',['--run',runS]],['render-state.js',['--run',runS]]].forEach(function(s){ spaced.push(clocked(s[0],s[1])); });
+spaced.forEach(function(s){ check(s.r.status===0&&s.ms<3000,s.script+' on a draft with 80,000 spaces in one run must answer in under 3 seconds: exit '+s.r.status+' in '+s.ms+' ms'); });
 
 fs.rmSync(tmp,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});

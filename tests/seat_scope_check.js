@@ -74,8 +74,9 @@
 //   - No data folder named, a relative one, or one the hook cannot write in: the start of a
 //     seat is refused with the reason and a seat is refused every call; every other caller is
 //     untouched. A session or agent id that is no plain name is never used in a path.
-//   - The records end: a session's folder 30 days past its last start is removed at a later
-//     start, twenty folders at one start at the most, the hook's own record files alone, a folder holding anything else left standing
+//   - The records end: a session's folder 30 days past its last start or first call is removed
+//     at a later start, twenty such folders handled at one start at the most (one it could not
+//     remove counts among them), the hook's own record files alone, a folder holding anything else left standing
 //     with that file in it, a session's folder that is a link not entered, a younger folder
 //     untouched.
 //   - A tool other than Read or Write, no file_path, malformed JSON for a seat: denied (fail
@@ -269,7 +270,7 @@ denied('seat call with no file_path',call('Read',undefined),/names no file/);
 denied('seat with a hostile agent id',call('Read',packet,{agent_id:'../../x'}),/the call carries no agent id the hook will use in a path/);
 denied('seat with no agent id',call('Read',packet,{agent_id:undefined}),/the call carries no agent id the hook will use in a path/);
 denied('seat with a hostile session id',call('Read',packet,{session_id:'../sess-1'}),/no start of this seat is on the hook's record \(no session id the hook will use in a path\)/);
-denied('start with a hostile session id',start(taskText(packet2,answer2),undefined,{session_id:'../../x'}),/^Combat Writing seat scope: the hook cannot keep the record of this start \(no session id the hook will use in a path\), and a seat with no record reads and writes nothing; the seat is not started\./);
+denied('start with a hostile session id',start(taskText(packet2,answer2),undefined,{session_id:'../../x'}),/^Combat Writing seat scope: the hook cannot keep the record of this start \(no session id the hook will use in a path\), and a seat whose start is not on record cannot be placed by it; the seat is not started\./);
 check(fs.readdirSync(tmp).sort().join(',')==='data,elsewhere,proj,sessions'&&fs.existsSync(data)&&fs.readdirSync(data).join(',')==='seat-scope','an id that is no plain name was used in a path, or no record was kept at all: '+fs.readdirSync(tmp).join(','));
 
 // ONE START PLACES ONE SEAT. Two starts in one session, two seats: each takes its own, neither
@@ -381,7 +382,7 @@ if(process.platform!=='win32'&&typeof process.getuid==='function'&&process.getui
 var away=path.join(fs.realpathSync(elsewhere),'away'); fs.mkdirSync(away);
 fs.writeFileSync(path.join(away,'start-zz-9.json'),JSON.stringify({v:1,at:9,seat:'seat-2',run:realRun,packet:fs.realpathSync(packet2),answer:path.join(realRun,'rounds','01-sparring','seat-2.answer.md')})+'\n');
 fs.symlinkSync(away,path.join(data,'seat-scope','sess-linked'));
-denied('a session\'s folder that is a link: the start of a seat is refused',start(taskText(packet2,answer2),undefined,{session_id:'sess-linked'}),/^Combat Writing seat scope: the hook cannot keep the record of this start \(where its folder of records should be, a link or a file stands, and the hook writes through neither, in the plugin's data folder\), and a seat with no record reads and writes nothing; the seat is not started\./);
+denied('a session\'s folder that is a link: the start of a seat is refused',start(taskText(packet2,answer2),undefined,{session_id:'sess-linked'}),/^Combat Writing seat scope: the hook cannot keep the record of this start \(where its folder of records should be, a link or a file stands, and the hook writes through neither, in the plugin's data folder\), and a seat whose start is not on record cannot be placed by it; the seat is not started\./);
 denied('a session\'s folder that is a link: a record waiting behind it places no seat',as('sess-linked','q')('Read',packet2),/no start of this seat is on the hook's record/);
 check(fs.readdirSync(away).join(',')==='start-zz-9.json','a session\'s folder that is a link was written through or changed: '+fs.readdirSync(away).join(','));
 fs.unlinkSync(path.join(data,'seat-scope','sess-linked'));
@@ -401,7 +402,7 @@ gone(path.join(data,'seat-scope','sess-file'));
 
 // NO DATA FOLDER, or one the hook cannot write in: no record can be kept, so no seat is started
 // and no seat's call is allowed; every other caller is untouched.
-var NOKEEP=/^Combat Writing seat scope: the hook cannot keep the record of this start \(the host named no data folder for the plugin\), and a seat with no record reads and writes nothing; the seat is not started\. No fresh reader can start in this session; outside seats through the add-on are not affected$/;
+var NOKEEP=/^Combat Writing seat scope: the hook cannot keep the record of this start \(the host named no data folder for the plugin\), and a seat whose start is not on record cannot be placed by it; the seat is not started\. No fresh reader can start in this session; outside seats through the add-on are not affected$/;
 denied('no data folder named: the start of a seat is refused',start(taskText(packet2,answer2),undefined,{},{}),NOKEEP);
 denied('a relative data folder is none: the start of a seat is refused',start(taskText(packet2,answer2),undefined,{},{CLAUDE_PLUGIN_DATA:'data'}),NOKEEP);
 check(!fs.existsSync(path.join(proj,'data')),'a relative data folder was written in');
@@ -410,13 +411,14 @@ denied('no data folder named: a seat\'s write is refused',call('Write',answer,{}
 allowed('no data folder named: the host\'s own call is untouched',call('Bash','',{agent_type:undefined,agent_id:undefined,tool_name:'Bash',tool_input:{command:'ls'}},{}));
 allowed('no data folder named: the start of another agent type is untouched',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{description:'d',prompt:'x',subagent_type:'Explore'}},{}));
 var blocked=path.join(tmp,'elsewhere','a-file-not-a-folder'); fs.writeFileSync(blocked,'x\n');
-denied('a data folder the hook cannot write in: the start of a seat is refused',start(taskText(packet2,answer2),undefined,{},{CLAUDE_PLUGIN_DATA:blocked}),/^Combat Writing seat scope: the hook cannot keep the record of this start \(E[A-Z]+ writing in the plugin's data folder\), and a seat with no record reads and writes nothing; the seat is not started\./);
+denied('a data folder the hook cannot write in: the start of a seat is refused',start(taskText(packet2,answer2),undefined,{},{CLAUDE_PLUGIN_DATA:blocked}),/^Combat Writing seat scope: the hook cannot keep the record of this start \(E[A-Z]+ writing in the plugin's data folder\), and a seat whose start is not on record cannot be placed by it; the seat is not started\./);
 check(fs.readFileSync(blocked,'utf8')==='x\n','the file standing where the data folder was named must be left as it was');
 fs.unlinkSync(blocked);
 
-// THE RECORDS END. A session's folder 30 days past its last start is removed at a later start:
-// the hook's own files, and the folder when nothing else is in it. A session's folder that is a
-// link is not entered.
+// THE RECORDS END. A session's folder 30 days past its last start or first call is removed at a
+// later start: the hook's own files, and the folder when nothing else is in it. A session's
+// folder that is a link is not entered. (The folder's own time is what the hook reads: a start
+// writes a file in it and a seat's first call renames one, and each moves that time.)
 var base=path.join(data,'seat-scope'), old=new Date(Date.now()-31*86400000), young=new Date(Date.now()-29*86400000);
 function aged(name,files,when){ var d=path.join(base,name); fs.mkdirSync(d,{recursive:true}); files.forEach(function(f){ fs.writeFileSync(path.join(d,f),'{}\n'); }); fs.utimesSync(d,when,when); return d; }
 var oldDir=aged('sess-old',['start-abc-12.json','agent-someone.json','claim-someone-abc-12.json'],old);
@@ -426,7 +428,7 @@ var linkTarget=path.join(tmp,'elsewhere','linked'); fs.mkdirSync(linkTarget); fs
 fs.symlinkSync(linkTarget,path.join(base,'sess-link'));
 fs.writeFileSync(path.join(base,'a-file'),'x\n');
 allowed('the records end: a later start of a seat, in another session',start(taskText(packet2,answer2),undefined,{session_id:'sess-sweeper'}));
-check(!fs.existsSync(oldDir),'a session\'s records 31 days past its last start must be removed at a later start');
+check(!fs.existsSync(oldDir),'a session\'s records 31 days past its last start or first call must be removed at a later start');
 check(fs.existsSync(mixedDir)&&fs.readdirSync(mixedDir).join(',')==='notes.txt','in an old folder that holds a file that is not the hook\'s, the hook\'s records go and that file and the folder stay: '+(fs.existsSync(mixedDir)?fs.readdirSync(mixedDir).join(','):'folder gone'));
 check(fs.existsSync(path.join(youngDir,'agent-someone.json')),'a session\'s records 29 days old must stay');
 check(fs.existsSync(path.join(linkTarget,'agent-someone.json'))&&fs.lstatSync(path.join(base,'sess-link')).isSymbolicLink(),'a link in the records folder must never be followed or removed');
@@ -549,16 +551,36 @@ check(et.threw,'an early fault, the start of a seat: the breaker never threw, so
 denied('an early fault, before the hook has read who calls, still refuses the start of a seat',et,/^Combat Writing seat scope: the hook failed \(an early fault inside the hook\); the seat is not started$/);
 // A record the hook cannot write, for a cause other than its being there already (a full disk),
 // is a fault answered as one: the seat is refused with the cause, the start is given back and
-// waits, and no half-written record or spare name is left.
+// waits, and no half-written record or spare name is left. The stand-in writes the first bytes of
+// the record and then fails, as a disk that fills in mid-write does, so a record left half
+// written would stand in the folder and fail the check below.
 var full=path.join(tmp,'break-full.js');
-fs.writeFileSync(full,'var fs=require("fs"),p=require("path"),real=fs.writeFileSync;fs.writeFileSync=function(f){ if(/^agent-/.test(p.basename(String(f)))){ var e=new Error("no space left on device"); e.code="ENOSPC"; throw e; } return real.apply(fs,arguments); };\n');
+fs.writeFileSync(full,'var fs=require("fs"),p=require("path"),real=fs.writeFileSync;fs.writeFileSync=function(f){ if(/^agent-/.test(p.basename(String(f)))){ real.call(fs,f,"{\\"v\\":1,\\"at\\":",{flag:"wx"}); var e=new Error("no space left on device"); e.code="ENOSPC"; throw e; } return real.apply(fs,arguments); };\n');
 allowed('a full disk: a start goes on record',start(taskText(packet2,answer2),undefined,{session_id:'sess-full'}));
 var fullRun=shaped(cp.spawnSync(process.execPath,['-r',full,hook],{input:JSON.stringify(Object.assign({},base,{session_id:'sess-full',tool_name:'Read',tool_input:{file_path:packet2},agent_id:'f',agent_type:'cw:seat'})),encoding:'utf8',cwd:proj,env:hookEnv(),timeout:20000}));
 denied('a record that cannot be written is a fault, answered as one',fullRun,/^Combat Writing seat scope: the hook failed \(ENOSPC\); a seat does nothing the hook cannot judge$/);
 check(waiting('sess-full').length===1&&placedSeats('sess-full').length===0&&strays('sess-full').length===0,'after a record that could not be written the start must wait again and nothing else must stand: '+JSON.stringify(kept('sess-full',/./)));
 allowed('a full disk: the same seat is placed once the record can be written',as('sess-full','f')('Read',packet2));
-// TWENTY AT A START. One start of a seat removes the records of at most twenty sessions that
-// have stood their 30 days; the rest go at the next. A data folder of its own, 23 old sessions.
+// THEN ONCE MORE. A call that waits for its own seat's record looks every 10 ms until half a
+// second has passed, and then looks one last time. The state is set by hand: the start stands
+// under the seat's spare name and the seat has no record. The stand-in lets the hook look once
+// inside the wait and find nothing; then, as the hook checks whether its seat is still taking,
+// it writes the seat's record and moves the clock past the half second. No look inside the
+// wait is left, so the last look alone can find the record. The stand-in leaves a mark, so an
+// allowed read is shown to be the last look's and not a run in which nothing was planted.
+var sessL='sess-last', dirL=path.join(data,'seat-scope',sessL);
+allowed('the last look: a start goes on record',start(taskText(packet2,answer2),undefined,{session_id:sessL}));
+var stL=waiting(sessL)[0]||'start-none-0.json', recL='{}';
+try{ recL=fs.readFileSync(path.join(dirL,stL),'utf8'); }catch(e){}
+try{ fs.renameSync(path.join(dirL,stL),path.join(dirL,'claim-late-'+stL.slice(6))); }catch(e){}
+var lastLook=path.join(tmp,'break-last-look.js'), lastMark=path.join(tmp,'last-look.txt');
+fs.writeFileSync(lastLook,'var fs=require("fs"),real=fs.readdirSync,now=Date.now,skew=0,looks=0;\nDate.now=function(){ return now()+skew; };\nfs.readdirSync=function(d){ var out=real.apply(fs,arguments); if(String(d)==='+JSON.stringify(dirL)+'&&++looks===2){ fs.writeFileSync('+JSON.stringify(path.join(dirL,'agent-late.json'))+','+JSON.stringify(recL)+',{flag:"wx"}); skew=600000; fs.appendFileSync('+JSON.stringify(lastMark)+',"planted\\n"); } return out; };\n');
+var lastRun=shaped(cp.spawnSync(process.execPath,['-r',lastLook,hook],{input:JSON.stringify(Object.assign({},base,{session_id:sessL,tool_name:'Read',tool_input:{file_path:packet2},agent_id:'late',agent_type:'cw:seat'})),encoding:'utf8',cwd:proj,env:hookEnv(),timeout:20000}));
+check(fs.existsSync(lastMark),'the last look: the stand-in never planted the record, so nothing is proved');
+allowed('the last look: a record written as the wait ends is found by the look after it',lastRun);
+// TWENTY AT A START. One start of a seat handles twenty sessions' folders that have stood their
+// 30 days, at the most, and removes the records of each it can; the next start removes up to
+// twenty more. A data folder of its own, 23 old sessions: twenty go, then the other three.
 var data3=path.join(tmp,'data3'), base3=path.join(data3,'seat-scope');
 for(var k=0;k<23;k++){ var od=path.join(base3,'old-'+k); fs.mkdirSync(od,{recursive:true}); fs.writeFileSync(path.join(od,'agent-x.json'),'{}\n'); fs.utimesSync(od,old,old); }
 function oldLeft(){ return fs.readdirSync(base3).filter(function(n){ return /^old-/.test(n); }).length; }
@@ -593,6 +615,46 @@ check(src.split('\n')[0]==='// SPDX-License-Identifier: LicenseRef-PolyForm-Shie
 check(!/appendFileSync|child_process|\bfetch\(|https?:\/\/|process\.argv/.test(code),'seat-scope.js: must spawn nothing, fetch nothing and read no argument');
 check((code.match(/process\.env\.?[A-Za-z_\[]*/g)||[]).join(',')==='process.env.CLAUDE_PLUGIN_DATA','seat-scope.js: reads one environment variable, CLAUDE_PLUGIN_DATA, once: '+(code.match(/process\.env\.?[A-Za-z_\[]*/g)||[]).join(','));
 check((code.match(/require\('[^']+'\)/g)||[]).join(',')==="require('fs'),require('path')",'seat-scope.js: requires fs and path alone');
+// THE SENTENCES A FRESH READ CORRECTED. Each said more than the code does, in a comment, a
+// refusal, a test's own comment, the plan or the record of the rulings. None may stand in a file
+// a reader takes for the current word: every .md and .js file at the root, under docs/, under
+// plugins/ and under tests/, the frozen archive of the plan excepted. A comment's line breaks
+// and its slashes are dropped before the search, so a sentence wrapped over two lines is found.
+// STALE-BEGIN (this block names the sentences, so it is cut from the text searched)
+var STALE=[
+  ['no new look once','the wait looks one last time after its half second'],
+  ['reads and writes nothing','a seat with no record takes a waiting start it names'],
+  ['handed no name, uses the draft\'s file name)','a run from a brief alone takes the brief\'s file name'],
+  ['else from the draft\'s file name.','a run from a brief alone takes the brief\'s file name'],
+  ['stopped between the steps leaves','only a stop before the record is written leaves the seat with none'],
+  ['the rest go at the next','the next start removes up to twenty more'],
+  [/days past its last start(?! or first call)/,'a seat\'s first call moves the folder\'s time too'],
+  ['names a file is answered after that wait','a call that takes a start is answered before the wait'],
+  ['every call but one that names a file of a start','a write that names a waiting start\'s packet is refused'],
+  ['can quote the first 80 characters','a check\'s reason quotes no word of the answer']
+];
+// STALE-END
+var repoRoot=path.join(__dirname,'..');
+function textFiles(dir,deep){
+  var out=[];
+  fs.readdirSync(dir,{withFileTypes:true}).forEach(function(d){
+    var p=path.join(dir,d.name);
+    if(d.isDirectory()){ if(deep&&d.name!=='node_modules'&&d.name[0]!=='.')out=out.concat(textFiles(p,true)); }
+    else if(d.isFile()&&/\.(md|js)$/.test(d.name)&&d.name!=='PLAN_ARCHIVE.md')out.push(p);
+  });
+  return out;
+}
+var searched=textFiles(repoRoot,false).concat(textFiles(path.join(repoRoot,'docs'),true),textFiles(path.join(repoRoot,'plugins'),true),textFiles(path.join(repoRoot,'tests'),true));
+check(searched.length>60&&searched.some(function(f){ return path.basename(f)==='PLAN.md'; })&&searched.some(function(f){ return f===hook; }),'the sentences: the search must cover the plan and the hook, got '+searched.length+' files');
+searched.forEach(function(f){
+  var t=fs.readFileSync(f,'utf8');
+  if(f===__filename)t=t.replace(/\/\/ STALE-BEGIN[\s\S]*?\/\/ STALE-END/,'');
+  var flat=t.replace(/\n[ \t]*\/\/ ?/g,' ').replace(/\s+/g,' ');
+  STALE.forEach(function(s){
+    var found=typeof s[0]==='string'?flat.indexOf(s[0])>=0:s[0].test(flat);
+    check(!found,path.relative(repoRoot,f)+' still says "'+(typeof s[0]==='string'?s[0]:String(s[0]))+'", where '+s[1]);
+  });
+});
 
 // AT ONCE. The claim is one rename, so calls that land together cannot share a start. Eight seats
 // ask for one waiting packet in the same moment: one is placed. One seat makes two calls in the
