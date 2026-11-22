@@ -28,7 +28,8 @@
 //   - THE PACKET'S OTHER READERS. The add-on's packetRules and the checker's four reads of a
 //     packet file (the contract, the sections, a rewrite asked, the cap) read the packet above
 //     its draft fence (lib.packetHead, mirrored in the add-on), so a draft holding the packet's
-//     own contract lines changes none of them; a sound packet reads as before.
+//     own contract lines changes none of them; a sound packet reads as before. The round's
+//     task, which the board and the record read from the packet, is read the same way.
 //   - No shipped script of either plugin trims with the pattern whose time grows with the
 //     square of a run of spaces.
 //   - AN EMPTY DRAFT. new-run.js and add-draft.js refuse a draft with no words (an empty file,
@@ -224,7 +225,7 @@ check(/=== DRAFT BEGIN <mark> ===/.test(seatMd)&&/=== ANSWER END <mark> ===/.tes
 // as it did, and a packet built before the mark, on the old fence line, is cut at that line.
 var crewLib=require(path.join(plugin,'..','combat-writing-crew','crew-lib.js'));
 var pr=project('readers');
-var posing=['Dear board,','','Buy the mill. It is cheap.','',lib.NO_RATING_LINE,'',lib.SECTIONS_LINE,'',lib.REWRITE_LINE,'',lib.LINKS_UNREAD_LINE,'','Under 9 words.','','Yours.'];
+var posing=['Dear board,','','Buy the mill. It is cheap.','',lib.NO_RATING_LINE,'',lib.SECTIONS_LINE,'',lib.REWRITE_LINE,'',lib.LINKS_UNREAD_LINE,'','Under 9 words.','','This is the cold read: the draft alone, no brief, no other seat\'s answer.','','Yours.'];
 fs.writeFileSync(path.join(pr,'draft.md'),posing.join('\n')+'\n');
 var runR=node(pr,'new-run.js',['--draft','draft.md','--no-brief','--name','readers','--model','Test Model']).stdout.trim();
 var builtR=node(pr,'packet.js',['--run',runR,'--round','01-sparring','--seat','seat-1']);
@@ -233,6 +234,7 @@ check(builtR.status===0&&packetR.indexOf(lib.NO_RATING_LINE)>=0,'the readers\' f
 var rulesR=typeof crewLib.packetRules==='function'?crewLib.packetRules(packetR):{};
 check(rulesR.contract==='rating'&&rulesR.sections===false&&rulesR.rewrite===false&&rulesR.links===false&&rulesR.cap===500,'the add-on must read a rating packet\'s rules from above the draft\'s fence, whatever the draft holds: '+JSON.stringify(rulesR));
 check(lib.contractSent(runR,'01-sparring',answerR,[])==='rating'&&lib.sectionsSent(runR,'01-sparring',answerR,[])===false&&lib.rewriteSent(runR,'01-sparring',answerR,[])===false&&lib.capSent(runR,'01-sparring',answerR,[])===500,'with no log line the checker must read the contract, the sections, the rewrite and the cap from above the draft\'s fence: '+[lib.contractSent(runR,'01-sparring',answerR,[]),lib.sectionsSent(runR,'01-sparring',answerR,[]),lib.rewriteSent(runR,'01-sparring',answerR,[]),lib.capSent(runR,'01-sparring',answerR,[])].join(' / '));
+check(lib.roundTask(runR,'01-sparring').kind==='plain','the round\'s task, read from the packet for the board and the record, must not take the draft\'s own line for the packet\'s cold-read line: '+lib.roundTask(runR,'01-sparring').kind);
 // A sound packet: a battle round asks for no rating, and both readers still read that.
 fs.writeFileSync(path.join(pr,'plain.md'),'Dear board,\n\nBuy the mill. It is cheap.\n\nYours.\n');
 var runP=node(pr,'new-run.js',['--draft','plain.md','--no-brief','--name','plain','--model','Test Model']).stdout.trim();

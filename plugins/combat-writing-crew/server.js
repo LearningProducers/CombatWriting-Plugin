@@ -227,6 +227,9 @@ function systemPromptFor(read,seat,rules){
 }
 
 function sleep(ms){ return new Promise(function(r){setTimeout(r,ms);}); }
+// A line without the spaces, tabs and carriage returns at its end, read once from the end: a
+// pattern anchored there rereads a long run of spaces from every place in it.
+function lineEnd(l){ var i=l.length; while(i>0&&(l[i-1]===' '||l[i-1]==='\t'||l[i-1]==='\r'))i--; return l.slice(0,i); }
 
 function callProvider(provider,key,seat,systemPrompt,userText,budget,capWords){
   var b=provider.budget;
@@ -308,7 +311,7 @@ function answer(args){
   }
   var packet=lib.readText(packetPath);
   var rules=lib.packetRules(packet);
-  if(note)packet=packet.replace(/\s+$/,'')+'\n\n## Note from the host on this retry\n\nYour previous answer failed the check: '+note+'\nWrite it again, meeting the contract above'+(rules.cap?', under '+lib.retryTarget(rules.cap)+' words this time (the cap is '+rules.cap+'; a second overrun is cut at the last sentence before it)':'')+'.\n';
+  if(note)packet=packet.trimEnd()+'\n\n## Note from the host on this retry\n\nYour previous answer failed the check: '+note+'\nWrite it again, meeting the contract above'+(rules.cap?', under '+lib.retryTarget(rules.cap)+' words this time (the cap is '+rules.cap+'; a second overrun is cut at the last sentence before it)':'')+'.\n';
   var systemPrompt=systemPromptFor(read,seat,rules);
   var budget=lib.budgetFor(provider,systemPrompt,packet);
   if(!budget.ok){
@@ -347,7 +350,7 @@ function answer(args){
         return {ok:false,seat:seatId,missing:true,reason:'the provider returned an '+emptyReason+'. The seat is missing this round.'};
       }
       // Trailing whitespace off every line, so a rating line the model padded still meets the contract.
-      text=text.split('\n').map(function(l){return l.replace(/[ \t\r]+$/,'');}).join('\n').replace(/\s+$/,'');
+      text=text.split('\n').map(lineEnd).join('\n').trimEnd();
       // The second overrun (a retry still over the cap) is cut at the cap with the first line kept.
       var truncated=null;
       if(note&&rules.cap){var cut=lib.truncateAnswer(text,rules.cap,read,rules.contract);if(cut){text=cut.text;truncated=cut.truncated;}}
