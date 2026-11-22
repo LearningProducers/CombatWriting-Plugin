@@ -3,56 +3,65 @@
 
 Last updated: 2026-11-21
 
-Learning Producers Inc. makes two pieces of software for Claude Code: the Combat Writing plugin, named `cw`, and an add-on to it, named `combat-writing-crew`. This page says what each one sends off your machine and to whom, what each one stores and where, where an API key is kept, and what Learning Producers receives. It covers the two plugins and nothing else. The source of both is public in this repository, so each statement here can be checked against the code.
+Learning Producers Inc. makes two plugins for Claude Code: the Combat Writing plugin, named `cw`, and an add-on to it, named `combat-writing-crew`. This page says what each one sends off your machine and to whom, what each one stores and where, where an API key is kept, and what Learning Producers receives. It covers the two plugins and nothing else. Their source is in this repository, where each statement here can be checked against the code. Where a statement rests on what another program does (Claude Code, your browser, your operating system, a provider), the page says so and speaks for the plugins' own code alone.
 
 ## What Learning Producers receives
 
-Nothing from the software. Neither the plugin nor the add-on makes a network call to Learning Producers. Neither holds telemetry, analytics or crash reporting, and neither asks you to make an account. Learning Producers sees a draft, a brief, a result or a key only when you send it yourself, in a support message or in an issue on this repository.
+Nothing from the software. Neither the plugin nor the add-on makes a network call to Learning Producers, and neither holds telemetry, analytics or crash reporting. Neither asks you for an account with Learning Producers. Learning Producers sees a draft, a brief, a result or a key only when you send it yourself, in a support message or in an issue on this repository.
 
 ## The plugin (cw): what leaves your machine
 
-The plugin runs inside the Claude Code session you have open. Its scripts and hooks make no network call. The plugin holds no API key and reads none.
+The plugin runs inside your Claude Code session. Its scripts and hooks make no network call of their own. The plugin holds no API key and reads none.
 
-The plugin's own readers are Claude agents that your Claude Code session starts. Your draft, your brief and your description of the reader reach them through that session, and the plugin sends them nowhere else.
+The plugin's own readers are Claude agents that your Claude Code session starts. Each reads a packet that holds your draft, your brief, your description of the reader and, in some rounds, the other seats' answers. So that text goes where your Claude Code session already sends its work: to the model behind that session. The plugin's code sends it nowhere else.
 
-One command leads to a web address being opened. When you record a published piece with a link (`/cw:champion shipped` and an address), the plugin's instructions tell Claude Code to open that one address, once, to check that the page is live and matches your final draft. What comes back is saved in `combat-writing/inbox` in your project. No script of the plugin opens an address.
+One command leads to a web address being opened. When you record a published piece with a link (`/cw:champion shipped` and an address), the plugin's instructions tell Claude Code to fetch that address once (a fetch from the shell follows the address's own redirects), to check that the page is live and matches your final draft. What comes back is saved in `combat-writing/inbox` in your project. No script of the plugin opens an address.
+
+Besides Node, which runs its own scripts, the plugin starts three programs that are not its own: `claude plugin list`, to see whether the add-on is installed; on a Mac, `say`, to read the list of voices and to make the audio; and your system's file opener, to open the board. What each of those does is its maker's.
+
+## The plugin (cw): what its hooks are handed
+
+Claude Code hands a plugin's hooks more than the plugin's own work. One hook of the plugin is handed the name and the input of every tool call of a session in which the plugin is on. Another is handed every shell command of that session and its output. Each acts only on the plugin's own calls, and neither writes, sends or keeps anything from the rest.
 
 ## The plugin (cw): what it stores, and where
 
 In your project, in the folder `combat-writing`:
 
-- a folder for each run, under `combat-writing/runs`: your draft and its revisions, the draft as shipped, the brief, the description of the reader when you gave one, every packet sent to a seat, every answer, a timestamped log, a record, a board page, and, on a Mac, a recording of each answer read aloud;
-- the text you paste into a command, saved whole under `combat-writing/inbox` before the plugin reads it, and the page saved for a shipped link;
+- a folder for each run, under `combat-writing/runs`. Among its files: your draft and its revisions, the draft as shipped, the brief, your description of the reader when you gave one, the list of seats, every packet sent to a seat, every answer, a question you put to one seat, a timestamped log, a record, a board page and, on a Mac with a Premium or Enhanced voice installed, recordings of each answer read aloud, up to four voices for a seat;
+- under `combat-writing/inbox`, the text you paste into a command, saved whole before the plugin reads it, the pieces cut from it, and the page saved for a shipped link;
 - your briefs, the insight vault, your choice of a model for a seat, your choice of a voice, and the switch for the picker that ends a round;
-- a `.gitignore` of two lines, `runs/` and `inbox/`, written once, on the first run inside a git repository, and never over a file already there.
+- a `.gitignore` of two lines, `runs/` and `inbox/`, written when a run starts inside a git repository and no such file is there. It is never written over a file already there.
 
-The board page is a local file. It loads nothing from the internet, and the plugin never publishes it. Whether any of these files is committed or shared is your decision.
+Neither plugin deletes a run, an inbox file or a recording. Whether any of these files is committed or shared is your decision: the ignore file covers the runs and the inbox, so your briefs, the vault and your choices ride with the project in git unless you ignore them too.
+
+The record holds your brief, your description of the reader and every answer in full. The log holds no draft and no answer in full; it holds counts, file names, model ids, the lines you typed as a result or an insight, and the link and the words you gave with `shipped`, which can name a person.
+
+The board page is a local file. As the plugin writes it, it loads nothing from the internet, and the plugin never publishes it. Its Read aloud button plays a recording when the Mac made one, and otherwise speaks through your browser's own voices. What a browser's voice does with the text it speaks is the browser's; the plugin's code does not hold it to a voice on your machine. The board keeps your choice of a voice for a seat in your browser's storage.
 
 Outside your project, in two places:
 
-- The data folder Claude Code keeps for the plugin. One small file there records that the first-session check ran: the time, whether the add-on was found, and the voices found. The hook that holds each reader to its own files keeps its records there too: one small file for each start of a reader, holding the seat's id, the path of the run folder, the path of the packet, the path of the answer file and the time. Those paths carry the run folder's name, which is made from the first words of your draft, or of your brief when a run starts from the brief alone. A later start of a reader removes a session's records once 30 days have passed since a reader was last started or first placed in that session. With no later start, they stay.
-- The system's temporary folder, on a Mac. While the answers are turned into audio, the text to be spoken stands there in one short-lived file for each seat. The files are removed once the audio is made. If that step is stopped early, they stay until the system clears the folder.
-
-On a Mac the audio is made by the Mac's own speech program. Nothing is sent anywhere to make it.
+- The data folder Claude Code names for the plugin. One small file there records that the first-session check ran: the time, whether the add-on was found, and the voices found. The hook that holds each reader to its own files keeps its records there too, in a folder named by the session's id: one small file for each start of a reader, named for the agent once a reader takes it, holding the seat's id, the time, and the absolute paths of the run folder, the packet and the answer file. Those paths carry your project's path and the run folder's name, which is made from the first words of a pasted draft or brief, or from a file's name. A later start of a reader removes the records of sessions in which no reader was started or first placed for 30 days, twenty sessions at one start at the most, and never those of the session it runs in. With no later start, they stay.
+- The system's temporary folder, on a Mac. While the answers are turned into audio, the text to be spoken stands there in one file for each seat. The files are removed once the audio is made. If that step is stopped early, they stay.
 
 ## The plugin (cw): what it reads outside your project
 
-- At the first session start, the plugin checks whether the add-on is installed. It runs `claude plugin list`, or, when that cannot run, looks in Claude Code's plugin cache folder. On a Mac it also reads the list of installed voices.
-- Before every tool call, one hook reads its own records and the `seats.json` of the run. It opens no transcript.
-- After each reader's answer is checked, another hook reads the transcript files Claude Code keeps for your session, to record which model wrote that answer. It reads the opening of each agent's transcript to find the reader's, takes the model id from that reader's replies and from the session's own latest reply, and writes one line to the run's log. It copies no text of your conversation anywhere.
-- After each round, that hook opens the run's own board page in your browser with your system's file opener, when the session's shell could not.
+- When a session starts, a hook checks whether the add-on is installed: it starts `claude plugin list`, or, when that cannot run, looks in Claude Code's plugin cache folder. On a Mac it also reads the list of installed voices. It does both at the first start and records the result. At a later start it makes the data folder when that is missing and looks only for that record, unless the record could not be kept or a check did not come back; then it checks again. Some commands also tell Claude Code to run `claude plugin list`, and on a Mac each round reads the list of voices again.
+- When a run starts, the plugin looks for a `.git` entry in your project folder and in each folder above it, to decide whether to write the ignore file.
+- Before every tool call, one hook runs. For the plugin's own readers it reads its records, and the run's list of seats when a reader is started. It opens no transcript.
+- After the answer of one of the plugin's own Claude readers is checked, another hook reads transcript files Claude Code keeps for your session, to record which model wrote that answer: the opening of up to 200 agents' transcripts, to find that reader's; that reader's transcript and the end of the session's own, for the model id; and one small file beside the reader's. It writes at most one line to the run's log for a reader and a round: the time, the seat, the round and the model id, and no text of your conversation.
+- After a round, that hook opens the run's own board page in your browser with your system's file opener, when the session's shell could not or the round's output was hidden. Before it opens the page it runs the plugin's own script that writes the board again. On a Mac where the session's shell silenced the speech engine, it also runs the one that makes the recordings.
 
-The plugin reads two environment variables: the one in which Claude Code names the plugin's data folder, and `HOME`, to find the plugin cache folder.
+The plugin's code names two environment variables: the one in which Claude Code names the plugin's data folder, and `HOME`, to find the plugin cache folder. The programs it starts are found by name on your `PATH`, and the temporary folder is the one your system names.
 
 ## The add-on (combat-writing-crew): what leaves your machine, and to whom
 
-The add-on is a local server that Claude Code starts on your machine. It seats models of other companies as extra readers, with your own API key for each company. It calls a provider only when you have given it a key for that provider, and it calls no one else.
+The add-on is a local server that Claude Code starts on your machine. It seats models of other companies as extra readers, with your own API key for each provider. It calls a provider only when you have given it a key for that provider. The one exception is the local Ollama seat, which needs no key and is called once a model is named for it.
 
-For each seat, the add-on sends one packet for each read to that seat's provider, over HTTPS. A packet holds your draft, your brief, your description of the reader when you gave one, the task for the round, the seat's own earlier answer, and the other seats' answers when the round shares them. With the packet go a short system line (the seat's name, the shape of its first line, its word limit), the model's id and a limit on the reply's length. Your key for that provider goes in the request's `Authorization` header.
+For each seat, the add-on sends the seat's packet to that seat's provider, over HTTPS; the local Ollama seat is called over plain HTTP, on your own machine. A packet holds your draft, your brief, your description of the reader when you gave one, the task for the round, the names of the crew's models, the seat's own earlier answer, and the other seats' answers when the round shares them. With the packet go a system line (the seat's name, the shape of its first line, its word limit), the model's id, a limit on the reply's length and a few settings of the request. Your key for that provider goes in the request's `Authorization` header. The same packet is sent again when a provider answers that a limit was reached, and when a failed check sends the seat back; then a note on what failed goes after it.
 
-Before it seats a provider's models, the add-on asks that provider for its list of models. That request carries your key and nothing of your writing.
+When it lists or seats a provider's models, the add-on asks that provider for its list of models, once in five minutes at the most for one provider. That request carries your key and nothing of your writing.
 
-What the add-on sends a provider goes with your own key, to the provider you chose, under that provider's own terms and its own privacy policy. Learning Producers is no party to that exchange and receives no copy of it.
+What the add-on sends a provider goes with your own key, to the provider you chose, and is handled under that provider's own terms and its own privacy policy. Learning Producers receives no copy of it.
 
 The addresses the add-on calls, and the only ones:
 
@@ -62,40 +71,44 @@ The addresses the add-on calls, and the only ones:
 - OpenAI, at `api.openai.com`
 - Mistral AI, at `api.mistral.ai`
 - Google, at `generativelanguage.googleapis.com`
-- a local Ollama model, at `localhost`, port 11434, which stays on your machine and is off until you name a model
+- a local Ollama program, at `localhost`, port 11434. This seat is off until a model is named for it, in the add-on's prompt or in the variable `OLLAMA_MODEL`. What Ollama does with a packet is Ollama's.
 
 ## The add-on (combat-writing-crew): where a key is kept
 
-The add-on writes no key to any file and no key to any log. A key reaches it from two places and no other, in this order:
+The add-on writes no key to any file. A key reaches it from two places and no other, in this order:
 
-1. The masked prompt Claude Code shows when you install or configure the add-on. Claude Code keeps what you type and hands it to the add-on's server when it starts it.
-2. A key file you write by hand, `~/.combat-writing/keys`, read only when the prompt holds no key for that provider. The add-on reads it only when it is a regular file that you alone can read, in a folder that you alone can open. A file open to others, a link, or a line it cannot parse is refused whole, and the refusal names the problem and never a line's content. The add-on never writes this file.
+1. The prompt for that key which Claude Code shows when you install or configure the add-on. The add-on marks each key option as sensitive. Claude Code holds what you type and passes it to the add-on's server; how Claude Code stores it is Claude Code's.
+2. A key file you write by hand, `~/.combat-writing/keys`, read only when the prompt holds no key for that provider. On macOS and Linux the add-on reads it only when it is a regular file that you alone can read, in a folder that you alone can open. A file open to others, a link, or a line it cannot parse is refused whole, and the refusal names the problem and never a line's content. The add-on never writes this file.
 
 A key that stands in your shell under a provider's usual name (`OPENAI_API_KEY` and the like) is not read.
 
 ## The add-on (combat-writing-crew): what it stores, and where
 
-The add-on writes in the plugin's run folder, in your project, and nowhere else. For each answer it writes the answer file beside the packet, and adds lines to the run's log. When it seats its models it writes them into the run's `seats.json`. A log line holds the time, the provider, the model asked for and the model that answered, the word limit, whether the answer was cut, the token counts the provider reported, how long the add-on waited, and which of the two places supplied the key. It holds no key.
+The add-on writes in the run folder the tool call names: a folder that holds a run's list of seats. It does not check where that folder is. For each answer it writes the answer file beside the packet and adds lines to the run's log. When it seats its models it writes them into the run's list of seats. Among what a log line holds: the time, the provider, the model asked for and the model that answered, the word limit, whether the answer was cut, the token counts the provider reported, how long the add-on waited, which of the two places supplied the key, the note sent on a retry, a provider's error text when a call failed, and, when it seats its models, the name of a key's prompt field and the key file's path. It prints one line to its error stream when it is ready, which Claude Code may keep.
 
-When a provider answers with an error, the add-on removes the key in use, account ids and strings shaped like a key from the error's text before that text is logged, shown or printed.
+Before an error's text is logged, shown or printed, the add-on removes from it the key in use, by its exact text, and strings of the shapes it knows for an account id and for a key. An id or a fragment of a key in another shape stays.
 
-The add-on reads these environment variables: the seven that carry what you typed in its prompts; `OLLAMA_MODEL`, which names the local Ollama model when that prompt is empty; and `CW_CREW_KEY_FILE`, which moves the key file and exists for the add-on's tests.
+The add-on's code reads these from its environment: the seven variables that carry what you typed in its prompts; `OLLAMA_MODEL`; `CW_CREW_KEY_FILE`, which moves the key file and exists for the add-on's tests; and your home folder's path.
 
 ## Removing your data
 
-Everything the two plugins write is in places you control.
+What the two plugins write, and where to remove it:
 
-- Delete the folder `combat-writing` in your project.
-- Delete the folder `~/.combat-writing`, if you made it.
-- Uninstall the plugin and the add-on in Claude Code. The plugin's records in its data folder are small files of paths, as said above; you can delete that folder's `seat-scope` folder when no round is running.
+- The folder `combat-writing` in your project: delete it.
+- The folder `~/.combat-writing`, if you made it: delete it.
+- The plugin's data folder: Claude Code names it and keeps it, so its place is Claude Code's to say. It holds the first-session file and the folder `seat-scope`, small files of paths, as said above.
+- The temporary files of a voice step that was stopped early, in your system's temporary folder; their names begin `cw-speak-`.
+- Your choice of a voice for a seat, in your browser's storage.
 - A key you made with a provider is managed and revoked in that provider's own console.
+
+Removing these does not remove what other programs keep: Claude Code's own record of a session, which holds whatever you pasted into it, and the key Claude Code holds from the add-on's prompt.
 
 ## Changes to this page
 
-When a release changes what either plugin sends, stores or reads, this page and the date at its top change with it.
+This page describes the two plugins as they stand at the date at its top. The page's own history is in this repository.
 
 ## Support
 
 For a question, a problem with an install, or a privacy or security concern: `SUPPORT.md` in this repository names the address. Never send an API key, in a mail or in an issue.
 
-Combat Writing is made by Learning Producers Inc. It is not made, reviewed or endorsed by Anthropic.
+Combat Writing is made by Learning Producers Inc. It is not made or endorsed by Anthropic.
