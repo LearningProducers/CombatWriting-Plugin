@@ -111,7 +111,7 @@ var mainPage=read('docs/directory-checklist.md'), crewPage=read('docs/directory-
 check(!/bundles no image or font/.test(mainPage)&&!/every tracked file in the plugin folder is text/.test(mainPage),'docs/directory-checklist.md: still says the plugin bundles no font, or that every file in it is text');
 function row(page,re){ return page.split('\n').filter(function(l){ return /^\|/.test(l)&&re.test(l); })[0]||''; }
 function result(r){ return (r.split('|')[2]||'').trim(); }
-var fontRow=row(mainPage,/Bundled images .*fonts|images or fonts from commands/i), callsRow=row(mainPage,/calls to other files/i), readRow=row(mainPage,/cannot read through|can't read through/i);
+var fontRow=row(mainPage,/bundled image or font referred to/i), callsRow=row(mainPage,/calls to other files/i), readRow=row(mainPage,/cannot read through|can't read through/i);
 check(/^HELD\b/.test(result(fontRow)),'docs/directory-checklist.md: the row on bundled images and fonts named from scripts must read HELD, reads "'+result(fontRow)+'"');
 check(/^HELD\b/.test(result(callsRow)),'docs/directory-checklist.md: the row on calls to other files in a hook\'s script must read HELD, reads "'+result(callsRow)+'"');
 check(/^HELD\b/.test(result(readRow)),'docs/directory-checklist.md: the row on a program the validator cannot read through must read HELD, reads "'+result(readRow)+'"');

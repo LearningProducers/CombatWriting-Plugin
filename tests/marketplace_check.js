@@ -214,6 +214,7 @@ var CREW_PAGE=[
   ['What the plugin runs and connects to',9],
   ['Choices a reviewer always checks',3],
   ['Hooks, skills, commands and agents',4],
+  ['The directory listing fields',4],
   ['The security scan',3],
   ['The two places a key comes from',3]
 ];
