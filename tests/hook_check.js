@@ -3,7 +3,7 @@
 // prints the first-session line once, Part 83, pinned by tests/session_start_check.js; since 2026-10-16 the
 // seat-scope hook sits beside it in hooks.json, pinned by tests/seat_scope_check.js; since
 // 2026-10-26 the show-result hook too, issue 70, pinned by tests/show_result_check.js),
-// and on every start but the first it reads, writes and calls nothing (the first start measures the
+// and on every start but the first it measures nothing and starts no command (the first start measures the
 // add-on and the voices and writes the sentinel, Part 83; a host that names no data folder, or
 // one the hook cannot make, read or write, gets the measurement at every start, Part 128; the
 // sentinel is written only when both measurements came back, so a start where one did not is
@@ -76,7 +76,7 @@ check((code.match(/process\.env\.([A-Z_]+)/g)||[]).filter(function(v,i,a){return
 check(!/plugin install|plugin\s*,\s*['"]install/.test(code),'session-start.js: never installs');
 check(!/process\.argv/.test(code),'session-start.js: reads an argument; the data folder comes from the environment alone');
 
-// A start after the first: the data folder holds the sentinel, so the hook reads, writes and calls nothing.
+// A start after the first: the data folder holds the sentinel, so the hook measures nothing, starts no command and writes no file.
 var data=fs.mkdtempSync(path.join(os.tmpdir(),'cw-hook-'));
 fs.writeFileSync(path.join(data,'first-session'),'{}\n');
 var env=Object.assign({},process.env,{CLAUDE_PLUGIN_DATA:data,PATH:path.join(data,'no-such-commands')});
