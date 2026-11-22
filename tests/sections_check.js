@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // sections_check.js: a battle answer in two sections when the round shares (issue 80, 2026-10-26).
-// The founder's words: "For battle the first section is open ended response by the LLM responding
-// directly to the prompt. Then a response to the AI crew or question to the ai crew if there was an
-// sn command or sfq command."
+// Decided: in battle the first section is the seat's open answer to the prompt; then, when the
+// round was an sn: or an sfq:, its reply to the crew or its question to them.
 //
 // What it pins, with the REAL scripts in a temporary run:
 //   - packet.js: a first-round battle packet, an FQ, an N, a seat-line and a sparring packet ask for
@@ -142,7 +141,7 @@ check(/When the packet's Contract asks for two sections \(a battle round that ca
 check(/A round that shares the other seats' answers \(`sn:`, `sfq:`, or a plain round after a first one\) asks every seat for two sections \(issue 80\)/.test(battle)&&/the two sections in a round that carries the other seats' answers \(issue 80: `Answer`/.test(battle)&&/a missing label failing the first check and, on the second, noted and accepted so no read is lost/.test(battle),'the battle skill says the sections and how the checker holds them');
 check(/A battle round that carries the other seats' answers asks for two sections \(issue 80\): `Answer`/.test(rules_),'the rules skill says the sections');
 check(/^- \*\*Two sections\*\* in a round that shares \(SN, SFQ, or a plain round after the first\): each seat writes \*\*Answer\*\*/m.test(help),'the help names the two sections among the rounds');
-check(/Two sections:/.test(claude)&&/Two sections \(issue 80, 2026-10-26, the founder's words:/.test(rulings)&&/`lib\.SECTIONS_LINE` in the Contract, mirrored in the add-on's `crew-lib\.js`; `sections: true` on the packet\.built line/.test(claude)&&/or of the Answer section when the answer carries the two labels/.test(claude),'CLAUDE.md says the sections, the mirror and the verdict, and RULINGS.md (issue 224) the sections with their issue');
+check(/Two sections:/.test(claude)&&/Two sections \(issue 80, 2026-10-26, decided by the founder: the first section is/.test(rulings)&&/`lib\.SECTIONS_LINE` in the Contract, mirrored in the add-on's `crew-lib\.js`; `sections: true` on the packet\.built line/.test(claude)&&/or of the Answer section when the answer carries the two labels/.test(claude),'CLAUDE.md says the sections, the mirror and the verdict, and RULINGS.md (issue 224) the sections with their issue');
 
 fs.rmSync(proj,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
