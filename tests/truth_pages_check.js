@@ -199,8 +199,9 @@ var MARKERS3=new RegExp('\\bthe founder\\b[^.\\u0022\\u201c\\n]{1,90}:\\s*'+Q+NO
 var MARKERS4=new RegExp('\\bfounder[\u2019\']s (?:rule|reason|order|ruling|question|answer|go|stamp)\\b[^.\\n]{0,260}?[:(]\\s*'+Q+NOQ+'{8,}'+QEND,'i');
 var MARKERS5=new RegExp('\\(issue \\d+, \\d{4}-\\d{2}-\\d{2}:\\s*'+Q+NOQ+'{8,}'+QEND);
 // A sixth shape, found by the second fresh-eyes read: the decider, a date, and the quotation in a
-// bracket with no colon before it.
-var MARKERS6=new RegExp('\\bthe founder\\b[^.\\u0022\\u201c\\n(]{0,40}\\(\\s*'+Q+NOQ+'{3,}'+QEND,'i');
+// bracket with no colon before it. The words between end no clause: a semicolon there is another
+// clause's bracket (the archive's line on departure 16, which quotes a rule's name).
+var MARKERS6=new RegExp('\\bthe founder\\b[^.;\\u0022\\u201c\\n(]{0,40}\\(\\s*'+Q+NOQ+'{3,}'+QEND,'i');
 function tracked(dir,deep){
   var out=[];
   fs.readdirSync(dir,{withFileTypes:true}).forEach(function(d){
