@@ -27,7 +27,8 @@
 //   - THE CHECKLIST PAGES. Neither says the plugin bundles no font; the main page marks the
 //     bundled fonts and the hook that calls another file of the plugin as held, as the add-on's
 //     page marks its own, and says the two holds are accepted.
-//   - A DECISION IS WRITTEN AS THE DECISION. No tracked .md or .js file but CLAUDE.md marks a
+//   - A DECISION IS WRITTEN AS THE DECISION. No .md or .js file at the root or under docs/,
+//     plugins/, tests/, .github/ or screen/ (folders whose names open with a dot are not entered) but CLAUDE.md marks a
 //     quoted span as the words a decision was made in (the markers are listed below). CLAUDE.md
 //     is read too and its count is printed, never failed: its lines change on the owner's word.
 //
@@ -185,6 +186,13 @@ var PHRASES=['(?:the )?founder[\u2019\']s (?:own )?words?','his (?:own )?words?'
 var MARKERS=new RegExp('\\b(?:'+PHRASES.join('|')+')\\b[^\\u0022\\u201c\\n]{0,60}'+Q+NOQ+'{12,}'+QEND,'i');
 // The second shape: the decider named, a colon, and the quotation.
 var MARKERS2=new RegExp('\\b(?:the founder|founder[\u2019\']s (?:rule|reason|order|ruling))\\s*:\\s*'+Q+NOQ+'{8,}'+QEND,'i');
+// Three more shapes, found by the fresh-eyes read after the first two were cured: the decider, some
+// words that end no sentence (a date, an occasion) and then the colon and the quotation; a noun of
+// the decider's (a rule, a question) and, further on, a colon or a bracket and the quotation; and an
+// issue with its date, a colon and the quotation.
+var MARKERS3=new RegExp('\\bthe founder\\b[^.\\u0022\\u201c\\n]{1,90}:\\s*'+Q+NOQ+'{8,}'+QEND,'i');
+var MARKERS4=new RegExp('\\bfounder[\u2019\']s (?:rule|reason|order|ruling|question|answer|go|stamp)\\b[^.\\n]{0,260}?[:(]\\s*'+Q+NOQ+'{8,}'+QEND,'i');
+var MARKERS5=new RegExp('\\(issue \\d+, \\d{4}-\\d{2}-\\d{2}:\\s*'+Q+NOQ+'{8,}'+QEND);
 function tracked(dir,deep){
   var out=[];
   fs.readdirSync(dir,{withFileTypes:true}).forEach(function(d){
@@ -194,12 +202,12 @@ function tracked(dir,deep){
   });
   return out;
 }
-var searched=tracked(root,false).concat(tracked(path.join(root,'docs'),true),tracked(path.join(root,'plugins'),true),tracked(path.join(root,'tests'),true),tracked(path.join(root,'.github'),true));
+var searched=tracked(root,false).concat(tracked(path.join(root,'docs'),true),tracked(path.join(root,'plugins'),true),tracked(path.join(root,'tests'),true),tracked(path.join(root,'.github'),true),tracked(path.join(root,'screen'),true));
 var inClaude=0;
 searched.forEach(function(f){
   var rel=path.relative(root,f), flat=fs.readFileSync(f,'utf8').replace(/\n[ \t]*\/\/ ?/g,' ');
   if(f===__filename)return;
-  var hits=flat.split('\n').filter(function(l){ return MARKERS.test(l)||MARKERS2.test(l); }).length;
+  var hits=flat.split('\n').filter(function(l){ return MARKERS.test(l)||MARKERS2.test(l)||MARKERS3.test(l)||MARKERS4.test(l)||MARKERS5.test(l); }).length;
   if(rel==='CLAUDE.md'){ inClaude=hits; return; }
   check(hits===0,rel+': '+hits+' line(s) mark a quoted span as the words a decision was made in; write the decision in plain words');
 });

@@ -168,7 +168,7 @@ check(crewWords>40,'crew README: '+crewWords+' words outside code blocks, the di
 // The add-on's road to the directory (PLAN.md Part 107, issue 221): no file that speaks for the
 // add-on says it is not listed.
 var ROAD=['.claude-plugin/marketplace.json','plugins/combat-writing-crew/.claude-plugin/plugin.json','plugins/combat-writing-crew/README.md','docs/directory-checklist.md','docs/directory-checklist-crew.md','CLAUDE.md','RULINGS.md','README.md','plugins/combat-writing/README.md','docs/plugin-map.md'];
-var NOT_LISTED=[/\b(?:not|never) listed\b/i,/\bnot from this directory\b/i,/\bunlisted (?:plugin|add-on)\b/i,/\b(?:not|never) submitted\b/i,/\bnot in the Claude plugin directory\b/i,/\bonly `?plugins\/combat-writing`? is submitted\b/i,/\bthe directory never scans\b/i];
+var NOT_LISTED=[/\b(?:not|never) listed\b/i,/\bnot from (?:this|the) directory\b/i,/\bunlisted (?:plugin|add-on)\b/i,/\b(?:not|never) submitted\b/i,/\bnot in the Claude plugin directory\b/i,/\bonly `?plugins\/combat-writing`? is submitted\b/i,/\bthe directory never scans\b/i];
 // The one sentence that keeps the words: under /mcp, "not listed" is a server missing from that list.
 var MCP_LIST=[/if it is not listed, `?\/plugin`?/g,/not listed means `?\/plugin`?/g];
 ROAD.forEach(function(f){
