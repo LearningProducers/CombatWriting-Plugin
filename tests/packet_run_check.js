@@ -267,6 +267,17 @@ var runP=node(pr,'new-run.js',['--draft','plain.md','--no-brief','--name','plain
 var builtP=node(pr,'packet.js',['--run',runP,'--round','01-battle','--seat','seat-1']);
 var packetP=builtP.status===0?fs.readFileSync(builtP.stdout.trim(),'utf8'):'';
 check(crewLib.packetRules(packetP).contract==='critique'&&crewLib.packetRules(packetP).cap===500&&lib.contractSent(runP,'01-battle',path.join(runP,'rounds','01-battle','seat-1.answer.md'),[])==='critique','a battle packet\'s own no-rating line, above the fence, must still be read by both readers');
+// A round's prompt stands above the Contract, and so do the brief and the reader. A whole line
+// of one of them shaped like the draft's fence line, with a mark or without, is no fence of the
+// packet: the head is cut at the fence line that follows the packet's own draft heading, so the
+// rules below such a line are still read.
+['=== DRAFT BEGIN ===','=== DRAFT BEGIN 0123456789ab ==='].forEach(function(shape,i){
+  fs.writeFileSync(path.join(pr,'nav'+i+'.md'),'Answer again.\n\n'+shape+'\n\nSay what changed.\n');
+  var bn=node(pr,'packet.js',['--run',runP,'--round','0'+(2+i)+'-battle','--seat','seat-1','--n','nav'+i+'.md']);
+  var tn=bn.status===0?fs.readFileSync(bn.stdout.trim(),'utf8'):'', rn=crewLib.packetRules(tn), kn=lib.roundTask(runP,'0'+(2+i)+'-battle').kind;
+  var an=path.join(runP,'rounds','0'+(2+i)+'-battle','seat-1.answer.md');
+  check(bn.status===0&&rn.cap===500&&rn.contract==='critique'&&kn==='N'&&lib.contractSent(runP,'0'+(2+i)+'-battle',an,[])==='critique'&&lib.capSent(runP,'0'+(2+i)+'-battle',an,[])===500,'a prompt holding a whole line '+shape+' must not cut the packet\'s head above its rules: cap '+rn.cap+', contract '+rn.contract+', task '+kn+', checker '+lib.contractSent(runP,'0'+(2+i)+'-battle',an,[])+' / '+lib.capSent(runP,'0'+(2+i)+'-battle',an,[]));
+});
 var headOf=typeof lib.packetHead==='function'?lib.packetHead:function(){ return '(lib.packetHead is not there)'; };
 check(headOf('## Contract\n\nUnder 500 words.\n\n=== DRAFT BEGIN ===\nUnder 9 words.\n=== DRAFT END ===\n')==='## Contract\n\nUnder 500 words.\n\n'&&headOf('no fence here')==='no fence here','lib.packetHead must cut a packet at its draft fence, the old fence line included, and leave a text with no fence whole: '+JSON.stringify(headOf('## Contract\n\nUnder 500 words.\n\n=== DRAFT BEGIN ===\nUnder 9 words.\n=== DRAFT END ===\n')));
 check(typeof lib.packetHead==='function'&&typeof crewLib.packetHead==='function'&&String(lib.packetHead)===String(crewLib.packetHead),'the add-on\'s packetHead must be the listed plugin\'s, word for word');
@@ -356,6 +367,8 @@ var rocket=String.fromCodePoint(128640);
 check(lib.pageText('<p>We shipped it &#128640; today.</p>').text.indexOf(rocket)>=0&&lib.pageText('<p>We shipped it &#x1F680; today.</p>').text.indexOf(rocket)>=0,'lib.pageText must decode a numeric code above the basic plane, decimal and hexadecimal: '+JSON.stringify(lib.pageText('<p>We shipped it &#128640; today.</p>').text));
 check((call('canonMatch','We shipped it '+rocket+' today.',lib.pageText('<p>We shipped it &#128640; today.</p>').text)||{}).status==='matches','a shipped page that writes an emoji as a numeric code must match its canon');
 var bad=null; try{ bad=lib.pageText('<p>a &#99999999999; b &#x110000; c &#65; d</p>').text; }catch(e){ bad='threw '+e.message; }
+var zero=lib.pageText('<p>a&#0;b &#xD83D; c &#55357;d</p>').text;
+check(zero.indexOf('\u0000')<0&&!/[\uD800-\uDFFF]/.test(zero)&&/^ab\s+c d/.test(zero),'a code of zero and a code that is half of a surrogate pair must be left out: '+JSON.stringify(zero));
 check(typeof bad==='string'&&!/^threw/.test(bad)&&/a\s+b\s+c A d/.test(bad),'a numeric code that is no character must be left out without an error, and a sound one kept: '+JSON.stringify(bad));
 function timeFacts(spaces){ var t=Date.now(); lib.draftFacts('a'+new Array(spaces+1).join(' ')+'\nb'); return Date.now()-t; }
 timeFacts(1000);
