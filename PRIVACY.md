@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
 # Privacy: the Combat Writing plugin and its add-on
 
-Last updated: 2026-11-21
+Last updated: 2026-11-22
 
 Learning Producers Inc. makes two plugins for Claude Code: the Combat Writing plugin, named `cw`, and an add-on to it, named `combat-writing-crew`. This page says what each one sends off your machine and to whom, what each one stores and where, where an API key is kept, and what Learning Producers receives. It covers the two plugins and nothing else. Their source is in this repository, where each statement here about the plugins' own code can be checked. Where a statement rests on what another program does (Claude Code, your browser, your operating system, a provider), the page says so and speaks for the plugins' own code alone.
 
@@ -89,7 +89,7 @@ A key that stands in your shell under a provider's usual name (`OPENAI_API_KEY` 
 
 The add-on writes in the run folder the tool call names: a folder that holds a run's list of seats. It does not check where that folder is. For each answer it writes the answer file beside the packet and adds lines to the run's log. When it seats its models it writes them into the run's list of seats, and it corrects a seat's model name there when a provider answers under another id. Among what a log line holds: the time, the provider, the model asked for and the model that answered, the word limit, whether the answer was cut, the token counts the provider reported, how long the add-on waited, which of the two places supplied the key, the note sent on a retry, a provider's error text when a call failed, and, when it seats its models, the name of a key's prompt field and the key file's path. It prints one line to its error stream when it is ready, which Claude Code may keep.
 
-Before an error's text is logged, shown or printed, the add-on removes from it the key in use, by its exact text, and strings of the shapes it knows for an account id and for a key. An id or a fragment of a key in another shape stays. A provider's answer is written without that scrub. Among what the add-on does to an answer before it writes it: it strips a model's `<think>` blocks, trims space at its start and at the ends of its lines, and cuts an answer still over its word limit after a retry. The note sent on a retry is logged as it came.
+Before an error's text is logged, shown or printed, the add-on removes from it the key in use, by its exact text, and strings of the shapes it knows for an account id and for a key. An id or a fragment of a key in another shape stays. A provider's answer is written without that scrub. Among what the add-on does to an answer before it writes it: it strips a model's `<think>` blocks, trims space at its start and at the ends of its lines, and cuts an answer still over its word limit after a retry. The note sent on a retry is logged as it came, trimmed at its ends.
 
 The add-on's code reads these from its environment: the seven variables that carry what you typed in its prompts; `OLLAMA_MODEL`; `CW_CREW_KEY_FILE`, which moves the key file and exists for the add-on's tests; and your home folder's path.
 

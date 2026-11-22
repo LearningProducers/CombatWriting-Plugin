@@ -40,7 +40,7 @@ var TESTS=/Held by: (tests\/[a-z0-9_]+_check\.js(?:, tests\/[a-z0-9_]+_check\.js
 // The ceiling on CLAUDE.md, in characters: the built size rounded up to the next 1,000.
 var CEILING=73000;
 // The 28 entries as `git show a7fade2:CLAUDE.md` gives them, in the section's order; entries 4, 6,
-// 7, 9, 14, 15, 19 and 26 as issue 245 left them.
+// 7, 9, 11, 14, 15, 16, 19 and 26 as issue 245 left them.
 var HASHES=[
   '71cd02bf6e808e15a440a11eb2fd91604e87663e43e67e5ed543cf1c34536728',
   '567d1c4fe326e6cc55597009581c707046ed612d50f8358abb09017ee33d1417',

@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
 # PLAN_ARCHIVE.md — Parts 1 to 90
 
-This file is the frozen record of Parts 1 to 90 of PLAN.md, moved here byte for byte on 2026-11-04 (issue 166: PLAN.md had reached the 256 KiB ceiling every file in the tree is held under) and edited once since: on 2026-11-21 (issue 245, PLAN.md Part 143) the sentences that quoted the words a decision was made in were changed to state the decision, on 37 lines, and nothing else was changed; a session that needs a Part at or below 90 reads it here, and PLAN.md holds Part 91 onward and stays the only memory between build sessions. The terms, the standing rules and the licensing rule are in CLAUDE.md.
+This file is the frozen record of Parts 1 to 90 of PLAN.md, moved here byte for byte on 2026-11-04 (issue 166: PLAN.md had reached the 256 KiB ceiling every file in the tree is held under) and edited once since: on 2026-11-21 and 2026-11-22, in one pull request (issue 245, PLAN.md Part 143), the sentences that quoted the words a decision was made in were changed to state the decision, on 37 lines, and nothing else was changed; a session that needs a Part at or below 90 reads it here, and PLAN.md holds Part 91 onward and stays the only memory between build sessions. The terms, the standing rules and the licensing rule are in CLAUDE.md.
 
 ## Part 1 — Skeleton
 

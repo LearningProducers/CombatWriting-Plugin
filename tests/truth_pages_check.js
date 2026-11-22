@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// truth_pages_check.js: the pages that say what the two plugins are and do (issue 245). Each
-// repair here opened with checks that failed on the tree as it stood.
+// truth_pages_check.js: the pages that say what the two plugins are and do (issue 245). Most
+// of its checks failed on the tree as it stood before their repair; PLAN.md Part 143 names the
+// ones that were added with a repair and were never red.
 //
 // Reads files only: the two manifests, the marketplace file, the add-on's provider table, the
-// privacy page, the support page, the two checklist pages, and every tracked .md and .js file
-// for the last item. Starts nothing; calls nothing outside.
+// privacy page, the support page, the two checklist pages, and, for the last item, the .md and .js
+// files the list under A DECISION names (found by reading folders, not by asking git). Starts nothing; calls nothing outside.
 //
 // What it pins:
 //   - THE ICON. Each plugin folder holds .claude-plugin/icon.png, a PNG of 512 by 512 pixels, the
@@ -21,7 +22,7 @@
 //     what Learning Producers receives, says it is not Anthropic's, and carries no unfilled
 //     bracket and no word that marks a draft.
 //   - THE HOSTS. The add-on's manifest declares, under network.hosts, the hosts of its provider
-//     table's addresses, each once, and no other; the listed plugin's manifest declares none.
+//     table's addresses, each once, and no other; the `cw` plugin's manifest declares none.
 //   - THE MARKETPLACE FILE carries no version of its own under metadata: the two plugins'
 //     versions are its entries', and a third number there had gone stale.
 //   - THE CHECKLIST PAGES. Neither says the plugin bundles no font; the main page marks the
@@ -165,7 +166,7 @@ check(/temporary folder/.test(rootReadme)&&/data folder/.test(rootReadme),'READM
 // THE HOSTS.
 var declared=(crew.network&&Array.isArray(crew.network.hosts))?crew.network.hosts.slice().sort():null;
 check(!!declared&&JSON.stringify(declared)===JSON.stringify(hosts.slice().sort()),'the add-on\'s plugin.json: network.hosts must be the hosts of providers.json, each once: '+JSON.stringify(declared)+' against '+JSON.stringify(hosts.slice().sort()));
-check(!!cw.network&&Array.isArray(cw.network.hosts)&&cw.network.hosts.length===0,'the listed plugin\'s plugin.json: network.hosts must be an empty list, the plugin reaches no host: '+JSON.stringify(cw.network));
+check(!!cw.network&&Array.isArray(cw.network.hosts)&&cw.network.hosts.length===0,'the cw plugin\'s plugin.json: network.hosts must be an empty list, the plugin reaches no host: '+JSON.stringify(cw.network));
 
 // THE MARKETPLACE FILE.
 var market=json('.claude-plugin/marketplace.json');

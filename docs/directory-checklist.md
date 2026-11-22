@@ -131,7 +131,7 @@ The published checklist has no row for these. The manifest reference (code.claud
 
 ## With the add-on present
 
-The add-on, `plugins/combat-writing-crew/`, is a separate plugin, submitted to the directory as a second bundle from this repository, its folder a submission of its own; its pass against the checklist is its own page, `docs/directory-checklist-crew.md`. Its presence changes nothing in the listed plugin's folder, and `tests/marketplace_check.js` pins the separation on every run:
+The add-on, `plugins/combat-writing-crew/`, is a separate plugin, submitted to the directory as a second bundle from this repository, its folder a submission of its own; its pass against the checklist is its own page, `docs/directory-checklist-crew.md`. Its presence changes nothing in the `cw` plugin's folder, and `tests/marketplace_check.js` pins the separation on every run:
 
 | Item | Result | Satisfied by |
 |---|---|---|
