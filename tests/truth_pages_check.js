@@ -130,6 +130,9 @@ check(!/Nothing is sent anywhere to speak\./.test(listing),'the listing README: 
  [/that you alone can read/,'the key file\'s check reads mode bits, no owner'],
  [/managed and revoked in that provider's own console/,'a provider\'s console is the provider\'s; say what the add-on cannot do'],
  [/by default on another model your Claude Code session offers/,'the second reader is on the next most capable model, which on some sessions is the session\'s own'],
+ [/are written as they came/,'the add-on strips a think block, trims line ends and cuts an answer over its cap before it writes it'],
+ [/and each time it scrubs an error's text\./,'the key file is read at the scrub of any text, the server\'s own ready line among them'],
+ [/the log shows no board opened in the last two minutes/,'the hook reads the log\'s last line on the board alone, and counts only an opening by the shell'],
  [/Outside your project, in two places/,'the browser\'s storage and a download are outside the project too; the count is of the scripts\' and hooks\' writes']
 ].forEach(function(w){ check(!w[0].test(privacy),'PRIVACY.md: '+w[1]); });
 check(!/An issue is public\./.test(support),'SUPPORT.md: "An issue is public." speaks for the host of the repository; say to treat it as public');
@@ -137,6 +140,7 @@ check(/clipboard/.test(privacy)&&/[Dd]ownload/.test(privacy),'PRIVACY.md: the bo
 check(/between you and that provider/.test(privacy),'PRIVACY.md: a provider\'s terms are between the person and the provider; the page must say it does not speak for them');
 check(/given as a file path/.test(privacy),'PRIVACY.md: a draft, a brief or a reader given as a file path is read from where it is');
 check(/by name/.test(privacy)&&/does not check who wrote/.test(privacy),'PRIVACY.md: must say the hooks match by name, and that the add-on sends the packet file it finds without checking who wrote it');
+check(/corrects a seat's model name/.test(privacy),'PRIVACY.md: the add-on also corrects a seat\'s model name in the list of seats when a provider answers under another id');
 check(/hand the session/.test(privacy),'PRIVACY.md: the lines the hooks and the add-on\'s tools hand the session are in no sentence');
 
 // WHAT THE READ FOUND IN THE HOOK SENTENCES. The same read proved the sentences that say what
@@ -194,6 +198,9 @@ var MARKERS2=new RegExp('\\b(?:the founder|founder[\u2019\']s (?:rule|reason|ord
 var MARKERS3=new RegExp('\\bthe founder\\b[^.\\u0022\\u201c\\n]{1,90}:\\s*'+Q+NOQ+'{8,}'+QEND,'i');
 var MARKERS4=new RegExp('\\bfounder[\u2019\']s (?:rule|reason|order|ruling|question|answer|go|stamp)\\b[^.\\n]{0,260}?[:(]\\s*'+Q+NOQ+'{8,}'+QEND,'i');
 var MARKERS5=new RegExp('\\(issue \\d+, \\d{4}-\\d{2}-\\d{2}:\\s*'+Q+NOQ+'{8,}'+QEND);
+// A sixth shape, found by the second fresh-eyes read: the decider, a date, and the quotation in a
+// bracket with no colon before it.
+var MARKERS6=new RegExp('\\bthe founder\\b[^.\\u0022\\u201c\\n(]{0,40}\\(\\s*'+Q+NOQ+'{3,}'+QEND,'i');
 function tracked(dir,deep){
   var out=[];
   fs.readdirSync(dir,{withFileTypes:true}).forEach(function(d){
@@ -208,7 +215,7 @@ var inClaude=0;
 searched.forEach(function(f){
   var rel=path.relative(root,f), flat=fs.readFileSync(f,'utf8').replace(/\n[ \t]*\/\/ ?/g,' ');
   if(f===__filename)return;
-  var hits=flat.split('\n').filter(function(l){ return MARKERS.test(l)||MARKERS2.test(l)||MARKERS3.test(l)||MARKERS4.test(l)||MARKERS5.test(l); }).length;
+  var hits=flat.split('\n').filter(function(l){ return MARKERS.test(l)||MARKERS2.test(l)||MARKERS3.test(l)||MARKERS4.test(l)||MARKERS5.test(l)||MARKERS6.test(l); }).length;
   if(rel==='CLAUDE.md'){ inClaude=hits; return; }
   check(hits===0,rel+': '+hits+' line(s) mark a quoted span as the words a decision was made in; write the decision in plain words');
 });
