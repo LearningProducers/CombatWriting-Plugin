@@ -13,6 +13,7 @@
 //   - THE TWO LINKS. Both manifests carry privacyPolicyUrl and supportUrl, the same two in both,
 //     each an https address of a file on this repository's main branch, and that file is in the
 //     tree at the root.
+//     The root README and each plugin's own README name both pages by those addresses.
 //   - THE SUPPORT PAGE names one mail address and the repository's issues page, and says never
 //     to send a key.
 //   - THE PRIVACY PAGE holds its sections, names every provider host the add-on's table holds
@@ -62,6 +63,13 @@ var BLOB='https://github.com/LearningProducers/CombatWriting-Plugin/blob/main/';
     check(m[f[0]]===BLOB+f[1],PLUGINS[i]+'/.claude-plugin/plugin.json: '+f[0]+' must be '+BLOB+f[1]+', is '+JSON.stringify(m[f[0]]));
   });
   check(exists(f[1]),f[1]+': the page '+f[0]+' names must be in the tree, at the root');
+});
+
+// Each README a person meets names the two pages by their address: the root README and the two
+// plugins' own, which the directory shows as each listing's description.
+['README.md',PLUGINS[0]+'/README.md',PLUGINS[1]+'/README.md'].forEach(function(r){
+  var t=read(r);
+  check(t.indexOf(BLOB+'PRIVACY.md')>=0&&t.indexOf(BLOB+'SUPPORT.md')>=0,r+': must name the privacy page and the support page by their addresses');
 });
 
 // THE SUPPORT PAGE.

@@ -16,7 +16,7 @@ The version is the one in [plugins/combat-writing/.claude-plugin/plugin.json](pl
 | Path | What |
 |---|---|
 | `plugins/combat-writing/` | The plugin meant for the Claude plugin directory, named `cw`. Skills (the seven commands among them), agents and scripts. Holds no keys; its scripts make no outside call, and the host opens only the one link you give `/cw:champion shipped`, once. |
-| `plugins/combat-writing-crew/` | The add-on: a local MCP server, installed from this repository as Learning Producers' own marketplace, never listed in the directory. |
+| `plugins/combat-writing-crew/` | The add-on: a local MCP server, installed from this repository as Learning Producers' own marketplace, and submitted to the Claude plugin directory as a second bundle from this repository. |
 | `.claude-plugin/marketplace.json` | The marketplace that names both. |
 | `docs/` | Methodology prose and documentation. |
 | `tests/`, `.github/workflows/` | The checks and the workflow that runs them. |
@@ -33,6 +33,10 @@ The version is the one in [plugins/combat-writing/.claude-plugin/plugin.json](pl
 ## The add-on
 
 `plugins/combat-writing-crew/` is a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew can be more than one company's models. It is installed from this repository as a marketplace, not from the directory. Each key goes only to its own provider, never to Learning Producers, and is never stored in a file by the add-on. A key reaches it from two places and no other: a masked prompt first, then one line in a key file you write by hand in your home folder, owner-only, the one that survives the host rebuilding its credentials store (Part 36.2). A key that stands only in a provider's usual variable in your shell is not read: enter it once, in the prompt or the file. One free Groq key seats two outside models beside the fresh reader: a crew of three. Each outside seat is told the word cap; a second overrun is cut at the cap with the rating kept and marked in the record. See [its README](plugins/combat-writing-crew/README.md).
+
+## Privacy and support
+
+What the plugin and its add-on send, store and read is on one page: https://github.com/LearningProducers/CombatWriting-Plugin/blob/main/PRIVACY.md. For a question, a problem with an install, or a privacy or security concern: https://github.com/LearningProducers/CombatWriting-Plugin/blob/main/SUPPORT.md. Never send an API key, in a mail or in an issue.
 
 ## Run the checks
 

@@ -101,7 +101,7 @@ Nothing is fetched by any script. The one outside connection is the host opening
 
 **The seats.** Two fresh readers by default, seat-1 and seat-2: separate agents started for one job each, seat-1 on the session's own model and seat-2 on the second most capable model the host's agent tool offers, ranked by the host from what it knows of the models and never by the order of the list; when that is the session's own model, no model is passed (a result's Models line names a fresh reader that is not on the session's model, and one that fell back to another model, with the time and the reason; a reader's label is the name the host gave, and the model that answered is measured from the seat's own transcript and shown on that line, in the record and under Run details), with no memory of your conversation. The agent file is `plugins/combat-writing/agents/seat.md` (`model: inherit`, tools Read and Write). Where the host can start no agent, the host is the one seat and says so.
 
-**The add-on**, `plugins/combat-writing-crew/`, a local MCP server (`server.js`) installed from this repository's marketplace, never listed in the directory. The moment it seats one outside model, the second chair is the outside seats' and the fresh seat-2 leaves.
+**The add-on**, `plugins/combat-writing-crew/`, a local MCP server (`server.js`) installed from this repository's marketplace and submitted to the Claude plugin directory as a second bundle from this repository. The moment it seats one outside model, the second chair is the outside seats' and the fresh seat-2 leaves.
 
 | Tool | What it does |
 |---|---|
@@ -213,6 +213,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/speak_check.js` | the Mac speaks the files |
 | `tests/state_check.js` | the run as one JSON object |
 | `tests/strategy_check.js` | strategy stores and names the next move |
+| `tests/truth_pages_check.js` | the pages that say what the two plugins are and do: the icon in each folder, the privacy and support links and their pages, the hosts each manifest declares, the checklist rows on the bundled fonts and the hooks, and a decision written as the decision |
 | `tests/two_pass_check.js` | a first-round `sn:` or `sfq:` runs two passes |
 | `screen/tests/_run.py` | not a check: builds a run with the real scripts for the four below |
 | `screen/tests/no_method_text_check.py` | the screen holds no method text and computes nothing |
