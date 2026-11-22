@@ -117,6 +117,25 @@ var listing=read(PLUGINS[0]+'/README.md'), helpSkill=read(PLUGINS[0]+'/skills/he
 check(!/the scripts write only inside/.test(listing)&&!/They write only inside/.test(rules),'the listing README and the rules skill: "write only inside combat-writing/" leaves out the speech script\'s files in the temporary folder');
 check(!/Nothing is sent anywhere to speak\./.test(listing),'the listing README: "Nothing is sent anywhere to speak." speaks for every browser\'s voices; say what the plugin\'s own code does');
 
+// WHAT THE READ FOUND IN THE HOOK SENTENCES. The same read proved the sentences that say what
+// each hook reads and opens. These are the clauses it found wider than the code.
+var rootReadme=read('README.md'), cl=read('docs/directory-checklist.md'), mapPage=read('docs/plugin-map.md'), crewReadme=read(PLUGINS[1]+'/README.md');
+var WIDE=[
+  [/reads, writes and calls nothing/,'a later session start makes the data folder when it is missing and looks for its record; "reads, writes and calls nothing" is more than that'],
+  [/writ(?:ing|es) only log lines in the run/,'the result hook\'s own writes are log lines, and the scripts it starts write the board, the record and the recordings'],
+  [/no link anywhere in it or in its rounds/,'the result hook looks at the run folder\'s own entries, its rounds folder\'s and each round folder\'s, and enters no other folder'],
+  [/the command itself names in full/,'the result hook takes a relative path too, placed under the working folder'],
+  [/hook (?:that )?runs after the plugin's own scripts/,'the result hook runs after every shell command of the session and acts on the plugin\'s own'],
+  [/after (?:each|a) seat's answer is checked/,'the model is measured for a fresh reader alone, never for an outside seat'],
+  [/made from the first words of (?:your|the) draft, or of (?:your|the) brief when a run starts from the brief alone/,'a run folder is named from a pasted text\'s first words or from a file\'s name']
+];
+[['README.md',rootReadme],[PLUGINS[0]+'/README.md',listing],['docs/directory-checklist.md',cl],['docs/plugin-map.md',mapPage]].forEach(function(p){
+  WIDE.forEach(function(w){ check(!w[0].test(p[1]),p[0]+': '+w[1]); });
+});
+check(/first call/.test(rootReadme)&&/binds/.test(rootReadme),'README.md: must say a fresh reader\'s first call names its packet or its answer file and binds it to that start\'s record');
+check(/plain HTTP/.test(crewReadme),PLUGINS[1]+'/README.md: "over HTTPS" must name the exception, the local Ollama seat over plain HTTP');
+check(/temporary folder/.test(rootReadme)&&/data folder/.test(rootReadme),'README.md: what the plugin writes must name the two places outside the project');
+
 // THE HOSTS.
 var declared=(crew.network&&Array.isArray(crew.network.hosts))?crew.network.hosts.slice().sort():null;
 check(!!declared&&JSON.stringify(declared)===JSON.stringify(hosts.slice().sort()),'the add-on\'s plugin.json: network.hosts must be the hosts of providers.json, each once: '+JSON.stringify(declared)+' against '+JSON.stringify(hosts.slice().sort()));
