@@ -260,12 +260,13 @@ var REWRITE_LINE='The task asks for a rewrite: write it in full between a line h
 // Links are unread (issue 90): the listed plugin's LINKS_UNREAD_LINE, mirrored word for word for the
 // same reason, so the system line says it when the packet carries an address.
 var LINKS_UNREAD_LINE='No seat can open a link. Every address in the brief, the draft or the prompt is unread text: never state what its page says, and never charge the author with misreading a page you have not read. A claim about a page holds only when the page\'s text is in this packet; otherwise say the page is unread and ask for its text.';
-// The packet's own text: everything above its draft fence (the listed plugin's packetHead,
-// mirrored word for word). The rules are read from it and never from the whole file: below the
+// The packet's own text: everything above its draft fence, the fence line that follows the
+// packet's draft heading (the listed plugin's packetHead, mirrored word for word). The rules
+// are read from it and never from the whole file: below the
 // fence line a draft or a carried answer may hold the packet's own contract lines word for
 // word, and what is read here becomes an outside seat's system line.
-var DRAFT_FENCE_BEGIN=/^=== DRAFT BEGIN(?: [0-9a-f]{12})? ===$/m;
-function packetHead(text){ text=String(text||''); var m=DRAFT_FENCE_BEGIN.exec(text); return m?text.slice(0,m.index):text; }
+var DRAFT_HEADING=/^## The draft(?: \(.*\))?$/m, DRAFT_FENCE_BEGIN=/^=== DRAFT BEGIN(?: [0-9a-f]{12})? ===$/m;
+function packetHead(text){ text=String(text||''); var h=DRAFT_HEADING.exec(text), from=h?h.index:0, m=DRAFT_FENCE_BEGIN.exec(text.slice(from)); return m?text.slice(0,from+m.index):text; }
 function packetRules(packetText){
   packetText=packetHead(packetText);
   var m=/Under (\d+) words( in all)?\./.exec(packetText||'');

@@ -31,8 +31,10 @@
 //   - THE PACKET'S OTHER READERS. The add-on's packetRules and the checker's reads of a packet
 //     file read the packet above its draft fence (lib.packetHead; the add-on's copy cuts the
 //     same texts at the same place, a marked fence line and the old one), so a draft holding
-//     the packet's own contract lines changes the contract, the sections, a rewrite asked and
-//     links unread for neither; a sound packet reads as before. The cap is read there too and
+//     the packet's own contract lines changes the contract, the sections and a rewrite asked
+//     for neither, nor links unread for the add-on, the one reader of that line; a sound packet
+//     reads as before, and a prompt that holds a whole line shaped like the draft's fence line
+//     cuts nothing, the head ending at the fence line after the packet's own draft heading. The cap is read there too and
 //     no check here turns on it: its line stands in the Contract, above the draft, and the
 //     first such line was always the one read. The round's
 //     task, which the board and the record read from the packet, is read the same way.
@@ -58,7 +60,8 @@
 //     no longer stops the record or the board: its time reads "time not recorded".
 //   - THREE SMALL DEFECTS. lib.pageText decodes a numeric character code above the basic plane,
 //     decimal and hexadecimal, so a shipped page that writes an emoji that way matches its
-//     canon, and a code that is no character is left out without an error. lib.draftFacts on a
+//     canon, and a code that is no character (zero, half of a surrogate pair, past the last
+//     code point) is left out without an error. lib.draftFacts on a
 //     draft with a long run of spaces answers in time that grows with the draft, not with its
 //     square, and so does each script that reads the draft, run on one (new-run.js, packet.js,
 //     render-record.js, render-board.js, render-state.js). lib.championNextLine is the home of

@@ -261,10 +261,9 @@ function matchWords(m){
   if(m.status==='partial')return m.found+' of '+m.of+' paragraphs found';
   return 'not found';
 }
-// A time in words, UTC, to the minute: 2026-10-19 14:02 UTC. The callers hand these two the
-// time a champion line carries (its `at`: shipped, result, insight) or a line's `ts` they have
-// already found to be a date. The log is a file a hand can edit: an `at` that is missing or is
-// no date is said in words, so such a line is shown without its time and stops no page.
+// A time in words, UTC, to the minute: 2026-10-19 14:02 UTC. A champion line's time (its `at`:
+// shipped, result, insight) comes from the log, a file a hand can edit: one that is missing or
+// is no date is said in words, so such a line is shown without its time and stops no page.
 var NO_TIME='time not recorded', NO_DATE='date not recorded';
 function timeOf(iso){ if(iso===undefined||iso===null||iso==='')return null; var d=new Date(iso); return isNaN(d.getTime())?null:d; }
 function whenUtc(iso){ var d=timeOf(iso); return d?d.toISOString().slice(0,10)+' '+d.toISOString().slice(11,16)+' UTC':NO_TIME; }
@@ -371,12 +370,15 @@ function fenceMarkLine(mark){
 // gone; the round's task for the board and the record; the add-on's rules for an outside seat's
 // system line), and every such reader reads packetHead, never the whole file: the task and the
 // Contract stand above the draft, and below the fence line a draft or a carried answer may hold
-// the packet's own lines word for word. The fence line is the first line of its shape, with
-// its mark or, in a packet built before the mark, without one; a text with no such line is
-// read whole. The add-on carries its own copy of the two lines; packet_run_check.js holds the
-// function word for word and the pattern by what it cuts.
-var DRAFT_FENCE_BEGIN=/^=== DRAFT BEGIN(?: [0-9a-f]{12})? ===$/m;
-function packetHead(text){ text=String(text||''); var m=DRAFT_FENCE_BEGIN.exec(text); return m?text.slice(0,m.index):text; }
+// the packet's own lines word for word. The fence line is the first line of its shape after the
+// packet's draft heading, with its mark or, in a packet built before the mark, without one. The
+// round's prompt, the brief and the reader stand above that heading, so a line of one of them
+// shaped like the fence line cuts nothing. A text with no draft heading is cut at its first
+// fence line, and one with no fence line after its heading, or none at all, is read whole. The add-on carries its own copy of the
+// two lines; packet_run_check.js holds the function word for word and the patterns by what
+// they cut.
+var DRAFT_HEADING=/^## The draft(?: \(.*\))?$/m, DRAFT_FENCE_BEGIN=/^=== DRAFT BEGIN(?: [0-9a-f]{12})? ===$/m;
+function packetHead(text){ text=String(text||''); var h=DRAFT_HEADING.exec(text), from=h?h.index:0, m=DRAFT_FENCE_BEGIN.exec(text.slice(from)); return m?text.slice(0,from+m.index):text; }
 // The line a packet carries when the round asks for no rating; the checker and the add-on read it.
 var NO_RATING_LINE='No rating this round: do not write a RATING line. Open with your answer to the task.';
 // The two sections of a battle answer that shares (issue 80): a packet that carries the other seats' answers asks
