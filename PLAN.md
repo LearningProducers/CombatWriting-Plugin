@@ -779,9 +779,9 @@ Delivers: `plugins/combat-writing/hooks/seat-scope.js`, the manifest's version a
 
 Status: delivered — 2026-11-21 — draft pull request open; the test was run red on the hook as it stood, then green; the last line of `node tests/run_all.js` on the final head and THE SMOKE's lines with their numbers are in the pull request body. All three fresh-eyes reads stopped, each on what the paragraphs above name, and the corrections made after the third have had no fresh reader: the owner's own read, or one more read on his word, is owed before the merge, with the live proof from a plain terminal on this branch.
 
-## Part 142 — The packet and the run: a fence no draft can close, a reason with no word of the answer, and four more repairs (cw 0.9.21, crew 0.5.22)
+## Part 142 — The packet and the run: a fence no draft can close, a reason with no word of the answer (cw 0.9.21, crew 0.5.22)
 
-Issue 243. Six repairs to how a packet is built and how a run is started and read, each found by a review of main before the directory submission, and with them the cures of a fresh read of Part 141's last commit, which that part's draft carried unread. Each cure opened with a check that failed on the code as it stood.
+Issue 243 names six repairs to how a packet is built and how a run is started and read, each found by a review of main before the directory submission. This part builds the six (items 1, 3, 4, 6, 7 and 8 below), a seventh found in the build (item 2), and the cures of a fresh read of Part 141's last commit, which that part's draft carried unread; one of those cures is a repair of its own (item 5). Each cure opened with a check that failed on the code as it stood.
 
 What is built:
 
@@ -792,17 +792,18 @@ What is built:
 5. A RUN FROM A BRIEF ALONE, handed no name, takes the name of the brief it carries: the file given, a saved brief's name, or `brief` for the project's own. For the last two `new-run.js` stopped on a TypeError before it made anything.
 6. A LONG PACKET. `budget.js` prints one line before any seat starts when a fresh reader's packet is over 60,000 characters, or over 256 KB, naming the seat and the size, and logs it (`read_warning`). An outside seat's packet gets no such line: the add-on sends it whole and its wall is its provider's. The seat's agent file now tells a seat to read its packet to the end when the host's Read tool hands it a part.
 7. A DAMAGED LOG. A line of `log.jsonl` that is not one JSON object is handed to no caller of `lib.readLog` and is counted (`lib.logDamage`). The record, its short form and the board's Run details say the count in one line. A line of the log with no time, or a time that is no date, is shown as "time not recorded", or "date not recorded" where a date alone is printed, and stops no page: `lib.whenUtc` and `lib.dateUtc` threw on it.
-8. Three small defects. A numeric character code on a shipped page is read by its code point, so one above the basic plane (an emoji) matches its canon, and a number that names no character is left out. No shipped script of either plugin trims with the pattern whose time grows with the square of a run of spaces. `champion.js --next` prints the Next line of champion (`lib.championNextLine`), which no shipped script called, and the champion skill shows it as printed.
+8. Three small defects. A numeric character code on a shipped page is read by its code point, so one above the basic plane (an emoji) matches its canon, and a number that names no character is left out. The draft, an answer, a brief, a packet and an answer's first line are each trimmed of their trailing spaces by a call that reads the text once: the three patterns that did it before, `\s+$`, `[ \t]+$` and `[ \t\r]+$`, reread a long run of spaces from every place in it, and they are now in no shipped script of either plugin. `champion.js --next` prints the Next line of champion (`lib.championNextLine`), which no shipped script called, and the champion skill shows it as printed.
 
 Run red first, in four commits before their cures:
 
 - `tests/packet_run_check.js`, written before any repair: 36 of its 49 checks failed.
 - The same test with every other reason the checker gives, the run from a brief alone, the Next line and the scripts timed on a long run of spaces: 55 of 81 failed. `tests/seat_scope_check.js` with the fresh read's findings: 19 of 1,828 failed.
 - The packet's other readers and the trim pattern: 5 of 96 failed, and a sixth, the round's task, was run red in the build before its cure.
-- On the code as built both tests pass, 99 and 1,828 checks.
+- An answer's first line with a long run of spaces inside it: 2 of 100 failed, the check taking 7.4 seconds.
+- On the code as built both tests pass, 100 and 1,828 checks.
 - One check of the first commit could pass on no repair: it counted the draft's own line on a made-up mark as a fence line of the packet. It now counts the lines on the mark the packet states.
 
-The test was then tried against the code broken thirty-nine ways, one at a time, on a copy of the tree. Each break fails the test by name. One did not at first: a line of the log that is JSON and no object, handed on to the readers. A check for it was added and the break then failed.
+The test was then tried against the code broken forty ways, one at a time, on a copy of the tree. Each break fails the test by name. One did not at first: a line of the log that is JSON and no object, handed on to the readers. A check for it was added and the break then failed.
 
 Measured in the build session, on Claude Code 2.1.330, three child sessions each reading one file of plain prose with one call of the Read tool: a file of 61,038 bytes came back whole; a file of 112,128 bytes came back as its first 774 lines of 1,294, marked partial, with the call for the next page named and the tool's page given as 25,000 tokens; a file of 270,049 bytes was refused on a plain read, over 256 KB, with an offset and a limit, or the tool's flag for a large file, asked for. The plugin cannot count the host's tokens, so the first size is in characters and sits under the largest file measured to come back whole. Measured on the scripts before the cure: a draft with 80,000 spaces in one run took `new-run.js` 3.7 seconds and `packet.js` 14.8; on the same draft each of the five scripts that read it (`new-run.js`, `packet.js`, `render-record.js`, `render-board.js`, `render-state.js`) now answers in under 40 milliseconds, and the test holds each under 3 seconds.
 
@@ -835,7 +836,8 @@ Seen and not touched:
 - The first words of the draft's parts (the greeting, the opening sentence, the closer) stand outside the fence by Part 79's design, inside quotation marks on a line the packet labels as measured by code.
 - The screen does not say a damaged log: `lib.runState` carries no count of the lines that could not be read.
 - `lib.appendLog` does not start a new line after a line cut short with no line end, so the next entry joins the damaged line and is counted with it.
-- `hooks/show-result.js` and the add-on read the log with readers of their own. Neither prints from a line it cannot read.
+- `hooks/show-result.js` reads the log with a reader of its own, for the last line that says the board was opened, and skips a line it cannot read. The add-on's copy of the log's reader is called by nothing.
+- A long run of one punctuation mark in a draft or an answer (dots, dashes, asterisks) is still read by patterns anchored at its end, in the quote match and in the read of a rewrite's fence line. The review named spaces, and a run of marks long enough to be felt is no line a person writes.
 - A line of the log whose fields are of another kind than the scripts wrote (a list where a number stood) can still stop a page. This part cures the one case the review named, a line with no time.
 - `tests/two_pass_check.js` holds one check that ends in "or true" and cannot fail. The review named it; it is not this part's change.
 - The result hook's read of the model that answered stands as Part 141 left it.

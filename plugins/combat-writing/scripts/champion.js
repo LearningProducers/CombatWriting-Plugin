@@ -42,7 +42,7 @@
 // the three; a missing or empty file; an --at that is not a date; shipped on a run with no draft;
 // --page or --live with no address in the text; --live not "no"; --live no with --page; a missing
 // or empty page file; --page or --live on result or insight; insight on a run not under
-// combat-writing/runs/. No network module, no fetch, no address literal of its own.
+// combat-writing/runs/; --next with any flag but --run, or with a value. No network module, no fetch, no address literal of its own.
 
 var fs=require('fs'), path=require('path');
 var lib=require('./lib.js');

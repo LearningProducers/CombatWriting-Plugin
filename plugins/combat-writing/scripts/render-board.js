@@ -43,7 +43,8 @@
 // synthesis, with pause and stop), copy (the clipboard, the canon text exactly) and download (a
 // .txt named for the run), and nothing is fetched for any of them; a "Champion" heading under
 // the Run details tab carries the record's Shipped, Result and Insight lines. With no canon the
-// controls are not on the page.
+// controls are not on the page. Run details also carries a Log line when a line of log.jsonl
+// could not be read (lib.logDamageLine), as the record does.
 //
 // Prints the page's path on stdout and appends board.rendered to the log.
 

@@ -31,8 +31,10 @@
 //     its draft fence (lib.packetHead, mirrored in the add-on), so a draft holding the packet's
 //     own contract lines changes none of them; a sound packet reads as before. The round's
 //     task, which the board and the record read from the packet, is read the same way.
-//   - No shipped script of either plugin trims with the pattern whose time grows with the
-//     square of a run of spaces.
+//   - The three trailing-space patterns whose time grows with the square of a run of spaces
+//     (\s+$, [ \t]+$ and [ \t\r]+$ as a pattern's end) are in no shipped script of either
+//     plugin, and an answer's first line that holds such a run is checked in time that grows
+//     with the line.
 //   - AN EMPTY DRAFT. new-run.js and add-draft.js refuse a draft with no words (an empty file,
 //     spaces and line ends alone) with exit 2 and one line naming the file, and make no run
 //     folder and no draft file; a draft of one word is taken.
@@ -253,15 +255,20 @@ check(crewLib.packetRules(packetP).contract==='critique'&&crewLib.packetRules(pa
 var headOf=typeof lib.packetHead==='function'?lib.packetHead:function(){ return '(lib.packetHead is not there)'; };
 check(headOf('## Contract\n\nUnder 500 words.\n\n=== DRAFT BEGIN ===\nUnder 9 words.\n=== DRAFT END ===\n')==='## Contract\n\nUnder 500 words.\n\n'&&headOf('no fence here')==='no fence here','lib.packetHead must cut a packet at its draft fence, the old fence line included, and leave a text with no fence whole: '+JSON.stringify(headOf('## Contract\n\nUnder 500 words.\n\n=== DRAFT BEGIN ===\nUnder 9 words.\n=== DRAFT END ===\n')));
 check(typeof lib.packetHead==='function'&&typeof crewLib.packetHead==='function'&&String(lib.packetHead)===String(crewLib.packetHead),'the add-on\'s packetHead must be the listed plugin\'s, word for word');
-// The trailing-space pattern, whose time grows with the square of a run of spaces, is in no
-// shipped script of either plugin: each trims with a call that reads the text once.
+// The three trailing-space patterns, whose time grows with the square of a run of spaces, are
+// in no shipped script of either plugin: each trim of a draft, an answer, a brief, a packet or a
+// first line is a call that reads the text once.
 var slow=[];
 [path.join(plugin,'scripts'),path.join(plugin,'hooks'),path.join(plugin,'..','combat-writing-crew')].forEach(function(d){
   fs.readdirSync(d).filter(function(n){ return /\.js$/.test(n); }).forEach(function(n){
-    fs.readFileSync(path.join(d,n),'utf8').split('\n').forEach(function(l,i){ if(/\\s\+\$\/|\[ \\t\\r\]\+\$\//.test(l)&&!/^\s*\/\//.test(l))slow.push(path.basename(d)+'/'+n+':'+(i+1)); });
+    fs.readFileSync(path.join(d,n),'utf8').split('\n').forEach(function(l,i){ if(/\\s\+\$\/|\[ \\t(?:\\r)?\]\+\$\//.test(l)&&!/^\s*\/\//.test(l))slow.push(path.basename(d)+'/'+n+':'+(i+1)); });
   });
 });
-check(slow.length===0,'no shipped script may trim with the pattern that rereads a run of spaces: '+slow.join(', '));
+check(slow.length===0,'no shipped script may trim with one of the three patterns that reread a run of spaces: '+slow.join(', '));
+// The same for an answer's first line, which the checker trims of its trailing spaces and tabs:
+// a first line with a long run of spaces inside it is checked in time that grows with the line.
+var tFirst=Date.now(); lib.checkAnswer('RATING: 8/10'+new Array(80001).join(' ')+'and more\n\nThe ask is plain.\n',500,'rating',{}); lib.parseRating('RATING: 8/10'+new Array(80001).join(' ')+'and more\n'); tFirst=Date.now()-tFirst;
+check(tFirst<1500,'an answer whose first line holds 80,000 spaces in one run must be checked in under a second and a half: '+tFirst+' ms');
 
 // ---------------------------------------------------------------------------------------------
 // A LONG DRAFT gets a warning for a fresh reader.

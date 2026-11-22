@@ -1598,9 +1598,13 @@ function contractOf(file){
   return 'rating';
 }
 
+// A line without the spaces and tabs at its end, read once from the end: a pattern anchored
+// there rereads a long run of spaces from every place in it.
+function lineEnd(l){ var i=l.length; while(i>0&&(l[i-1]===' '||l[i-1]==='\t'))i--; return l.slice(0,i); }
 // The first line's number under the rating contract, or null. Trailing whitespace is tolerated.
 function parseRating(text){
-  var first=((text||'').replace(/^﻿/,'').split(/\r?\n/)[0]||'').replace(/[ \t]+$/,'');
+  var first=((text||'').replace(/^﻿/,'').split(/\r?\n/)[0]||'');
+  first=lineEnd(first);
   var m=/^RATING: (\d{1,2})\/10$/.exec(first);
   return m?parseInt(m[1],10):null;
 }
@@ -1625,7 +1629,7 @@ function checkAnswer(text,wordCap,contract,opts){
   var cap=wordCap||(contract==='rating'||contract==='critique'?DEFAULT_WORD_CAP:contract==='crew'?DEFAULT_CREW_WORD_CAP:DEFAULT_FINAL_WORD_CAP);
   var lines=text.replace(/^﻿/,'').split(/\r?\n/);
   // Trailing spaces or tabs on the first line are tolerated; trailing text is not.
-  var first=(lines[0]||'').replace(/[ \t]+$/,'');
+  var first=lineEnd(lines[0]||'');
   var rating=null, value=null, m;
   if(first.trim()===''){
     reasons.push(contract==='critique'?'first line is empty; open with your critique':contract==='crew'?'first line is empty; open with your reply to the other seats':'first line is empty; the '+(contract==='rating'?'rating':contract==='sn'?'S/N RATIO':'red-flag')+' line must come first');
