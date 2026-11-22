@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // budget.js: measures the price of a round once its packets are built, before any seat starts, and
-// warns only when a seat's packet will be refused, or is too long for a fresh reader to get in
-// one read.
+// warns only when a seat's packet will be refused, or a fresh reader's packet is over the size
+// the plugin counts on for one read.
 //
 //   node budget.js --run <run folder> --round <nn-kind> [--pass crew]
 //
@@ -15,7 +15,7 @@
 // seat's packet is over the room, when it prints the one warning (lib.budgetWarning) that must be
 // known before the send, or a fresh reader's packet is over a size the host's Read tool hands
 // over in one read, when it prints one line for that (lib.readWarning: 60,000 characters, and
-// the 256 KB at which the tool refuses a file read whole). Two lines at the most, one of each
+// the 256 KB at which the tool refuses a file on a plain read). Two lines at the most, one of each
 // kind. `--pass crew` reads the second pass's packets. Writes nothing but the log
 // line. Exit 2 on misuse, 1 when no packet of the round has a size (built before this script
 // existed).

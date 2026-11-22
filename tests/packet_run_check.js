@@ -15,7 +15,8 @@
 //     whole between the two lines on the packet's mark: that end line comes once and after
 //     every line of the draft, and the draft's own line on a made-up mark sits inside the fence
 //     and is no fence line of the packet. The same for a carried answer that
-//     holds fence lines. The mark is in no line of the draft or of a carried answer.
+//     holds fence lines. The mark is in no line of the draft or of a carried answer: one that
+//     a fenced text holds is drawn again.
 //   - THE REASON. A first line that fails its contract is named by what is wrong with it and
 //     never quoted: no word of the answer is in the check's reasons, in the line check-answer.js
 //     prints, in the log, or in the next round's packet of another seat, where a failed read is
@@ -44,7 +45,7 @@
 //     (lib.READ_REFUSED_BYTES); the warning is in the budget.measured log line; a packet under
 //     the size prints nothing, as before; an outside seat's packet gets no such line.
 //   - A DAMAGED LOG. lib.readLog still returns the lines it can read, and lib.logDamage counts
-//     the ones it cannot; the record, its short form and the board's Run details say how many
+//     the ones it cannot, a line that is JSON and no object among them; the record, its short form and the board's Run details say how many
 //     lines of the log could not be read; a whole log says nothing. A shipped line with no time
 //     no longer stops the record or the board: its time reads "time not recorded".
 //   - THREE SMALL DEFECTS. lib.pageText decodes a numeric character code above the basic plane,
@@ -147,6 +148,14 @@ check(m1.length===2&&stray1.length===1&&stray1[0].mark==='0123456789ab'&&stray1[
 check(OLD.every(function(o){ return lines1.filter(function(l){ return l===o; }).length===hostile.filter(function(l){ return l===o; }).length; }),'a fence line with no mark must stand in the packet only where the draft itself holds it');
 var m2=marked(p2.text), again=marked(build('01-sparring','seat-1').text);
 check(m2.length===2&&again.length===2&&m2[0].mark!==mark1&&again[0].mark!==mark1,'each build of a packet must carry a mark of its own: '+mark1+' / '+(m2[0]||{}).mark+' / '+(again[0]||{}).mark);
+
+// The mark is drawn again until it is in none of the texts fenced. The draw is stood in for here:
+// the first mark handed back is one a text holds, the second is not.
+var cryptoMod=require('crypto'), realRandom=cryptoMod.randomBytes, draws=[Buffer.from('0123456789ab','hex'),Buffer.from('ffeeddccbbaa','hex')], drawn=0;
+cryptoMod.randomBytes=function(n){ return drawn<draws.length?draws[drawn++]:realRandom(n); };
+var redrawn=call('fenceMark',['Dear board,','a line that holds 0123456789ab, the first mark drawn']);
+cryptoMod.randomBytes=realRandom;
+check(redrawn==='ffeeddccbbaa'&&drawn===2,'a mark found in a text the packet fences must be drawn again: got '+redrawn+' after '+drawn+' draw(s)');
 
 // Round 01's answers: seat-1 a sound rating; seat-2 a first line that is no rating line and that
 // carries words meant for the next reader, and fence lines of its own.
@@ -286,6 +295,11 @@ check(call('logDamage',runL)===0,'lib.logDamage must read 0 on a whole log, got 
 var logFile=path.join(runL,'log.jsonl'), good=fs.readFileSync(logFile,'utf8');
 fs.writeFileSync(logFile,good.replace(/^\{/,'{{')+'{"ts":"2026-01-01T00:00:00.000Z","event":"half a li\n');
 check(call('logDamage',runL)===2&&lib.readLog(runL).length===good.split('\n').filter(Boolean).length-1,'lib.logDamage must count the two lines that cannot be read, and readLog return the rest: '+call('logDamage',runL)+' / '+lib.readLog(runL).length);
+// A line that is JSON and no object (a bare number, a word, a list, null) is no line of a log:
+// it is counted with the others and handed to no reader.
+fs.writeFileSync(logFile,good+'5\n"a word"\n[1,2]\nnull\ntrue\n');
+check(call('logDamage',runL)===5&&lib.readLog(runL).length===good.split('\n').filter(Boolean).length&&lib.readLog(runL).every(function(e){ return e&&typeof e==='object'&&!Array.isArray(e); }),'a line that is JSON and no object must be counted and handed to no reader: '+call('logDamage',runL)+' counted, '+lib.readLog(runL).length+' read');
+fs.writeFileSync(logFile,good.replace(/^\{/,'{{')+'{"ts":"2026-01-01T00:00:00.000Z","event":"half a li\n');
 var hurt=node(pl,'render-record.js',['--run',runL,'--short']);
 check(hurt.status===0&&/2 lines of this run's log could not be read/.test(hurt.stdout),'the short form must say that 2 lines of the log could not be read: '+hurt.stdout.slice(0,400));
 node(pl,'render-record.js',['--run',runL]);

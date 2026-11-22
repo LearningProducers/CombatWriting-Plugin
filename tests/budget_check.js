@@ -13,6 +13,8 @@
 //     budget, the provider's wall, the floor, the seats and the room left; with no outside seat,
 //     that the fresh reader has no wall; the second pass and a final round have their own
 //     openings) and the warning or null; it PRINTS NOTHING unless a seat's packet is over the room
+//     or a fresh reader's packet is over a size the plugin states (issue 243: one line of its own,
+//     second, naming no outside seat)
 //     (the founder, 2026-10-27: accessible, not presented), then the one warning naming the seat,
 //     the overrun in tokens and characters, that the add-on will refuse it, and the cut; writes
 //     nothing else; refuses a missing --round (exit 2) and a round with no sized packet (exit 1).

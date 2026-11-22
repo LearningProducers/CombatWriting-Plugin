@@ -140,7 +140,7 @@ Twenty-one files in `plugins/combat-writing/scripts/`, plain Node, no dependenci
 | `seat-fallback.js` | the host's tool refused a fresh reader's start or does not offer its model | one log line, `seat.fallback` (from, to, the reason; its time is the when), and that seat's record in the run's `seats.json` |
 | `crew-state.js` | the add-on is absent or down | one log line saying which, for the Seats line |
 | `announce.js` | the round's kind and seats are known | one log line; prints the forming line |
-| `budget.js` | every packet of a round is built | one log line with each packet's size and each provider's room; prints a line only when a packet is over a provider's wall, or a fresh reader's packet is too long to come back in one read |
+| `budget.js` | every packet of a round is built | one log line with each packet's size and each provider's room; prints a line only when a packet is over a provider's wall, or a fresh reader's packet is over the size the plugin counts on for one read |
 | `packet.js` | before any seat starts | each seat's `packet.md`, from files on disk only: the draft with its counts and parts, fenced on a mark drawn for that packet, the brief, the reader, the previous round's answers, the seat's own earlier turn, the contract |
 | `check-answer.js` | a seat's answer lands | the log line, its reasons in the checker's own words with no word of the answer; on a second overrun, the answer cut at the cap |
 | `check-flip.js` | after a rated round | the log line: Stand, flip valid, flip invalid |

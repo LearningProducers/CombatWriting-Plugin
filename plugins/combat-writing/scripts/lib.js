@@ -353,7 +353,8 @@ function nextLine(seats,runId){
 // packet states the mark once, under its draft heading (fenceMarkLine), and says what a line
 // inside a fence that looks like one of the packet's is: the fenced text. An escape of the
 // draft's lines was not chosen: it changes the words a seat reads, and a look-alike in other
-// spacing or letters passes any pattern. Two builds of one packet differ by their marks.
+// spacing or letters passes any pattern. A rebuild of a packet draws a mark again, so two builds
+// of one packet are not the same bytes.
 var FENCES={draft:'DRAFT',own:'YOUR EARLIER ANSWER',answer:'ANSWER'};
 function fenceMark(texts){
   var mark;
@@ -555,8 +556,8 @@ function budgetWarning(b){
 // tool has two sizes of its own, measured on Claude Code 2.1.330 with files of plain prose: a file
 // of 61,038 bytes came back whole in one read; one of 112,128 bytes came back as its first 774
 // lines of 1,294, marked partial, with the call for the next page named (the tool's page is
-// 25,000 tokens by its own count); one of 270,049 bytes was refused read whole, over 256 KB, and
-// is read only by offset and limit. The plugin cannot count the host's tokens, so the first
+// 25,000 tokens by its own count); one of 270,049 bytes was refused on a plain read, over 256 KB:
+// the tool asks for an offset and a limit, or for its own flag for a large file. The plugin cannot count the host's tokens, so the first
 // warning goes by characters, READ_WHOLE_CHARS, a size under the largest measured to come back
 // whole; the second by the file's bytes, READ_REFUSED_BYTES, the tool's own number. readWarning
 // is the one line budget.js prints before any seat starts, or null: it names each fresh reader
@@ -575,9 +576,9 @@ function readWarning(b){
   if(!longer.length&&!refused.length)return null;
   function most(list){ return list.reduce(function(m,p){ return p.n>m?p.n:m; },0); }
   var parts=[];
-  if(refused.length)parts.push(namesOf(refused)+' '+(refused.length>1?'are':'is')+' over 256 KB ('+(refused.length>1?'the largest ':'')+thousands(most(refused))+' bytes), the size at which the host\'s Read tool refuses a file read whole: a fresh reader gets it only by asking for it in parts.');
+  if(refused.length)parts.push(namesOf(refused)+' '+(refused.length>1?'are':'is')+' over 256 KB ('+(refused.length>1?'the largest ':'')+thousands(most(refused))+' bytes), the size at which the host\'s Read tool refuses a file on a plain read: a fresh reader has to ask again, in parts or with the tool\'s flag for a large file.');
   if(longer.length)parts.push(namesOf(longer)+' '+(longer.length>1?'are':'is')+' over '+thousands(READ_WHOLE_CHARS)+' characters ('+(longer.length>1?'the largest ':'')+thousands(most(longer))+'), the most this plugin counts on a fresh reader getting in one read: past the host\'s own limit the Read tool hands the packet over in parts.');
-  return 'Round '+String(b.round).slice(0,2)+(b.pass==='crew'?', second pass':'')+': '+parts.join(' ')+' A reader that stops at the first part answers on part of the draft. A shorter draft or brief keeps every reader on the whole text.';
+  return 'Round '+String(b.round).slice(0,2)+(b.pass==='crew'?', second pass':'')+': '+parts.join(' ')+' A reader that does not read on answers on part of the draft, or on none of it. A shorter draft or brief keeps every reader on the whole text.';
 }
 // Every round's budget line, for the record and the board: one per round, the second pass its own line.
 function budgetLines(runDir,log){
@@ -637,7 +638,7 @@ function appendLog(runDir,obj){
   fs.appendFileSync(path.join(runDir,'log.jsonl'),line+'\n');
 }
 // The log, read. A line counts when it is one JSON object; a line that is anything else (cut
-// short, written over, a bare number or word) is not handed to any reader of the log, and it is
+// short, written over, a bare number or word) is handed to no caller of readLog, and it is
 // counted: logDamage gives the count, and the record, its short form and the board's Run details
 // say it in one line (logDamageLine), because a page built without a line can say what is not so
 // (a run with a brief reads "Brief: none" once its first line is gone; logDamageLine is null
@@ -657,7 +658,7 @@ function readLog(runDir){ return parseLog(runDir).lines; }
 function logDamage(runDir){ return parseLog(runDir).damaged; }
 function logDamageLine(n){
   if(!n)return null;
-  return n+' line'+(n===1?'':'s')+' of this run\'s log could not be read, so what '+(n===1?'it':'they')+' recorded is missing from this page and a line here may say less than happened. The log is log.jsonl in the run folder.';
+  return n+' line'+(n===1?'':'s')+' of this run\'s log could not be read, so what '+(n===1?'it':'they')+' recorded is missing here and a line may say less than happened. The log is log.jsonl in the run folder.';
 }
 
 function readSeats(runDir){
