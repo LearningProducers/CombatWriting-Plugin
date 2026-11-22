@@ -93,9 +93,29 @@ var named=(privacy.match(/\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|ai|org|net|io|de
 var allowed=hosts.concat(['github.com','learningproducers.com','combatwriting.learningproducers.com','support.claude.com','claude.ai']);
 check(named.every(function(h){ return allowed.indexOf(h)>=0; }),'PRIVACY.md: names a host that is neither one the add-on calls nor this project\'s own: '+named.filter(function(h){ return allowed.indexOf(h)<0; }).join(', '));
 check(/under (?:its|that provider's) own terms/i.test(privacy)&&/your own (?:API )?key/i.test(privacy),'PRIVACY.md: must say that what the add-on sends a provider goes with your own key, under that provider\'s own terms');
-check(/not made, reviewed or endorsed by Anthropic/.test(privacy),'PRIVACY.md: must say it is not Anthropic\'s');
 check(privacy.length>0&&!/\[[A-Z][A-Z ,:'-]{6,}/.test(privacy)&&!/\bDRAFT\b|CHANGES AFTER FIX|OPEN QUESTIONS/.test(privacy),'PRIVACY.md: an unfilled bracket or a word that marks a draft stands in it');
 check(/^Last updated: \d{4}-\d\d-\d\d$/m.test(privacy),'PRIVACY.md: must carry its date as "Last updated: YYYY-MM-DD" on a line of its own');
+
+// WHAT THE READ OF THE PAGES FOUND. A reader who had not written them proved each sentence of
+// the two pages against the code. These are the sentences it found false or too wide, held so
+// that none comes back, and the things it found left out, held so that each stays said.
+check(/not made or endorsed by Anthropic/.test(privacy)&&!/reviewed or endorsed/.test(privacy)&&!/reviewed or endorsed/.test(support),'PRIVACY.md and SUPPORT.md: say "not made or endorsed by Anthropic"; a listing in the directory is read by Anthropic, so "reviewed" would not stay true');
+check(!/hold your draft and the seats' answers/.test(support)&&/record\.md/.test(support),'SUPPORT.md: the log holds no draft and no answer in full; name what the run folder and record.md hold');
+check(/model (?:that|behind) (?:that|your|the) (?:Claude Code )?session/i.test(privacy),'PRIVACY.md: must say that a reader\'s packet goes to the model behind the Claude Code session');
+check(/every tool call/.test(privacy)&&/every (?:shell|Bash) command/i.test(privacy),'PRIVACY.md: must say what the two hooks are handed: every tool call, and every shell command with its output');
+check(/browser['’]s own (?:speech )?voices?/i.test(privacy)&&/browser['’]s storage/i.test(privacy),'PRIVACY.md: must speak of the board\'s read-aloud through the browser\'s own voices and of the voice pick kept in the browser\'s storage');
+check(/plain HTTP/.test(privacy)&&/needs no key/.test(privacy),'PRIVACY.md: must say the local Ollama seat is called over plain HTTP and needs no key');
+check(!/calls no one else|is no party/.test(privacy)&&!/until the system clears/.test(privacy)&&!/neither asks you to make an account/.test(privacy)&&!/reads two environment variables/.test(privacy),'PRIVACY.md: a sentence the read found too wide or unproved stands in it');
+check(/redirect/.test(privacy),'PRIVACY.md: the shipped link is fetched with its redirects followed; the page must say so');
+check(/temporary folder/.test(privacy)&&/absolute/.test(privacy)&&/twenty/.test(privacy),'PRIVACY.md: must name the temporary folder, that the records\' paths are absolute, and the twenty sessions a start clears at the most');
+// Two older pages said the plugin writes nowhere but the project folder; the hooks' data folder and
+// the speech script's temporary files are outside it.
+var listing=read(PLUGINS[0]+'/README.md'), helpSkill=read(PLUGINS[0]+'/skills/help/SKILL.md'), rules=read(PLUGINS[0]+'/skills/combat-writing/SKILL.md');
+[['the listing README',listing],['the help skill',helpSkill]].forEach(function(p){
+  check(/Nothing is written anywhere else in your project\. Outside it/.test(p[1])&&/temporary folder/.test(p[1])&&/data folder/.test(p[1]),p[0]+': its list of what is written must end on the project and then name the two places outside it, the data folder and the temporary folder');
+});
+check(!/the scripts write only inside/.test(listing)&&!/They write only inside/.test(rules),'the listing README and the rules skill: "write only inside combat-writing/" leaves out the speech script\'s files in the temporary folder');
+check(!/Nothing is sent anywhere to speak\./.test(listing),'the listing README: "Nothing is sent anywhere to speak." speaks for every browser\'s voices; say what the plugin\'s own code does');
 
 // THE HOSTS.
 var declared=(crew.network&&Array.isArray(crew.network.hosts))?crew.network.hosts.slice().sort():null;
