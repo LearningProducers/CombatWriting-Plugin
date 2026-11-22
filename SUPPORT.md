@@ -3,7 +3,7 @@
 
 For a question, a problem with an install, or a privacy or security concern, write to support@learningproducers.com.
 
-A bug report or a question is also welcome as an issue on this repository: https://github.com/LearningProducers/CombatWriting-Plugin/issues. An issue is public. Send a security concern by mail, not as an issue.
+A bug report or a question is also welcome as an issue on this repository: https://github.com/LearningProducers/CombatWriting-Plugin/issues. Treat an issue as public. Send a security concern by mail, not as an issue.
 
 Never send an API key, in a mail or in an issue. A run folder holds your writing: the draft, the packets and the board hold your draft, and `record.md` holds your brief, your description of the reader and every answer in full. Send a file from it only if you choose to.
 
