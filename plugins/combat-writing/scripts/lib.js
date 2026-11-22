@@ -373,10 +373,13 @@ function fenceMarkLine(mark){
 // the packet's own lines word for word. The fence line is the first line of its shape after the
 // packet's draft heading, with its mark or, in a packet built before the mark, without one. The
 // round's prompt, the brief and the reader stand above that heading, so a line of one of them
-// shaped like the fence line cuts nothing. A text with no draft heading is cut at its first
-// fence line, and one with no fence line after its heading, or none at all, is read whole. The add-on carries its own copy of the
-// two lines; packet_run_check.js holds the function word for word and the patterns by what
-// they cut.
+// shaped like the fence line cuts nothing, unless a line reading as the draft heading stands
+// before it: then the head is cut there, and when that is in a prompt, which stands above the
+// Contract, the rules are not read. A text with no draft heading is cut at its first fence
+// line, and one with no fence line after its heading, or none at all, is read whole. The add-on
+// carries its own copy of the two lines; packet_run_check.js holds the function word for word
+// and, for each copy, the fence pattern by a marked line and the old one, and the heading
+// pattern by a first draft's heading and a revised draft's.
 var DRAFT_HEADING=/^## The draft(?: \(.*\))?$/m, DRAFT_FENCE_BEGIN=/^=== DRAFT BEGIN(?: [0-9a-f]{12})? ===$/m;
 function packetHead(text){ text=String(text||''); var h=DRAFT_HEADING.exec(text), from=h?h.index:0, m=DRAFT_FENCE_BEGIN.exec(text.slice(from)); return m?text.slice(0,from+m.index):text; }
 // The line a packet carries when the round asks for no rating; the checker and the add-on read it.

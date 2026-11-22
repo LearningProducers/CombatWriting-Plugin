@@ -34,7 +34,8 @@
 //     the packet's own contract lines changes the contract, the sections and a rewrite asked
 //     for neither, nor links unread for the add-on, the one reader of that line; a sound packet
 //     reads as before, and a prompt that holds a whole line shaped like the draft's fence line
-//     cuts nothing, the head ending at the fence line after the packet's own draft heading. The cap is read there too and
+//     and no line reading as the draft heading before it cuts nothing, on the first draft and
+//     on a revised one: the head ends at the fence line after the packet's own draft heading. The cap is read there too and
 //     no check here turns on it: its line stands in the Contract, above the draft, and the
 //     first such line was always the one read. The round's
 //     task, which the board and the record read from the packet, is read the same way.
@@ -270,10 +271,12 @@ var runP=node(pr,'new-run.js',['--draft','plain.md','--no-brief','--name','plain
 var builtP=node(pr,'packet.js',['--run',runP,'--round','01-battle','--seat','seat-1']);
 var packetP=builtP.status===0?fs.readFileSync(builtP.stdout.trim(),'utf8'):'';
 check(crewLib.packetRules(packetP).contract==='critique'&&crewLib.packetRules(packetP).cap===500&&lib.contractSent(runP,'01-battle',path.join(runP,'rounds','01-battle','seat-1.answer.md'),[])==='critique','a battle packet\'s own no-rating line, above the fence, must still be read by both readers');
-// A round's prompt stands above the Contract, and so do the brief and the reader. A whole line
-// of one of them shaped like the draft's fence line, with a mark or without, is no fence of the
-// packet: the head is cut at the fence line that follows the packet's own draft heading, so the
-// rules below such a line are still read.
+// A round's prompt stands above the Contract; the brief and the reader stand below it and above
+// the draft heading. A whole line of a prompt shaped like the draft's fence line, with a mark or
+// without, is no fence of the packet: the head is cut at the fence line that follows the packet's
+// own draft heading, so the rules below such a line are still read. (A text above the heading
+// that held a line reading as the heading itself, and then a fence-shaped line, would still cut
+// the head there; no check here holds that case, and the plan names it.)
 ['=== DRAFT BEGIN ===','=== DRAFT BEGIN 0123456789ab ==='].forEach(function(shape,i){
   fs.writeFileSync(path.join(pr,'nav'+i+'.md'),'Answer again.\n\n'+shape+'\n\nSay what changed.\n');
   var bn=node(pr,'packet.js',['--run',runP,'--round','0'+(2+i)+'-battle','--seat','seat-1','--n','nav'+i+'.md']);
@@ -281,6 +284,13 @@ check(crewLib.packetRules(packetP).contract==='critique'&&crewLib.packetRules(pa
   var an=path.join(runP,'rounds','0'+(2+i)+'-battle','seat-1.answer.md');
   check(bn.status===0&&rn.cap===500&&rn.contract==='critique'&&kn==='N'&&lib.contractSent(runP,'0'+(2+i)+'-battle',an,[])==='critique'&&lib.capSent(runP,'0'+(2+i)+'-battle',an,[])===500,'a prompt holding a whole line '+shape+' must not cut the packet\'s head above its rules: cap '+rn.cap+', contract '+rn.contract+', task '+kn+', checker '+lib.contractSent(runP,'0'+(2+i)+'-battle',an,[])+' / '+lib.capSent(runP,'0'+(2+i)+'-battle',an,[]));
 });
+// The same on a revised draft, whose heading carries the draft's file name: both copies of the
+// heading pattern must find it.
+node(pr,'add-draft.js',['--run',runP,'--file','plain.md']);
+fs.writeFileSync(path.join(pr,'nav9.md'),'Answer again.\n\n=== DRAFT BEGIN ===\n\nSay what changed.\n');
+var bv=node(pr,'packet.js',['--run',runP,'--round','04-battle','--seat','seat-1','--n','nav9.md']);
+var tv=bv.status===0?fs.readFileSync(bv.stdout.trim(),'utf8'):'', rv=crewLib.packetRules(tv), av=path.join(runP,'rounds','04-battle','seat-1.answer.md');
+check(/^## The draft \(draft-2\.md, a revision\)$/m.test(tv)&&rv.cap===500&&rv.contract==='critique'&&lib.roundTask(runP,'04-battle').kind==='N'&&lib.contractSent(runP,'04-battle',av,[])==='critique'&&lib.capSent(runP,'04-battle',av,[])===500,'on a revised draft a prompt holding a fence-shaped line must not cut the packet\'s head above its rules: cap '+rv.cap+', contract '+rv.contract+', task '+lib.roundTask(runP,'04-battle').kind+', checker '+lib.contractSent(runP,'04-battle',av,[])+' / '+lib.capSent(runP,'04-battle',av,[]));
 var headOf=typeof lib.packetHead==='function'?lib.packetHead:function(){ return '(lib.packetHead is not there)'; };
 check(headOf('## Contract\n\nUnder 500 words.\n\n=== DRAFT BEGIN ===\nUnder 9 words.\n=== DRAFT END ===\n')==='## Contract\n\nUnder 500 words.\n\n'&&headOf('no fence here')==='no fence here','lib.packetHead must cut a packet at its draft fence, the old fence line included, and leave a text with no fence whole: '+JSON.stringify(headOf('## Contract\n\nUnder 500 words.\n\n=== DRAFT BEGIN ===\nUnder 9 words.\n=== DRAFT END ===\n')));
 check(typeof lib.packetHead==='function'&&typeof crewLib.packetHead==='function'&&String(lib.packetHead)===String(crewLib.packetHead),'the add-on\'s packetHead must be the listed plugin\'s, word for word');
