@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// budget_check.js: the price of a round, printed before the seats run (issue 95, 2026-10-27). The
-// founder's words: "we want the user to eventually run as many synthesis rounds as it wants without
-// feeling like its taxing the models cap limits."
+// budget_check.js: the price of a round, printed before the seats run (issue 95, 2026-10-27).
+// Decided: a person runs as many synthesis rounds as they want, and is told a round's price
+// against each model's limit before it runs, never after.
 //
 // What it pins, with the REAL scripts in a temporary project:
 //   - packet.js logs `size` on every packet.built line: chars equal to the packet file's length,

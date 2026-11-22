@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // readers_check.js: two fresh readers by default, the second chair the add-on's, the person's
-// pick (Part 87, ruled 2026-11-02, reversing the one-reader rule of 2026-10-09). The founder's
-// words: "a new user downloading the plugin for the first time would have two defaults for cw
-// ... most capable and second most capable. Then once a groq key is inserted or any other key
-// for that matter, the second seat is replaced"; "if someone wants to change seats manually they
-// can do that"; "if it's xAI it would be grok if its google it would be gemini and so forth,
-// that has to be clear too".
+// pick (Part 87, ruled 2026-11-02, reversing the one-reader rule of 2026-10-09). Decided:
+// a first install seats two readers by default, the most capable model and the second most
+// capable; once a key for any provider is entered, the second seat goes to that provider's model;
+// a person may change a seat by hand; and it is said plainly which company's model a key seats.
 //
 // Runs the REAL new-run.js, seats.js, packet.js, crew-state.js, render-record.js, render-board.js
 // and render-state.js from plugins/combat-writing/scripts in a throwaway project under the OS

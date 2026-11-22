@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // brief_check.js: the brief travels (issue 65, 2026-10-26), the brief typed is the project's and
-// grows by update (issue 72, the same day), and battle starts a run for the next piece. The
-// founder's words: "upload a brief, send a card through rounds and then after sending it, load
-// another prospect email without reuploading the brief"; "anytime i type in brief: it overrides
-// the previous brief. And, brief update: followed by a line just adds to the brief."
+// grows by update (issue 72, the same day), and battle starts a run for the next piece. Decided:
+// a brief is given once and serves the next piece with no second upload; a brief typed after
+// brief: replaces the one before it; and brief update: with a line adds that line to the brief.
 //
-// What it pins, with the REAL scripts in a temporary project, the founder's own paste of
+// What it pins, with the REAL scripts in a temporary project, the paste that showed the need, of
 // 2026-10-26 as the fixture:
 //   - new-run.js logs the brief's source as it reads it from the path (lib.briefSourceOf): a file
 //     elsewhere is `given`; another run's brief.md under combat-writing/runs/ is `last` with the run

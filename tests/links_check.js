@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// links_check.js: links are unread (issue 90, 2026-10-27). The founder's words, after a seat described a
-// post it never opened and charged him with misreading it: "Are you guys actually able to even pull and
-// read the millionaire warehouse post I alluded to? Be honest if not."
+// links_check.js: links are unread (issue 90, 2026-10-27). A seat had described a post it never
+// opened and charged the author with misreading it. Decided: a seat that cannot open a link says
+// so, and states nothing about the page behind it.
 //
 // What it pins, with the REAL scripts in a temporary run:
 //   - lib.hasLink: an https address, an http address, a www address, inside a sentence or alone; no

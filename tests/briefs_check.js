@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // briefs_check.js: briefs by name, many kinds of writing in one project (Part 86, 2026-10-31).
-// The founder's words: "what i want is for someone to use cw plugin for various writing projects
-// at once which means various briefs. Simultaneous emails to different people, blogs, maybe even
-// a speech, how does the user juggle different projects in the cw plugin?"
+// Decided: one person runs several kinds of writing at once in one project (mails to different
+// people, posts, a speech), so one project holds several briefs, each saved by name.
 //
 // What it pins, with the REAL scripts in a temporary project:
 //   - new-run.js --brief <file> --brief-name <name> saves combat-writing/briefs/<name>.md byte for

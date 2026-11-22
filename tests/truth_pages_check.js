@@ -119,7 +119,13 @@ check(/accepted/i.test(fontRow)&&/accepted/i.test(callsRow),'docs/directory-chec
 check(/\.claude-plugin\/icon\.png/.test(mainPage)&&/\.claude-plugin\/icon\.png/.test(crewPage),'both checklist pages must name the icon file');
 
 // A DECISION IS WRITTEN AS THE DECISION.
-var MARKERS=/\b(?:(?:the )?founder['’]s (?:own )?words?|his (?:own )?words?|in his words|the founder (?:said|wrote|typed|answered)|the founder['’]s (?:answer|go))\b[^"“\n]{0,60}["“][^"”\n]{12,}["”]/i;
+// The marker phrases, and after one of them a span in double quotation marks. The quotation
+// marks are written as their code points, so that this file holds no line of the shape it finds.
+var Q='[\\u0022\\u201c]', QEND='[\\u0022\\u201d]', NOQ='[^\\u0022\\u201c\\u201d\\n]';
+var PHRASES=['(?:the )?founder[\u2019\']s (?:own )?words?','his (?:own )?words?','in his words','the founder (?:said|wrote|typed|answered)','the founder[\u2019\']s (?:answer|go)'];
+var MARKERS=new RegExp('\\b(?:'+PHRASES.join('|')+')\\b[^\\u0022\\u201c\\n]{0,60}'+Q+NOQ+'{12,}'+QEND,'i');
+// The second shape: the decider named, a colon, and the quotation.
+var MARKERS2=new RegExp('\\b(?:the founder|founder[\u2019\']s (?:rule|reason|order|ruling))\\s*:\\s*'+Q+NOQ+'{8,}'+QEND,'i');
 function tracked(dir,deep){
   var out=[];
   fs.readdirSync(dir,{withFileTypes:true}).forEach(function(d){
@@ -134,7 +140,7 @@ var inClaude=0;
 searched.forEach(function(f){
   var rel=path.relative(root,f), flat=fs.readFileSync(f,'utf8').replace(/\n[ \t]*\/\/ ?/g,' ');
   if(f===__filename)return;
-  var hits=flat.split('\n').filter(function(l){ return MARKERS.test(l); }).length;
+  var hits=flat.split('\n').filter(function(l){ return MARKERS.test(l)||MARKERS2.test(l); }).length;
   if(rel==='CLAUDE.md'){ inClaude=hits; return; }
   check(hits===0,rel+': '+hits+' line(s) mark a quoted span as the words a decision was made in; write the decision in plain words');
 });
