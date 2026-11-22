@@ -129,6 +129,7 @@ check(!/Nothing is sent anywhere to speak\./.test(listing),'the listing README: 
  [/once in five minutes at the most/,'a failed answer and a new start of the server ask the provider again'],
  [/that you alone can read/,'the key file\'s check reads mode bits, no owner'],
  [/managed and revoked in that provider's own console/,'a provider\'s console is the provider\'s; say what the add-on cannot do'],
+ [/by default on another model your Claude Code session offers/,'the second reader is on the next most capable model, which on some sessions is the session\'s own'],
  [/Outside your project, in two places/,'the browser\'s storage and a download are outside the project too; the count is of the scripts\' and hooks\' writes']
 ].forEach(function(w){ check(!w[0].test(privacy),'PRIVACY.md: '+w[1]); });
 check(!/An issue is public\./.test(support),'SUPPORT.md: "An issue is public." speaks for the host of the repository; say to treat it as public');
@@ -147,7 +148,7 @@ var WIDE=[
   [/no link anywhere in it or in its rounds/,'the result hook looks at the run folder\'s own entries, its rounds folder\'s and each round folder\'s, and enters no other folder'],
   [/the command itself names in full/,'the result hook takes a relative path too, placed under the working folder'],
   [/hook (?:that )?runs after the plugin's own scripts/,'the result hook runs after every shell command of the session and acts on the plugin\'s own'],
-  [/after (?:each|a) seat's answer is checked/,'the model is measured for a fresh reader alone, never for an outside seat'],
+  [/after (?:each|a) seat's answer is checked|checked a seat's answer|model wrote (?:a|that) seat's replies/,'the model is measured for a fresh reader alone, never for an outside seat'],
   [/made from the first words of (?:your|the) draft, or of (?:your|the) brief when a run starts from the brief alone/,'a run folder is named from a pasted text\'s first words or from a file\'s name']
 ];
 [['README.md',rootReadme],[PLUGINS[0]+'/README.md',listing],['docs/directory-checklist.md',cl],['docs/plugin-map.md',mapPage]].forEach(function(p){

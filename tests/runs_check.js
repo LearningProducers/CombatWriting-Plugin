@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// runs_check.js: open runs, and the way back (Part 85, 2026-10-31). Decided: a person
-// can return to a run that is not finished, whatever the piece, and can start a new one at any
-// time; a piece that was published or sent is a finished run.
+// runs_check.js: open runs, and the way back (Part 85, 2026-10-31). Asked for by the
+// founder: a clear way to return to a run not finished, whatever the piece, and to start fresh on
+// a new one at any time; and he asked whether publishing or sending makes a run complete.
 //
 // What it pins, with the REAL scripts in a temporary project:
 //   - runs.js lists every run newest first, one line each: the id, the brief by name (default, or

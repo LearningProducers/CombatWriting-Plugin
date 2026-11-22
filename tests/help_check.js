@@ -29,8 +29,8 @@
 //     the card (issue 162); then the picker with the four options in order, one text prompt per stage,
 //     then the stage's command as if typed.
 //   - The guide between <!-- THE GUIDE BEGIN --> and <!-- THE GUIDE END -->: at most 450 words
-//     (400 until issue 163 added the two Right now templates and the two sharing rows; the founder,
-//     2026-11-04: "it's ok if it goes a bit long"),
+//     (400 until issue 163 added the two Right now templates and the two sharing rows; allowed by the
+//     founder, 2026-11-04: the guide may run a bit long),
 //     a word being a token that carries a letter or digit (a pipe, a rule line, a heading mark or a
 //     bullet is markup, not a word), the reply's first characters the motto; its first three lines: the motto, bold, equal to the card's
 //     first line, the card's one-liner verbatim, then the seat sentence; the four stage bullets in

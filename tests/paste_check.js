@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// paste_check.js: THE PASTE RULE (issue 76, 2026-10-26). Decided: the brief may come before any
+// paste_check.js: THE PASTE RULE (issue 76, 2026-10-26). Decided: the brief comes before every
 // stage; a dash works as well as a colon; and the order of the pieces matters little, so the paste
 // bends to how the person writes it. No separator symbol: the stage
 // word on the draft, battle: or sparring:, names the stage and starts the draft.

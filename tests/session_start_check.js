@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// session_start_check.js: the first-session line (Part 83, 2026-10-31). Decided: a person
-// who installs the plugin is told, in the open, what the install still lacks: the crew add-on, and
-// the voices. No hook event fires on install, so the first SessionStart is the
+// session_start_check.js: the first-session line (Part 83, 2026-10-31). Asked by the founder:
+// how a person who installs the plugin gets the crew add-on too, or is prompted to install it,
+// and the same for the voices, by whatever is best practice and most open. No hook event fires on install, so the first SessionStart is the
 // moment, and a sentinel in the plugin's data folder makes it fire once. Part 128, 2026-11-16: the
 // hook learns that folder from its environment alone (CLAUDE_PLUGIN_DATA, which the host exports
 // to every plugin hook), the command in hooks.json names ${CLAUDE_PLUGIN_ROOT} and no other

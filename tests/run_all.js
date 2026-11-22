@@ -4,8 +4,8 @@
 // committed lock, then `claude plugin validate --strict` on both plugin folders and the root
 // when the CLI is on the PATH. Origin: pull request 136 passed the 39 plugin tests and the
 // watchman locally and went red in CI's screen job, on a screen test nobody had run, because
-// nothing local ran the screen's tests beside the plugin's. The founder, 2026-11-02: "we want to
-// follow through on what an elite dev would do and measure that we did it".
+// nothing local ran the screen's tests beside the plugin's. Decided by the founder, 2026-11-02: the
+// session does what an elite developer would do, and measures that it did.
 //
 //   node tests/run_all.js [--no-screen] [--no-validate] [--profile directory]
 //

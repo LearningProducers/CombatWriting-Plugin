@@ -8,9 +8,9 @@
 // What it pins:
 //   - No word lost. The first 28 lines of RULINGS.md that start with "- ", in order, hash to the
 //     28 values below: the sha256 of the line's bytes in UTF-8, from its "- " to its end, no line
-//     ending. They are the 28 entries as CLAUDE.md held them at a7fade2, eight of them changed once
+//     ending. They are the 28 entries as CLAUDE.md held them at a7fade2, ten of them changed
 //     since (issue 245: a decision stated in plain words where the entry had quoted the words it
-//     was made in), their hashes set again in that commit. A later ruling is a new
+//     was made in), their hashes set again in the commits that changed them. A later ruling is a new
 //     entry after them and is not hashed here.
 //   - The wall names what holds it. Every bullet of the section (a line that starts with "- ",
 //     one bullet a line) ends with one of two closing clauses: "Held by: tests/<name>_check.js."
@@ -45,19 +45,19 @@ var HASHES=[
   '71cd02bf6e808e15a440a11eb2fd91604e87663e43e67e5ed543cf1c34536728',
   '567d1c4fe326e6cc55597009581c707046ed612d50f8358abb09017ee33d1417',
   '32b02d7c93a9d6d182ba035224035d6ece743c2ea0bcd49976733949e654420a',
-  '747cd6e4820aa0ed323b3cc05ef241d88360f49a09bfdc05d4c914925ded7be1',
+  '6da9c3a9cedcadfef4ee1ba33d6d194d6839541f4e1ca916045df2560883aba6',
   'c78a0bd75a09d98e1b2435405118a27a9da22260e223d72086d34b2ed4e262fe',
   '1d9122c5b54756820176c3b2a977316fca2d0565e8acb3a30805733a8a1847d6',
-  '19e8cbe92c80ec61514ff2c2b7c6eff997d3de0afd15be11dc0616778b98e28a',
+  '70e2c3cd31f8c3a22b697b28ffdcfbc57eb5b984280c5a3f88bdb73e6059882b',
   'bd8e6bdeac2c7d8ee6dbe219b4a59c241561340038b66033b0627cdbc20f9d65',
   'a25452ce087b6a087e8c2a5d76b6b32d660b8efb8c50696e155af9bb0b9cd2bc',
   'c6a9edc9b396d7ae1e884d797bfc07b533a7a67507a58502e81721772c4ac063',
-  '1754f945dff0e799257600a8e98a1f3cc165430287ed9756d9e577fda2859805',
+  '847548979c5838eee24845b40e5f16aa7be0b80be8e60ad6a1da5c278351ddd4',
   '468d28fcaa30a534d7b29b4c621155941da9c7c1f2210a1d44b627a528e5eb66',
   'ae2f28a75bf0128aaf57618d60b59417f53fa05f08afe3b2f175ea10473ecbf0',
   'c7a7dae73d65d4f87bbdcae75a09e6e9f30dc239da9efe165f134e2d3be46b92',
-  'f56033a488572a5813624d573361113e04cf131d9ce1e390c96f75f8c2ce5105',
-  '7b0e806d872b4bd822dc770899ebfcd6a8f6fd110c4b9d46c3f1ca4384f4999e',
+  '6d1c16d41766426153623fdb737505b97f27100ba71f48bfb5d5687a10ec2dde',
+  'f1c07d18f5b48d3565572665dd94c8ea44f2a42c303c8460841063d265401462',
   '8a155009e14b8ca989df8a9b03d51a76d9118c81de9768351df4990890db27aa',
   '4a8e78926345be95dac2998363d67082b93a98fd3d918d1c379cbdf2a94f4df4',
   '5b3033bd45322e2b052af26eeac5789dad1aef82c466a446f9e025bac159cc14',
