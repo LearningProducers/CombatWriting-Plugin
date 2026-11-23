@@ -166,6 +166,13 @@ check(/temporary folder/.test(rootReadme)&&/data folder/.test(rootReadme),'READM
 // THE HOSTS.
 var declared=(crew.network&&Array.isArray(crew.network.hosts))?crew.network.hosts.slice().sort():null;
 check(!!declared&&JSON.stringify(declared)===JSON.stringify(hosts.slice().sort()),'the add-on\'s plugin.json: network.hosts must be the hosts of providers.json, each once: '+JSON.stringify(declared)+' against '+JSON.stringify(hosts.slice().sort()));
+// What the add-on can say of the local seat: where it sends the packet, and no more. The page
+// says what Ollama does with a packet is Ollama's; a manifest's text, which the person reads
+// where the model is named, must not promise for Ollama that nothing leaves the machine.
+var ollamaText=String(((crew.userConfig||{}).ollama_model||{}).description||'');
+check(ollamaText.length>0&&!/nothing leaves/i.test(ollamaText)&&/to localhost only/.test(ollamaText)&&/is Ollama's/.test(ollamaText),'the add-on\'s plugin.json: the ollama_model text must say the packet goes to localhost only and that what Ollama does with it is Ollama\'s, and must not say nothing leaves the machine: '+JSON.stringify(ollamaText));
+manifests.forEach(function(m,i){ check(!/nothing leaves your machine|never leaves your machine/i.test(JSON.stringify(m)),PLUGINS[i]+'/.claude-plugin/plugin.json: says nothing leaves your machine; a manifest says where the plugin sends and no more'); });
+check(/What Ollama does with a packet is Ollama's\./.test(privacy),'PRIVACY.md: must say that what Ollama does with a packet is Ollama\'s');
 check(!!cw.network&&Array.isArray(cw.network.hosts)&&cw.network.hosts.length===0,'the cw plugin\'s plugin.json: network.hosts must be an empty list, the plugin reaches no host: '+JSON.stringify(cw.network));
 
 // THE MARKETPLACE FILE.

@@ -65,7 +65,7 @@
     "ollama_model": {
       "type": "string",
       "title": "Ollama model (local, optional)",
-      "description": "The name of a model your local Ollama serves, such as the one you pulled. Empty leaves the Ollama seat off. Nothing leaves your machine for this seat."
+      "description": "The name of a model your local Ollama serves, such as the one you pulled. Empty leaves the Ollama seat off. The add-on sends this seat's packet to localhost only. What your Ollama does with it is Ollama's."
     }
   },
   "mcpServers": {
