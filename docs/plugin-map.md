@@ -191,6 +191,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/paste_check.js` | THE PASTE RULE, the same words in three skills |
 | `tests/picker_check.js` | THE PICKER RULE, the same words in three skills: the off switch per project, the text Next line at once, the way back, and a closed picker that remembers nothing |
 | `tests/places_check.js` | the two lists that end "Nothing is written anywhere else", the help's "Where files land" and the listing README's paragraph, name every place section 4 names and no other |
+| `tests/plan_check.js` | where each part of the plan is read: Parts 1 to 90 in the first archive file, Parts 91 to 140 in the second, held to a hash of the bytes that moved, Part 141 onward in the plan; no part in two files |
 | `tests/provenance_check.js` | the shipped folders carry the rule, never the ruling: no "ruled", no "founder" outside the credit line |
 | `tests/pr_body_check.js` | the four-section gate script |
 | `tests/rating_contract_check.js` | `RATING: X/10`, 7 forbidden, the number against the words |
