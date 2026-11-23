@@ -24,7 +24,8 @@
 //   - No Markdown file in the tree says the credit line "stands once" (issue 158: the credit line
 //     stands at the foot of the help card and of the help guide; the phrase outlived the change in
 //     three READMEs after six other files were cured). PLAN.md, PLAN_ARCHIVE.md (Parts 1 to 90,
-//     frozen; issue 166) and .github/release-notes/ keep their history and are not read;
+//     frozen; issue 166), PLAN_ARCHIVE_2.md (Parts 91 to 140, frozen; issue 249) and
+//     .github/release-notes/ keep their history and are not read;
 //     node_modules, .git and virtual environments are skipped.
 //   - What must be installed: the Install section of both plugin READMEs and the root README's
 //     "Run the checks" section name Node, each with the major version CI's workflow sets up
@@ -149,9 +150,9 @@ var pointer=/the add-on's README, under "([^"]+)"/.exec(brings);
 check(!!pointer&&new RegExp('^## '+(pointer?pointer[1].replace(/[.*+?^${}()|[\]\\]/g,'\\$&'):'x')+'$','m').test(crewReadme),'plugins/combat-writing/README.md: "What one install brings" does not point at a heading the add-on\'s README holds for where a key is read from');
 check(!/environment variable|key file/.test(brings),'plugins/combat-writing/README.md: "What one install brings" copies the list of places a key is read from; it points at the add-on\'s README');
 
-// The phrase "stands once" in any Markdown file outside PLAN.md, PLAN_ARCHIVE.md and the release notes.
+// The phrase "stands once" in any Markdown file outside PLAN.md, its two archive files and the release notes.
 var SKIP={'node_modules':1,'.git':1,'.venv':1,'results':1};
-function mdFiles(dir){ var out=[]; fs.readdirSync(dir).forEach(function(n){ if(SKIP[n])return; var p=path.join(dir,n); var st=fs.statSync(p); if(st.isDirectory()){ if(path.relative(root,p)==='.github/release-notes')return; out=out.concat(mdFiles(p)); } else if(/\.md$/.test(n)&&path.relative(root,p)!=='PLAN.md'&&path.relative(root,p)!=='PLAN_ARCHIVE.md')out.push(p); }); return out; }
+function mdFiles(dir){ var out=[]; fs.readdirSync(dir).forEach(function(n){ if(SKIP[n])return; var p=path.join(dir,n); var st=fs.statSync(p); if(st.isDirectory()){ if(path.relative(root,p)==='.github/release-notes')return; out=out.concat(mdFiles(p)); } else if(/\.md$/.test(n)&&['PLAN.md','PLAN_ARCHIVE.md','PLAN_ARCHIVE_2.md'].indexOf(path.relative(root,p))<0)out.push(p); }); return out; }
 mdFiles(root).forEach(function(p){ read(path.relative(root,p)).split('\n').forEach(function(l,i){ check(l.indexOf('stands once')<0,path.relative(root,p)+':'+(i+1)+': says the credit line "stands once"; it stands at the foot of the help card and of the help guide'); }); });
 
 failures.forEach(function(f){console.log('FAIL '+f);});
