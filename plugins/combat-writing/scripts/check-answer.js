@@ -86,7 +86,7 @@ var headline=result.ok
   :('FAIL '+result.reasons.join('; ')+(truncated?' (cut at '+truncated.at+' words on the second overrun first)':''));
 var who='';
 if(runDir&&round){
-  var seatRec=null; try{var sf=path.join(runDir,'seats.json'); if(fs.existsSync(sf))seatRec=(JSON.parse(lib.readText(sf)).seats||[]).filter(function(s){return s.id===seatId;})[0]||null;}catch(e){}
+  var seatRec=null; try{var sf=path.join(runDir,'seats.json'); if(fs.existsSync(sf))seatRec=(lib.holdSeats(JSON.parse(lib.readText(sf))).seats||[]).filter(function(s){return s.id===seatId;})[0]||null;}catch(e){}
   who=seatId+(seatRec?' '+lib.seatShortName(seatRec):'')+' finished round '+round+': ';
 }
 process.stdout.write(who+headline+'\n'+JSON.stringify(summary)+'\n');

@@ -668,10 +668,46 @@ function logDamageLine(n){
   return n+' line'+(n===1?'':'s')+' of this run\'s log could not be read, so what '+(n===1?'it':'they')+' recorded is missing here and a line may say less than happened. The log is log.jsonl in the run folder.';
 }
 
+// A SEAT'S NAME HAS ONE SHAPE (issue 247). The seats file is written by new-run.js from the
+// host's words, by seat-fallback.js, and by the add-on from what a provider returned. A seat's
+// model and maker stand in every packet, in the record, in the state and in the short form the
+// host reads, outside every fence, so a name with a line break in it can stand there as a
+// heading or an order of its own. Every script reads the file through readSeats, which holds
+// each name: an outside seat's model (a seat with a provider) must be a plain name by
+// SEAT_NAME_RE (the characters of a model id, MODEL_ID_RE below, with single spaces between
+// its words, at most 120: no line break and no mark a heading, a tag or a fence is written
+// with) or it reads as not reported; its maker and the provider that served it must be plain
+// names by MAKER_RE (letters, digits, space and . , & ' ( ) + : / _ [ ] -, at most 200) or
+// they read as not reported and not there; a fresh reader's name, the host's words, is made
+// one line and cut at 120. The add-on stores an id only when it is a model id, with no space,
+// and carries holdSeats word for word (crew-lib.js; the test holds the two equal), so a file
+// an older add-on wrote is held here too.
+var MAKER_UNREPORTED='maker not reported';
+var MAKER_RE=/^[A-Za-z0-9][A-Za-z0-9 .,&'()+:\/_\[\]-]{0,199}$/;
+function isMakerName(v){ return typeof v==='string'&&MAKER_RE.test(v); }
+var SEAT_NAME_RE=/^[A-Za-z0-9._\/:\[\]-]+(?: [A-Za-z0-9._\/:\[\]-]+)*$/;
+function isSeatName(v){ return typeof v==='string'&&v.length<=120&&SEAT_NAME_RE.test(v); }
+function oneLine(v,max){ return String(v===undefined||v===null?'':v).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g,' ').replace(/\s+/g,' ').trim().slice(0,max); }
+function holdSeats(file){
+  if(!file||!Array.isArray(file.seats))return file;
+  file.seats.forEach(function(s){
+    if(!s||typeof s!=='object')return;
+    if(s.provider){
+      if(!isSeatName(s.model))s.model=MODEL_UNREPORTED;
+      if(!isMakerName(s.company))s.company=MAKER_UNREPORTED;
+      if(s.served_by!==undefined&&!isMakerName(s.served_by))delete s.served_by;
+    }else{
+      if(s.model!==undefined&&s.model!==null)s.model=oneLine(s.model,120)||MODEL_UNREPORTED;
+      if(s.company!==undefined&&s.company!==null)s.company=oneLine(s.company,120)||MAKER_UNREPORTED;
+      if(s.served_by!==undefined&&s.served_by!==null){ s.served_by=oneLine(s.served_by,120); if(!s.served_by)delete s.served_by; }
+    }
+  });
+  return file;
+}
 function readSeats(runDir){
   var p=path.join(runDir,'seats.json');
   if(!fs.existsSync(p))die('no seats.json in '+runDir);
-  return JSON.parse(readText(p));
+  return holdSeats(JSON.parse(readText(p)));
 }
 // The crew (Part 87; seat-1's default since issue 189):
 // two fresh readers by default, seat-1 and seat-2. Seat-1 starts on the session's own model: no
@@ -951,7 +987,7 @@ function crewStateLines(runDir,seats,log){
       lines.push('The crew add-on is running and no provider has a key, so the crew is '+crewAloneWords(seats)+': a key was never entered, or an update dropped it (the host rebuilt its credentials store). Next: '+(noKey[0].next||ADDON_CONFIGURE)+', type the key into a key field and save: '+(named.length?named.join(', '):fields.join(', '))+'; a save with nothing typed says No configuration changes and keeps nothing; a free Groq key seats two. Or set the provider\'s environment variable when the prompt is empty.');
     }
     failed.forEach(function(u){
-      lines.push('Not seated: '+(u.provider_name||u.provider)+(u.family?' ('+u.family+')':'')+': '+u.reason+'. Next: run the command again; if it repeats, '+(u.next||ADDON_CONFIGURE)+' to check the '+(u.field||'key')+' field.');
+      lines.push('Not seated: '+(u.provider_name||u.provider)+(u.family?' ('+u.family+')':'')+': '+oneLine(u.reason,400)+'. Next: run the command again; if it repeats, '+(u.next||ADDON_CONFIGURE)+' to check the '+(u.field||'key')+' field.');
     });
   }else if(last&&last.event==='addon.state'&&!outside){
     lines.push(addonStateLine(last.state,seats)||('The add-on state recorded, '+last.state+', is not one the record knows.'));
@@ -1932,7 +1968,7 @@ module.exports={
   MODEL_ID_RE:MODEL_ID_RE,isModelId:isModelId,seatModels:seatModels,measuredModels:measuredModels,modelChangeWords:modelChangeWords,measuredLines:measuredLines,MEASURED_HEADING:MEASURED_HEADING,MEASURED_NOTE:MEASURED_NOTE,MEASURED_SOURCE:MEASURED_SOURCE,
   MAX_FRESH_READERS:MAX_FRESH_READERS,READERS_FILE:READERS_FILE,READERS_REL:READERS_REL,freshReaders:freshReaders,crewAloneWords:crewAloneWords,readersPicksPath:readersPicksPath,readReaderPicks:readReaderPicks,
   PICKER_FILE:PICKER_FILE,PICKER_REL:PICKER_REL,PICKER_OPTION:PICKER_OPTION,PICKER_ON_CMD:PICKER_ON_CMD,pickerPath:pickerPath,readPicker:readPicker,projectOfRun:projectOfRun,
-  parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,logDamage:logDamage,logDamageLine:logDamageLine,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
+  parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,holdSeats:holdSeats,isSeatName:isSeatName,isMakerName:isMakerName,oneLine:oneLine,appendLog:appendLog,readLog:readLog,logDamage:logDamage,logDamageLine:logDamageLine,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   GITIGNORE_FILE:GITIGNORE_FILE,GITIGNORE_LINES:GITIGNORE_LINES,GITIGNORE_LINE:GITIGNORE_LINE,inGitRepo:inGitRepo,writeGitignore:writeGitignore,
   BRIEFS_DIR:BRIEFS_DIR,BRIEFS_DIR_REL:BRIEFS_DIR_REL,BRIEF_NAME_RE:BRIEF_NAME_RE,briefsDir:briefsDir,briefNamePath:briefNamePath,isBriefName:isBriefName,listBriefs:listBriefs,briefFirstLine:briefFirstLine,briefNameKeptLine:briefNameKeptLine,
