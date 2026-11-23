@@ -186,7 +186,7 @@ var companies=seats.map(function(s){return s.company;}).filter(function(v,i,a){r
 // A company's identity: a class on the card and on its score in the bar, from the table in the
 // CSS below; a company not in the table takes the default identity (`co-other`).
 var IDENTITIES={anthropic:'anthropic',alibaba:'alibaba',openai:'openai'};
-function coClass(company){ var k=String(company||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,''); return 'co-'+(IDENTITIES[k]||'other'); }
+function coClass(company){ var k=String(company||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,''); return 'co-'+(Object.prototype.hasOwnProperty.call(IDENTITIES,k)&&typeof IDENTITIES[k]==='string'?IDENTITIES[k]:'other'); }
 // The four faces, embedded as data so every user sees the same board with no network (the OFL
 // texts ride in LICENSES/ and NOTICE). A missing file falls back to the system face named in the CSS.
 var FONTS=[
