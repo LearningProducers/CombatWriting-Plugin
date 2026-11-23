@@ -236,7 +236,7 @@ Issue 249. This file stood at 261,379 bytes, under the ceiling of 262,144 that `
 
 What is built. Parts 91 to 140 are moved, byte for byte, to PLAN_ARCHIVE_2.md, new, under the Shield header and one opening paragraph. Nothing is deleted and no moved byte is changed. This file keeps Part 141 onward, and its opening names both archive files. `tests/plan_check.js`, new, holds the three files to each other and holds the moved text to a hash, so the second archive is frozen by a test. The root README and the checklist name the three files. `tests/readme_check.js` leaves the new file out of one search, as it leaves out this file and the first archive: the phrase it looks for stands on three lines of the moved parts.
 
-Run red first, in a commit of tests alone: 4 of the test's 6 checks failed; four more run once the new file exists. On the tree as built the test passes, 10 checks.
+Run red first, in a commit of tests alone: 4 of the test's 6 checks failed; four more run once the new file exists. On the tree as built the test passes, 10 checks. Nine breaks of the three files and the README, one at a time on a copy, each fail the test by name.
 
 The loss. A part from 91 to 140 cited by its number anywhere in the tree, as a part of PLAN.md, is now read in PLAN_ARCHIVE_2.md under the same heading. The citations are not rewritten. PLAN_ARCHIVE.md is not written to, so its opening still says this file holds Part 91 onward; this file's opening and the new archive's say where each part is.
 
@@ -244,4 +244,4 @@ The loss. A part from 91 to 140 cited by its number anywhere in the tree, as a p
 
 Delivers: `PLAN_ARCHIVE_2.md`, new; this file; `tests/plan_check.js`, new; `tests/readme_check.js`; `README.md`; `docs/directory-checklist.md` and `docs/plugin-map.md`.
 
-Status: in progress — 2026-11-23 — built on main, local.
+Status: delivered — 2026-11-23 — draft pull request open on main; the last line of `node tests/run_all.js` on the final head is in the pull request body.
