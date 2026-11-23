@@ -17,11 +17,6 @@
 // 3. THE COMMAND. Each `/plugin configure combat-writing-crew` is the bare command the add-on
 //    prints (CONFIGURE_COMMAND in crew-lib.js, ADDON_CONFIGURE in lib.js), with no marketplace
 //    after it: an install from the directory is under no marketplace of this repository's.
-// 4. ONE SENTENCE OWED. scripts/lib.js prints, in the line for a crew with no key, a sentence
-//    that fails rule 2. A script the host runs after a round is changed with THE SMOKE, in the
-//    pull request that owes it; until then the sentence is printed here as OWED on every run
-//    and is no failure. The check fails when the sentence is gone and this entry is not.
-//
 // The test finds these shapes and no others: a false sentence in another shape passes it.
 //
 //   node tests/key_route_check.js        (from the repository root; exit 0 pass, 1 fail)
@@ -50,8 +45,6 @@ check(readVars.indexOf('CLAUDE_PLUGIN_DATA')>=0&&readVars.indexOf('HOME')>=0&&ke
 
 var FILE_NAMED=/\.combat-writing\/keys|\bkey file\b/;
 var NOT_READ=/\b(is|are) not read\b|\bnever read\b|\bno key, ever\b/;
-var OWED=[{file:'plugins/combat-writing/scripts/lib.js',sentence:'Or set the provider\\\'s environment variable when the prompt is empty.'}];
-var owedSeen=OWED.map(function(){return 0;});
 
 files.forEach(function(f){
   var text=read(f), lines=text.split('\n'), md=/\.md$/.test(f);
@@ -67,8 +60,6 @@ files.forEach(function(f){
   var flat=md?text:text.replace(/\n\s*\/\/ ?/g,' ');
   flat.split(/(?<=[.!?])\s+(?=[A-Z`*(\[])|\n/).forEach(function(s){
     if(!/environment variables?\b/i.test(s))return;
-    var owedAt=-1; OWED.forEach(function(o,k){ if(o.file===f&&s.indexOf(o.sentence)>=0)owedAt=k; });
-    if(owedAt>=0){ owedSeen[owedAt]+=1; console.log('OWED '+f+': '+OWED[owedAt].sentence.replace(/\\/g,'')); return; }
     var caps=s.match(/\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b|\bHOME\b|\bPATH\b/g)||[];
     var names=caps.length>0, real=caps.every(function(c){ return readVars.indexOf(c)>=0||c==='PATH'; });
     var none=/\b(no|neither|not|never)\b/i.test(s);
@@ -82,8 +73,6 @@ files.forEach(function(f){
   });
 });
 check(/^var CONFIGURE_COMMAND='\/plugin configure combat-writing-crew';$/m.test(read('plugins/combat-writing-crew/crew-lib.js'))&&/^var ADDON_CONFIGURE='\/plugin configure combat-writing-crew';$/m.test(read('plugins/combat-writing/scripts/lib.js')),'crew-lib.js CONFIGURE_COMMAND and lib.js ADDON_CONFIGURE must both be the bare /plugin configure combat-writing-crew');
-// 4. ONE SENTENCE OWED.
-OWED.forEach(function(o,k){ check(owedSeen[k]===1,'the OWED entry for '+o.file+' was met '+owedSeen[k]+' times, not once: when the sentence is cured, the entry goes'); });
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log(failures.length?'key_route_check: '+failures.length+' of '+checks+' checks failed':'key_route_check: all passed, '+checks+' checks');
