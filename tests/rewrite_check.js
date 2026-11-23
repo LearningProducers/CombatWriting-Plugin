@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// rewrite_check.js: the Contract follows the prompt (issue 103, 2026-10-27). The founder's words: "it
-// also ought to pay attention to what the prompt is saying. If it asks: Who was queen elizabeth? it
-// ought to respond to the question and not begin with 'verdict', or 'not ready'"; and on a rewrite:
-// "it should give the rewrite, a follow up rationale is fine and a response to the ai crew is good".
+// rewrite_check.js: the Contract follows the prompt (issue 103, 2026-10-27). Decided: a seat
+// answers what the prompt asks, a question with its answer, and does not open on a verdict of the
+// draft; and a prompt that asks for a rewrite gets the rewrite, with a short rationale and a reply
+// to the crew after it.
 //
 // What it pins, with the REAL scripts in a temporary run:
 //   - packet.js: an N that asks for a rewrite carries REWRITE_LINE and no verdict sentence (prompted

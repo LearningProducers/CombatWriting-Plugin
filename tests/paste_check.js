@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// paste_check.js: THE PASTE RULE (issue 76, 2026-10-26). The founder's words: "brief always ought
-// to precede any stage"; "i want it to work with dash too and I also don't want the order to matter
-// much, not so strict ... flexible to how the user wants to use it". No separator symbol: the stage
+// paste_check.js: THE PASTE RULE (issue 76, 2026-10-26). Decided: the brief ought always to come
+// before any stage; a dash works as well as a colon; and the order of the pieces matters little, so the paste
+// bends to how the person writes it. No separator symbol: the stage
 // word on the draft, battle: or sparring:, names the stage and starts the draft.
 //
 // What it pins, in the skill text (the cut is host-made; no script runs):
@@ -53,7 +53,7 @@ check(/issue 76: the pieces of a paste go in any order, each found by its keywor
 var readme=read(path.join(plugin,'README.md'));
 check(/^- The pieces of a paste go in any order, each found by its word: `brief:` first and `battle: <the draft>` after it, or the draft first, cut the same; `battle:` or `sparring:` on the draft names the stage that runs, whatever command carried the paste\. Keywords match in any case, a dash before a keyword or in place of its colon is dropped \(`brief-`, `-battle:`\),/m.test(readme),'the plugin README names the rule');
 var claude=read(path.join(root,'CLAUDE.md'));
-check(/by THE PASTE RULE \(issue 76, 2026-10-26, the founder's words: "i want it to work with dash too and I also don't want the order to matter much"; the same paragraph in the battle, sparring and strategy skills, pinned equal by `tests\/paste_check\.js`\)/.test(claude),'CLAUDE.md names the rule, the founder\'s words and this check');
+check(/by THE PASTE RULE \(issue 76, 2026-10-26, [^)]*the same paragraph in the battle, sparring and strategy skills, pinned equal by `tests\/paste_check\.js`\)/.test(claude),'CLAUDE.md names the rule, its issue and this check');
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'paste_check: '+failures.length+' failure(s), ':'paste_check: all passed, ')+passes+' checks');

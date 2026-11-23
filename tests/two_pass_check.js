@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// two_pass_check.js: a first-round sn: or sfq: runs two passes (issue 88, 2026-10-27). The founder's
-// words: "if a user was to use sn on round 1 it ought to not be denied the double run to include what
-// the ai crew has to say about each other."
+// two_pass_check.js: a first-round sn: or sfq: runs two passes (issue 88, 2026-10-27). Decided:
+// an sn: on round 1 is not refused its second run, the one that brings in what the seats say of
+// each other.
 //
 // What it pins, with the REAL scripts on a temporary run with three seats:
 //   - announce.js --kind crew prints "Round 01, second pass: to the crew, 3 seats (...)" and logs kind crew.

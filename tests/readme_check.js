@@ -114,9 +114,26 @@ var runAll=read('tests/run_all.js');
 (runSec.match(/--[a-z][a-z-]+/g)||[]).filter(function(v,i,a){return a.indexOf(v)===i;}).forEach(function(flag){
   check(runAll.indexOf("'"+flag+"'")>=0,'README.md: "Run the checks" names '+flag+', which tests/run_all.js does not read');
 });
-// The validator's directory profile: the flag is named in the section, read by the runner, and off by default.
+// The validator's directory profile: named in the section, read by the runner, passed by the
+// workflow on the two plugin folders, and on by default in the runner, so the one command is
+// the set CI runs. `--no-profile` leaves it out.
 check(/`--profile directory`/.test(runSec),'README.md: "Run the checks" does not name `--profile directory`, the flag that adds the validator\'s directory profile');
 check(/'--profile'/.test(runAll)&&/'directory'/.test(runAll),'tests/run_all.js: does not read --profile directory');
+var folderSteps=read('.github/workflows/checks.yml').split('\n').filter(function(l){ return /claude plugin validate --strict\b.*plugins\/combat-writing/.test(l); });
+check(folderSteps.length===2&&folderSteps.every(function(l){ return /--profile directory/.test(l); }),'.github/workflows/checks.yml: the two validate steps on the plugin folders must pass --profile directory ('+folderSteps.length+' such steps, '+folderSteps.filter(function(l){ return /--profile directory/.test(l); }).length+' with the profile)');
+check(/noProfile\?null:'directory'/.test(runAll)&&/'--no-profile'/.test(runAll),'tests/run_all.js: the directory profile must be on by default, as in the workflow, and left out by --no-profile');
+check(/`--no-profile`/.test(runSec)&&!/off by default/.test(runSec),'README.md: "Run the checks" must name `--no-profile` and must not say the profile is off by default');
+// A sentence that says a plugin folder has no icon is false while both hold one.
+var bothIcons=['plugins/combat-writing','plugins/combat-writing-crew'].every(function(d){ return fs.existsSync(path.join(root,d,'.claude-plugin','icon.png')); });
+check(!bothIcons||!/neither folder has one|has no icon,? and|no icon yet/.test(rootReadme),'README.md: says a plugin folder has no icon; both hold .claude-plugin/icon.png');
+// A list of the cw commands in the add-on's README names every command or is no list: the
+// commands' home is the skills folder.
+var commandSkills=fs.readdirSync(path.join(root,'plugins/combat-writing/skills')).filter(function(n){ return n!=='combat-writing'&&fs.existsSync(path.join(root,'plugins/combat-writing/skills',n,'SKILL.md')); });
+crewReadme.split('\n').forEach(function(l,i){
+  if(!/its commands are/.test(l))return;
+  var missing=commandSkills.filter(function(n){ return l.indexOf('/cw:'+n)<0; });
+  check(missing.length===0,'plugins/combat-writing-crew/README.md:'+(i+1)+': lists the cw commands and leaves out /cw:'+missing.join(', /cw:'));
+});
 // The plugin README carries the version beside its one-step install line, as the add-on's does.
 var cwInstall=sectionOf(p,'Install');
 check(/--marketplace/.test(cwInstall)&&/Claude Code \d+\.\d+\.\d+ or later/.test(cwInstall),'plugins/combat-writing/README.md: the Install section does not name the Claude Code version its install line needs');

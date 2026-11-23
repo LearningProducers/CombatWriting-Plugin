@@ -3,7 +3,7 @@
 
 A pass over the Claude plugin directory's pre-submission checklist (claude.com/docs/plugins/pre-submission-checklist), row by row, against `plugins/combat-writing-crew/`, the Combat Writing add-on: a local MCP server that seats other companies' models in the crew of the `cw` plugin. The add-on is submitted to the directory as a second bundle from this repository, its folder a submission of its own, so that a directory install of `cw` can seat a real crew. The submit page (claude.com/docs/plugins/submit) was read the same day; what it adds for this bundle is at the foot of this page. The pass of `cw` itself is `docs/directory-checklist.md`.
 
-**Passed 2026-11-17**, against the checklist as it read that day. This is the page's one date: it moves only when the whole pass is re-run, row by row, never when one row changes. No row carries a number a test measures (a count, a size, a version): each row names the file or the test that shows the item, and the number lives there. The add-on's version is in `plugins/combat-writing-crew/.claude-plugin/plugin.json`.
+**Re-passed 2026-11-21**, against the checklist as it read that day. This is the page's one date: it moves only when the whole pass is re-run, row by row, never when one row changes. No row carries a number a test measures (a count, a size, a version): each row names the file or the test that shows the item, and the number lives there. The add-on's version is in `plugins/combat-writing-crew/.claude-plugin/plugin.json`.
 
 Each row carries one of three results:
 
@@ -60,8 +60,8 @@ Two things about the add-on are held for a reviewer, by the checklist's own rule
 |---|---|---|
 | Every file that is not an image or a font under 256 KiB | pass | `tests/license_check.js` fails any such file at or over that size; the sizes live in the tree, not here |
 | 512 files or fewer in the plugin | pass | `git ls-files plugins/combat-writing-crew` lists the folder; the count is that command's, not this page's |
-| Only text files, SVG included, complete PNG, JPEG, GIF and WebP images, and font files; no other binary | pass | every tracked file in the folder is text: Markdown, JavaScript, JSON and the NOTICE; `git ls-files plugins/combat-writing-crew` is the measure |
-| A bundled image shown in the README by Markdown image syntax; no bundled image or font referred to from a command, hook or script, or written as a path in backticks or a code block | n/a | the add-on bundles no image and no font |
+| Only text files, SVG included, complete PNG, JPEG, GIF and WebP images, and font files; no other binary | pass | each tracked file in the folder is text (Markdown, JavaScript, JSON and the NOTICE) or a complete PNG (the listing icon, `.claude-plugin/icon.png`); `git ls-files plugins/combat-writing-crew` is the measure |
+| A bundled image shown in the README by Markdown image syntax; no bundled image or font referred to from a command, hook or script, or written as a path in backticks or a code block | pass | the add-on bundles one image and no font: the listing icon, named by `icon` in `plugin.json` alone; no command, hook or script refers to it, and the README neither shows it nor writes its path |
 | Each MCP server declared with `command` and `args` or with `url`, not a `.mcpb` or `.dxt` bundle | pass | `mcpServers` in `plugin.json` declares one server with `command` and `args`; `tests/marketplace_check.js` pins the entry |
 
 ## What the plugin runs and connects to
@@ -94,6 +94,17 @@ Two things about the add-on are held for a reviewer, by the checklist's own rule
 | `hooks/hooks.json` left out of the `hooks` field in `plugin.json` | pass | `plugin.json` has no `hooks` field; `tests/marketplace_check.js` fails if one appears |
 | Valid YAML front matter in each skill, command and agent file, with `description` as a single text value | n/a | the add-on has no skill, command or agent file; `tests/marketplace_check.js` fails if the manifest declares a command or an agent |
 | Component folders and files named with the spelling and capitalization Claude Code expects | n/a | the add-on has no component folder; its one component, the MCP server, is declared in `plugin.json` |
+
+## The directory listing fields
+
+The published checklist has no row for these. The manifest reference (code.claude.com/docs/en/plugins/manifest-reference, "Directory listing fields") names the fields the directory reads from `plugin.json`, and `claude plugin validate --profile directory` checks the icon.
+
+| Item | Result | Shown by |
+|---|---|---|
+| A listing icon: a square PNG or JPEG in the plugin, the size the validator's directory profile asks for | pass | `.claude-plugin/icon.png`, named by `icon` in `plugin.json`; `claude plugin validate --strict --profile directory plugins/combat-writing-crew` passes; `tests/truth_pages_check.js` holds the file to its hash and its size in pixels |
+| `privacyPolicyUrl`, an `https://` address | pass | the address of `PRIVACY.md` at the root of this repository, one page for `cw` and the add-on; `tests/truth_pages_check.js` holds the field, the file and what the page must say |
+| `supportUrl`, an `https://` address | pass | the address of `SUPPORT.md` at the root of this repository, which names the support mail address and the issues page; `tests/truth_pages_check.js` holds the field and the file |
+| `network.hosts`, the hosts the plugin reaches | pass | the hosts of the addresses in `providers.json`, the six providers' and `localhost` for the local Ollama model; `tests/truth_pages_check.js` holds the list equal to that file's |
 
 ## The security scan
 
