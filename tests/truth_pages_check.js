@@ -60,6 +60,10 @@ PLUGINS.forEach(function(p,i){
 
 // THE TWO LINKS.
 var BLOB='https://github.com/LearningProducers/CombatWriting-Plugin/blob/main/';
+// A page names an address when the address stands in it whole: cut at white space and at the
+// marks a link is written between, a period, comma, semicolon or colon after it dropped, one
+// piece is the address and nothing more. A longer address that only opens with it is another.
+function namesAddress(text,address){ return String(text).split(/[\s()<>\[\]"'`]+/).some(function(piece){ return piece.replace(/[.,;:]+$/,'')===address; }); }
 [['privacyPolicyUrl','PRIVACY.md'],['supportUrl','SUPPORT.md']].forEach(function(f){
   manifests.forEach(function(m,i){
     check(m[f[0]]===BLOB+f[1],PLUGINS[i]+'/.claude-plugin/plugin.json: '+f[0]+' must be '+BLOB+f[1]+', is '+JSON.stringify(m[f[0]]));
@@ -71,14 +75,14 @@ var BLOB='https://github.com/LearningProducers/CombatWriting-Plugin/blob/main/';
 // plugins' own, which the directory shows as each listing's description.
 ['README.md',PLUGINS[0]+'/README.md',PLUGINS[1]+'/README.md'].forEach(function(r){
   var t=read(r);
-  check(t.indexOf(BLOB+'PRIVACY.md')>=0&&t.indexOf(BLOB+'SUPPORT.md')>=0,r+': must name the privacy page and the support page by their addresses');
+  check(namesAddress(t,BLOB+'PRIVACY.md')&&namesAddress(t,BLOB+'SUPPORT.md'),r+': must name the privacy page and the support page by their addresses');
 });
 
 // THE SUPPORT PAGE.
 var support=read('SUPPORT.md');
 var mails=support.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g)||[];
 check(mails.length>0&&mails.every(function(m){ return m===mails[0]; })&&/@learningproducers\.com$/.test(mails[0]||''),'SUPPORT.md: must name one mail address, on the company\'s domain: '+JSON.stringify(mails));
-check(support.indexOf('https://github.com/LearningProducers/CombatWriting-Plugin/issues')>=0,'SUPPORT.md: must name the repository\'s issues page');
+check(namesAddress(support,BLOB.replace(/blob\/main\/$/,'issues')),'SUPPORT.md: must name the repository\'s issues page');
 check(/never[^.]*\bkey\b/i.test(support),'SUPPORT.md: must say never to send a key');
 
 // THE PRIVACY PAGE.
