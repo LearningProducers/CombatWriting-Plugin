@@ -245,3 +245,19 @@ The loss. A part from 91 to 140 cited by its number anywhere in the tree, as a p
 Delivers: `PLAN_ARCHIVE_2.md`, new; this file; `tests/plan_check.js`, new; `tests/readme_check.js`; `README.md`; `docs/directory-checklist.md` and `docs/plugin-map.md`.
 
 Status: delivered — 2026-11-23 — draft pull request open on main; the last line of `node tests/run_all.js` on the final head is in the pull request body.
+
+## Part 146 — The wall's lagging phrases are placed
+
+Issue 252. Parts 140, 141, 143 and 145, and the pull request of Part 144 in its footer, each named phrases of `CLAUDE.md` that their change made lag. None edited that file: its lines change on the owner's word. The owner typed that word on 2026-11-23, and this part places the 19 phrases, each found once in the file.
+
+What is built. Six phrases on the seat hook's reach and its record (Parts 140 and 141). Seven from Part 143: the two quotations in the paragraph on the run folder's write locations, restated as decisions; the layout's line for RULINGS.md; three new layout lines, for PRIVACY.md, SUPPORT.md and the icon; and two phrases written when one bundle was submitted. Two on how an outside seat is named (Part 144). Four on the plan's second split (Part 145), with Part 143's two corrections on the first archive folded into them: the standing rule on where a part is read, the layout's lines for the plan and its two archives, and the Shield list of Markdown files, which also gains PRIVACY.md and SUPPORT.md.
+
+The ceiling. The file read 72,919 characters and reads 73,571 with the phrases placed. The ceiling `tests/rulings_check.js` holds moves from 73,000 to 74,000, by that test's own rule: the built size rounded up to the next 1,000.
+
+Run red first, in a commit of tests alone: 19 checks of `tests/rulings_check.js` failed (fifteen retired phrases still standing, four layout lines missing), one of `tests/truth_pages_check.js` (its finder of quoted words now holds `CLAUDE.md` like every other file, where it printed a count) and one of `tests/plan_check.js` (the file must name the second archive). The two retired quotations are not written into a test: the finder holds them by their shape.
+
+Not done. No bullet is added to the wall for the rules of Parts 142 and 144. Each stands as an entry of RULINGS.md with no bullet, as four earlier entries do.
+
+Delivers: `CLAUDE.md`; `tests/rulings_check.js`, `tests/truth_pages_check.js` and `tests/plan_check.js`; this file.
+
+Status: delivered — 2026-11-23 — draft pull request open on main, opened after Part 145 merged; the last line of `node tests/run_all.js` on the final head is in the pull request body.

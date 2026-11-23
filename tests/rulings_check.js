@@ -38,7 +38,7 @@ var SECTION='What is ruled about the method';
 var WORDS='Held by: its words.';
 var TESTS=/Held by: (tests\/[a-z0-9_]+_check\.js(?:, tests\/[a-z0-9_]+_check\.js)*)\.$/;
 // The ceiling on CLAUDE.md, in characters: the built size rounded up to the next 1,000.
-var CEILING=73000;
+var CEILING=74000;
 // The 28 entries as `git show a7fade2:CLAUDE.md` gives them, in the section's order; entries 4, 6,
 // 7, 9, 11, 14, 15, 16, 19 and 26 as issue 245 left them.
 var HASHES=[
@@ -160,6 +160,34 @@ var byWords=wall.filter(function(b){ return closing(b).kind==='words'; }).length
 
 // The size.
 if(claude!==null)hold(oversize('CLAUDE.md',claude,CEILING));
+
+// The wall's retired phrases (issue 252). Each pull request that made a sentence of CLAUDE.md
+// lag named the sentence and did not edit the file: its lines change on the owner's word. The
+// phrases below were placed on that word. None may stand in the file again, and the lines that
+// were added must be there. Two more retired phrases quoted the words a decision was made in;
+// tests/truth_pages_check.js holds those, by their shape.
+var RETIRED=[
+  "holds a fresh reader to reading inside its run folder and writing its own answer file",
+  "a Read only inside the seat's run folder and a Write only to the seat's own answer file",
+  "(it needs a running Claude Code and one model call)",
+  "reads one environment variable (`CW_OPENER`, the tests' fake opener)",
+  "the seat's reach (Read inside its run folder, Write to its answer file;",
+  "read from the seat's own transcript beside the session's (`<session dir>/<session_id>/subagents/agent-<agent_id>.jsonl`, measured on the Claude Code version",
+  "its 28 entries moved word for word, never edited, a later ruling added at the end",
+  "plugins/combat-writing/                the listed plugin, named cw (the folder keeps the old name)",
+  "The directory scans only that folder.",
+  "an outside seat's name comes from the model field its provider's API returned, and the record says so.",
+  "a seat is named from what its provider's API returns;",
+  "the moved text byte for byte and never edited since), so a Part cited by number at or below 90, anywhere in the tree, is read under the same heading in PLAN_ARCHIVE.md; PLAN.md holds Part 91 onward, every new Part is written there, and the archive is never written to.",
+  "PLAN.md                                the parts and their status lines, Part 91 onward",
+  "PLAN_ARCHIVE.md                        Parts 1 to 90, frozen: moved byte for byte, never edited",
+  "(README, CONTRIBUTING, CLAUDE.md, PLAN.md, PLAN_ARCHIVE.md, RULINGS.md)"
+];
+var ADDED=['PRIVACY.md                             what the two plugins send, store and read','SUPPORT.md                             the support address and where to report a problem','.claude-plugin/icon.png              the listing icon, the same bytes in both plugins','PLAN_ARCHIVE_2.md                      Parts 91 to 140, frozen: moved byte for byte, held to a hash by tests/plan_check.js'];
+if(claude!==null){
+  RETIRED.forEach(function(p){ check(claude.indexOf(p)<0,'CLAUDE.md: a retired phrase stands: '+p.slice(0,90)); });
+  ADDED.forEach(function(p){ check(claude.indexOf(p)>=0,'CLAUDE.md: the layout lacks the line: '+p.replace(/ +/g,' ')); });
+}
 
 // The comparison, both ways, on invented text.
 var inv=['- Alpha (invented): the first rule. Its record.','- Beta: the second rule, whole.','- Gamma is the third rule. More.'];
