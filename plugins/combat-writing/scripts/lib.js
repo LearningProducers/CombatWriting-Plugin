@@ -1488,7 +1488,9 @@ function draftParts(text){
 var PARTS_HEADING='The draft\'s parts (measured by code, by position; the first words only)';
 var PARTS_LINE='Where the task says "opening line", "opening sentence", "first line" or "first sentence", it means the OPENING SENTENCE named under the draft heading, never the greeting; "body" and "closer" mean the parts named there.';
 function draftPartsLines(p){
-  var q=function(s){return '"'+String(s).replace(/"/g,'”')+'"';};
+  // A part's words are quoted with each run of white space made one space: they stand above the
+  // fence, and a carriage return or a line separator in a greeting must not start a line there.
+  var q=function(s){return '"'+String(s).replace(/\s+/g,' ').replace(/"/g,'”')+'"';};
   var lines=[PARTS_HEADING+':'];
   lines.push('- GREETING: '+(p.greeting?'paragraph '+p.greeting.paragraph+', '+q(p.greeting.text):'none'));
   lines.push('- OPENING SENTENCE: '+(p.opening?'paragraph '+p.opening.paragraph+', sentence '+p.opening.sentence+', beginning '+q(p.opening.words):'none'));
