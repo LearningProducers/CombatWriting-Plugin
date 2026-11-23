@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0 -->
 # PLAN_ARCHIVE_2.md — Parts 91 to 140
 
-This file is the frozen record of Parts 91 to 140 of PLAN.md, moved here byte for byte on 2026-11-23 (issue 249: PLAN.md had reached the 256 KiB ceiling every file in the tree is held under). `tests/plan_check.js` holds the moved text to a hash, so a change to a moved part fails that test. A session that needs a Part from 91 to 140 reads it here; Parts 1 to 90 are in PLAN_ARCHIVE.md, and PLAN.md holds Part 141 onward and stays the only memory between build sessions. The terms, the standing rules and the licensing rule are in CLAUDE.md.
+This file is the frozen record of Parts 91 to 140 of PLAN.md, moved here byte for byte on 2026-11-23 (issue 249: PLAN.md stood 765 bytes under the 256 KiB ceiling that every file in the tree but an image or a font is held under). `tests/plan_check.js` holds the moved text to a hash, so a change to a moved part fails that test. A session that needs a Part from 91 to 140 reads it here; Parts 1 to 90 are in PLAN_ARCHIVE.md, and PLAN.md holds Part 141 onward and stays the only memory between build sessions. The terms, the standing rules and the licensing rule are in CLAUDE.md.
 
 ## Part 91 — marketplace_check.js reads the scripts and nothing beside them (no bump)
 

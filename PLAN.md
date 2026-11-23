@@ -232,15 +232,15 @@ Status: delivered — 2026-11-23 — draft pull request open on main, opened aft
 
 ## Part 145 — The plan is split a second time: Parts 91 to 140 move to PLAN_ARCHIVE_2.md
 
-Issue 249. This file stood at 261,379 bytes, under the ceiling of 262,144 that `tests/license_check.js` holds every file under, and no further part fitted. PLAN_ARCHIVE.md stood at 231,896 bytes and takes no more.
+Issue 249. This file stood at 261,379 bytes, under the ceiling of 262,144 that `tests/license_check.js` holds every file but an image or a font under, and no further part fitted. PLAN_ARCHIVE.md stood at 231,896 bytes: it has less room than the parts that had to move, and it is not written to.
 
-What is built. Parts 91 to 140 are moved, byte for byte, to PLAN_ARCHIVE_2.md, new, under the Shield header and one opening paragraph. Nothing is deleted and no moved byte is changed. This file keeps Part 141 onward, and its opening names both archive files. `tests/plan_check.js`, new, holds the three files to each other and holds the moved text to a hash, so the second archive is frozen by a test. The root README and the checklist name the three files. `tests/readme_check.js` leaves the new file out of one search, as it leaves out this file and the first archive: the phrase it looks for stands on three lines of the moved parts.
+What is built. Parts 91 to 140 are moved, byte for byte, to PLAN_ARCHIVE_2.md, new, under the Shield header and one opening paragraph. Nothing is deleted and no moved byte is changed. This file keeps Part 141 onward, and its opening names both archive files. `tests/plan_check.js`, new, holds the three files to each other and holds the moved text to a hash, so no moved byte changes unseen. The root README and the checklist name the three files. `tests/readme_check.js` leaves the new file out of one search, as it leaves out this file and the first archive: the phrase it looks for stands on three lines of the moved parts.
 
 Run red first, in a commit of tests alone: 4 of the test's 6 checks failed; four more run once the new file exists. On the tree as built the test passes, 10 checks. Nine breaks of the three files and the README, one at a time on a copy, each fail the test by name.
 
 The loss. A part from 91 to 140 cited by its number anywhere in the tree, as a part of PLAN.md, is now read in PLAN_ARCHIVE_2.md under the same heading. The citations are not rewritten. PLAN_ARCHIVE.md is not written to, so its opening still says this file holds Part 91 onward; this file's opening and the new archive's say where each part is.
 
-`CLAUDE.md` is not edited by this part. Four of its lines name the first split alone and now lag: the standing rule on where a part is read, the layout's lines for the plan and for its archive, and the Shield list of Markdown files. They change on the owner's typed line, with the phrases Parts 142 to 144 name.
+`CLAUDE.md` is not edited by this part. Four of its lines name the first split alone and now lag: the standing rule on where a part is read, the layout's lines for the plan and for its archive, and the Shield list of Markdown files. They change on the owner's typed line, with the phrases Parts 140, 141 and 143 name and the two sentences the pull request of Part 144 names in its footer.
 
 Delivers: `PLAN_ARCHIVE_2.md`, new; this file; `tests/plan_check.js`, new; `tests/readme_check.js`; `README.md`; `docs/directory-checklist.md` and `docs/plugin-map.md`.
 

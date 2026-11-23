@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // plan_check.js: where each part of the plan is read (issue 249). PLAN.md is the only memory
-// between build sessions, and every file in the tree is held under 256 KiB (license_check.js),
+// between build sessions, and every file in the tree but an image or a font is held under
+// 256 KiB (license_check.js),
 // so the plan is split when it reaches that size and its older parts move to an archive file,
 // byte for byte. This test holds the three files to each other:
 //
@@ -9,11 +10,14 @@
 //      carry a number with a point (76.1, 81.1, 81.2), and the parts stand in the order they
 //      were written, which is not the order of their numbers.
 //   2. PLAN_ARCHIVE_2.md holds Parts 91 to 140, each heading once, under the Shield
-//      header and one opening paragraph. From its first part's heading to its end it is the
-//      bytes PLAN.md held for those parts when they moved: one sha256, written below. The file
-//      is frozen; a change to a moved part fails here.
-//   3. PLAN.md holds Part 141 onward, each heading once, with no number left out, and
-//      its opening names both archive files.
+//      header, one title and one opening paragraph. From its first part's heading to its end
+//      it is the bytes PLAN.md held for those parts when they moved: one sha256, written
+//      below. A change to a moved byte fails here; the opening is held to its shape and three
+//      phrases, not to a hash.
+//   3. PLAN.md holds Part 141 onward, each heading once, with no whole number left out, and
+//      its opening names both archive files. A part may carry a number with a point (145.1),
+//      as three parts of the first archive do. The last part is not held to be there: a
+//      test cannot know the newest part's number.
 //   4. No part's heading stands in two of the three files.
 //   5. The root README names the three files.
 //
@@ -42,11 +46,11 @@ if(second!==null){
   var at=second.indexOf('## Part 91 '), moved=at>=0?Buffer.from(second.slice(at),'utf8'):Buffer.alloc(0);
   check(moved.length===MOVED_BYTES&&crypto.createHash('sha256').update(moved).digest('hex')===MOVED_SHA256,'PLAN_ARCHIVE_2.md: from its first part to its end it must be the bytes PLAN.md held for Parts 91 to 140 ('+MOVED_BYTES+' bytes); it holds '+moved.length+', or a byte differs');
   var opening=at>=0?second.slice(SHIELD.length,at):'';
-  check(/Parts 91 to 140/.test(opening)&&/byte for byte/.test(opening)&&/issue 249/.test(opening)&&opening.split('\n').filter(function(l){return /^#/.test(l);}).length===1,'PLAN_ARCHIVE_2.md: its opening must be one title and a paragraph that says Parts 91 to 140 moved here byte for byte (issue 249)');
+  check(/Parts 91 to 140/.test(opening)&&/byte for byte/.test(opening)&&/issue 249/.test(opening)&&opening.split('\n').filter(function(l){return /^#/.test(l);}).length===1&&opening.split('\n').filter(function(l){return l.trim()!=='';}).length===2,'PLAN_ARCHIVE_2.md: its opening must be one title and one paragraph, which says Parts 91 to 140 moved here byte for byte (issue 249)');
 }
 
-var mine=sorted(parts(plan));
-check(plan!==null&&mine.length>0&&mine[0]===141&&mine.join()===range(141,mine[mine.length-1]).join(),'PLAN.md: must hold Part 141 onward, each heading once, no number left out; its lowest part is Part '+mine[0]+' and it holds '+mine.length+' headings');
+var mine=sorted(parts(plan)), whole=mine.filter(function(n){ return n===Math.floor(n); });
+check(plan!==null&&mine.length>0&&mine[0]===141&&mine.every(function(n,i){ return n!==mine[i-1]; })&&whole.join()===range(141,Math.floor(mine[mine.length-1])).join(),'PLAN.md: must hold Part 141 onward, each heading once, no whole number left out; its lowest part is Part '+mine[0]+', it holds '+mine.length+' headings, and its whole numbers read '+whole.join(', '));
 var planOpening=plan!==null&&plan.indexOf('## Part ')>=0?plan.slice(0,plan.indexOf('## Part ')):'';
 check(/PLAN_ARCHIVE\.md/.test(planOpening)&&/PLAN_ARCHIVE_2\.md/.test(planOpening)&&/Part 141 onward/.test(planOpening),'PLAN.md: its opening must name PLAN_ARCHIVE.md and PLAN_ARCHIVE_2.md and say this file holds Part 141 onward');
 
