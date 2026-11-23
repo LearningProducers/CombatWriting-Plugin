@@ -938,3 +938,19 @@ Seen and not touched:
 Delivers: `PRIVACY.md` and `SUPPORT.md`, new; `plugins/combat-writing/.claude-plugin/icon.png` and `plugins/combat-writing-crew/.claude-plugin/icon.png`, new; both `plugin.json` files and `.claude-plugin/marketplace.json`; the root README, the listing README and the add-on's README; the rules skill, one sentence, and the help skill, in two places; `docs/directory-checklist.md`, `docs/directory-checklist-crew.md` and `docs/plugin-map.md`; `tests/truth_pages_check.js` and `tests/key_route_check.js`, new; `.github/workflows/checks.yml`; `tests/readme_check.js`, `tests/packet_run_check.js`, `tests/marketplace_check.js`, `tests/rulings_check.js`, `tests/sections_check.js`, `tests/paste_check.js` and `tests/hook_check.js`; the headers of `tests/brief_check.js`, `briefs_check.js`, `budget_check.js`, `help_check.js`, `links_check.js`, `readers_check.js`, `rewrite_check.js`, `runs_check.js`, `session_start_check.js` and `two_pass_check.js`; `tests/run_all.js`, its header and its default; `RULINGS.md`, `PLAN_ARCHIVE.md` and this file.
 
 Status: delivered — 2026-11-23 — draft pull request open, based on Part 142's branch while that pull request is open, so the workflow's checks run on it after Part 142 merges; the last line of `node tests/run_all.js` on the final head is in the pull request body. All three fresh-eyes reads stopped, each on what the paragraphs above name. The corrections made after the third, and the cures of 2026-11-23, have had no fresh reader of the build's own: the other crew reads the pull request before the merge.
+
+## Part 144 — A seat's name has one shape, where it is stored and where it is read (cw 0.9.23, crew 0.5.24)
+
+Issue 247. A seat's model and maker stand in every packet and every result, outside every fence. An outside seat's name is text its provider sent, and the add-on stored it as it came. The rule, what was measured and what is not cured stand in the last entry of RULINGS.md, their one home.
+
+What is built. The add-on takes a model id, a maker and a reply's model field only in their shapes, makes a provider's error text one line cut at 300 characters, and keeps a token count only when it is a number. The plugin holds each name again where it reads the seats file, and makes a not-seated reason one line.
+
+Run red first, in a commit of tests alone: `tests/seat_name_check.js`, new, 20 of its 27 checks failed. Five checks were added in the cure's commit: the token counts; the add-on's copies of two patterns and of the function, held equal; a sound name standing as written; and the checker's printed line, which was run red before its cure and not committed red. On the code as built the test passes, 32 checks.
+
+The loss. An outside seat an older add-on named with text that is no plain name reads as not reported, and the add-on does not send to it: the crew is registered again on a new run. A provider's id that holds a character outside the pattern is not offered.
+
+Seen and not touched: the printed no-key sentence of `scripts/lib.js`, which `tests/key_route_check.js` still prints as owed; the three script comments and the other items Part 143 names. `CLAUDE.md` is not edited: the rule has no bullet on the wall.
+
+Delivers: `plugins/combat-writing-crew/crew-lib.js` and `server.js`; `plugins/combat-writing/scripts/lib.js` and `check-answer.js`; both `plugin.json` files and the marketplace file, for the versions; the add-on's README and `PRIVACY.md`; `docs/plugin-map.md`; `tests/seat_name_check.js`, new; `RULINGS.md` and this file.
+
+Status: in progress — 2026-11-23 — built on Part 143's head, local.
