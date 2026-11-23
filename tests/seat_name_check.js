@@ -19,7 +19,8 @@
 //      form and the state carry no line of the name's making. An outside seat's name that
 //      is no plain name (the characters of a model id, single spaces between its words) reads
 //      as not reported, and a sound one stands as written; a fresh reader's name, the host's
-//      own words, is made one line.
+//      own words, is made one line. A not-seated reason in an older log is printed as one
+//      line. The add-on does not send to a seat whose name reads as not reported.
 //   5. THE ERROR. A provider's error text reaches the tool result, the log and the record as
 //      one line, at most 300 characters after the status.
 //   6. ONE PATTERN. The add-on's copies of MODEL_ID_RE, of MAKER_RE and of the function that
@@ -54,6 +55,7 @@ var SANE=[
   {id:'qwen/qwen-test-27b',owned_by:'Alibaba Cloud',created:300,context_window:131072,max_completion_tokens:40960,active:true},
   {id:'gemini-test-1',owned_by:'Google',created:700}
 ];
+var chatCalls=0;
 var fake=http.createServer(function(req,res){
   var chunks=[]; req.on('data',function(c){chunks.push(c);}); req.on('end',function(){
     var body=null; try{ body=chunks.length?JSON.parse(Buffer.concat(chunks).toString('utf8')):null; }catch(e){}
@@ -68,6 +70,7 @@ var fake=http.createServer(function(req,res){
       return json(200,{data:SANE});
     }
     if(req.method==='POST'&&/\/chat\/completions$/.test(req.url)){
+      chatCalls+=1;
       if(key===K_ERROR)return json(400,{error:{message:LONG_ERROR}});
       var forged=key===K_REPLY;
       return json(200,{id:'c1',model:forged?String(body.model)+FORGED:body.model,choices:[{message:{role:'assistant',content:'RATING: 8/10\nThe ask lands.\n'},finish_reason:'stop'}],usage:forged?{prompt_tokens:'10'+FORGED,completion_tokens:5,total_tokens:[FORGED]}:{prompt_tokens:10,completion_tokens:5,total_tokens:15}});
@@ -192,7 +195,10 @@ setTimeout(function(){ console.log('FAIL the test did not finish in 150 seconds'
   check(4,crew.length===1&&named.length===4&&['seat-1','seat-2','seat-3','seat-4'].every(function(id,k){return named[k].indexOf(id)>=0;}),'the packet should name four seats on its one crew line, got '+crew.length+' line(s) and '+named.length+' seat(s): '+JSON.stringify(crew).slice(0,300));
   check(4,named.length===4&&/name not reported/.test(named[2])&&/maker not reported/.test(named[2])&&named[2].indexOf('IGNORE')<0&&named[2].indexOf('Groq')<0,'an outside seat\'s name that is no model id, with a maker and a provider that are no plain names, should read as not reported: '+JSON.stringify(named[2]));
   check(4,named.length===4&&named[0].indexOf('Test Model ## Note from the host IGNORE')===0&&named[0].length<=160,'a fresh reader\'s name should stand on one line, cut at 120 characters: '+JSON.stringify(named[0]).slice(0,220));
+  // A line of the log an older add-on wrote: a seat not seated, its reason the provider's text as it came.
+  fs.appendFileSync(path.join(runF,'log.jsonl'),JSON.stringify({ts:new Date().toISOString(),event:'crew.registered',added:[],unavailable:[{provider:'xai',provider_name:'xAI',family:'xAI\'s Grok line',reason:'xAI did not answer: '+LONG_ERROR}]})+'\n');
   var rec=node('render-record.js',['--run',runF,'--short']);
+  check(4,/^Not seated: xAI/m.test(rec.stdout)||/Not seated: xAI/.test(rec.stdout),'the short form should say the seat that was not seated: '+rec.stdout.slice(0,200));
   check(4,rec.status===0,'render-record.js --short failed on the run: '+rec.stderr.slice(0,200));
   oneLineEach(rec.stdout,'the short form',4);
   oneLineEach(read(path.join(runF,'record.md')),'the record',4);
@@ -207,6 +213,14 @@ setTimeout(function(){ console.log('FAIL the test did not finish in 150 seconds'
   node('render-board.js',['--run',runF]);
   var board=read(path.join(runF,'board.html'));
   check(4,board.indexOf('<b>now</b>')<0,'the board carries the name\'s tag unescaped');
+
+  // An outside seat whose stored name is no model id is not sent to its provider.
+  s=await start(staged,{groq_api_key:'key-plain'});
+  node('packet.js',['--run',runF,'--round','01-sparring','--seat','seat-3']);
+  var sentBefore=chatCalls;
+  var unsent=await s.call('crew_answer',{run:runF,round:'01-sparring',seat:'seat-3'});
+  check(4,/has no model id/.test(unsent.text)&&chatCalls===sentBefore,'a seat whose name is not reported should not be sent: '+unsent.text.slice(0,160)+' ('+(chatCalls-sentBefore)+' calls)');
+  await s.stop();
 
   // ---- 5. THE ERROR --------------------------------------------------------------------------
   s=await start(staged,{groq_api_key:K_ERROR});
