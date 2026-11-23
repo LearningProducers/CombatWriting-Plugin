@@ -132,7 +132,7 @@ function cell(seat,round){
   var stop=lib.stoppedOf(log,seat.id,round,'rating');
   var words=lib.wordCount(text);
   if(!check.ok)return {kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,mark:lib.withStopped(withTrunc('',trunc),stop),answer:text,words:words,contract:contract,reasons:check.reasons};
-  var copy=logged&&logged.copy?logged.copy:null;
+  var copy=lib.copyOf(logged,seats);
   if(contract==='critique')return {kind:'critique',text:'critique',title:copy?'the rewrite is a copy of '+copy.model+'\'s':'this round asked for no rating',rating:null,mark:lib.withStopped(withTrunc(lib.copyMark(copy),trunc),stop),answer:text,words:words,contract:contract,rewrite:(lib.rewriteOf(text)||{}).text||null,copy:copy};
   var flip=lastLog(function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
   if(!flip){var inputs=lib.flipInputs(runDir,seat,round,seats);flip=lib.checkFlip(text,seat,inputs.ownRated?inputs.ownRated.text:null,inputs.prevAnswers);}

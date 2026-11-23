@@ -668,10 +668,49 @@ function logDamageLine(n){
   return n+' line'+(n===1?'':'s')+' of this run\'s log could not be read, so what '+(n===1?'it':'they')+' recorded is missing here and a line may say less than happened. The log is log.jsonl in the run folder.';
 }
 
+// A SEAT'S NAME HAS ONE SHAPE (issue 247). The seats file is written by new-run.js from the
+// host's words, by seat-fallback.js, and by the add-on from what a provider returned. A seat's
+// model and maker stand in every packet, in the record, in the state and in the short form the
+// host reads, outside every fence, so a name with a line break in it can stand there as a
+// heading or an order of its own. The scripts read the file through readSeats, which holds
+// each name (check-answer.js through holdSeats, for the line it prints; the two hooks open the
+// file by themselves, for a seat's id, its provider and how it starts): an outside seat's model (a seat with a provider) must be a plain name by
+// SEAT_NAME_RE (the characters of a model id, MODEL_ID_RE below, with single spaces between
+// its words, at most 120: no line break and no mark a heading, a tag or a fence is written
+// with) or it reads as not reported; its maker and the provider that served it must be plain
+// names by MAKER_RE (at most four words of letters, digits and . & ' ( ) -, 40 characters in
+// all), the maker also when it is the one form the add-on writes for the local seat, for
+// that seat's own model (localMaker), or they read as not reported and not there; a fresh reader's name, the host's words, is made
+// one line and cut at 120. The add-on stores an id only when it is a model id, with no space,
+// and carries holdSeats word for word (crew-lib.js; the test holds the two equal), so a file
+// an older add-on wrote is held here too.
+var MAKER_UNREPORTED='maker not reported';
+var MAKER_RE=/^[A-Za-z0-9][A-Za-z0-9.&'()-]*(?: [A-Za-z0-9.&'()-]+){0,3}$/;
+function isMakerName(v){ return typeof v==='string'&&v.length<=40&&MAKER_RE.test(v); }
+function localMaker(model){ return 'the maker of '+model+' (local, not reported by the server)'; }
+var SEAT_NAME_RE=/^[A-Za-z0-9._\/:\[\]-]+(?: [A-Za-z0-9._\/:\[\]-]+)*$/;
+function isSeatName(v){ return typeof v==='string'&&v.length<=120&&SEAT_NAME_RE.test(v); }
+function oneLine(v,max){ return String(v===undefined||v===null?'':v).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g,' ').replace(/\s+/g,' ').trim().slice(0,max); }
+function holdSeats(file){
+  if(!file||!Array.isArray(file.seats))return file;
+  file.seats.forEach(function(s){
+    if(!s||typeof s!=='object')return;
+    if(s.provider){
+      if(!isSeatName(s.model))s.model=MODEL_UNREPORTED;
+      if(!isMakerName(s.company)&&s.company!==localMaker(s.model))s.company=MAKER_UNREPORTED;
+      if(s.served_by!==undefined&&!isMakerName(s.served_by))delete s.served_by;
+    }else{
+      if(s.model!==undefined&&s.model!==null)s.model=oneLine(s.model,120)||MODEL_UNREPORTED;
+      if(s.company!==undefined&&s.company!==null)s.company=oneLine(s.company,120)||MAKER_UNREPORTED;
+      if(s.served_by!==undefined&&s.served_by!==null){ s.served_by=oneLine(s.served_by,120); if(!s.served_by)delete s.served_by; }
+    }
+  });
+  return file;
+}
 function readSeats(runDir){
   var p=path.join(runDir,'seats.json');
   if(!fs.existsSync(p))die('no seats.json in '+runDir);
-  return JSON.parse(readText(p));
+  return holdSeats(JSON.parse(readText(p)));
 }
 // The crew (Part 87; seat-1's default since issue 189):
 // two fresh readers by default, seat-1 and seat-2. Seat-1 starts on the session's own model: no
@@ -927,8 +966,8 @@ function wasAsked(runDir,round,seatId,log){
 // the provider's API response for outside seats, or both.
 function nameSources(seats){
   var fresh=seats.some(function(s){return !s.provider;}), outside=seats.some(function(s){return !!s.provider;});
-  if(fresh&&outside)return 'Fresh readers are named from the agent configuration; outside seats from the model field their provider\'s API returned.';
-  if(outside)return 'Seat names come from the model field each provider\'s API returned.';
+  if(fresh&&outside)return 'Fresh readers are named from the agent configuration; outside seats from the model field their provider\'s API returned, when it is a model id.';
+  if(outside)return 'Seat names come from the model field each provider\'s API returned, when it is a model id.';
   return 'Seat names come from the agent configuration, not from an API field.';
 }
 
@@ -951,7 +990,7 @@ function crewStateLines(runDir,seats,log){
       lines.push('The crew add-on is running and no provider has a key, so the crew is '+crewAloneWords(seats)+': a key was never entered, or an update dropped it (the host rebuilt its credentials store). Next: '+(noKey[0].next||ADDON_CONFIGURE)+', type the key into a key field and save: '+(named.length?named.join(', '):fields.join(', '))+'; a save with nothing typed says No configuration changes and keeps nothing; a free Groq key seats two. Or set the provider\'s environment variable when the prompt is empty.');
     }
     failed.forEach(function(u){
-      lines.push('Not seated: '+(u.provider_name||u.provider)+(u.family?' ('+u.family+')':'')+': '+u.reason+'. Next: run the command again; if it repeats, '+(u.next||ADDON_CONFIGURE)+' to check the '+(u.field||'key')+' field.');
+      lines.push('Not seated: '+(u.provider_name||u.provider)+(u.family?' ('+u.family+')':'')+': '+oneLine(u.reason,1000)+'. Next: run the command again; if it repeats, '+(u.next||ADDON_CONFIGURE)+' to check the '+(u.field||'key')+' field.');
     });
   }else if(last&&last.event==='addon.state'&&!outside){
     lines.push(addonStateLine(last.state,seats)||('The add-on state recorded, '+last.state+', is not one the record knows.'));
@@ -1084,6 +1123,20 @@ function rewriteCopy(runDir,round,seatId,text,seats,log){
   return best;
 }
 function copyMark(copy){ return copy?'copy of '+copy.model:''; }
+// THE LOG'S COPY OF A NAME (issue 247). check-answer.js writes the copy it found on its line
+// of the log: the copied seat's id, that seat's name, the round and the share. The log is a
+// file of an older run too, and a name in it stands as the seats file held it when the line
+// was written. So what a result prints of a copy is read through copyOf: the seat's id must
+// be a seat id, the name is the held list's name for that id (the id itself when the list
+// holds no such seat or its name is not reported), the round a round folder's name or none,
+// the share a number from 0 to 1 or none. The log's own `model` is never printed.
+function copyOf(logged,seats){
+  var c=logged&&logged.copy;
+  if(!c||typeof c!=='object'||typeof c.seat!=='string'||!/^seat-\d+$/.test(c.seat))return null;
+  var seat=(seats||[]).filter(function(s){ return s&&s.id===c.seat; })[0];
+  var named=seat&&typeof seat.model==='string'&&seat.model&&seat.model!==MODEL_UNREPORTED?seat.model:c.seat;
+  return {seat:c.seat,model:named,round:typeof c.round==='string'&&/^\d\d-[a-z][a-z0-9-]*$/.test(c.round)?c.round:null,share:typeof c.share==='number'&&c.share>=0&&c.share<=1?c.share:null};
+}
 // Whether the packet asked for a rewrite (issue 103): the packet.built line's `rewrite`, else the
 // packet file carrying REWRITE_LINE; a packet built by hand, false.
 function rewriteSent(runDir,round,answerFile,log){
@@ -1824,7 +1877,7 @@ function roundCell(runDir,seat,round,seats,log){
   var trunc=truncationOf(log,seat.id,round,'rating');
   var stop=stoppedOf(log,seat.id,round,'rating');
   var rw=rewriteOf(text);
-  var copy=logged&&logged.copy?logged.copy:null;
+  var copy=copyOf(logged,seats);
   var base={file:rel,words:wordCount(text),word_cap:logged?logged.word_cap:null,contract:contract,answer:text,truncated:trunc,stopped:stop,note:note,verdict_line:verdictLine(text,contract),rewrite:rw?rw.text:null,copy:copy,from:null,cited:null,flip:null};
   if(!check.ok)return Object.assign(base,{kind:'failed',text:'failed read',title:check.reasons.join('; '),rating:null,wrote:check.rating,mark:withStopped(withTrunc('',trunc),stop),reasons:check.reasons});
   if(contract==='critique')return Object.assign(base,{kind:'critique',text:'critique',title:copy?'the rewrite is a copy of '+copy.model+'\'s':'this round asked for no rating',rating:null,mark:withStopped(withTrunc(copyMark(copy),trunc),stop),reasons:[]});
@@ -1892,7 +1945,7 @@ function runState(runDir){
     var packets=log.filter(function(e){return e.event==='packet.built'&&e.round===r;}).map(function(e){return {seat:e.seat,file:e.file,draft:e.draft,mode:e.mode,contract:e.contract,rerate:!!e.rerate,reads_round:e.reads_round||null,word_cap:e.word_cap,carried:(e.carried||[]).map(function(c){return c.seat;}),missing:e.missing||[],not_asked:e.not_asked||[],ts:e.ts};});
     var cells={}; seats.forEach(function(s){ cells[s.id]=fin?finals[s.id][r]:grid[s.id][r]; });
     return {round:r,n:parseInt(r.slice(0,2),10),kind:roundKind(r),final:fin,task:task,task_line:taskLine(task),rating_line:ratingLine(task,r),
-      announced:ann?{kind:ann.kind,to:ann.to||[],rerate:!!ann.rerate,line:ann.line||null,ts:ann.ts}:null,
+      announced:ann?{kind:ann.kind,to:ann.to||[],rerate:!!ann.rerate,line:ann.line?oneLine(ann.line,600):null,ts:ann.ts}:null,
       put_to:put.map(function(s){return s.id;}),answered:done.map(function(s){return s.id;}),all_seats:!asked||put.length===seats.length,packets:packets,cells:cells};
   });
   var latest={}, latestTurn={};
@@ -1932,7 +1985,7 @@ module.exports={
   MODEL_ID_RE:MODEL_ID_RE,isModelId:isModelId,seatModels:seatModels,measuredModels:measuredModels,modelChangeWords:modelChangeWords,measuredLines:measuredLines,MEASURED_HEADING:MEASURED_HEADING,MEASURED_NOTE:MEASURED_NOTE,MEASURED_SOURCE:MEASURED_SOURCE,
   MAX_FRESH_READERS:MAX_FRESH_READERS,READERS_FILE:READERS_FILE,READERS_REL:READERS_REL,freshReaders:freshReaders,crewAloneWords:crewAloneWords,readersPicksPath:readersPicksPath,readReaderPicks:readReaderPicks,
   PICKER_FILE:PICKER_FILE,PICKER_REL:PICKER_REL,PICKER_OPTION:PICKER_OPTION,PICKER_ON_CMD:PICKER_ON_CMD,pickerPath:pickerPath,readPicker:readPicker,projectOfRun:projectOfRun,
-  parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,appendLog:appendLog,readLog:readLog,logDamage:logDamage,logDamageLine:logDamageLine,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
+  parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,holdSeats:holdSeats,isSeatName:isSeatName,isMakerName:isMakerName,localMaker:localMaker,oneLine:oneLine,appendLog:appendLog,readLog:readLog,logDamage:logDamage,logDamageLine:logDamageLine,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   GITIGNORE_FILE:GITIGNORE_FILE,GITIGNORE_LINES:GITIGNORE_LINES,GITIGNORE_LINE:GITIGNORE_LINE,inGitRepo:inGitRepo,writeGitignore:writeGitignore,
   BRIEFS_DIR:BRIEFS_DIR,BRIEFS_DIR_REL:BRIEFS_DIR_REL,BRIEF_NAME_RE:BRIEF_NAME_RE,briefsDir:briefsDir,briefNamePath:briefNamePath,isBriefName:isBriefName,listBriefs:listBriefs,briefFirstLine:briefFirstLine,briefNameKeptLine:briefNameKeptLine,
@@ -1940,7 +1993,7 @@ module.exports={
   READER_FILE:READER_FILE,READER_HEADING:READER_HEADING,READER_SHOWN:READER_SHOWN,readerPath:readerPath,readReader:readReader,readerWords:readerWords,
   BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,NO_TIME:NO_TIME,NO_DATE:NO_DATE,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
-  capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,READ_WHOLE_CHARS:READ_WHOLE_CHARS,READ_REFUSED_BYTES:READ_REFUSED_BYTES,readWarning:readWarning,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,packetHead:packetHead,FENCES:FENCES,fenceMark:fenceMark,fenceLine:fenceLine,fenceMarkLine:fenceMarkLine,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,copyShare:copyShare,rewriteCopy:rewriteCopy,copyMark:copyMark,COPY_SHARE:COPY_SHARE,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,NO_WORDS:NO_WORDS,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,VOICE_ORDER:VOICE_ORDER,voiceTier:voiceTier,voiceBase:voiceBase,voiceRank:voiceRank,isFenceLine:isFenceLine,plainSpoken:plainSpoken,spokenPlain:spokenPlain,draftParts:draftParts,draftPartsLines:draftPartsLines,PARTS_HEADING:PARTS_HEADING,PARTS_LINE:PARTS_LINE,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  copyOf:copyOf,capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,READ_WHOLE_CHARS:READ_WHOLE_CHARS,READ_REFUSED_BYTES:READ_REFUSED_BYTES,readWarning:readWarning,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,packetHead:packetHead,FENCES:FENCES,fenceMark:fenceMark,fenceLine:fenceLine,fenceMarkLine:fenceMarkLine,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,copyShare:copyShare,rewriteCopy:rewriteCopy,copyMark:copyMark,COPY_SHARE:COPY_SHARE,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,NO_WORDS:NO_WORDS,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,VOICE_ORDER:VOICE_ORDER,voiceTier:voiceTier,voiceBase:voiceBase,voiceRank:voiceRank,isFenceLine:isFenceLine,plainSpoken:plainSpoken,spokenPlain:spokenPlain,draftParts:draftParts,draftPartsLines:draftPartsLines,PARTS_HEADING:PARTS_HEADING,PARTS_LINE:PARTS_LINE,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
   STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,stoppedOf:stoppedOf,stoppedMark:stoppedMark,withStopped:withStopped,stoppedLine:stoppedLine,missingReason:missingReason,missingWhy:missingWhy,MISSING_REASON_SHOWN:MISSING_REASON_SHOWN,roundCell:roundCell,finalCell:finalCell,finalText:finalText,runState:runState
 };

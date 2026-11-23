@@ -20,10 +20,53 @@ function readLog(runDir){
   if(!fs.existsSync(p))return [];
   return readText(p).split('\n').filter(Boolean).map(function(l){try{return JSON.parse(l);}catch(e){return null;}}).filter(Boolean);
 }
+// A SEAT'S NAME HAS ONE SHAPE (issue 247). A seat's model and maker stand in every packet, in the
+// record and in the short form the host reads, outside every fence, so a name is text that can
+// be read as the packet's or the plugin's own words. An outside seat's name comes from its
+// provider: an id from the provider's list, the maker beside it, the model field of a reply.
+// Each is taken only in its shape. A model id is MODEL_ID_RE, the plugin's own pattern (lib.js;
+// the test holds the two equal): letters, digits, dot, dash, underscore, slash, colon and square
+// brackets, at most 120, no space and no line break. A maker is a plain name, MAKER_RE: at most
+// four words of letters, digits and . & ' ( ) -, 40 characters in all, so no comma, no colon,
+// no slash and no bracket, which a sentence, a link or an address is written with. The add-on
+// writes one longer form itself, for the local seat's maker (localMaker); the seats file's
+// reader admits it for a seat only when it is that form for the seat's own model. An
+// id from the list that is no model id is not offered; a maker that is no plain name is "maker
+// not reported"; a reply's model field that is no model id leaves the seat's name as it was. The
+// seats file is held when it is read (holdSeats, the plugin's own function word for word), so
+// a file an older add-on wrote is held too. There an outside seat's name must be a plain name,
+// SEAT_NAME_RE: the characters of a model id with single spaces between its words, at most
+// 120, so no line break and no mark a heading, a tag or a fence is written with; a name that
+// is not reads as not reported. A fresh reader's name, the host's words, is made one line.
+var MODEL_UNREPORTED='model unreported', MAKER_UNREPORTED='maker not reported';
+var MODEL_ID_RE=/^[A-Za-z0-9._\/:\[\]-]{1,120}$/;
+function isModelId(v){ return typeof v==='string'&&MODEL_ID_RE.test(v); }
+var MAKER_RE=/^[A-Za-z0-9][A-Za-z0-9.&'()-]*(?: [A-Za-z0-9.&'()-]+){0,3}$/;
+function isMakerName(v){ return typeof v==='string'&&v.length<=40&&MAKER_RE.test(v); }
+function localMaker(model){ return 'the maker of '+model+' (local, not reported by the server)'; }
+var SEAT_NAME_RE=/^[A-Za-z0-9._\/:\[\]-]+(?: [A-Za-z0-9._\/:\[\]-]+)*$/;
+function isSeatName(v){ return typeof v==='string'&&v.length<=120&&SEAT_NAME_RE.test(v); }
+function oneLine(v,max){ return String(v===undefined||v===null?'':v).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g,' ').replace(/\s+/g,' ').trim().slice(0,max); }
+function holdSeats(file){
+  if(!file||!Array.isArray(file.seats))return file;
+  file.seats.forEach(function(s){
+    if(!s||typeof s!=='object')return;
+    if(s.provider){
+      if(!isSeatName(s.model))s.model=MODEL_UNREPORTED;
+      if(!isMakerName(s.company)&&s.company!==localMaker(s.model))s.company=MAKER_UNREPORTED;
+      if(s.served_by!==undefined&&!isMakerName(s.served_by))delete s.served_by;
+    }else{
+      if(s.model!==undefined&&s.model!==null)s.model=oneLine(s.model,120)||MODEL_UNREPORTED;
+      if(s.company!==undefined&&s.company!==null)s.company=oneLine(s.company,120)||MAKER_UNREPORTED;
+      if(s.served_by!==undefined&&s.served_by!==null){ s.served_by=oneLine(s.served_by,120); if(!s.served_by)delete s.served_by; }
+    }
+  });
+  return file;
+}
 function readSeats(runDir){
   var p=path.join(runDir,'seats.json');
   if(!fs.existsSync(p))throw new Error('no seats.json in '+runDir+'; is this a Combat Writing run folder?');
-  return JSON.parse(readText(p));
+  return holdSeats(JSON.parse(readText(p)));
 }
 function writeSeats(runDir,seatsFile){ fs.writeFileSync(path.join(runDir,'seats.json'),JSON.stringify(seatsFile,null,2)+'\n'); }
 
@@ -187,12 +230,14 @@ function request(method,fullUrl,headers,body,timeoutMs){
 
 function vendorOf(id){ var s=String(id||''); var i=s.indexOf('/'); return i>0?s.slice(0,i):''; }
 function makerOf(id,ownedBy,makers){
+  // The map answers for its own names alone: a name every object carries (constructor) is not one.
+  var own=function(k){ return Object.prototype.hasOwnProperty.call(makers,k)&&typeof makers[k]==='string'?makers[k]:null; };
   var v=vendorOf(id).toLowerCase();
-  if(v&&makers[v])return makers[v];
+  if(v&&own(v))return own(v);
   var head=String(id||'').toLowerCase().split(/[-_.\/]/)[0];
-  if(head&&makers[head])return makers[head];
-  if(ownedBy&&makers[String(ownedBy).toLowerCase()])return makers[String(ownedBy).toLowerCase()];
-  return ownedBy?String(ownedBy):'maker not reported';
+  if(head&&own(head))return own(head);
+  if(typeof ownedBy==='string'&&own(ownedBy.toLowerCase()))return own(ownedBy.toLowerCase());
+  return isMakerName(ownedBy)?ownedBy:MAKER_UNREPORTED;
 }
 // The size token in an id, for the "largest" preference: vendor/name-120b -> 120, no token -> 0.
 function sizeOf(id){ var m=/(\d+)b\b/i.exec(String(id)); return m?parseInt(m[1],10):0; }
@@ -204,11 +249,11 @@ function eligibleCatalog(records,catalogRules){
   var exclude=rules.exclude?new RegExp(rules.exclude,'i'):null;
   var out=[];
   (Array.isArray(records)?records:[]).forEach(function(r){
-    if(!r||!r.id||r.active===false)return;
+    if(!r||!isModelId(r.id)||r.active===false)return; // an id that is no model id is not offered
     if(exclude&&exclude.test(r.id))return;
     if(rules.min_context&&r.context_window!==undefined&&Number(r.context_window)<rules.min_context)return;
     if(rules.min_output&&r.max_completion_tokens!==undefined&&Number(r.max_completion_tokens)<rules.min_output)return;
-    out.push({id:String(r.id),owned_by:String(r.owned_by||''),created:Number(r.created)||0});
+    out.push({id:r.id,owned_by:isMakerName(r.owned_by)?r.owned_by:'',created:Number(r.created)||0});
   });
   out.sort(function(a,b){return (b.created-a.created)||(a.id<b.id?-1:(a.id>b.id?1:0));});
   return out;
@@ -425,8 +470,12 @@ function scrubIds(text){
   keysInUse().forEach(function(k){ if(k)out=out.split(k).join(KEY_MARK); });
   return out.replace(KEY_SHAPE,KEY_MARK).replace(ID_UNDERSCORE,'$1_[redacted]').replace(ID_HYPHEN,'$1-[redacted]');
 }
+// A provider's error text, for a reason: scrubbed, made one line and cut at ERROR_MAX characters.
+// The reason goes to the tool result the host reads, to the log and from there to the record.
+var ERROR_MAX=300;
+function errorLine(text){ return oneLine(scrubIds(text),ERROR_MAX); }
 
-module.exports={readText:readText,readManifest:readManifest,manifestVersion:manifestVersion,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
+module.exports={isModelId:isModelId,isMakerName:isMakerName,localMaker:localMaker,oneLine:oneLine,holdSeats:holdSeats,errorLine:errorLine,MODEL_ID_RE:MODEL_ID_RE,MODEL_UNREPORTED:MODEL_UNREPORTED,MAKER_UNREPORTED:MAKER_UNREPORTED,readText:readText,readManifest:readManifest,manifestVersion:manifestVersion,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
   loadProviders:loadProviders,keyFor:keyFor,keyShape:keyShape,keyHint:keyHint,keyNext:keyNext,keyField:keyField,keyFilePath:keyFilePath,keyFileShown:keyFileShown,readKeyFile:readKeyFile,KEY_FILE:KEY_FILE,CONFIGURE_COMMAND:CONFIGURE_COMMAND,CAUSES:CAUSES,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
   eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,windowKey:windowKey,
   parseCapRefusal:parseCapRefusal,tokensForCap:tokensForCap,loweredMaxTokens:loweredMaxTokens,capRefusalReason:capRefusalReason,finishReason:finishReason,stoppedBy:stoppedBy,TOKENS_PER_WORD:TOKENS_PER_WORD,FIRST_LINE_TOKENS:FIRST_LINE_TOKENS,CAP_MARGIN:CAP_MARGIN,scrubIds:scrubIds,

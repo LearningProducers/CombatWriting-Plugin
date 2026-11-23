@@ -96,7 +96,7 @@ function cell(seat,round){
   var trunc=truncationOf(seat,round,'rating');
   var stop=lib.stoppedOf(log,seat.id,round,'rating');
   if(!check.ok)return {text:'failed read ('+check.reasons[0]+')'+(check.rating!==null?' · wrote '+check.rating+'/10':'')+truncMark(trunc)+stopMark(stop),rating:null,failed:true,reasons:check.reasons,truncated:trunc};
-  var copy=logged&&logged.copy?logged.copy:null;
+  var copy=lib.copyOf(logged,seats);
   if(contract==='critique')return {text:'critique'+(copy?' · copy of '+copy.model:'')+truncMark(trunc)+stopMark(stop),rating:null,critique:true,truncated:trunc,copy:copy};
   var flip=lastLog(function(e){return e.event==='flip.checked'&&e.round===round&&e.seat===seat.id;});
   if(!flip){

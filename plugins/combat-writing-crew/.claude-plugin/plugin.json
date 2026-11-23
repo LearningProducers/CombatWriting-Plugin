@@ -1,7 +1,7 @@
 {
   "name": "combat-writing-crew",
   "displayName": "Combat Writing Crew (add-on)",
-  "version": "0.5.23",
+  "version": "0.5.24",
   "description": "The Combat Writing add-on: a local MCP server that sends each seat's packet to other companies' models on your own API keys, so the crew is the fresh reader plus one seat per outside model you hold a key for. One free Groq key seats two: a crew of three. Each key goes only to its own provider, never to Learning Producers, and the add-on writes no key to any file. A key reaches it from two places and no other: the masked prompt first, then the owner-only key file you write by hand in your home folder (~/.combat-writing/keys), the one that survives a host update. An outside seat's second overrun of the word cap is cut at the cap with its rating kept and marked in the record. Built for Claude Code: a local MCP server is ignored in chat on claude.ai and loads in the desktop app only on your own computer.",
   "author": {
     "name": "Learning Producers Inc.",

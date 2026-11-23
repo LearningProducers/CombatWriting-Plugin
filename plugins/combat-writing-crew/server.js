@@ -20,7 +20,7 @@
 //                  that provider (issue 93: Groq's limits are per model); sends, with the
 //                  packet's word cap and contract stated in the system line; writes the
 //                  answer file and a log line with the timestamp and the model id the API
-//                  returned; returns the path and the id. The answer text is never the thing
+//                  returned, when it is a model id; returns the path and that id. The answer text is never the thing
 //                  carried: the file is. A retry asks for the retry target, 80% of the cap.
 //                  On a retry whose reply is over the cap again (the
 //                  seat's second overrun), the reply is cut at the cap, at the
@@ -92,7 +92,7 @@ function fetchCatalog(provider,key){
   if(key)headers['Authorization']='Bearer '+key;
   return lib.request('GET',provider.base_url.replace(/\/$/,'')+'/models',headers,null,30000).then(function(res){
     if(res.status!==200){
-      var failed=new Error('catalog read failed: HTTP '+res.status+(res.json&&res.json.error&&res.json.error.message?' '+lib.scrubIds(res.json.error.message):''));
+      var failed=new Error('catalog read failed: HTTP '+res.status+(res.json&&res.json.error&&res.json.error.message?' '+lib.errorLine(res.json.error.message):''));
       failed.status=res.status; // read by listSeats: a 401 or 403 is a refused key, not a provider that did not answer
       throw failed;
     }
@@ -122,7 +122,9 @@ function listSeats(){
         var named=(process.env[provider.model_prompt_env]||'').trim()||(process.env[provider.model_env]||'').trim();
         provider.seats.forEach(function(s){
           if(!named){out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'off: name the local model in the plugin\'s settings (ollama_model) or in '+provider.model_env+' to turn this seat on'});return;}
-          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:true,model:named,maker:'the maker of '+named+' (local, not reported by the server)',served_by:provider.name,key_source:'none needed'});
+          // The name is typed by the person or stands in a variable; it is held to a model id like any other.
+          if(!lib.isModelId(named)){out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'off: the local model\'s name is not a model id (letters, digits, dot, dash, underscore, slash, colon and square brackets, at most 120, no space); name it again in the plugin\'s settings (ollama_model) or in '+provider.model_env});return;}
+          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:true,model:named,maker:lib.localMaker(named),served_by:provider.name,key_source:'none needed'});
         });
         return;
       }
@@ -138,8 +140,8 @@ function listSeats(){
         // A key the provider refused at the catalog read (401 or 403) says so and gives the next command,
         // in the words the answer path uses; any other failure reads "did not answer".
         var refused=err&&(err.status===401||err.status===403);
-        var why=refused?provider.name+' refused the key: '+lib.scrubIds(err.message)+' (the key was refused). '+lib.keyNext(provider)
-          :provider.name+' did not answer: '+lib.scrubIds(err.message);
+        var why=refused?provider.name+' refused the key: '+lib.errorLine(err.message)+' (the key was refused). '+lib.keyNext(provider)
+          :provider.name+' did not answer: '+lib.errorLine(err.message);
         provider.seats.forEach(function(s){
           out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:why});
         });
@@ -188,7 +190,7 @@ function registerSeats(runDir){
       while(existing.indexOf(id)>=0){n+=1;id='seat-'+n;}
       existing.push(id);
       var seat={id:id,model:s.model,company:s.maker,served_by:s.served_by,provider:s.provider,slot:s.slot,family:s.family,
-        source:'the model field the provider\'s API returns ('+s.served_by+'); resolved from the live catalog by family ('+s.family+'), never a pinned id; the record carries the id each answer came back with'};
+        source:'the model field the provider\'s API returns ('+s.served_by+'); resolved from the live catalog by family ('+s.family+'), never a pinned id; the seat\'s name follows the id an answer comes back with, when it is a model id'};
       // The wall this seat spends from (issue 95), the add-on's budget for the provider as providers.json states it, so the
       // listed plugin's budget line can say the room a packet leaves before any seat starts.
       var prov=providersTable().providers.filter(function(p){return p.id===s.provider;})[0];
@@ -298,6 +300,7 @@ function answer(args){
   var seat=seatsFile.seats.filter(function(s){return s.id===seatId;})[0];
   if(!seat)throw new Error('seat '+seatId+' is not in seats.json');
   if(!seat.provider)throw new Error(seatId+' is not an outside seat (no provider); the listed plugin runs it as a fresh reader');
+  if(!lib.isModelId(seat.model))throw new Error(seatId+' has no model id in seats.json (a name that is no model id is read as not reported); start a new run and register the crew again');
   var provider=providerById(seat.provider);
   if(!provider)throw new Error('provider '+seat.provider+' is not in the provider table');
   var suffix=read==='rating'?'':'.'+read;
@@ -331,7 +334,7 @@ function answer(args){
         return {ok:false,seat:seatId,missing:true,output_cap:c,reason:capReason+'.'};
       }
       if(res.status!==200){
-        var msg=lib.scrubIds(res.json&&res.json.error&&res.json.error.message?res.json.error.message:(res.text||'').slice(0,200));
+        var msg=lib.errorLine(res.json&&res.json.error&&res.json.error.message?res.json.error.message:(res.text||'').slice(0,200));
         var reason='HTTP '+res.status+(msg?': '+msg:'')+(res.status===429?(out.max_tokens_lowered?' (still refused after max_tokens was lowered to '+out.max_tokens_lowered.to+')':' (rate limit still hit after waiting)'):res.status===413?' (payload too large for the provider)':res.status===401?' (the key was refused)':'');
         lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,read:read,provider:provider.id,model_requested:seat.model,file:path.relative(runDir,packetPath),status:res.status,waited_ms:out.waited_ms,max_tokens_lowered:out.max_tokens_lowered||null,reason:reason});
         return {ok:false,seat:seatId,missing:true,reason:reason+'. The seat is missing this round.'};
@@ -339,9 +342,16 @@ function answer(args){
       var choice=res.json&&res.json.choices&&res.json.choices[0];
       var text=choice&&choice.message&&typeof choice.message.content==='string'?choice.message.content:'';
       text=text.replace(/<think>[\s\S]*?<\/think>\s*/g,'').replace(/^﻿/,'').replace(/^\s+/,'');
-      var returned=res.json&&res.json.model?String(res.json.model):null;
+      // The reply's model field is the provider's text. It becomes the seat's name only when it is
+      // a model id; when it is not, the name stays, and the log says the field was refused and
+      // holds none of its text.
+      var rawModel=res.json?res.json.model:undefined;
+      var returned=lib.isModelId(rawModel)?rawModel:null;
+      var modelRefused=returned===null&&rawModel!==undefined&&rawModel!==null&&rawModel!=='';
       // A reply the provider stopped at max_tokens (finish_reason length): read here, logged and said below.
-      var usage=(res.json&&res.json.usage)||{};
+      var rawUsage=(res.json&&res.json.usage)||{};
+      var count=function(v){ return Number.isInteger(v)&&v>=0&&v<=1e9?v:null; }; // a token count is a whole number from 0 to a thousand million, or it is not kept
+      var usage={prompt_tokens:count(rawUsage.prompt_tokens),completion_tokens:count(rawUsage.completion_tokens),total_tokens:count(rawUsage.total_tokens)};
       var finish=lib.finishReason(choice);
       var stopped=lib.stoppedBy(finish,out.max_tokens,usage.completion_tokens,out.max_tokens_lowered);
       if(!text.trim()){
@@ -358,24 +368,26 @@ function answer(args){
       // The id requested is read before the seat's name follows the id the API returned, so the log shows both.
       var requested=seat.model;
       if(returned&&returned!==seat.model){
+        // The local seat's maker is written for its model's name, so it follows the name.
+        if(seat.company===lib.localMaker(seat.model))seat.company=lib.localMaker(returned);
         seat.model=returned;
         lib.writeSeats(runDir,seatsFile);
       }
       lib.appendLog(runDir,{event:'crew.answered',round:round,seat:seatId,provider:provider.id,served_by:provider.name,company:seat.company,
-        model_requested:requested,model_returned:returned,model_changed:!!(returned&&returned!==requested),model_source:'API response model field',
+        model_requested:requested,model_returned:returned,model_changed:!!(returned&&returned!==requested),model_refused:modelRefused,model_source:'API response model field',
         file:path.relative(runDir,answerPath),packet:path.relative(runDir,packetPath),read:read,retry_note:note||null,
         word_cap:rules.cap,contract:read==='rating'?rules.contract:read,truncated:truncated,finish_reason:finish,stopped:stopped,
         input_tokens_estimated:budget.input,reservation:budget.reservation,max_tokens_lowered:out.max_tokens_lowered||null,
-        usage:{prompt_tokens:usage.prompt_tokens||null,completion_tokens:usage.completion_tokens||null,total_tokens:usage.total_tokens||null},
+        usage:usage,
         waited_ms:out.waited_ms,key_source:k.source});
-      return {ok:true,seat:seatId,file:answerPath,model_requested:requested,model_returned:returned,model_source:'API response model field',served_by:provider.name,company:seat.company,waited_ms:out.waited_ms,
+      return {ok:true,seat:seatId,file:answerPath,model_requested:requested,model_returned:returned,model_refused:modelRefused,model_source:'API response model field',served_by:provider.name,company:seat.company,waited_ms:out.waited_ms,
         max_tokens_lowered:out.max_tokens_lowered||null,truncated:truncated,stopped:stopped,
         next:(stopped?'the provider stopped the reply at '+stopped.at.toLocaleString('en-US')+' output tokens, the most this call asked for'+(stopped.lowered_from?' (lowered from '+stopped.lowered_from.toLocaleString('en-US')+' to fit its per-minute output limit of '+stopped.limit.toLocaleString('en-US')+')':'')+'; the reply may end early and the record marks it stopped. ':'')+(truncated?'the reply was over the cap again and was cut at '+truncated.at+' words'+(truncated.cut_at==='sentence'?', at the last sentence end before the cap,':'')+' with its first line kept; the record marks it truncated. ':'')+'run the listed plugin\'s check-answer.js on the file, then check-flip.js for a rerate round'};
     });
   });
   queues[qk]=run.catch(function(){});
   return run.catch(function(err){
-    var why=lib.scrubIds(err.message);
+    var why=lib.errorLine(err.message);
     lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,read:read,provider:provider.id,model_requested:seat.model,reason:why});
     return {ok:false,seat:seatId,missing:true,reason:why+'. The seat is missing this round.'};
   });
@@ -397,7 +409,7 @@ var TOOLS=[
     inputSchema:{type:'object',properties:{},additionalProperties:false}},
   {name:'crew_register',title:'Add the outside seats to a run',annotations:annotated('Add the outside seats to a run',false,true,false),description:'Add every available outside seat to a Combat Writing run: appends them to the run\'s seats.json (named by the model id and its maker, served by the provider) and logs it. Run it once per run after new-run.js and before building packets. Returns the seats added and the ones unavailable with the reason.',
     inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder, combat-writing/runs/<run-id>'}},required:['run'],additionalProperties:false}},
-  {name:'crew_answer',title:'Send a seat\'s packet to its provider',annotations:annotated('Send a seat\'s packet to its provider',false,true,false),description:'Send one outside seat\'s packet for one round to its provider on the person\'s own key and write the answer file beside the packet. Checks the packet against the add-on\'s own budget for that provider first (refuses with "Too long to send"), waits out the per-minute window, lowers max_tokens and resends once when the provider refuses on its per-minute output limit and that limit can still carry the reply, and records the model id the API returned. Returns the answer path and the id, never the text; `stopped` is set when the provider ended the reply at max_tokens. A failed call leaves the seat missing for the round, with the reason logged for the record and the board.',
+  {name:'crew_answer',title:'Send a seat\'s packet to its provider',annotations:annotated('Send a seat\'s packet to its provider',false,true,false),description:'Send one outside seat\'s packet for one round to its provider on the person\'s own key and write the answer file beside the packet. Checks the packet against the add-on\'s own budget for that provider first (refuses with "Too long to send"), waits out the per-minute window, lowers max_tokens and resends once when the provider refuses on its per-minute output limit and that limit can still carry the reply, and records the model id the API returned, when it is a model id. Returns the answer path and the id, never the text; `stopped` is set when the provider ended the reply at max_tokens. A failed call leaves the seat missing for the round, with the reason logged for the record and the board.',
     inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder'},round:{type:'string',description:'the round, such as 02-battle'},seat:{type:'string',description:'the seat id, such as seat-4'},read:{type:'string',enum:['rating','sn','redflag','crew'],description:'rating (default), sn / redflag for the final reads, or crew for the second pass of a first round (the <seat>.crew packet, issue 88)'},note:{type:'string',description:'on a retry only: the failed check\'s reasons, appended after the packet so the seat knows what to fix'}},required:['run','round','seat'],additionalProperties:false}}
 ];
 
