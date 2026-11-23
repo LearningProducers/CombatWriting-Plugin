@@ -28,8 +28,9 @@ function readLog(runDir){
 // the test holds the two equal): letters, digits, dot, dash, underscore, slash, colon and square
 // brackets, at most 120, no space and no line break. A maker is a plain name, MAKER_RE: at most
 // four words of letters, digits and . & ' ( ) -, 40 characters in all, so no comma, no colon,
-// no slash and no bracket, which a sentence, a link or an address is written with; or the one
-// form the add-on itself writes for the local seat, LOCAL_MAKER_RE. An
+// no slash and no bracket, which a sentence, a link or an address is written with. The add-on
+// writes one longer form itself, for the local seat's maker (localMaker); the seats file's
+// reader admits it for a seat only when it is that form for the seat's own model. An
 // id from the list that is no model id is not offered; a maker that is no plain name is "maker
 // not reported"; a reply's model field that is no model id leaves the seat's name as it was. The
 // seats file is held when it is read (holdSeats, the plugin's own function word for word), so
@@ -41,8 +42,8 @@ var MODEL_UNREPORTED='model unreported', MAKER_UNREPORTED='maker not reported';
 var MODEL_ID_RE=/^[A-Za-z0-9._\/:\[\]-]{1,120}$/;
 function isModelId(v){ return typeof v==='string'&&MODEL_ID_RE.test(v); }
 var MAKER_RE=/^[A-Za-z0-9][A-Za-z0-9.&'()-]*(?: [A-Za-z0-9.&'()-]+){0,3}$/;
-var LOCAL_MAKER_RE=/^the maker of [A-Za-z0-9._\/:\[\]-]{1,120} \(local, not reported by the server\)$/;
-function isMakerName(v){ return typeof v==='string'&&((v.length<=40&&MAKER_RE.test(v))||LOCAL_MAKER_RE.test(v)); }
+function isMakerName(v){ return typeof v==='string'&&v.length<=40&&MAKER_RE.test(v); }
+function localMaker(model){ return 'the maker of '+model+' (local, not reported by the server)'; }
 var SEAT_NAME_RE=/^[A-Za-z0-9._\/:\[\]-]+(?: [A-Za-z0-9._\/:\[\]-]+)*$/;
 function isSeatName(v){ return typeof v==='string'&&v.length<=120&&SEAT_NAME_RE.test(v); }
 function oneLine(v,max){ return String(v===undefined||v===null?'':v).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g,' ').replace(/\s+/g,' ').trim().slice(0,max); }
@@ -52,7 +53,7 @@ function holdSeats(file){
     if(!s||typeof s!=='object')return;
     if(s.provider){
       if(!isSeatName(s.model))s.model=MODEL_UNREPORTED;
-      if(!isMakerName(s.company))s.company=MAKER_UNREPORTED;
+      if(!isMakerName(s.company)&&s.company!==localMaker(s.model))s.company=MAKER_UNREPORTED;
       if(s.served_by!==undefined&&!isMakerName(s.served_by))delete s.served_by;
     }else{
       if(s.model!==undefined&&s.model!==null)s.model=oneLine(s.model,120)||MODEL_UNREPORTED;
@@ -474,7 +475,7 @@ function scrubIds(text){
 var ERROR_MAX=300;
 function errorLine(text){ return oneLine(scrubIds(text),ERROR_MAX); }
 
-module.exports={isModelId:isModelId,isMakerName:isMakerName,oneLine:oneLine,holdSeats:holdSeats,errorLine:errorLine,MODEL_ID_RE:MODEL_ID_RE,MODEL_UNREPORTED:MODEL_UNREPORTED,MAKER_UNREPORTED:MAKER_UNREPORTED,readText:readText,readManifest:readManifest,manifestVersion:manifestVersion,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
+module.exports={isModelId:isModelId,isMakerName:isMakerName,localMaker:localMaker,oneLine:oneLine,holdSeats:holdSeats,errorLine:errorLine,MODEL_ID_RE:MODEL_ID_RE,MODEL_UNREPORTED:MODEL_UNREPORTED,MAKER_UNREPORTED:MAKER_UNREPORTED,readText:readText,readManifest:readManifest,manifestVersion:manifestVersion,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
   loadProviders:loadProviders,keyFor:keyFor,keyShape:keyShape,keyHint:keyHint,keyNext:keyNext,keyField:keyField,keyFilePath:keyFilePath,keyFileShown:keyFileShown,readKeyFile:readKeyFile,KEY_FILE:KEY_FILE,CONFIGURE_COMMAND:CONFIGURE_COMMAND,CAUSES:CAUSES,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
   eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,windowKey:windowKey,
   parseCapRefusal:parseCapRefusal,tokensForCap:tokensForCap,loweredMaxTokens:loweredMaxTokens,capRefusalReason:capRefusalReason,finishReason:finishReason,stoppedBy:stoppedBy,TOKENS_PER_WORD:TOKENS_PER_WORD,FIRST_LINE_TOKENS:FIRST_LINE_TOKENS,CAP_MARGIN:CAP_MARGIN,scrubIds:scrubIds,

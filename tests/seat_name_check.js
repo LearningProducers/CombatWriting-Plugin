@@ -8,12 +8,15 @@
 //
 //   1. THE LIST. An id that is no model id (lib.js MODEL_ID_RE: letters, digits, dot, dash,
 //      underscore, slash, colon and square brackets, at most 120) is not offered and not
-//      stored; the family's next id is seated. A maker that is no plain name is "maker not
-//      reported". Neither text reaches the tool result or the log.
+//      stored; the family's next id is seated. A maker that is no plain name (at most four
+//      words of letters, digits and . & ' ( ) -, 40 characters in all) is "maker not
+//      reported", the form the add-on writes for the local seat's maker included; the maker
+//      map answers for its own names alone. Neither text reaches the tool result or the log.
 //   2. THE REPLY. A reply whose model field is no model id leaves the seat's name as it was;
 //      the log says the field was refused and holds none of its text. A token count that is
-//      no number is not kept.
-//   3. THE LOCAL SEAT. A local model named with a line break is not seated.
+//      no whole number from 0 to a thousand million is not kept, and 0 is kept as 0.
+//   3. THE LOCAL SEAT. A local model named with a line break is not seated. A reply that
+//      renames the local seat leaves it its maker, written for the new name.
 //   4. THE FILE. A seats file that already holds such a name (an older add-on wrote it, or a
 //      hand) is held when the plugin reads it: the packet's crew lines, the record, the short
 //      form and the state carry no line of the name's making. An outside seat's name that
@@ -22,7 +25,8 @@
 //      own words, is made one line. A not-seated reason in an older log is printed as one
 //      line. The add-on does not send to a seat whose name reads as not reported.
 //   5. THE ERROR. A provider's error text reaches the tool result, the log and the record as
-//      one line, at most 300 characters after the status.
+//      one line, at most 300 characters after the status. The Seats line cuts a reason at
+//      1,000 characters, so a refused key's line keeps the add-on's own next step whole.
 //   6. ONE PATTERN. The add-on's copies of MODEL_ID_RE, of MAKER_RE and of the function that
 //      holds a seats file are the plugin's, character for character.
 //
@@ -341,8 +345,8 @@ setTimeout(function(){ console.log('FAIL the test did not finish in 150 seconds'
     check(6,forty.length===40&&m.isMakerName(forty)===true&&m.isMakerName(fortyOne)===false,(k?'crew-lib.js':'lib.js')+': a maker of 40 characters should stand and one of 41 should not');
     check(6,m.isMakerName('[x](http://e.co)')===false&&m.isMakerName('A, B')===false&&m.isMakerName('A: B')===false,(k?'crew-lib.js':'lib.js')+': a maker with a bracket, a slash, a comma or a colon should not stand');
   });
-  var mkb=function(t){ var i=t.indexOf('var LOCAL_MAKER_RE='), j=t.indexOf('var SEAT_NAME_RE='); return i>=0&&j>i?t.slice(i,j):null; };
-  check(6,!!mkb(read(path.join(scripts,'lib.js')))&&mkb(read(path.join(scripts,'lib.js')))===mkb(read(path.join(crewDir,'crew-lib.js'))),'crew-lib.js must carry lib.js\'s LOCAL_MAKER_RE and isMakerName, character for character');
+  var mkb=function(t){ var i=t.indexOf('function isMakerName('), j=t.indexOf('var SEAT_NAME_RE='); return i>=0&&j>i?t.slice(i,j):null; };
+  check(6,!!mkb(read(path.join(scripts,'lib.js')))&&mkb(read(path.join(scripts,'lib.js')))===mkb(read(path.join(crewDir,'crew-lib.js'))),'crew-lib.js must carry lib.js\'s isMakerName and localMaker, character for character');
 
   fake.close();
   try{ fs.rmSync(tmp,{recursive:true,force:true}); }catch(e){}

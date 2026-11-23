@@ -124,7 +124,7 @@ function listSeats(){
           if(!named){out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'off: name the local model in the plugin\'s settings (ollama_model) or in '+provider.model_env+' to turn this seat on'});return;}
           // The name is typed by the person or stands in a variable; it is held to a model id like any other.
           if(!lib.isModelId(named)){out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'off: the local model\'s name is not a model id (letters, digits, dot, dash, underscore, slash, colon and square brackets, at most 120, no space); name it again in the plugin\'s settings (ollama_model) or in '+provider.model_env});return;}
-          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:true,model:named,maker:'the maker of '+named+' (local, not reported by the server)',served_by:provider.name,key_source:'none needed'});
+          out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:true,model:named,maker:lib.localMaker(named),served_by:provider.name,key_source:'none needed'});
         });
         return;
       }
@@ -368,6 +368,8 @@ function answer(args){
       // The id requested is read before the seat's name follows the id the API returned, so the log shows both.
       var requested=seat.model;
       if(returned&&returned!==seat.model){
+        // The local seat's maker is written for its model's name, so it follows the name.
+        if(seat.company===lib.localMaker(seat.model))seat.company=lib.localMaker(returned);
         seat.model=returned;
         lib.writeSeats(runDir,seatsFile);
       }

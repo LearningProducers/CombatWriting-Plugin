@@ -679,15 +679,15 @@ function logDamageLine(n){
 // its words, at most 120: no line break and no mark a heading, a tag or a fence is written
 // with) or it reads as not reported; its maker and the provider that served it must be plain
 // names by MAKER_RE (at most four words of letters, digits and . & ' ( ) -, 40 characters in
-// all), or the one form the add-on writes for the local seat's maker (LOCAL_MAKER_RE), or
-// they read as not reported and not there; a fresh reader's name, the host's words, is made
+// all), the maker also when it is the one form the add-on writes for the local seat, for
+// that seat's own model (localMaker), or they read as not reported and not there; a fresh reader's name, the host's words, is made
 // one line and cut at 120. The add-on stores an id only when it is a model id, with no space,
 // and carries holdSeats word for word (crew-lib.js; the test holds the two equal), so a file
 // an older add-on wrote is held here too.
 var MAKER_UNREPORTED='maker not reported';
 var MAKER_RE=/^[A-Za-z0-9][A-Za-z0-9.&'()-]*(?: [A-Za-z0-9.&'()-]+){0,3}$/;
-var LOCAL_MAKER_RE=/^the maker of [A-Za-z0-9._\/:\[\]-]{1,120} \(local, not reported by the server\)$/;
-function isMakerName(v){ return typeof v==='string'&&((v.length<=40&&MAKER_RE.test(v))||LOCAL_MAKER_RE.test(v)); }
+function isMakerName(v){ return typeof v==='string'&&v.length<=40&&MAKER_RE.test(v); }
+function localMaker(model){ return 'the maker of '+model+' (local, not reported by the server)'; }
 var SEAT_NAME_RE=/^[A-Za-z0-9._\/:\[\]-]+(?: [A-Za-z0-9._\/:\[\]-]+)*$/;
 function isSeatName(v){ return typeof v==='string'&&v.length<=120&&SEAT_NAME_RE.test(v); }
 function oneLine(v,max){ return String(v===undefined||v===null?'':v).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g,' ').replace(/\s+/g,' ').trim().slice(0,max); }
@@ -697,7 +697,7 @@ function holdSeats(file){
     if(!s||typeof s!=='object')return;
     if(s.provider){
       if(!isSeatName(s.model))s.model=MODEL_UNREPORTED;
-      if(!isMakerName(s.company))s.company=MAKER_UNREPORTED;
+      if(!isMakerName(s.company)&&s.company!==localMaker(s.model))s.company=MAKER_UNREPORTED;
       if(s.served_by!==undefined&&!isMakerName(s.served_by))delete s.served_by;
     }else{
       if(s.model!==undefined&&s.model!==null)s.model=oneLine(s.model,120)||MODEL_UNREPORTED;
@@ -1971,7 +1971,7 @@ module.exports={
   MODEL_ID_RE:MODEL_ID_RE,isModelId:isModelId,seatModels:seatModels,measuredModels:measuredModels,modelChangeWords:modelChangeWords,measuredLines:measuredLines,MEASURED_HEADING:MEASURED_HEADING,MEASURED_NOTE:MEASURED_NOTE,MEASURED_SOURCE:MEASURED_SOURCE,
   MAX_FRESH_READERS:MAX_FRESH_READERS,READERS_FILE:READERS_FILE,READERS_REL:READERS_REL,freshReaders:freshReaders,crewAloneWords:crewAloneWords,readersPicksPath:readersPicksPath,readReaderPicks:readReaderPicks,
   PICKER_FILE:PICKER_FILE,PICKER_REL:PICKER_REL,PICKER_OPTION:PICKER_OPTION,PICKER_ON_CMD:PICKER_ON_CMD,pickerPath:pickerPath,readPicker:readPicker,projectOfRun:projectOfRun,
-  parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,holdSeats:holdSeats,isSeatName:isSeatName,isMakerName:isMakerName,oneLine:oneLine,appendLog:appendLog,readLog:readLog,logDamage:logDamage,logDamageLine:logDamageLine,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
+  parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,holdSeats:holdSeats,isSeatName:isSeatName,isMakerName:isMakerName,localMaker:localMaker,oneLine:oneLine,appendLog:appendLog,readLog:readLog,logDamage:logDamage,logDamageLine:logDamageLine,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
   listDrafts:listDrafts,draftNumber:draftNumber,latestDraft:latestDraft,listNumbered:listNumbered,listCanons:listCanons,latestCanon:latestCanon,listRounds:listRounds,roundKind:roundKind,isFinalRound:isFinalRound,previousRound:previousRound,
   GITIGNORE_FILE:GITIGNORE_FILE,GITIGNORE_LINES:GITIGNORE_LINES,GITIGNORE_LINE:GITIGNORE_LINE,inGitRepo:inGitRepo,writeGitignore:writeGitignore,
   BRIEFS_DIR:BRIEFS_DIR,BRIEFS_DIR_REL:BRIEFS_DIR_REL,BRIEF_NAME_RE:BRIEF_NAME_RE,briefsDir:briefsDir,briefNamePath:briefNamePath,isBriefName:isBriefName,listBriefs:listBriefs,briefFirstLine:briefFirstLine,briefNameKeptLine:briefNameKeptLine,
