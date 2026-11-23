@@ -222,6 +222,13 @@ searched.forEach(function(f){
   check(hits===0,rel+': '+hits+' line(s) mark a quoted span as the words a decision was made in; write the decision in plain words');
 });
 
+// What the result hook reads to find a reader's transcript: the opening of each agent's
+// transcript it opens holds the task that agent was started with (show-result.js taskOf and
+// packetLineOf). The page says that it reads that text and keeps none of it; it does not say
+// that it takes no text.
+check(privacy.indexOf('takes no text of your conversation')<0,'PRIVACY.md: says the result hook takes no text of your conversation; it reads the task each agent was started with, to find the reader\'s transcript');
+check(/holds the task that agent was started with/.test(privacy)&&/keeps none of (it|that text)/.test(privacy),'PRIVACY.md: must say the opening of an agent\'s transcript holds the task that agent was started with, and that the hook keeps none of it');
+
 failures.forEach(function(f){console.log('FAIL '+f);});
 if(inClaude)console.log('note: CLAUDE.md holds '+inClaude+' such line(s); they change on the owner\'s word');
 console.log((failures.length?'truth_pages_check: '+failures.length+' failure(s), ':'truth_pages_check: all passed, ')+passes+' checks');

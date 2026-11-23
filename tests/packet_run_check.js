@@ -245,6 +245,7 @@ check(drawnFor('abcdef012345,3333333333bb','02-battle','seat-2',['--sn','sn.md']
 check(drawnFor('abcdef012345,3333333333bb','02-battle','seat-1',['--sn','sn.md'])==='3333333333bb','packet.js must draw again when the seat\'s earlier answer holds the mark drawn: '+drawnFor('abcdef012345,3333333333bb','02-battle','seat-1',['--sn','sn.md']));
 var seatMd=fs.readFileSync(path.join(plugin,'agents','seat.md'),'utf8');
 check(/=== DRAFT BEGIN <mark> ===/.test(seatMd)&&/=== ANSWER END <mark> ===/.test(seatMd)&&!/`=== DRAFT BEGIN ===`/.test(seatMd),'agents/seat.md must tell the seat that the fence lines carry the packet\'s mark');
+check(/Read the packet to its end/.test(seatMd),'agents/seat.md must tell the seat to read the packet to its end: the Read tool hands a long packet back in parts');
 
 // ---------------------------------------------------------------------------------------------
 // THE PACKET'S OTHER READERS. A packet is read again after it is built: by the add-on, which
