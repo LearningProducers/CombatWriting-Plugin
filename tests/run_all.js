@@ -7,17 +7,18 @@
 // nothing local ran the screen's tests beside the plugin's. Decided by the founder, 2026-11-02: the
 // session does what an elite developer would do, and measures that it did.
 //
-//   node tests/run_all.js [--no-screen] [--no-validate] [--profile directory]
+//   node tests/run_all.js [--no-screen] [--no-validate] [--no-profile]
 //
 // Run from the repository root. Exit 0 when every test passed, 1 on any failure, and 1 when the
 // screen's tests could not run (uv not on the PATH) unless --no-screen says the skip is meant:
 // a local run that silently covers less than CI is the defect this file exists to remove. The
 // validate step is skipped with a line, never a failure, when `claude` is not on the PATH: it
-// is the CLI's own check, and CI runs it on every pull request. `--profile directory` adds the
-// CLI's directory profile to the validate calls on the two plugin folders (the checks of the
-// directory's that the CLI can run before a submission); the root is validated as before,
-// because the profile takes a plugin folder and refuses a marketplace. It is off by default:
-// CI runs the default, and a plugin folder with no icon fails the profile. One line per test, the
+// is the CLI's own check, and CI runs it on every pull request. The validate calls on the two
+// plugin folders carry the CLI's directory profile (the checks of the directory's that the CLI
+// can run before a submission), as the workflow's do; the root is validated without it,
+// because the profile takes a plugin folder and refuses a marketplace. `--no-profile` leaves
+// it out, for a CLI that does not know the flag; `--profile directory` is still read and
+// changes nothing. One line per test, the
 // failures' own lines under theirs, and a last line with the counts, measured by running.
 // Not a *_check.js, so CI's loop does not run it.
 
@@ -25,8 +26,10 @@ var fs=require('fs'), path=require('path'), cp=require('child_process');
 var root=path.resolve(__dirname,'..');
 var args=process.argv.slice(2);
 var noScreen=args.indexOf('--no-screen')>=0, noValidate=args.indexOf('--no-validate')>=0;
-var profileAt=args.indexOf('--profile'), profile=profileAt>=0?args[profileAt+1]:null;
-if(profileAt>=0&&profile!=='directory'){ console.log('FAIL --profile takes one value, directory (got '+(profile===undefined?'none':profile)+')'); process.exit(1); }
+var profileAt=args.indexOf('--profile'), noProfile=args.indexOf('--no-profile')>=0;
+if(profileAt>=0&&args[profileAt+1]!=='directory'){ console.log('FAIL --profile takes one value, directory (got '+(args[profileAt+1]===undefined?'none':args[profileAt+1])+')'); process.exit(1); }
+if(profileAt>=0&&noProfile){ console.log('FAIL --profile directory and --no-profile were both given'); process.exit(1); }
+var profile=noProfile?null:'directory';
 var passed=0, failed=0, skipped=[];
 
 function run(cmd,cmdArgs,cwd){ return cp.spawnSync(cmd,cmdArgs,{cwd:cwd,encoding:'utf8',env:process.env}); }

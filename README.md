@@ -46,7 +46,7 @@ What the plugin and its add-on send, store and read is on one page: https://gith
 - **uv**, for the screen's tests under `screen/tests/`; uv brings its own Python. Without uv the run fails, unless `--no-screen` says the skip is meant.
 - **The `claude` CLI**, for the validate step, `claude plugin validate --strict` on both plugin folders and on this root. Without it the step is skipped with a line, and `--no-validate` skips it on purpose.
 
-`--profile directory` adds the CLI's directory profile to the validate calls on the two plugin folders: the checks of the plugin directory's that the CLI can run before a submission, which its own help calls a subset of what the directory runs. It is off by default, because the profile fails a plugin folder that has no icon, and neither folder has one yet.
+The validate calls on the two plugin folders carry the CLI's directory profile, `--profile directory`: the checks of the plugin directory's that the CLI can run before a submission, which its own help calls a subset of what the directory runs. The workflow passes it on the same two folders. `--no-profile` leaves it out, for a CLI that does not know the flag.
 
 The one-step install line in the two plugin READMEs, the one that names the marketplace on the install command itself, needs a Claude Code version that takes it in a session. That version is named on Claude Code's documentation page [Install and manage plugins](https://code.claude.com/docs/en/discover-plugins), under "Add and install in a session", and each plugin README carries it beside its install line.
 

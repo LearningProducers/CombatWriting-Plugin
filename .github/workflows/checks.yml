@@ -6,7 +6,8 @@
 # plugin folders and, since Part 44, screen/), install the Claude Code CLI from npm at an exact
 # version, run every check in tests/ (files named *_check.js), then run
 # `claude plugin validate --strict` on the listed plugin, on the add-on and on the repository
-# root (the marketplace manifest). Any failing step fails the job. `claude plugin validate`
+# root (the marketplace manifest), with the CLI's directory profile on the two plugin folders
+# (the profile takes a plugin folder and refuses a marketplace). Any failing step fails the job. `claude plugin validate`
 # needs no login and makes no call with a key.
 #
 # `screen`, on the same events (Part 44): check out, set up Node (the screen runs the plugin's
@@ -89,7 +90,7 @@ jobs:
           fi
           exit $rc
       - name: Install the Claude Code CLI at an exact version
-        run: npm install -g @anthropic-ai/claude-code@2.1.296
+        run: npm install -g @anthropic-ai/claude-code@2.1.330
       - name: Run every check in tests/
         run: |
           rc=0
@@ -103,9 +104,9 @@ jobs:
           [ "$n" -gt 0 ] || rc=1
           exit $rc
       - name: Validate the listed plugin
-        run: claude plugin validate --strict plugins/combat-writing
+        run: claude plugin validate --strict --profile directory plugins/combat-writing
       - name: Validate the add-on
-        run: claude plugin validate --strict plugins/combat-writing-crew
+        run: claude plugin validate --strict --profile directory plugins/combat-writing-crew
       - name: Validate the repository root (the marketplace manifest)
         run: claude plugin validate --strict .
   screen:

@@ -130,7 +130,7 @@ check(!bothIcons||!/neither folder has one|has no icon,? and|no icon yet/.test(r
 // commands' home is the skills folder.
 var commandSkills=fs.readdirSync(path.join(root,'plugins/combat-writing/skills')).filter(function(n){ return n!=='combat-writing'&&fs.existsSync(path.join(root,'plugins/combat-writing/skills',n,'SKILL.md')); });
 crewReadme.split('\n').forEach(function(l,i){
-  if(!/commands are/.test(l))return;
+  if(!/its commands are/.test(l))return;
   var missing=commandSkills.filter(function(n){ return l.indexOf('/cw:'+n)<0; });
   check(missing.length===0,'plugins/combat-writing-crew/README.md:'+(i+1)+': lists the cw commands and leaves out /cw:'+missing.join(', /cw:'));
 });

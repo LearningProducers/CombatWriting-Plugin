@@ -176,6 +176,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/gitignore_check.js` | the two-line gitignore on the first run in a git repository |
 | `tests/help_check.js` | the card, the bare rule with no tool call, the guide's opening and its one live line, the picker, the README's copy of the card |
 | `tests/hook_check.js` | the three hooks are declared as ruled |
+| `tests/key_route_check.js` | where a key comes from, as the shipped files and the public pages say it: a provider's key name stands beside the key file or a word that it is not read, a sentence on an environment variable names one the code reads, and the configure command is the bare one the add-on prints |
 | `tests/license_check.js` | the right license header on every file by path |
 | `tests/lists_check.js` | the board shows the numbers a seat wrote, blank lines between the items or not |
 | `tests/links_check.js` | links are unread: the packet says so when one is present |
