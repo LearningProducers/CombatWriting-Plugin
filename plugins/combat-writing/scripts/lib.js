@@ -672,8 +672,9 @@ function logDamageLine(n){
 // host's words, by seat-fallback.js, and by the add-on from what a provider returned. A seat's
 // model and maker stand in every packet, in the record, in the state and in the short form the
 // host reads, outside every fence, so a name with a line break in it can stand there as a
-// heading or an order of its own. Every script reads the file through readSeats, which holds
-// each name: an outside seat's model (a seat with a provider) must be a plain name by
+// heading or an order of its own. The scripts read the file through readSeats, which holds
+// each name (check-answer.js through holdSeats, for the line it prints; the two hooks open the
+// file by themselves, for a seat's id, its provider and how it starts): an outside seat's model (a seat with a provider) must be a plain name by
 // SEAT_NAME_RE (the characters of a model id, MODEL_ID_RE below, with single spaces between
 // its words, at most 120: no line break and no mark a heading, a tag or a fence is written
 // with) or it reads as not reported; its maker and the provider that served it must be plain
