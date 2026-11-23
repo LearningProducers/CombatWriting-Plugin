@@ -19,7 +19,8 @@
 //      as three parts of the first archive do. The last part is not held to be there: a
 //      test cannot know the newest part's number.
 //   4. No part's heading stands in two of the three files.
-//   5. The root README names the three files.
+//   5. The root README names the three files, and CLAUDE.md's standing rule and layout name
+//      the second archive and say PLAN.md holds Part 141 onward.
 //
 //   node tests/plan_check.js        (from the repository root; exit 0 pass, 1 fail)
 
@@ -60,6 +61,9 @@ check(twice.length===0,'a part\'s heading stands in two of the plan\'s files: Pa
 
 var readme=read('README.md')||'';
 check(/\[PLAN\.md\]\(PLAN\.md\)/.test(readme)&&/\[PLAN_ARCHIVE\.md\]\(PLAN_ARCHIVE\.md\)/.test(readme)&&/\[PLAN_ARCHIVE_2\.md\]\(PLAN_ARCHIVE_2\.md\)/.test(readme),'README.md: must name PLAN.md, PLAN_ARCHIVE.md and PLAN_ARCHIVE_2.md, each as a link');
+
+var law=read('CLAUDE.md')||'';
+check(/PLAN_ARCHIVE_2\.md/.test(law)&&/PLAN\.md holds Part 141 onward/.test(law)&&!/Part 91 onward/.test(law),'CLAUDE.md: must name PLAN_ARCHIVE_2.md, say PLAN.md holds Part 141 onward, and not say Part 91 onward');
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log(failures.length?'plan_check: '+failures.length+' of '+(passes+failures.length)+' checks failed':'plan_check: all passed, '+passes+' checks');

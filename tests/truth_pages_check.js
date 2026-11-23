@@ -29,9 +29,9 @@
 //     bundled fonts and the hook that calls another file of the plugin as held, as the add-on's
 //     page marks its own, and says the two holds are accepted.
 //   - A DECISION IS WRITTEN AS THE DECISION. No .md or .js file at the root or under docs/,
-//     plugins/, tests/, .github/ or screen/ (folders whose names open with a dot are not entered) but CLAUDE.md marks a
+//     plugins/, tests/, .github/ or screen/ (folders whose names open with a dot are not entered) marks a
 //     quoted span as the words a decision was made in (the markers are listed below). CLAUDE.md
-//     is read too and its count is printed, never failed: its lines change on the owner's word.
+//     is held like the rest since its two such spans were restated on the owner's word (issue 252).
 //
 // Run from the repo root:   node tests/truth_pages_check.js
 // Exit 0 on pass; exit 1 on any failure.
@@ -224,12 +224,10 @@ function tracked(dir,deep){
   return out;
 }
 var searched=tracked(root,false).concat(tracked(path.join(root,'docs'),true),tracked(path.join(root,'plugins'),true),tracked(path.join(root,'tests'),true),tracked(path.join(root,'.github'),true),tracked(path.join(root,'screen'),true));
-var inClaude=0;
 searched.forEach(function(f){
   var rel=path.relative(root,f), flat=fs.readFileSync(f,'utf8').replace(/\n[ \t]*\/\/ ?/g,' ');
   if(f===__filename)return;
   var hits=flat.split('\n').filter(function(l){ return MARKERS.test(l)||MARKERS2.test(l)||MARKERS3.test(l)||MARKERS4.test(l)||MARKERS5.test(l)||MARKERS6.test(l); }).length;
-  if(rel==='CLAUDE.md'){ inClaude=hits; return; }
   check(hits===0,rel+': '+hits+' line(s) mark a quoted span as the words a decision was made in; write the decision in plain words');
 });
 
@@ -241,6 +239,5 @@ check(privacy.indexOf('takes no text of your conversation')<0,'PRIVACY.md: says 
 check(/holds the task that agent was started with/.test(privacy)&&/keeps none of (it|that text)/.test(privacy),'PRIVACY.md: must say the opening of an agent\'s transcript holds the task that agent was started with, and that the hook keeps none of it');
 
 failures.forEach(function(f){console.log('FAIL '+f);});
-if(inClaude)console.log('note: CLAUDE.md holds '+inClaude+' such line(s); they change on the owner\'s word');
 console.log((failures.length?'truth_pages_check: '+failures.length+' failure(s), ':'truth_pages_check: all passed, ')+passes+' checks');
 process.exit(failures.length?1:0);
