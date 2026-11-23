@@ -89,7 +89,7 @@ var fake=http.createServer(function(req,res){
       if(key===K_ERROR)return json(400,{error:{message:LONG_ERROR}});
       if(key===K_EMPTY)return json(200,{id:'c0',model:String(body.model)+FORGED,choices:[{message:{role:'assistant',content:''},finish_reason:'stop'}],usage:{}});
       if(key===K_COUNTS)return json(200,{id:'c2',model:body.model,choices:[{message:{role:'assistant',content:'RATING: 8/10\nThe ask lands.\n'},finish_reason:'stop'}],usage:{prompt_tokens:0,completion_tokens:-1e300,total_tokens:2.5}});
-      // The local server answers under a longer name than it was asked under, as Ollama does for a tag.
+      // The local server answers under a longer name than it was asked under.
       if(body&&body.model==='llama-test')return json(200,{id:'c3',model:'llama-test:latest',choices:[{message:{role:'assistant',content:'RATING: 8/10\nThe ask lands.\n'},finish_reason:'stop'}],usage:{prompt_tokens:10,completion_tokens:5,total_tokens:15}});
       var forged=key===K_REPLY;
       return json(200,{id:'c1',model:forged?String(body.model)+FORGED:body.model,choices:[{message:{role:'assistant',content:'RATING: 8/10\nThe ask lands.\n'},finish_reason:'stop'}],usage:forged?{prompt_tokens:'10'+FORGED,completion_tokens:5,total_tokens:[FORGED]}:{prompt_tokens:10,completion_tokens:5,total_tokens:15}});
