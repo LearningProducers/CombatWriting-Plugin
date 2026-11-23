@@ -90,6 +90,11 @@ var privacy=read('PRIVACY.md');
 var providers=(json(PLUGINS[1]+'/providers.json').providers||[]).filter(function(p){ return typeof p.base_url==='string'; });
 function hostOf(u){ return String(u).replace(/^https?:\/\//,'').split('/')[0].replace(/:\d+$/,''); }
 var hosts=providers.map(function(p){ return hostOf(p.base_url); });
+// "over HTTPS": every provider that takes a key is called at an address that opens with https://;
+// the one keyless entry, the local Ollama program, is called over plain HTTP at localhost.
+providers.forEach(function(p){
+  check(p.keyless?/^http:\/\/localhost(:\d+)?\//.test(p.base_url):/^https:\/\//.test(p.base_url),'providers.json: '+p.id+' must be called over https, or, the keyless entry alone, over http at localhost: '+p.base_url);
+});
 check(hosts.length===7,'the add-on\'s provider table should hold seven addresses for this check to mean what it says, holds '+hosts.length);
 ['What Learning Producers receives','what leaves your machine','what it stores','where a key is kept','Removing your data','Support'].forEach(function(h){
   check(new RegExp('^#+ .*'+h.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'im').test(privacy),'PRIVACY.md: the section on "'+h+'" is missing');
