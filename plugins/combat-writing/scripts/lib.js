@@ -115,7 +115,7 @@ function writeGitignore(root){
 // is overwritten, so the brief typed last is the brief every new run that brings none carries.
 // brief.js --update appends one dated paragraph, "Update YYYY-MM-DD: <text>", to the project's
 // brief and to a run's, so the prospect of the day lives in the brief where the seats read
-// ("brief update: followed by a line just adds to the brief"); the newest such line is named on
+// (a line after `brief update:` adds to the brief and replaces nothing); the newest such line is named on
 // the short form's Brief line. It rides with the project in git as the vault does. A run's brief
 // has a measured source, read from the path new-run.js was handed: 'project' (that file), 'last'
 // (another run's brief.md under combat-writing/runs/, the run id kept), 'pasted' (a file in

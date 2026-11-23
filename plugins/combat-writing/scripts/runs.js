@@ -15,8 +15,8 @@
 // <word>:" and their lines, exit 3, so the host asks which. None: prints "No run matches <word>."
 // and the listing, exit 1. Reads only; writes nothing, logs nothing.
 //
-// --pick [N]: the N (4 unset) open runs touched last, any stage (issue 186: "going by activity
-// not stage"), as one JSON array for the host's picker. Activity is the latest `ts` in the run's
+// --pick [N]: the N (4 unset) open runs touched last, any stage (issue 186: picked by
+// activity, not by stage), as one JSON array for the host's picker. Activity is the latest `ts` in the run's
 // log.jsonl (every line appendLog writes carries one; a run with no log falls back to its
 // folder's birth time), so a run made in October and worked this morning sorts first; the
 // listing above keeps its creation order. A shipped run is left out (`run: <word>` still
