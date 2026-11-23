@@ -185,6 +185,22 @@ check(!!market.metadata&&market.metadata.version===undefined,'.claude-plugin/mar
 
 // THE CHECKLIST PAGES.
 var mainPage=read('docs/directory-checklist.md'), crewPage=read('docs/directory-checklist-crew.md');
+// Sentences the reads found wider than the code, in the add-on's README and its checklist page.
+// The key file's check reads mode bits and no owner (crew-lib.js readKeyFile), so neither page
+// says who can read the file. A key comes from two places, so no page names a third. The add-on
+// writes in the folder a tool call names and does not check where it is.
+[[PLUGINS[1]+'/README.md',crewReadme],['docs/directory-checklist-crew.md',crewPage]].forEach(function(p){
+  check(!/only (you|its owner) can (read|open)/.test(p[1]),p[0]+': says who can read or open the key file; the code reads the mode bits and no owner');
+});
+check(!/third key route/.test(crewPage),'docs/directory-checklist-crew.md: names a third key route; a key comes from two places');
+check(!/the run folder the person names/.test(crewPage)&&/the run folder a tool call names/.test(crewPage),'docs/directory-checklist-crew.md: must say the add-on writes into the run folder a tool call names');
+// A token count is kept when it is a whole number from 0 to a thousand million (server.js), and a maker opens with a letter or a digit (MAKER_RE).
+[['PRIVACY.md',privacy],[PLUGINS[1]+'/README.md',crewReadme]].forEach(function(p){
+  check(/when they are whole numbers from 0 to a thousand million/.test(p[1]),p[0]+': must say token counts are kept when they are whole numbers from 0 to a thousand million');
+});
+check(/A maker must be a plain name that opens with a letter or a digit:/.test(crewReadme),PLUGINS[1]+'/README.md: the maker sentence must say a maker opens with a letter or a digit');
+check(!/not made, reviewed or endorsed/.test(mainPage)&&!/not made, reviewed or endorsed/.test(crewPage),'the two checklist pages still quote the README sentence with "reviewed"');
+check(/not made or endorsed by Anthropic/.test(crewReadme)&&!/reviewed or endorsed/.test(crewReadme),PLUGINS[1]+'/README.md: must say "not made or endorsed by Anthropic", with no "reviewed"');
 check(!/bundles no image or font/.test(mainPage)&&!/every tracked file in the plugin folder is text/.test(mainPage),'docs/directory-checklist.md: still says the plugin bundles no font, or that every file in it is text');
 function row(page,re){ return page.split('\n').filter(function(l){ return /^\|/.test(l)&&re.test(l); })[0]||''; }
 function result(r){ return (r.split('|')[2]||'').trim(); }

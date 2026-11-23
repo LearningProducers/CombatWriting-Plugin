@@ -17,8 +17,9 @@
 //     and calls other providers on the person's own keys; that keys are never stored in
 //     a file; that the draft is untrusted content; the run folder and the inbox as the
 //     write locations; board.html and record.md.
-//   - No endorsement wording: the README says the plugin is not made, reviewed or
-//     endorsed by Anthropic, and never says "official", "partner", "certified",
+//   - No endorsement wording: the README says the plugin is not made or endorsed by
+//     Anthropic (a listing in the directory is read by Anthropic, so "reviewed" would not
+//     stay true), and never says "official", "partner", "certified",
 //     "approved by Anthropic" or "in partnership with".
 //   - The plugin README has more than 40 words outside code blocks.
 //   - No Markdown file in the tree says the credit line "stands once" (issue 158: the credit line
@@ -58,7 +59,7 @@ Object.keys(files).forEach(function(rel){
   check(first>=0&&t.slice(first,first+'Combat Writing™'.length)==='Combat Writing™',rel+': the first use of the name does not carry ™');
   check(/source-available/i.test(t),rel+': does not say source-available');
   check(!/open[\s-]source/i.test(t),rel+': says open source');
-  check(/not made, reviewed or endorsed by Anthropic/.test(t),rel+': the no-endorsement sentence is missing');
+  check(/not made or endorsed by Anthropic/.test(t)&&!/reviewed or endorsed/.test(t),rel+': must say "not made or endorsed by Anthropic", with no "reviewed": a listing in the directory is read by Anthropic');
   check(!/\b(official|partner(ed|ship)?|certified|approved by Anthropic|in partnership with|Anthropic-backed)\b/i.test(t),rel+': endorsement wording appears');
   check(t.indexOf(CREDIT)>=0,rel+': the credit line is not quoted in full');
   check(/\bruns\b/i.test(t)&&/\bsends\b/i.test(t)&&/\bfetches\b/i.test(t),rel+': the runs/sends/fetches disclosure is incomplete');
