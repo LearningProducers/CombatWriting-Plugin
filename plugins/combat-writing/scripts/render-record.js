@@ -16,7 +16,8 @@
 // the log of what was sent, and under it the models measured: one line per fresh reader per
 // round with the model id its replies carry, the model choice passed at its start and where the
 // line was read from (lib.measuredLines, the log's seat.model lines; nothing when none was
-// measured). A Champion section sits between the scoreboard
+// measured). A Log line under the crew lines, there and in the short form, when a line of
+// log.jsonl could not be read (lib.logDamageLine). A Champion section sits between the scoreboard
 // and the answers only when the log holds a champion.* line: the Shipped, Result and Insight
 // lines in order. Nothing is averaged, summed or ranked. Rebuilt after every round; the log
 // and the answer files are the truth.
@@ -38,6 +39,9 @@ if(!args.run||args.run===true)lib.die('--run is required');
 var runDir=path.resolve(args.run);
 var seatsFile=lib.readSeats(runDir), seats=seatsFile.seats;
 var log=lib.readLog(runDir);
+// Lines of the log that could not be read are counted and said (lib.logDamageLine), under the
+// crew lines of the record and of its short form: a page built without a line may say less than happened.
+var damageLine=lib.logDamageLine(lib.logDamage(runDir));
 var rounds=lib.listRounds(runDir);
 // A run strategy made and nothing has read yet: the record and the short form say
 // what is stored and name the next move, so the person is never left without one. The order
@@ -119,6 +123,7 @@ lib.crewStateLines(runDir,seats,log).forEach(function(l){ out.push('**Seats:** '
 // A fresh reader on a model other than the session's own is named, in one line (issue 189).
 var modelsLine=lib.modelsLine(seats,log);
 if(modelsLine){ out.push('**Models:** '+modelsLine); out.push(''); }
+if(damageLine){ out.push('**Log:** '+damageLine); out.push(''); }
 out.push('**Seat key:** '+lib.seatKey(seats));
 out.push('');
 // Each draft with its hash and its counts: words, paragraphs, lines, measured from the file.
@@ -213,7 +218,7 @@ rounds.forEach(function(r){
       if(t){out.push('*'+lib.truncationLine(t)+'*');out.push('');}
       var st=lib.stoppedOf(log,s.id,r,readName);
       if(st){out.push('*'+lib.stoppedLine(st)+'*');out.push('');}
-      out.push(lib.readText(p).replace(/\s+$/,''));
+      out.push(lib.readText(p).trimEnd());
       // The second pass of a first round (issue 88), under the answer it belongs to.
       if(f===s.id+'.answer.md'){ var crew=lib.crewPassOf(runDir,r,s.id,log); if(crew){out.push('');out.push('*'+lib.CREW_PASS_HEADING+':*');out.push('');out.push(crew.text);} }
     });
@@ -253,6 +258,7 @@ if(args.next===true){
   out.filter(function(l){return l.indexOf('**Seats:**')===0;}).forEach(function(l){ s.push(l,''); });
   // Under the crew line and the Seats line, above the scoreboard, where it is read first (issue 189).
   if(modelsLine)s.push('**Models:** '+modelsLine,'');
+  if(damageLine)s.push('**Log:** '+damageLine,'');
   // The ignore file, said once (issue 36): the run that wrote combat-writing/.gitignore says so in
   // its first short form and never again, like the legend.
   if(log.some(function(e){return e.event==='gitignore.written';})&&!log.some(function(e){return e.event==='gitignore.printed';})){ s.push(lib.GITIGNORE_LINE,''); lib.appendLog(runDir,{event:'gitignore.printed'}); }

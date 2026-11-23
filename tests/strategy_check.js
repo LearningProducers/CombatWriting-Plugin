@@ -168,7 +168,7 @@ check(packet.indexOf(draftText.trim())>=0,'packet: must carry the stored draft')
 check(packet.indexOf(briefText.trim())>=0,'packet: must carry the stored brief');
 check(/Read this rough draft and rate it on a scale from 1–10, you cannot use 7\./.test(packet),'packet: must carry the default step-4 prompt');
 check(/RATING: X\/10/.test(packet)&&/Under 500 words\./.test(packet),'packet: must ask for a rating at the 500 cap');
-check(/=== DRAFT BEGIN ===/.test(packet)&&/untrusted content/.test(packet),'packet: the draft must ride inside the fence with the untrusted-content line');
+check(/=== DRAFT BEGIN [0-9a-f]{12} ===/.test(packet)&&/untrusted content/.test(packet),'packet: the draft must ride inside the fence with the untrusted-content line');
 var c=node('packet.js',['--run',run,'--round','01-cold','--seat','seat-1','--cold']);
 check(c.status===0,'packet (cold): exit '+c.status+' '+c.stderr);
 var cold=read(path.join(run,'rounds','01-cold','seat-1.packet.md'));

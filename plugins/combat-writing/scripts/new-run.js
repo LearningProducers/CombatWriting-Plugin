@@ -60,7 +60,12 @@
 // session's own model (lib.modelsLine).
 //
 // The run id is the UTC date and time plus the slug: 2026-10-08-1930-board-letter.
-// The slug comes from --name, else from the draft's file name.
+// The slug comes from --name, else from the draft's file name, else, on a run that starts from
+// a brief alone, from the file name of the brief the run carries: the file given, the saved
+// brief's (its name) or the project's own (brief).
+//
+// A draft with no words (an empty file, or spaces and line ends alone, by lib.wordCount) is
+// refused with one line, exit 2, before anything is made: no run folder, no seats, no log.
 //
 // Seats: every seat is named by model and company. The model name is what the host
 // knows about the agent it will run (--session-model, --model, --model-2); when the host cannot tell, the seat
@@ -80,6 +85,7 @@ var projectBriefThere=!noBrief&&fs.existsSync(lib.projectBriefPath(root));
 if(args.draft===true)lib.die('--draft takes a file path');
 if(args.brief===true)lib.die('--brief takes a file path');
 if(hasDraft&&!fs.existsSync(args.draft))lib.die('draft not found: '+args.draft);
+if(hasDraft&&!lib.wordCount(lib.readText(args.draft)))lib.die(lib.NO_WORDS+args.draft+'; no run was made');
 if(hasBrief&&!fs.existsSync(args.brief))lib.die('brief not found: '+args.brief);
 var hasReader=args.reader!==undefined;
 if(args.reader===true)lib.die('--reader takes a file path');
@@ -127,7 +133,8 @@ if(args['model-2']!==undefined&&readers===1)lib.die('--model-2 names the second 
 var company=(args.company&&args.company!==true)?String(args.company).trim():lib.DEFAULT_COMPANY;
 
 function slugOf(s){ return String(s).toLowerCase().replace(/\.[a-z0-9]+$/,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'draft'; }
-var slug=slugOf(args.name&&args.name!==true?args.name:path.basename(hasDraft?args.draft:args.brief));
+// With no name: the draft's file name, else the brief's the run carries (the guard above leaves one of the four).
+var slug=slugOf(args.name&&args.name!==true?args.name:path.basename(hasDraft?args.draft:hasBrief?args.brief:briefName?lib.briefNamePath(root,briefName):lib.projectBriefPath(root)));
 var now=new Date();
 function two(n){ return (n<10?'0':'')+n; }
 var stamp=now.getUTCFullYear()+'-'+two(now.getUTCMonth()+1)+'-'+two(now.getUTCDate())+'-'+two(now.getUTCHours())+two(now.getUTCMinutes());

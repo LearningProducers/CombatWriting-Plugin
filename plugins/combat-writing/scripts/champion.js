@@ -5,6 +5,7 @@
 //
 //   node champion.js --run <run folder> --kind shipped|result|insight --file <inbox file>
 //                    [--page <inbox file> [--digest]] [--live no] [--at <time>]
+//   node champion.js --run <run folder> --next
 //
 // Everything the person typed reaches this script as a file cut from the inbox, never as inline
 // text (the packet rule, applied to champion). --at dates an entry to when it happened (any form
@@ -32,15 +33,27 @@
 //   first write. A lexicon term is an insight written as one. Logs champion.insight; prints
 //   "Insight recorded <date> in combat-writing/insight-vault.md: <text>".
 //
+// --next: prints the text Next line for the run (lib.championNextLine: the entries still open,
+//   the first gone once the run holds a canon, and the return to the piece) and nothing else. It
+//   records nothing and writes nothing, and rides alone: with any other flag but --run it is
+//   refused. The champion skill runs it last and shows the line as printed.
+//
 // Refusals, exit 2 with one line on stderr: a missing --run, --kind or --file; a kind not among
 // the three; a missing or empty file; an --at that is not a date; shipped on a run with no draft;
 // --page or --live with no address in the text; --live not "no"; --live no with --page; a missing
 // or empty page file; --page or --live on result or insight; insight on a run not under
-// combat-writing/runs/. No network module, no fetch, no address literal of its own.
+// combat-writing/runs/; --next with any flag but --run, or with a value. No network module, no fetch, no address literal of its own.
 
 var fs=require('fs'), path=require('path');
 var lib=require('./lib.js');
 var args=lib.parseArgs(process.argv.slice(2));
+if(args.next!==undefined){
+  if(args.next!==true||args._.length||Object.keys(args).some(function(k){ return k!=='_'&&k!=='next'&&k!=='run'; }))lib.die('--next rides alone: it prints the Next line for the run and records nothing; give it --run and no other flag');
+  if(!args.run||args.run===true)lib.die('--run is required');
+  lib.readSeats(path.resolve(args.run));
+  process.stdout.write(lib.championNextLine(path.resolve(args.run))+'\n');
+  process.exit(0);
+}
 ['run','kind','file'].forEach(function(k){ if(!args[k]||args[k]===true)lib.die('--'+k+' is required'); });
 var KINDS=['shipped','result','insight'];
 var kind=String(args.kind).trim().toLowerCase();
