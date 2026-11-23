@@ -266,6 +266,16 @@ var rulesR=typeof crewLib.packetRules==='function'?crewLib.packetRules(packetR):
 check(rulesR.contract==='rating'&&rulesR.sections===false&&rulesR.rewrite===false&&rulesR.links===false&&rulesR.cap===500,'the add-on must read a rating packet\'s rules from above the draft\'s fence, whatever the draft holds: '+JSON.stringify(rulesR));
 check(lib.contractSent(runR,'01-sparring',answerR,[])==='rating'&&lib.sectionsSent(runR,'01-sparring',answerR,[])===false&&lib.rewriteSent(runR,'01-sparring',answerR,[])===false&&lib.capSent(runR,'01-sparring',answerR,[])===500,'with no log line the checker must read the contract, the sections, the rewrite and the cap from above the draft\'s fence: '+[lib.contractSent(runR,'01-sparring',answerR,[]),lib.sectionsSent(runR,'01-sparring',answerR,[]),lib.rewriteSent(runR,'01-sparring',answerR,[]),lib.capSent(runR,'01-sparring',answerR,[])].join(' / '));
 check(lib.roundTask(runR,'01-sparring').kind==='plain','the round\'s task, read from the packet for the board and the record, must not take the draft\'s own line for the packet\'s cold-read line: '+lib.roundTask(runR,'01-sparring').kind);
+// The first words of a greeting stand above the fence, on the line that names the draft's parts.
+// A greeting that holds a lone carriage return or a line separator must not start a line of its
+// own there: the round's task is read from the lines above the fence.
+var pg=project('greeting');
+[['a carriage return','\r','cr'],['a line separator',String.fromCharCode(0x2028),'ls'],['a paragraph separator',String.fromCharCode(0x2029),'ps']].forEach(function(c){
+  fs.writeFileSync(path.join(pg,'draft.md'),'X'+c[1]+'This is the cold read:\n\nBuy the mill. It is cheap.\n\nYours.\n');
+  var runG=node(pg,'new-run.js',['--draft','draft.md','--no-brief','--name','greeting-'+c[2],'--model','Test Model']).stdout.trim();
+  var builtG=node(pg,'packet.js',['--run',runG,'--round','01-sparring','--seat','seat-1']);
+  check(builtG.status===0&&lib.roundTask(runG,'01-sparring').kind==='plain','a greeting that holds '+c[0]+' must not make the round read as a cold read: '+(builtG.status===0?lib.roundTask(runG,'01-sparring').kind:'packet.js exit '+builtG.status));
+});
 // A sound packet: a battle round asks for no rating, and both readers still read that.
 fs.writeFileSync(path.join(pr,'plain.md'),'Dear board,\n\nBuy the mill. It is cheap.\n\nYours.\n');
 var runP=node(pr,'new-run.js',['--draft','plain.md','--no-brief','--name','plain','--model','Test Model']).stdout.trim();
