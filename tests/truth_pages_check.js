@@ -230,6 +230,9 @@ var MARKERS5=new RegExp('\\(issue \\d+, \\d{4}-\\d{2}-\\d{2}:\\s*'+Q+NOQ+'{8,}'+
 // bracket with no colon before it. The words between end no clause: a semicolon there is another
 // clause's bracket (the archive's line on departure 16, which quotes a rule's name).
 var MARKERS6=new RegExp('\\bthe founder\\b[^.;\\u0022\\u201c\\n(]{0,40}\\(\\s*'+Q+NOQ+'{3,}'+QEND,'i');
+// A seventh shape, in a script's comment: an issue in a bracket, a colon, and the quotation,
+// with no date between them.
+var MARKERS7=new RegExp('\\(issue \\d+:\\s*'+Q+NOQ+'{8,}'+QEND);
 function tracked(dir,deep){
   var out=[];
   fs.readdirSync(dir,{withFileTypes:true}).forEach(function(d){
@@ -243,9 +246,15 @@ var searched=tracked(root,false).concat(tracked(path.join(root,'docs'),true),tra
 searched.forEach(function(f){
   var rel=path.relative(root,f), flat=fs.readFileSync(f,'utf8').replace(/\n[ \t]*\/\/ ?/g,' ');
   if(f===__filename)return;
-  var hits=flat.split('\n').filter(function(l){ return MARKERS.test(l)||MARKERS2.test(l)||MARKERS3.test(l)||MARKERS4.test(l)||MARKERS5.test(l)||MARKERS6.test(l); }).length;
+  var hits=flat.split('\n').filter(function(l){ return MARKERS.test(l)||MARKERS2.test(l)||MARKERS3.test(l)||MARKERS4.test(l)||MARKERS5.test(l)||MARKERS6.test(l)||MARKERS7.test(l); }).length;
   check(hits===0,rel+': '+hits+' line(s) mark a quoted span as the words a decision was made in; write the decision in plain words');
 });
+
+// The board's page speaks through the browser's own voices, and what a browser does to speak is
+// the browser's: the privacy page says so. A comment in the script that writes the board says
+// what the page's own code does, and does not say that nothing is sent or that no request leaves.
+var boardScript=read(PLUGINS[0]+'/scripts/render-board.js');
+check(!/Nothing is sent anywhere/.test(boardScript)&&!/No request leaves the page/.test(boardScript),PLUGINS[0]+'/scripts/render-board.js: a comment says nothing is sent, or that no request leaves the page; say what the page\'s own code does');
 
 // What the result hook reads to find a reader's transcript: the opening of each agent's
 // transcript it opens holds the task that agent was started with (show-result.js taskOf and
