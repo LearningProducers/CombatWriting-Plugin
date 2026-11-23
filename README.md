@@ -63,4 +63,4 @@ Contributions are not accepted yet; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Not an Anthropic product
 
-This plugin is made by Learning Producers Inc. It is not made, reviewed or endorsed by Anthropic. Claude and Claude Code are Anthropic's products and marks.
+This plugin is made by Learning Producers Inc. It is not made or endorsed by Anthropic. Claude and Claude Code are Anthropic's products and marks.

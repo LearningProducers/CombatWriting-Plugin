@@ -39,7 +39,7 @@ Three things about the plugin are held for a reviewer, by the checklist's own ru
 | Item | Result | Satisfied by |
 |---|---|---|
 | `name` of lowercase letters, digits and hyphens, up to 64 characters, starting and ending with a letter or digit | pass | `"name": "cw"` in `plugin.json`; the plugin was `combat-writing` before, the marketplace's `renames` map moves an install's enabled entry from the old name, and the folder stays `plugins/combat-writing/`; `tests/marketplace_check.js` pins the rename entry |
-| Not a reserved word or an Anthropic-reserved marketplace name; nothing that presents the plugin as official | pass | `cw` is Combat Writing's own initials and no reserved word; `displayName` is "Combat Writing"; both READMEs say the plugin is not made, reviewed or endorsed by Anthropic, pinned by `tests/readme_check.js` |
+| Not a reserved word or an Anthropic-reserved marketplace name; nothing that presents the plugin as official | pass | `cw` is Combat Writing's own initials and no reserved word; `displayName` is "Combat Writing"; both READMEs say the plugin is not made or endorsed by Anthropic, pinned by `tests/readme_check.js` |
 | A name no other organization's plugin uses, including look-alikes | portal | **Name is taken** or **Name may be confused with an existing listing** can only come from the portal. `cw` is short; if the portal refuses it, the fallback is the brand's own name |
 | `name`, `displayName`, `author.name` not mistakable for an existing plugin, publisher, connector or brand | portal | `displayName` "Combat Writing", `author.name` "Learning Producers Inc.", both in `plugin.json` |
 | Not a fork using the upstream project's name | pass | the repository is not a fork |
