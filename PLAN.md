@@ -953,4 +953,4 @@ Seen and not touched: the printed no-key sentence of `scripts/lib.js`, which `te
 
 Delivers: `plugins/combat-writing-crew/crew-lib.js` and `server.js`; `plugins/combat-writing/scripts/lib.js` and `check-answer.js`; both `plugin.json` files and the marketplace file, for the versions; the add-on's README and `PRIVACY.md`; `docs/plugin-map.md`; `tests/seat_name_check.js`, new; `RULINGS.md` and this file.
 
-Status: in progress — 2026-11-23 — built on Part 143's head, local.
+Status: delivered — 2026-11-23 — draft pull request open, based on Part 143's branch while that pull request is open, so the workflow's checks run on it after Parts 142 and 143 merge; the last line of `node tests/run_all.js` on the final head, THE SMOKE's lines with their numbers and what the fresh-eyes reads found are in the pull request body.
