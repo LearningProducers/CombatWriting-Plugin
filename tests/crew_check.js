@@ -342,7 +342,7 @@ fake.listen(0,'127.0.0.1',function(){
     check(cf.status===0&&/"status":"flip-valid"/.test(cf.stdout)&&/"cited":"seat-2"/.test(cf.stdout),'check-flip: a quote of the outside seat should validate, got '+cf.stdout.split('\n')[0]);
     var rr=node('render-record.js',['--run',run]);
     var rec=fs.readFileSync(path.join(run,'record.md'),'utf8');
-    check(rr.status===0&&/\*\*Crew:\*\*.*3 companies: Anthropic, Alibaba, OpenAI\. Fresh readers are named from the agent configuration; outside seats from the model field their provider's API returned\./.test(rec),'record: crew line should name three companies and both name sources');
+    check(rr.status===0&&/\*\*Crew:\*\*.*3 companies: Anthropic, Alibaba, OpenAI\. Fresh readers are named from the agent configuration; outside seats from the model field their provider's API returned, when it is a model id\./.test(rec),'record: crew line should name three companies and both name sources');
     check(/\| qwen\/qwen3\.6-27b-0725 \(Alibaba, served by Groq\), seat-2 \| 8\/10 \|/.test(rec),'record: outside seat row wrong');
     var rb=node('render-board.js',['--run',run]);
     check(rb.status===0&&/served by Groq/.test(fs.readFileSync(path.join(run,'board.html'),'utf8')),'board: outside seat not named with its provider');

@@ -678,14 +678,16 @@ function logDamageLine(n){
 // SEAT_NAME_RE (the characters of a model id, MODEL_ID_RE below, with single spaces between
 // its words, at most 120: no line break and no mark a heading, a tag or a fence is written
 // with) or it reads as not reported; its maker and the provider that served it must be plain
-// names by MAKER_RE (letters, digits, space and . , & ' ( ) + : / _ [ ] -, at most 200) or
+// names by MAKER_RE (at most four words of letters, digits and . & ' ( ) -, 40 characters in
+// all), or the one form the add-on writes for the local seat's maker (LOCAL_MAKER_RE), or
 // they read as not reported and not there; a fresh reader's name, the host's words, is made
 // one line and cut at 120. The add-on stores an id only when it is a model id, with no space,
 // and carries holdSeats word for word (crew-lib.js; the test holds the two equal), so a file
 // an older add-on wrote is held here too.
 var MAKER_UNREPORTED='maker not reported';
-var MAKER_RE=/^[A-Za-z0-9][A-Za-z0-9 .,&'()+:\/_\[\]-]{0,199}$/;
-function isMakerName(v){ return typeof v==='string'&&MAKER_RE.test(v); }
+var MAKER_RE=/^[A-Za-z0-9][A-Za-z0-9.&'()-]*(?: [A-Za-z0-9.&'()-]+){0,3}$/;
+var LOCAL_MAKER_RE=/^the maker of [A-Za-z0-9._\/:\[\]-]{1,120} \(local, not reported by the server\)$/;
+function isMakerName(v){ return typeof v==='string'&&((v.length<=40&&MAKER_RE.test(v))||LOCAL_MAKER_RE.test(v)); }
 var SEAT_NAME_RE=/^[A-Za-z0-9._\/:\[\]-]+(?: [A-Za-z0-9._\/:\[\]-]+)*$/;
 function isSeatName(v){ return typeof v==='string'&&v.length<=120&&SEAT_NAME_RE.test(v); }
 function oneLine(v,max){ return String(v===undefined||v===null?'':v).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g,' ').replace(/\s+/g,' ').trim().slice(0,max); }
@@ -964,8 +966,8 @@ function wasAsked(runDir,round,seatId,log){
 // the provider's API response for outside seats, or both.
 function nameSources(seats){
   var fresh=seats.some(function(s){return !s.provider;}), outside=seats.some(function(s){return !!s.provider;});
-  if(fresh&&outside)return 'Fresh readers are named from the agent configuration; outside seats from the model field their provider\'s API returned.';
-  if(outside)return 'Seat names come from the model field each provider\'s API returned.';
+  if(fresh&&outside)return 'Fresh readers are named from the agent configuration; outside seats from the model field their provider\'s API returned, when it is a model id.';
+  if(outside)return 'Seat names come from the model field each provider\'s API returned, when it is a model id.';
   return 'Seat names come from the agent configuration, not from an API field.';
 }
 
@@ -988,7 +990,7 @@ function crewStateLines(runDir,seats,log){
       lines.push('The crew add-on is running and no provider has a key, so the crew is '+crewAloneWords(seats)+': a key was never entered, or an update dropped it (the host rebuilt its credentials store). Next: '+(noKey[0].next||ADDON_CONFIGURE)+', type the key into a key field and save: '+(named.length?named.join(', '):fields.join(', '))+'; a save with nothing typed says No configuration changes and keeps nothing; a free Groq key seats two. Or set the provider\'s environment variable when the prompt is empty.');
     }
     failed.forEach(function(u){
-      lines.push('Not seated: '+(u.provider_name||u.provider)+(u.family?' ('+u.family+')':'')+': '+oneLine(u.reason,400)+'. Next: run the command again; if it repeats, '+(u.next||ADDON_CONFIGURE)+' to check the '+(u.field||'key')+' field.');
+      lines.push('Not seated: '+(u.provider_name||u.provider)+(u.family?' ('+u.family+')':'')+': '+oneLine(u.reason,1000)+'. Next: run the command again; if it repeats, '+(u.next||ADDON_CONFIGURE)+' to check the '+(u.field||'key')+' field.');
     });
   }else if(last&&last.event==='addon.state'&&!outside){
     lines.push(addonStateLine(last.state,seats)||('The add-on state recorded, '+last.state+', is not one the record knows.'));

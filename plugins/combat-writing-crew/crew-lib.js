@@ -26,8 +26,10 @@ function readLog(runDir){
 // provider: an id from the provider's list, the maker beside it, the model field of a reply.
 // Each is taken only in its shape. A model id is MODEL_ID_RE, the plugin's own pattern (lib.js;
 // the test holds the two equal): letters, digits, dot, dash, underscore, slash, colon and square
-// brackets, at most 120, no space and no line break. A maker is a plain name, MAKER_RE: letters,
-// digits, space and . , & ' ( ) + : / _ [ ] -, at most 200, opening with a letter or a digit. An
+// brackets, at most 120, no space and no line break. A maker is a plain name, MAKER_RE: at most
+// four words of letters, digits and . & ' ( ) -, 40 characters in all, so no comma, no colon,
+// no slash and no bracket, which a sentence, a link or an address is written with; or the one
+// form the add-on itself writes for the local seat, LOCAL_MAKER_RE. An
 // id from the list that is no model id is not offered; a maker that is no plain name is "maker
 // not reported"; a reply's model field that is no model id leaves the seat's name as it was. The
 // seats file is held when it is read (holdSeats, the plugin's own function word for word), so
@@ -38,8 +40,9 @@ function readLog(runDir){
 var MODEL_UNREPORTED='model unreported', MAKER_UNREPORTED='maker not reported';
 var MODEL_ID_RE=/^[A-Za-z0-9._\/:\[\]-]{1,120}$/;
 function isModelId(v){ return typeof v==='string'&&MODEL_ID_RE.test(v); }
-var MAKER_RE=/^[A-Za-z0-9][A-Za-z0-9 .,&'()+:\/_\[\]-]{0,199}$/;
-function isMakerName(v){ return typeof v==='string'&&MAKER_RE.test(v); }
+var MAKER_RE=/^[A-Za-z0-9][A-Za-z0-9.&'()-]*(?: [A-Za-z0-9.&'()-]+){0,3}$/;
+var LOCAL_MAKER_RE=/^the maker of [A-Za-z0-9._\/:\[\]-]{1,120} \(local, not reported by the server\)$/;
+function isMakerName(v){ return typeof v==='string'&&((v.length<=40&&MAKER_RE.test(v))||LOCAL_MAKER_RE.test(v)); }
 var SEAT_NAME_RE=/^[A-Za-z0-9._\/:\[\]-]+(?: [A-Za-z0-9._\/:\[\]-]+)*$/;
 function isSeatName(v){ return typeof v==='string'&&v.length<=120&&SEAT_NAME_RE.test(v); }
 function oneLine(v,max){ return String(v===undefined||v===null?'':v).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g,' ').replace(/\s+/g,' ').trim().slice(0,max); }
@@ -226,11 +229,13 @@ function request(method,fullUrl,headers,body,timeoutMs){
 
 function vendorOf(id){ var s=String(id||''); var i=s.indexOf('/'); return i>0?s.slice(0,i):''; }
 function makerOf(id,ownedBy,makers){
+  // The map answers for its own names alone: a name every object carries (constructor) is not one.
+  var own=function(k){ return Object.prototype.hasOwnProperty.call(makers,k)&&typeof makers[k]==='string'?makers[k]:null; };
   var v=vendorOf(id).toLowerCase();
-  if(v&&makers[v])return makers[v];
+  if(v&&own(v))return own(v);
   var head=String(id||'').toLowerCase().split(/[-_.\/]/)[0];
-  if(head&&makers[head])return makers[head];
-  if(typeof ownedBy==='string'&&makers[ownedBy.toLowerCase()])return makers[ownedBy.toLowerCase()];
+  if(head&&own(head))return own(head);
+  if(typeof ownedBy==='string'&&own(ownedBy.toLowerCase()))return own(ownedBy.toLowerCase());
   return isMakerName(ownedBy)?ownedBy:MAKER_UNREPORTED;
 }
 // The size token in an id, for the "largest" preference: vendor/name-120b -> 120, no token -> 0.

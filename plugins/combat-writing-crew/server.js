@@ -20,7 +20,7 @@
 //                  that provider (issue 93: Groq's limits are per model); sends, with the
 //                  packet's word cap and contract stated in the system line; writes the
 //                  answer file and a log line with the timestamp and the model id the API
-//                  returned; returns the path and the id. The answer text is never the thing
+//                  returned, when it is a model id; returns the path and that id. The answer text is never the thing
 //                  carried: the file is. A retry asks for the retry target, 80% of the cap.
 //                  On a retry whose reply is over the cap again (the
 //                  seat's second overrun), the reply is cut at the cap, at the
@@ -140,8 +140,8 @@ function listSeats(){
         // A key the provider refused at the catalog read (401 or 403) says so and gives the next command,
         // in the words the answer path uses; any other failure reads "did not answer".
         var refused=err&&(err.status===401||err.status===403);
-        var why=refused?provider.name+' refused the key: '+lib.scrubIds(err.message)+' (the key was refused). '+lib.keyNext(provider)
-          :provider.name+' did not answer: '+lib.scrubIds(err.message);
+        var why=refused?provider.name+' refused the key: '+lib.errorLine(err.message)+' (the key was refused). '+lib.keyNext(provider)
+          :provider.name+' did not answer: '+lib.errorLine(err.message);
         provider.seats.forEach(function(s){
           out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:why});
         });
@@ -190,7 +190,7 @@ function registerSeats(runDir){
       while(existing.indexOf(id)>=0){n+=1;id='seat-'+n;}
       existing.push(id);
       var seat={id:id,model:s.model,company:s.maker,served_by:s.served_by,provider:s.provider,slot:s.slot,family:s.family,
-        source:'the model field the provider\'s API returns ('+s.served_by+'); resolved from the live catalog by family ('+s.family+'), never a pinned id; the record carries the id each answer came back with'};
+        source:'the model field the provider\'s API returns ('+s.served_by+'); resolved from the live catalog by family ('+s.family+'), never a pinned id; the seat\'s name follows the id an answer comes back with, when it is a model id'};
       // The wall this seat spends from (issue 95), the add-on's budget for the provider as providers.json states it, so the
       // listed plugin's budget line can say the room a packet leaves before any seat starts.
       var prov=providersTable().providers.filter(function(p){return p.id===s.provider;})[0];
@@ -350,7 +350,7 @@ function answer(args){
       var modelRefused=returned===null&&rawModel!==undefined&&rawModel!==null&&rawModel!=='';
       // A reply the provider stopped at max_tokens (finish_reason length): read here, logged and said below.
       var rawUsage=(res.json&&res.json.usage)||{};
-      var count=function(v){ return typeof v==='number'&&isFinite(v)?v:null; }; // a token count is a number or it is not kept
+      var count=function(v){ return Number.isInteger(v)&&v>=0&&v<=1e9?v:null; }; // a token count is a whole number from 0 to a thousand million, or it is not kept
       var usage={prompt_tokens:count(rawUsage.prompt_tokens),completion_tokens:count(rawUsage.completion_tokens),total_tokens:count(rawUsage.total_tokens)};
       var finish=lib.finishReason(choice);
       var stopped=lib.stoppedBy(finish,out.max_tokens,usage.completion_tokens,out.max_tokens_lowered);
@@ -376,7 +376,7 @@ function answer(args){
         file:path.relative(runDir,answerPath),packet:path.relative(runDir,packetPath),read:read,retry_note:note||null,
         word_cap:rules.cap,contract:read==='rating'?rules.contract:read,truncated:truncated,finish_reason:finish,stopped:stopped,
         input_tokens_estimated:budget.input,reservation:budget.reservation,max_tokens_lowered:out.max_tokens_lowered||null,
-        usage:{prompt_tokens:usage.prompt_tokens||null,completion_tokens:usage.completion_tokens||null,total_tokens:usage.total_tokens||null},
+        usage:usage,
         waited_ms:out.waited_ms,key_source:k.source});
       return {ok:true,seat:seatId,file:answerPath,model_requested:requested,model_returned:returned,model_refused:modelRefused,model_source:'API response model field',served_by:provider.name,company:seat.company,waited_ms:out.waited_ms,
         max_tokens_lowered:out.max_tokens_lowered||null,truncated:truncated,stopped:stopped,
@@ -385,7 +385,7 @@ function answer(args){
   });
   queues[qk]=run.catch(function(){});
   return run.catch(function(err){
-    var why=lib.scrubIds(err.message);
+    var why=lib.errorLine(err.message);
     lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,read:read,provider:provider.id,model_requested:seat.model,reason:why});
     return {ok:false,seat:seatId,missing:true,reason:why+'. The seat is missing this round.'};
   });
@@ -407,7 +407,7 @@ var TOOLS=[
     inputSchema:{type:'object',properties:{},additionalProperties:false}},
   {name:'crew_register',title:'Add the outside seats to a run',annotations:annotated('Add the outside seats to a run',false,true,false),description:'Add every available outside seat to a Combat Writing run: appends them to the run\'s seats.json (named by the model id and its maker, served by the provider) and logs it. Run it once per run after new-run.js and before building packets. Returns the seats added and the ones unavailable with the reason.',
     inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder, combat-writing/runs/<run-id>'}},required:['run'],additionalProperties:false}},
-  {name:'crew_answer',title:'Send a seat\'s packet to its provider',annotations:annotated('Send a seat\'s packet to its provider',false,true,false),description:'Send one outside seat\'s packet for one round to its provider on the person\'s own key and write the answer file beside the packet. Checks the packet against the add-on\'s own budget for that provider first (refuses with "Too long to send"), waits out the per-minute window, lowers max_tokens and resends once when the provider refuses on its per-minute output limit and that limit can still carry the reply, and records the model id the API returned. Returns the answer path and the id, never the text; `stopped` is set when the provider ended the reply at max_tokens. A failed call leaves the seat missing for the round, with the reason logged for the record and the board.',
+  {name:'crew_answer',title:'Send a seat\'s packet to its provider',annotations:annotated('Send a seat\'s packet to its provider',false,true,false),description:'Send one outside seat\'s packet for one round to its provider on the person\'s own key and write the answer file beside the packet. Checks the packet against the add-on\'s own budget for that provider first (refuses with "Too long to send"), waits out the per-minute window, lowers max_tokens and resends once when the provider refuses on its per-minute output limit and that limit can still carry the reply, and records the model id the API returned, when it is a model id. Returns the answer path and the id, never the text; `stopped` is set when the provider ended the reply at max_tokens. A failed call leaves the seat missing for the round, with the reason logged for the record and the board.',
     inputSchema:{type:'object',properties:{run:{type:'string',description:'the run folder'},round:{type:'string',description:'the round, such as 02-battle'},seat:{type:'string',description:'the seat id, such as seat-4'},read:{type:'string',enum:['rating','sn','redflag','crew'],description:'rating (default), sn / redflag for the final reads, or crew for the second pass of a first round (the <seat>.crew packet, issue 88)'},note:{type:'string',description:'on a retry only: the failed check\'s reasons, appended after the packet so the seat knows what to fix'}},required:['run','round','seat'],additionalProperties:false}}
 ];
 
