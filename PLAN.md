@@ -260,4 +260,4 @@ Not done. No bullet is added to the wall for the rules of Parts 142 and 144. Eac
 
 Delivers: `CLAUDE.md`; `tests/rulings_check.js`, `tests/truth_pages_check.js` and `tests/plan_check.js`; this file.
 
-Status: delivered — 2026-11-23 — built on Part 145's head and committed; its draft pull request opens on main after Part 145's merges, and the last line of `node tests/run_all.js` on the final head is in the pull request body.
+Status: delivered — 2026-11-23 — draft pull request open on main, opened after Part 145 merged; the last line of `node tests/run_all.js` on the final head is in the pull request body.
