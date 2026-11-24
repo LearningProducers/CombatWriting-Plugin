@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if command -v node >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js\"; else grep -Eq '\"(agent_type|subagent_type)\"[[:space:]]*:[[:space:]]*\"(cw:)?seat\"'; [ $? -eq 1 ] && exit 0; echo 'Combat Writing: Node is not on the PATH, so the fence that holds a fresh reader cannot run; no fresh reader is started or served until Node is installed.' >&2; exit 2; fi",
+            "command": "if command -v node >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js\"; else command -v grep >/dev/null 2>&1 && ! grep -Eq '\"(agent_type|subagent_type)\"(:| :|: | : )\"(cw:seat|seat)\"' && exit 0; echo 'Combat Writing: Node is not on the PATH, so the fence that holds a fresh reader cannot run; no fresh reader is started or served until Node is installed.' >&2; exit 2; fi",
             "timeout": 5,
             "onFailure": "block"
           }

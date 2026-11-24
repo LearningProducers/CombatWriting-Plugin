@@ -26,8 +26,9 @@
 //     CLAUDE_PLUGIN_DATA), session-start.js exits 0 and prints one JSON object whose
 //     hookSpecificOutput carries exactly "Combat Writing ready. /cw:help for the guide." as
 //     additionalContext for SessionStart, the context the host reads, and nothing else: no
-//     systemMessage key, the field the terminal shows the person (issue 165, 2026-11-04: nothing
-//     prints on the screen at session start, ever).
+//     systemMessage key, the field the terminal shows the person (issue 165, 2026-11-04: the
+//     script prints nothing on the screen at session start, ever; with no Node the command prints
+//     hooks/no-node.json in the script's place, pinned by tests/no_node_check.js).
 //   - The script requires fs, path, child_process and the plugin's lib.js and nothing else, holds
 //     no URL, never installs, reads no argument, and reads two environment variables:
 //     CLAUDE_PLUGIN_DATA (its data folder) and HOME (the cache fallback); no switch of the

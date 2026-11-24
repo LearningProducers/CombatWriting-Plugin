@@ -6,7 +6,9 @@
 // JSON object whose hookSpecificOutput.additionalContext carries the ready line, context the host
 // reads that never appears as a message (the hooks reference's definition); nothing prints on the
 // screen at session start, so the object never carries a systemMessage key, the field the terminal
-// shows the person. The host says nothing about a lack unless asked; a missing seat is still named
+// shows the person. (On a machine with no Node this script never starts: the command in hooks.json
+// prints hooks/no-node.json in its place, which does carry that field, the one line the person
+// has to see: that Node is missing, and that nothing of their own work is stopped.) The host says nothing about a lack unless asked; a missing seat is still named
 // in every result's Seats line. The FIRST start (no `first-session` file in the plugin's data folder, the folder
 // Claude Code keeps across updates and removes on uninstall) also measures two things and adds
 // one line per lack after the ready line, nothing when there is no lack, then, when both came back, writes the
