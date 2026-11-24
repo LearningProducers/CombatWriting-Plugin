@@ -410,7 +410,7 @@ if(modelsLine)html.push('<p class="meta"><strong>Models:</strong> '+esc(modelsLi
 // Lines of the log that could not be read, counted and said (lib.logDamageLine), as the record says them.
 var damageLine=lib.logDamageLine(lib.logDamage(runDir));
 if(damageLine)html.push('<p class="meta"><strong>Log:</strong> '+esc(damageLine)+'</p>');
-// The models measured, the record's lines: which model wrote each fresh reader's replies, round by round.
+// The models measured, the record's lines: which model each fresh reader ran on, round by round.
 var measuredLines=lib.measuredLines(seats,log);
 if(measuredLines.length)html.push('<p class="meta"><strong>'+esc(lib.MEASURED_HEADING)+':</strong> '+esc(lib.MEASURED_NOTE)+measuredLines.map(function(l){ return '<br>'+esc(l); }).join('')+'</p>');
 html.push('<p class="meta"><strong>Seat key:</strong> '+esc(lib.seatKey(seats))+'</p>');

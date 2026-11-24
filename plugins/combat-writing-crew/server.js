@@ -344,10 +344,10 @@ function answer(args){
       var text=choice&&choice.message&&typeof choice.message.content==='string'?choice.message.content:'';
       text=text.replace(/<think>[\s\S]*?<\/think>\s*/g,'').replace(/^﻿/,'').replace(/^\s+/,'');
       // The reply's model field is the provider's text. It becomes the seat's name only when it is
-      // a model id; when it is not, the name stays, and the log says the field was refused and
-      // holds none of its text.
+      // a model id and holds no key in use (a key can have a model id's shape); when it is not, the
+      // name stays, and the log says the field was refused and holds none of its text.
       var rawModel=res.json?res.json.model:undefined;
-      var returned=lib.isModelId(rawModel)?rawModel:null;
+      var returned=lib.isModelId(rawModel)&&lib.scrubKeys(rawModel).count===0?rawModel:null;
       var modelRefused=returned===null&&rawModel!==undefined&&rawModel!==null&&rawModel!=='';
       // A reply the provider stopped at max_tokens (finish_reason length): read here, logged and said below.
       var rawUsage=(res.json&&res.json.usage)||{};

@@ -90,10 +90,11 @@
 // returned, and for the plugin's own reader (subagent_type `cw:seat` or `seat`, the tool named
 // Agent or Task) that holds the model the host resolved for the reader, the documented field
 // tool_response.resolvedModel, after a background start (the skills' way) and after a
-// foreground one. The hook reads four things of that input and nothing else of it: the
+// foreground one. The hook reads four things of that start and nothing else of it: the
 // reader's type; the opening of the task (tool_input.prompt, its first TASK_CHARS characters),
 // for the `Packet:` line the plugin's own skill wrote there; the model choice the host passed
-// (tool_input.model); and the resolved model. It never reads the reply a foreground start
+// (tool_input.model); and the resolved model. Of the hook input around the start it reads
+// the event's name, the tool's name and the working folder, as it does for a shell command. It never reads the reply a foreground start
 // carries, the output file a background start names, or any count. It opens no transcript and
 // no file Claude Code keeps: the hook input's transcript_path is never read.
 //
@@ -121,7 +122,7 @@
 // A log written by an earlier version of this hook holds lines without `at`, read from a
 // seat's transcript; the scripts still read them and say where each was read.
 //
-// Every read goes through one reader (bytesOf): the file is opened without blocking and must
+// Every read of the measurement goes through one reader (bytesOf): the file is opened without blocking and must
 // be a regular file, so a pipe or a device in a file's place is passed over and never waited
 // on, and the read is capped: 64 KiB for the run's seats.json (one over the cap is passed
 // over), the last 8 MiB of the run's log for the line already there. The `Packet:` line is
@@ -426,8 +427,9 @@ function seatOfTask(task,cwd){
   return {run:run,seat:m[1],round:round};
 }
 // THE MEASURED MODEL: after the host started the plugin's reader, one log line with the model the
-// host resolved for it. Of the input the reader's type, the task's opening, the model choice and
-// the resolved model are read, and nothing else; no transcript is opened.
+// host resolved for it. Of the start the reader's type, the task's opening, the model choice and
+// the resolved model are read, and nothing else; the working folder places a relative packet
+// path; no transcript is opened.
 function measureStart(input){
   var ti=input.tool_input, tr=input.tool_response;
   if(!ti||typeof ti!=='object'||SEAT_TYPES.indexOf(ti.subagent_type)<0||typeof ti.prompt!=='string')return;

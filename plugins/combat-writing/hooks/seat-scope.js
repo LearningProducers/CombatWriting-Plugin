@@ -107,7 +107,7 @@ var fs=require('fs'), path=require('path');
 
 // The Claude Code version the live proof last ran on (tests/seat_scope_live.js). One copy.
 var PROVED_ON='2.1.330';
-// The Claude Code versions the start call's shape was read on, from the host's transcripts. One copy.
+// The Claude Code version the start call's shape was read on, from a real session's hook input. One copy.
 var START_READ_ON='2.1.331';
 var START_TOOLS=['Agent','Task'];
 var SEAT_TYPES=['cw:seat','seat'];

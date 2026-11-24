@@ -886,7 +886,7 @@ function modelsLine(seats,log){
   if(measured&&measured.session){
     var named=(seats||[]).filter(function(s){ return !s.provider; }).map(function(s){
       var e=measured.latest[s.id];
-      if(e)return e.model!==measured.session?s.id+' answered on '+e.model:null;
+      if(e)return e.model!==measured.session?s.id+' '+measuredVerb(e)+' '+e.model:null;
       return offByRecord(s)?s.id+' on '+s.model+', as recorded':null;
     }).filter(Boolean);
     if(named.length)parts.push('Not on this session\'s model ('+measured.session+'): '+named.join(', ')+'.');

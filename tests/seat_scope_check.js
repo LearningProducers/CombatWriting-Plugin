@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // seat_scope_check.js: the seat's reach (ruled 2026-10-16). hooks/seat-scope.js is a PreToolUse
-// hook on every tool: a seat (agent_type cw:seat) uses Read and Write only, reads only its own
+// hook on Read, Write and the tool that starts an agent: a seat (agent_type cw:seat) uses Read and Write only, reads only its own
 // packet and its own answer file and writes only that answer file, judged on the resolved path
 // (issue 239; it read anything inside its run folder until then); any other tool and
 // any path the hook cannot place is denied; every other caller is left alone but for one call,

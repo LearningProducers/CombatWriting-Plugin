@@ -182,7 +182,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/links_check.js` | links are unread: the packet says so when one is present |
 | `tests/map_check.js` | this page: every row set equals the folder it describes |
 | `tests/marketplace_check.js` | the marketplace names both plugins and the add-on rides as cw's dependency |
-| `tests/measured_check.js` | the model that answered, measured: the Models line from the log's `seat.model` lines, the change between two rounds, the record's and Run details' lines, the label never rewritten |
+| `tests/measured_check.js` | the model a fresh reader started on, measured: the Models line from the log's `seat.model` lines, the change between two rounds, the record's and Run details' lines, the label never rewritten |
 | `tests/method_check.js` | the step text is the app's, with the departures listed |
 | `tests/no_node_check.js` | every hook command run through `sh` with and without `node` on the PATH: with none, the person's own calls pass, the plugin's reader is refused at its start and at each call, the session start says Node is missing, the result hooks say nothing; the fence's entry matched to the seat's two tools and the agent tool's two names |
 | `tests/no_node_live.js` | not in CI: one real session on a PATH with no node, through a throwaway plugin that carries the repository's hooks as declared; the person's own Read, Write and shell command go through, the start of the plugin's reader is refused with a line that names Node; rerun after every Claude Code update |
