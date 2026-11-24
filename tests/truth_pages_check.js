@@ -277,6 +277,13 @@ check(/the model the host resolved/.test(privacy)&&/keeps none of (it|that text)
   check(!/every tool call of the session, your own included/.test(page)&&!/transcript files Claude Code keeps/.test(page),rel+': still says a hook that cannot run stops every tool call of the session, or that a hook reads the session\'s transcript files');
 });
 
+// The checklist's row on hooks.json says the declarations as they stand (found by the fresh-eyes read of issue 255: the
+// row still said the fence had no matcher and the result hook one entry, beside a hooks.json that said otherwise).
+var hooksDecl=JSON.parse(read(PLUGINS[0]+'/hooks/hooks.json')).hooks;
+var hooksRow=read('docs/directory-checklist.md').split('\n').filter(function(l){ return /^\| `hooks\/hooks\.json` valid, with only documented events and types \|/.test(l); })[0]||'';
+var declared=[]; Object.keys(hooksDecl).forEach(function(ev){ hooksDecl[ev].forEach(function(en){ declared.push({event:ev,matcher:en.matcher}); }); });
+check(!!hooksRow&&!/no matcher/.test(hooksRow)&&declared.every(function(d){ return hooksRow.indexOf('`'+d.event+'`')>=0&&hooksRow.indexOf('`'+String(d.matcher).split('|').join('\\|')+'`')>=0; })&&hooksRow.indexOf(['zero','one','two','three','four','five'][declared.length]+' entries')>=0,'docs/directory-checklist.md: the row on hooks.json must name each event and each entry\'s matcher as hooks.json declares them ('+declared.map(function(d){ return d.event+' '+d.matcher; }).join(', ')+') and count the entries; it reads: '+hooksRow.slice(0,420));
+
 // The add-on's submission is said in the tense that is true (issue 255): nothing has been submitted to the directory
 // yet, so no page says the add-on "is submitted"; each says it is to be submitted. And the two rows of the add-on's
 // checklist that only the directory's own portal can settle say `portal`, as the same row of the `cw` page does.

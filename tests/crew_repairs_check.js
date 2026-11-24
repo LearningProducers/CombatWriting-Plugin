@@ -88,6 +88,8 @@ var fake=serve(requests,function(req,auth,body,json){
     var user=body&&body.messages&&body.messages[1]?body.messages[1].content:'';
     // A provider (or a proxy before it) that answers and repeats the key in the answer's own text.
     if(/ECHOREPLY/.test(user))return json(200,{id:'c2',model:body.model,choices:[{message:{role:'assistant',content:'RATING: 8/10\nYour header was '+auth+'. You sent '+key+'. The draft names user_profile and team_planning, and those stay as written.\n'},finish_reason:'stop'}],usage:{prompt_tokens:10,completion_tokens:5,total_tokens:15}});
+    // A provider that answers and puts the key where the model's name goes.
+    if(/ECHOMODEL/.test(user))return json(200,{id:'c3',model:key,choices:[{message:{role:'assistant',content:'RATING: 8/10\nThe ask lands.\n'},finish_reason:'stop'}],usage:{prompt_tokens:10,completion_tokens:5,total_tokens:15}});
     if(/ECHOAUTH/.test(user))return json(401,{error:{message:'Incorrect API key provided: '+auth+'. You sent '+key+' and again '+key+'.'}});
     return json(200,{id:'c1',model:body.model,choices:[{message:{role:'assistant',content:'RATING: 8/10\nThe ask lands.\n'},finish_reason:'stop'}],usage:{prompt_tokens:10,completion_tokens:5,total_tokens:15}});
   }
@@ -283,6 +285,20 @@ async function main(){
   check(2,answeredEcho.key_redacted===2,'the log\'s answered line says how many times the key was replaced in the answer (key_redacted), got '+JSON.stringify(answeredEcho.key_redacted));
   err=await s.stop();
   check(2,err.indexOf(SHORT_KEY)<0,'the key in use is in the server\'s stderr');
+  // A reply whose model field is the key itself, a key in the shape of a model id: it never becomes the seat's name.
+  var MODEL_KEY='model-shaped-key.0001';
+  var runModel=newRun('Dear board, buy the company. ECHOMODEL. The ask lands in the first line.\n');
+  s=await start(main,{groq_api_key:MODEL_KEY});
+  r=await s.call('crew_register',{run:runModel});
+  var nameBefore=(JSON.parse(fs.readFileSync(path.join(runModel,'seats.json'),'utf8')).seats.filter(function(x){ return x.id==='seat-2'; })[0]||{}).model;
+  node('packet.js',['--run',runModel,'--round','01-sparring','--seat','seat-2']);
+  r=await s.call('crew_answer',{run:runModel,round:'01-sparring',seat:'seat-2'});
+  var seatsAfter=fs.readFileSync(path.join(runModel,'seats.json'),'utf8'), logAfter=fs.readFileSync(path.join(runModel,'log.jsonl'),'utf8');
+  var answeredModel=logAfter.split('\n').filter(Boolean).map(function(l){ return JSON.parse(l); }).filter(function(e){ return e.event==='crew.answered'; })[0]||{};
+  check(2,r.data.ok===true&&seatsAfter.indexOf(MODEL_KEY)<0&&logAfter.indexOf(MODEL_KEY)<0&&r.raw.indexOf(MODEL_KEY)<0,'a reply whose model field is the key in use: the key must reach no seats file, no log line and no tool result; seats '+(seatsAfter.indexOf(MODEL_KEY)>=0)+', log '+(logAfter.indexOf(MODEL_KEY)>=0)+', result '+(r.raw.indexOf(MODEL_KEY)>=0));
+  check(2,(JSON.parse(seatsAfter).seats.filter(function(x){ return x.id==='seat-2'; })[0]||{}).model===nameBefore&&answeredModel.model_refused===true&&answeredModel.model_returned===null,'a reply whose model field is the key in use: the seat keeps its name and the log says the field was refused, got '+JSON.stringify({model_refused:answeredModel.model_refused,model_returned:answeredModel.model_returned===null?null:'(text)'}));
+  err=await s.stop();
+  check(2,err.indexOf(MODEL_KEY)<0,'a key in the shape of a model id is in the server\'s stderr');
   check(2,read(path.join(run,'log.jsonl')).indexOf(SHORT_KEY)<0,'the key in use is in the run\'s log');
   check(2,read(path.join(run,'log.jsonl')).indexOf('"event":"crew.failed"')>=0,'the refused call should be logged as crew.failed');
   node('render-record.js',['--run',run]); node('render-board.js',['--run',run]);

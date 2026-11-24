@@ -205,6 +205,11 @@ check(lib.modelsLine([S1,S2],startChanged)===RECORDED([S1,S2],startChanged)+' '+
 var mixedLog=[CREATED,sm('seat-1',R1,'test-id-1',{session:null}),built(R2,'seat-1'),st('seat-1',R2,'test-id-3',{ts:'2026-11-10T15:07:59.000Z'})];
 check((lib.modelsLine([S1],mixedLog)||'')==='seat-1 started on test-id-3 from round 02-battle (2026-11-10 15:07 UTC), where it answered on test-id-1 before.','the Models line, an older line read from a transcript and a newer one read at the start: each said in its own word, got '+lib.modelsLine([S1],mixedLog));
 
+// One round holding both kinds of line (an update between two passes of a round): the older line carries the session's id,
+// so the first sentence speaks from it, and the reader whose line was read at its start is still said in that line's word.
+var bothKinds=[CREATED,sm('seat-1',R1,'test-id-1'),st('seat-2',R1,'test-id-2',{passed:'test-b'})];
+check(lib.modelsLine([S1,S2],bothKinds)==='Not on this session\'s model (test-id-1): seat-2 started on test-id-2.','the Models line, one round with a line read from a transcript and a line read at a start: the second is said as started on, got '+lib.modelsLine([S1,S2],bothKinds));
+
 // End to end: a real run, the real hook after the real start call, the four surfaces.
 var run=node('new-run.js',['--draft','draft.md','--no-brief','--stage','sparring','--name','measured','--session-model',SM,'--model-2','Test Model B']).stdout.trim();
 var seatsBefore=read(path.join(run,'seats.json'));
