@@ -7,7 +7,7 @@
 // the one that starts a seat (issue 194): the Agent tool, or Task, its earlier name, with subagent_type cw:seat is held to
 // the seat record's start. The live proof, which needs a running Claude Code, is
 // tests/seat_scope_live.js, not part of CI; it covers the seat's own calls, not the start call,
-// whose shape was read from transcripts (the hook's START_READ_ON constant).
+// whose shape was read from a real session (the hook's START_READ_ON constant).
 //
 // Runs the REAL hook as a child process with a hook input on stdin, against a real run made by
 // new-run.js and packet.js in a temporary project, with a temporary folder named in
@@ -448,7 +448,7 @@ allowed('start: the bare seat type',call('Agent','',{agent_type:undefined,agent_
 denied('start: the bare seat type, a model on a session record',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'seat',model:'x'}}),/start seat-2 again with no model choice/);
 denied('start: from another agent, a model on a session record',start(taskText(packet2,answer2),'x',{agent_type:'Explore',agent_id:'other'}),/start seat-2 again with no model choice/);
 var readOn=(/^var START_READ_ON='([^']+)';$/m.exec(fs.readFileSync(hook,'utf8'))||[])[1];
-check(typeof readOn==='string'&&/^\d+\.\d+\.\d+ to \d+\.\d+\.\d+$/.test(readOn)&&fs.readFileSync(hook,'utf8').split(readOn).length===2,'seat-scope.js: START_READ_ON must be one constant on its own line, the versions once, got '+readOn);
+check(typeof readOn==='string'&&/^\d+\.\d+\.\d+( to \d+\.\d+\.\d+)?$/.test(readOn)&&fs.readFileSync(hook,'utf8').split(readOn).length===2,'seat-scope.js: START_READ_ON must be one constant on its own line, the versions once, got '+readOn);
 denied('start: no Packet line',start('Read the draft and rate it.'),new RegExp('^Combat Writing seat scope: the call that starts a seat names no packet or answer file \\(its task opens with the two lines `Packet: <path>` and `Answer file: <path>`, the start call as Claude Code '+String(readOn).replace(/\./g,'\\.')+' writes it\\); the seat is not started$'));
 denied('start: no prompt at all',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{subagent_type:'cw:seat'}}),/names no packet or answer file/);
 denied('start: a packet that does not exist',start(taskText(path.join(run,'rounds','01-sparring','seat-9.packet.md'),answer)),/packet named in the seat's task cannot be placed; the seat is not started/);

@@ -19,12 +19,15 @@
 // `claude -p --plugin-dir` session starts the plugin's cw:seat agent with a two-line task plus
 // five steps: read the outside file, read the other seat's answer, Grep the outside file, cat it
 // with Bash, then read the packet and write the answer. Grep and Bash are allowed to the session
-// on purpose, so what stops them is the hook, or their absence from the seat's tools.
+// on purpose, so what stops them is their absence from the seat's tools: the hook's entry is
+// matched to Read, Write and the start of an agent (issue 255) and is asked about no other tool.
+// The throwaway plugin carries the repository's matcher on the hook, and the dump hook beside it
+// on no matcher, so a Grep or a Bash a seat was given would be seen.
 //
 // What it asserts: the outside read and the read of the other seat's answer were each attempted
-// and refused with the hook's reason; Grep and Bash were each refused by the hook or absent from
-// the seat's tools (recorded either way, as the measured fact of whether `tools: Read, Write` in
-// agents/seat.md is enforced on this version); the packet was read; the answer file was written
+// and refused with the hook's reason; Grep and Bash were each absent from the seat's tools, no
+// call of either reaching any hook (`tools: Read, Write` in agents/seat.md is the wall for them,
+// and this is the proof that the host enforces it on this version); the packet was read; the answer file was written
 // with the rating line first and nothing from either file in it; neither marker is anywhere in
 // the seat's reply; no provider was called (the run's log has no crew.answered line; no MCP tool
 // was allowed to the session). And THE RECORD (issue 241): the seat was placed by the hook's own
@@ -38,10 +41,11 @@
 // The second leg, THE FENCE FAILS CLOSED (issue 239): a second throwaway plugin carries the
 // repository's own PreToolUse entry, its timeout and its onFailure field copied from
 // hooks/hooks.json as they stand, with one change, a command that names a script that is not
-// there, which is what a hook that cannot start looks like to the host. A child session is asked
-// to read a file with a marker, with Read and with Bash. It asserts the entry in the repository
-// carries onFailure "block", and that the marker is nowhere in the reply: the host stopped the
-// calls. With the field taken out of hooks.json this leg fails, the file read in full.
+// there, which is what a hook that starts and fails looks like to the host. A child session is
+// asked to read a file with a marker, with Read, a tool the entry is matched to. It asserts the
+// entry in the repository carries onFailure "block", and that the marker is nowhere in the
+// reply: the host stopped the call. With the field taken out of hooks.json this leg fails, the
+// file read in full. (A machine with no Node is another case, and tests/no_node_live.js proves it.)
 // The scratch folder is deleted after, pass or fail.
 //
 // Run from the repo root:   node tests/seat_scope_live.js      (CLAUDE_BIN=<path> to pick a binary)
@@ -66,7 +70,10 @@ try{
   fs.mkdirSync(path.join(plugin,'.claude-plugin'),{recursive:true}); fs.mkdirSync(path.join(plugin,'hooks')); fs.mkdirSync(proj);
   fs.writeFileSync(path.join(plugin,'.claude-plugin','plugin.json'),JSON.stringify({name:'cw-seat-scope-live',version:'0.0.0',description:'the live proof of the Combat Writing seat scope: loads the repository hook and records the seat\'s tool calls'}));
   fs.writeFileSync(path.join(plugin,'hooks','dump.js'),"var fs=require('fs');var d='';process.stdin.on('data',function(c){d+=c;}).on('end',function(){try{var e=JSON.parse(d);fs.appendFileSync("+JSON.stringify(dump)+",JSON.stringify({agent_type:e.agent_type||null,agent_id:e.agent_id||null,session_id:e.session_id||null,data:process.env.CLAUDE_PLUGIN_DATA||null,tool_name:e.tool_name,file_path:e.tool_input&&e.tool_input.file_path||null})+'\\n');}catch(x){}process.exit(0);});");
-  fs.writeFileSync(path.join(plugin,'hooks','hooks.json'),JSON.stringify({hooks:{PreToolUse:[{hooks:[{type:'command',command:'node "${CLAUDE_PLUGIN_ROOT}/hooks/dump.js"',timeout:5},{type:'command',command:'node '+JSON.stringify(hook),timeout:5}]}]}},null,2));
+  // The repository's own entry: its matcher is the hook's here, and the dump hook records every tool call beside it.
+  var repoEntry=(((JSON.parse(fs.readFileSync(path.join(repo,'plugins','combat-writing','hooks','hooks.json'),'utf8')).hooks||{}).PreToolUse||[]).filter(function(e){return (e.hooks||[]).some(function(h){return /seat-scope\.js/.test(String(h.command));});})[0])||{};
+  check(repoEntry.matcher==='Read|Write|Agent|Task','hooks/hooks.json: the seat hook\'s entry is not matched to Read|Write|Agent|Task, so this proof proves another fence: '+JSON.stringify(repoEntry.matcher));
+  fs.writeFileSync(path.join(plugin,'hooks','hooks.json'),JSON.stringify({hooks:{PreToolUse:[{hooks:[{type:'command',command:'node "${CLAUDE_PLUGIN_ROOT}/hooks/dump.js"',timeout:5}]},{matcher:repoEntry.matcher,hooks:[{type:'command',command:'node '+JSON.stringify(hook),timeout:5}]}]}},null,2));
   var marker='OUTSIDE-MARKER-'+Math.random().toString(36).slice(2,10).toUpperCase();
   var marker2='OTHER-SEAT-MARKER-'+Math.random().toString(36).slice(2,10).toUpperCase();
   var outside=path.join(tmp,'outside.txt');
@@ -97,11 +104,10 @@ try{
   check(reply.indexOf(marker2)<0&&(!fs.existsSync(answer)||fs.readFileSync(answer,'utf8').indexOf(marker2)<0),'the other seat\'s answer reached this seat: its marker is in the reply or in the answer file');
   ['Grep','Bash'].forEach(function(t){
     var attempted=seatCalls.some(function(c){return c.tool_name===t;});
-    var refused=new RegExp(t+' is not open to it').test(reply);
     var absent=new RegExp('\\((?:2|3)\\)[^\\n]*absent','i').test(reply);
-    if(attempted)check(refused,t+' was attempted by the seat but the reply shows no hook refusal; reply: '+reply.slice(0,800));
-    else check(absent||!new RegExp(marker).test(reply),t+' was not attempted and the reply does not say it was absent; reply: '+reply.slice(0,800));
-    facts.push(t+': '+(attempted?'offered to the seat and refused by the hook':'absent from the seat\'s tools'));
+    check(!attempted,t+' was offered to the seat and the seat called it: the fence is matched to Read and Write and is not asked about '+t+', so nothing held that call; reply: '+reply.slice(0,800));
+    check(absent||!new RegExp(marker).test(reply),t+' was not attempted and the reply does not say it was absent; reply: '+reply.slice(0,800));
+    facts.push(t+': '+(attempted?'OFFERED to the seat, and no hook is asked about it':'absent from the seat\'s tools'));
   });
   var toolsEnforced=!seatCalls.some(function(c){return c.tool_name==='Grep'||c.tool_name==='Bash';});
   check(seatCalls.some(function(c){return c.tool_name==='Read'&&c.file_path===packet;}),'the seat never read the packet');
@@ -126,23 +132,23 @@ try{
   if(kept){ keptNames.forEach(function(n){ if(/^(?:start|agent|claim)-[A-Za-z0-9_-]+\.json$/.test(n)){ try{ fs.unlinkSync(path.join(kept,n)); }catch(e){} } }); try{ fs.rmdirSync(kept); }catch(e){} }
 
   // THE FENCE FAILS CLOSED: the repository's own entry, a command that cannot start.
-  var entry=(((JSON.parse(fs.readFileSync(path.join(repo,'plugins','combat-writing','hooks','hooks.json'),'utf8')).hooks||{}).PreToolUse||[]).filter(function(e){return e.matcher===undefined;})[0]||{hooks:[{}]}).hooks[0];
+  var entry=(repoEntry.hooks||[{}])[0];
   check(entry.onFailure==='block','hooks/hooks.json: the seat hook\'s entry carries no onFailure "block", so a hook that fails lets the call through');
   var plugin2=path.join(tmp,'plugin2'), proj2=path.join(tmp,'proj2');
   fs.mkdirSync(path.join(plugin2,'.claude-plugin'),{recursive:true}); fs.mkdirSync(path.join(plugin2,'hooks')); fs.mkdirSync(proj2);
   fs.writeFileSync(path.join(plugin2,'.claude-plugin','plugin.json'),JSON.stringify({name:'cw-seat-scope-live',version:'0.0.0',description:'the live proof of the Combat Writing seat scope, second leg: the repository\'s hook entry with a command that cannot start'}));
   var broken=Object.assign({},entry,{command:'node '+JSON.stringify(path.join(tmp,'not-there','seat-scope.js'))});
-  fs.writeFileSync(path.join(plugin2,'hooks','hooks.json'),JSON.stringify({hooks:{PreToolUse:[{hooks:[broken]}]}},null,2));
+  fs.writeFileSync(path.join(plugin2,'hooks','hooks.json'),JSON.stringify({hooks:{PreToolUse:[{matcher:repoEntry.matcher,hooks:[broken]}]}},null,2));
   var marker3='FAIL-CLOSED-MARKER-'+Math.random().toString(36).slice(2,10).toUpperCase();
   var guarded=path.join(proj2,'guarded.txt');
   fs.writeFileSync(guarded,'A harmless file the session is asked to read. '+marker3+'\n');
-  var prompt2='Measurement task, do exactly this and nothing else. (1) Use the Read tool on '+guarded+'. (2) Use the Bash tool to run: cat '+guarded+'. Then print what each step returned, word for word, any refusal included, and stop.';
-  var child2=cp.spawnSync(claude,['-p','--plugin-dir',plugin2,'--allowedTools','Read','Bash','--output-format','text',prompt2],{cwd:proj2,encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:240000,maxBuffer:16*1024*1024});
+  var prompt2='Measurement task, do exactly this and nothing else. Use the Read tool on '+guarded+'. Then print what it returned, word for word, any refusal included, and stop. Use no other tool.';
+  var child2=cp.spawnSync(claude,['-p','--plugin-dir',plugin2,'--allowedTools','Read','--output-format','text',prompt2],{cwd:proj2,encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:240000,maxBuffer:16*1024*1024});
   var reply2=(child2.stdout||'')+'\n'+(child2.stderr||'');
   check(child2.status===0,'the fence fails closed: the child session failed: exit '+child2.status+' '+(child2.stderr||'').slice(0,400));
-  check(reply2.indexOf(marker3)<0,'the fence fails closed: a hook that cannot start let the call through, the file\'s marker is in the reply; reply: '+reply2.slice(0,600));
+  check(reply2.indexOf(marker3)<0,'the fence fails closed: a hook that starts and fails let the call through, the file\'s marker is in the reply; reply: '+reply2.slice(0,600));
   check(/onFailure|hook error|block/i.test(reply2),'the fence fails closed: the reply names no hook refusal, so nothing shows the host stopped the calls; reply: '+reply2.slice(0,600));
-  facts.push('a hook that cannot start: '+(reply2.indexOf(marker3)<0?'the host stopped the calls':'the host let the calls through')+' on Claude Code '+version);
+  facts.push('a hook that starts and fails: '+(reply2.indexOf(marker3)<0?'the host stopped the call':'the host let the call through')+' on Claude Code '+version);
 }finally{
   fs.rmSync(tmp,{recursive:true,force:true});
 }

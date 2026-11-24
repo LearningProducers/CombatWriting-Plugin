@@ -76,9 +76,8 @@
 // How a seat starts: the one judgment on a caller that is not a seat. The call that starts a
 // fresh reader is the Agent tool (Task, its earlier name, is judged the same way) with
 // subagent_type `cw:seat` (or `seat`), its prompt opening
-// with the same two lines, and a model choice only when one is passed (the shape read from the
-// host's transcripts on the Claude Code versions in START_READ_ON below; the live proof does
-// not cover it). The hook resolves the packet to its run folder, takes the seat id from the
+// with the same two lines, and a model choice only when one is passed (the shape read from a
+// real session's hook input on the Claude Code version in START_READ_ON below). The hook resolves the packet to its run folder, takes the seat id from the
 // packet's file name, reads that seat's record in the run's seats.json and holds the call to
 // the record's `start` (the rule of lib.seatStart in scripts/lib.js, mirrored here so the hook
 // requires nothing but fs and path; tests/seat_scope_check.js keeps the two equal): a record
@@ -109,7 +108,7 @@ var fs=require('fs'), path=require('path');
 // The Claude Code version the live proof last ran on (tests/seat_scope_live.js). One copy.
 var PROVED_ON='2.1.330';
 // The Claude Code versions the start call's shape was read on, from the host's transcripts. One copy.
-var START_READ_ON='2.1.319 to 2.1.322';
+var START_READ_ON='2.1.331';
 var START_TOOLS=['Agent','Task'];
 var SEAT_TYPES=['cw:seat','seat'];
 var SEAT_TOOLS=['Read','Write'];

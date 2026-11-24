@@ -59,6 +59,7 @@ try{
   fs.writeFileSync(path.join(plugin,'.claude-plugin','plugin.json'),JSON.stringify({name:NAME,version:'0.0.0',description:'the live proof of the Combat Writing session-start hook: loads the repository hook and records what a SessionStart hook is handed'}));
   fs.copyFileSync(path.join(pluginSrc,'hooks','session-start.js'),path.join(plugin,'hooks','session-start.js'));
   fs.copyFileSync(path.join(pluginSrc,'scripts','lib.js'),path.join(plugin,'scripts','lib.js'));
+  fs.copyFileSync(path.join(pluginSrc,'hooks','no-node.json'),path.join(plugin,'hooks','no-node.json')); // the entry names it for a machine with no Node (issue 255); not read here
   fs.writeFileSync(path.join(plugin,'hooks','dump.js'),"var fs=require('fs');fs.appendFileSync("+JSON.stringify(dump)+",JSON.stringify({args:process.argv.slice(2),data:process.env.CLAUDE_PLUGIN_DATA||null})+'\\n');");
   // The dump hook first, then the repository's entry word for word.
   var hooks={hooks:{SessionStart:[{matcher:entry[0].matcher,hooks:[{type:'command',command:'node "${CLAUDE_PLUGIN_ROOT}/hooks/dump.js"',timeout:5}]}].concat(entry)}};
