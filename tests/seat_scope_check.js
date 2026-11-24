@@ -86,7 +86,7 @@
 //     holds that version once.
 //   - The deny output is one JSON line in the documented shape, exit 0; the hook writes nothing
 //     in the run or the project, and in the data folder its records alone; it reads one
-//     environment variable, CLAUDE_PLUGIN_DATA; hooks.json carries the PreToolUse entry with no matcher (every tool) and a short timeout.
+//     environment variable, CLAUDE_PLUGIN_DATA; hooks.json carries the PreToolUse entry matched to the seat's two tools and the agent tool's two names (issue 255) and a short timeout.
 //   - The fence fails closed (issue 239): the entry carries onFailure "block", so the host stops
 //     the call when the hook cannot start, exits with an error or times out; a fault inside the
 //     hook's own code is a refusal for a seat's call and for the start of a seat, and silence,
@@ -508,8 +508,11 @@ check(foreign.length===0,'the hook wrote something in the data folder that is no
 
 // hooks.json carries the entry; the script is clean.
 var hooks=JSON.parse(fs.readFileSync(path.join(plugin,'hooks','hooks.json'),'utf8'));
-var pre=(hooks.hooks.PreToolUse||[]).filter(function(e){return e.matcher===undefined;});  // the host-output entry (matcher AskUserQuestion, issue 60) sits beside it
-check(pre.length===1&&pre[0].hooks.length===1&&pre[0].hooks[0].type==='command'&&pre[0].hooks[0].command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js"'&&typeof pre[0].hooks[0].timeout==='number'&&pre[0].hooks[0].timeout<=10,'hooks.json: the one PreToolUse entry with no matcher must run seat-scope.js on every tool with a short timeout: '+JSON.stringify(pre));
+// The matcher (issue 255): the two tools a seat holds and the two names of the tool that starts an agent. A seat holds no
+// other tool (agents/seat.md declares Read and Write), so the hook is asked about every call a seat can make and every start,
+// and about no other call of the person's. The command asks for node first; tests/no_node_check.js pins what follows with none.
+var pre=hooks.hooks.PreToolUse||[];
+check(pre.length===1&&pre[0].matcher==='Read|Write|Agent|Task'&&pre[0].hooks.length===1&&pre[0].hooks[0].type==='command'&&String(pre[0].hooks[0].command).indexOf('if command -v node >/dev/null 2>&1; then node "${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js"; else ')===0&&typeof pre[0].hooks[0].timeout==='number'&&pre[0].hooks[0].timeout<=10,'hooks.json: the one PreToolUse entry must be matched to Read|Write|Agent|Task and run seat-scope.js when node is there, with a short timeout: '+JSON.stringify(pre));
 // THE FENCE FAILS CLOSED (issue 239). A hook that cannot start, exits with an error or runs past
 // its timeout must stop the call it was asked about, never let it through: the entry says so to
 // the host. And an error inside the hook is never one of those failures for a caller that is not
