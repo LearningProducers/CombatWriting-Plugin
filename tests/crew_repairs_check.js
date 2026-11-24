@@ -86,6 +86,8 @@ var fake=serve(requests,function(req,auth,body,json){
   }
   if(req.method==='POST'&&req.url==='/v1/chat/completions'){
     var user=body&&body.messages&&body.messages[1]?body.messages[1].content:'';
+    // A provider (or a proxy before it) that answers and repeats the key in the answer's own text.
+    if(/ECHOREPLY/.test(user))return json(200,{id:'c2',model:body.model,choices:[{message:{role:'assistant',content:'RATING: 8/10\nYour header was '+auth+'. You sent '+key+'. The draft names user_profile and team_planning, and those stay as written.\n'},finish_reason:'stop'}],usage:{prompt_tokens:10,completion_tokens:5,total_tokens:15}});
     if(/ECHOAUTH/.test(user))return json(401,{error:{message:'Incorrect API key provided: '+auth+'. You sent '+key+' and again '+key+'.'}});
     return json(200,{id:'c1',model:body.model,choices:[{message:{role:'assistant',content:'RATING: 8/10\nThe ask lands.\n'},finish_reason:'stop'}],usage:{prompt_tokens:10,completion_tokens:5,total_tokens:15}});
   }
@@ -264,6 +266,21 @@ async function main(){
   // A thrown error's message that holds the key: a run folder named with it, which the error names.
   var thrown=await s.call('crew_register',{run:path.join(tmp,'no-run-'+SHORT_KEY)});
   check(2,thrown.isError&&/no seats\.json in /.test(thrown.raw)&&thrown.raw.indexOf(SHORT_KEY)<0,'a thrown error\'s message holding the key should be scrubbed in the tool result, got '+thrown.raw.slice(0,240));
+  // A reply that answers (HTTP 200) and repeats the key (issue 255): the answer is a file the record and the board print,
+  // so the key in use is replaced in it before it is written; the seat's other words stay as written.
+  var runEcho=newRun('Dear board, buy the company. ECHOREPLY. The ask lands in the first line.\n');
+  r=await s.call('crew_register',{run:runEcho});
+  node('packet.js',['--run',runEcho,'--round','01-sparring','--seat','seat-2']);
+  r=await s.call('crew_answer',{run:runEcho,round:'01-sparring',seat:'seat-2'});
+  var echoed=''; try{ echoed=fs.readFileSync(path.join(runEcho,'rounds','01-sparring','seat-2.answer.md'),'utf8'); }catch(e){}
+  check(2,r.data.ok===true&&echoed.indexOf('RATING: 8/10')===0,'the fake should answer the packet with the key repeated in its text, got '+JSON.stringify(r.data).slice(0,200));
+  check(2,echoed.indexOf(SHORT_KEY)<0&&echoed.split('[key redacted]').length===3,'a reply that repeats the key in use: the answer file must hold it nowhere, replaced each of the two times; the file reads '+JSON.stringify(echoed.split(SHORT_KEY).join('<THE KEY>').slice(0,200)));
+  check(2,echoed.indexOf('user_profile and team_planning, and those stay as written')>0,'a reply\'s own words are not changed by the scrub: only the key in use is replaced; the file reads '+JSON.stringify(echoed.split(SHORT_KEY).join('<THE KEY>').slice(0,240)));
+  check(2,r.raw.indexOf(SHORT_KEY)<0,'the key in use is in the tool result of an answered packet');
+  node('render-record.js',['--run',runEcho]); node('render-board.js',['--run',runEcho]);
+  ['record.md','board.html','log.jsonl'].forEach(function(f){ var t=''; try{ t=fs.readFileSync(path.join(runEcho,f),'utf8'); }catch(e){} check(2,t.length>0&&t.indexOf(SHORT_KEY)<0,'a reply that repeats the key in use: '+f+' must hold it nowhere'); });
+  var answeredEcho=fs.readFileSync(path.join(runEcho,'log.jsonl'),'utf8').split('\n').filter(Boolean).map(function(l){ return JSON.parse(l); }).filter(function(e){ return e.event==='crew.answered'; })[0]||{};
+  check(2,answeredEcho.key_redacted===2,'the log\'s answered line says how many times the key was replaced in the answer (key_redacted), got '+JSON.stringify(answeredEcho.key_redacted));
   err=await s.stop();
   check(2,err.indexOf(SHORT_KEY)<0,'the key in use is in the server\'s stderr');
   check(2,read(path.join(run,'log.jsonl')).indexOf(SHORT_KEY)<0,'the key in use is in the run\'s log');

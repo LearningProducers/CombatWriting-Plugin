@@ -277,6 +277,18 @@ check(/the model the host resolved/.test(privacy)&&/keeps none of (it|that text)
   check(!/every tool call of the session, your own included/.test(page)&&!/transcript files Claude Code keeps/.test(page),rel+': still says a hook that cannot run stops every tool call of the session, or that a hook reads the session\'s transcript files');
 });
 
+// The add-on's submission is said in the tense that is true (issue 255): nothing has been submitted to the directory
+// yet, so no page says the add-on "is submitted"; each says it is to be submitted. And the two rows of the add-on's
+// checklist that only the directory's own portal can settle say `portal`, as the same row of the `cw` page does.
+['README.md',PLUGINS[0]+'/README.md','docs/plugin-map.md','docs/directory-checklist-crew.md'].forEach(function(rel){
+  var page=read(rel), said=/\b(?:is|are|was|were|and|been) submitted\b[^.|]{0,80}/.exec(page.replace(/nothing has been submitted/g,''));
+  check(!said,rel+': says the add-on is, or was, submitted to the directory ("'+(said?said[0]:'')+'"); nothing has been submitted yet');
+  check(/to be submitted/.test(page),rel+': must say the add-on is to be submitted to the directory');
+});
+var crewPage=read('docs/directory-checklist-crew.md');
+var portalRows=crewPage.split('\n').filter(function(l){ return /^\| A name no other organization's plugin uses/.test(l)||/^\| `name`, `displayName` and `author\.name` not mistakable/.test(l); });
+check(portalRows.length===2&&portalRows.every(function(l){ return l.split('|')[2].trim()==='portal'; })&&!/pass \(the portal confirms\)/.test(crewPage),'docs/directory-checklist-crew.md: the two rows on the name and its look-alikes are the portal\'s to settle and must read `portal`, as the `cw` page\'s row does; found '+JSON.stringify(portalRows.map(function(l){ return l.split('|')[2].trim(); })));
+
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'truth_pages_check: '+failures.length+' failure(s), ':'truth_pages_check: all passed, ')+passes+' checks');
 process.exit(failures.length?1:0);
