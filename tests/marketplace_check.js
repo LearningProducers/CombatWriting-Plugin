@@ -145,12 +145,15 @@ check(!/require\(['"](https?|net|dgram)['"]\)/.test(listedScripts)&&!/\bfetch\(/
 // that neither makes a network call.
 var scriptsButRuled=fs.readdirSync(path.join(root,'plugins/combat-writing/scripts')).filter(function(f){return /\.js$/.test(f)&&f!=='open-board.js'&&f!=='speak.js';}).map(function(f){return read('plugins/combat-writing/scripts/'+f);}).join('\n');
 check(!/require\(['"]child_process['"]\)/.test(scriptsButRuled),'listed plugin: a script other than open-board.js or speak.js requires child_process');
-check(!/https?:\/\//.test(listedScripts.replace(/\/\/[^\n]*/g,'')),'listed plugin: a script holds a URL outside a comment');
+// A comment is cut from its two slashes to the line's end, but not the two slashes of an address:
+// cut that way too, `https://x` reads `https:` and no address is ever found.
+function noComments(t){ return t.replace(/(^|[^:])\/\/[^\n]*/g,'$1'); }
+check(!/https?:\/\//.test(noComments(listedScripts)),'listed plugin: a script holds a URL outside a comment');
 // The add-on calls the addresses of its provider table and no other (the privacy page says so):
 // neither of its two code files holds an address of its own, and server.js calls out in two
 // places, the list of models and the answer.
 var addonCode=['server.js','crew-lib.js'].map(function(f){return read('plugins/combat-writing-crew/'+f);});
-check(addonCode.every(function(t){return !/https?:\/\//.test(t.replace(/\/\/[^\n]*/g,''));}),'add-on: server.js or crew-lib.js holds a URL outside a comment; the addresses it calls stand in providers.json alone');
+check(addonCode.every(function(t){return !/https?:\/\//.test(noComments(t));}),'add-on: server.js or crew-lib.js holds a URL outside a comment; the addresses it calls stand in providers.json alone');
 check((addonCode[0].replace(/\/\/[^\n]*/g,'').match(/\blib\.request\(/g)||[]).length===2&&(addonCode[1].replace(/\/\/[^\n]*/g,'').match(/\.request\(/g)||[]).length===1,'add-on: server.js must call lib.request in two places and crew-lib.js must open a request in one');
 
 // The separation, re-pinned (PLAN.md Part 107, issue 221): the add-on is submitted too, each folder

@@ -195,7 +195,7 @@ var mainPage=read('docs/directory-checklist.md'), crewPage=read('docs/directory-
 // says who can read the file. A key comes from two places, so no page names a third. The add-on
 // writes in the folder a tool call names and does not check where it is.
 [[PLUGINS[1]+'/README.md',crewReadme],['docs/directory-checklist-crew.md',crewPage]].forEach(function(p){
-  check(!/only (you|its owner) can (read|open)/.test(p[1]),p[0]+': says who can read or open the key file; the code reads the mode bits and no owner');
+  check(!/only (you|its owner) can (read|open)|by no one else/.test(p[1]),p[0]+': says who can read or open the key file; the code reads the mode bits and no owner');
 });
 check(!/third key route/.test(crewPage),'docs/directory-checklist-crew.md: names a third key route; a key comes from two places');
 check(!/the run folder the person names/.test(crewPage)&&/the run folder a tool call names/.test(crewPage),'docs/directory-checklist-crew.md: must say the add-on writes into the run folder a tool call names');
