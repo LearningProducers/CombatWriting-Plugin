@@ -487,7 +487,7 @@ html.push('(function(){var b=document.querySelector(".draft-fold");if(!b)return;
 html.push('(function(){var folds=document.querySelectorAll(".frame .fold");for(var i=0;i<folds.length;i++)folds[i].addEventListener("click",function(e){var b=e.currentTarget,f=b.closest(".frame");if(!f)return;var open=!f.classList.contains("open");f.classList.toggle("open",open);b.setAttribute("aria-expanded",open?"true":"false");b.textContent=(open?"\u2013 ":"+ ")+b.textContent.replace(/^[+\u2013] /,"");if(open&&f.scrollIntoView)f.scrollIntoView({block:"start"});});})();');
 html.push('(function(){var tabs=document.querySelectorAll(".tab");function show(id){for(var i=0;i<tabs.length;i++){var t=tabs[i],on=t.getAttribute("aria-controls")===id;t.setAttribute("aria-selected",on?"true":"false");var p=document.getElementById(t.getAttribute("aria-controls"));if(p)p.hidden=!on;}}for(var i=0;i<tabs.length;i++)tabs[i].addEventListener("click",function(e){show(e.currentTarget.getAttribute("aria-controls"));});})();');
 // Read aloud on every read frame (issue 82): the browser's own speech synthesis, the seat's answer as the
-// plain text in the page, one seat at a time (starting one cancels another). The page's own code makes no request; how a browser's voice speaks is the browser's.
+// plain text in the page, one seat at a time (starting one cancels another). The page's own code loads nothing from the internet; how a browser's voice speaks is the browser's.
 // A voice per seat (issue 101): seat-1 reads in
 // the browser's default voice as before; every later seat gets its own from the browser's list, the
 // page's language first, the standard voices by name first (issue 109: sorted by name alone the picker
@@ -496,7 +496,7 @@ html.push('(function(){var tabs=document.querySelectorAll(".tab");function show(
 // second, so a seat sounds the same every time on one machine. The list is asked for at page open and
 // the picks are cleared when the browser's list arrives, so a first click never lands every seat on the
 // default. Another machine has other
-// voices. The canon's reader is unchanged. The page's own code sends nothing.
+// voices. The canon's reader is unchanged. The page's own code sends nothing to the internet.
 // Issue 111 (measured in Safari: seats 2 and 3 read in seat-1's voice, the
 // status line naming none): Safari fills its voice list late, and the picker asked once at open. Now
 // every Read aloud waits for the list (voiceschanged or 1.5 s), the utterance carries the voice's
@@ -518,7 +518,7 @@ html.push('speak.addEventListener("click",function(){if(au){if(playing&&playing!
 html.push('pause.addEventListener("click",function(){if(au){if(held){held=false;au.play();pause.textContent="Pause";say("Resumed.");}else{held=true;au.pause();pause.textContent="Resume";say("Paused.");}return;}if(!synth)return;if(held){held=false;synth.resume();pause.textContent="Pause";say("Resumed.");}else{held=true;synth.pause();pause.textContent="Resume";say("Paused.");}});stop.addEventListener("click",function(){if(au){au.pause();au.currentTime=0;say("Stopped.");idle();return;}if(!synth)return;synth.cancel();say("Stopped.");idle();});f.idle=idle;}for(var i=0;i<frames.length;i++)wire(frames[i]);})();');
 if(canonFile){
   // The canon controls: the browser's own speech synthesis (the system's voices), the clipboard,
-  // and a download built from the text in the page. The page's own code makes no request.
+  // and a download built from the text in the page. The page's own code loads nothing from the internet.
   html.push('(function(){var t=document.getElementById("canon-text");if(!t)return;var text=t.textContent;var speak=document.getElementById("canon-speak"),pause=document.getElementById("canon-pause"),stop=document.getElementById("canon-stop"),copy=document.getElementById("canon-copy"),dl=document.getElementById("canon-download"),st=document.getElementById("canon-status");function say(m){st.textContent=m;}var synth=window.speechSynthesis;var held=false;function idle(){held=false;pause.disabled=true;stop.disabled=true;pause.textContent="Pause";speak.disabled=false;}');
   html.push('speak.addEventListener("click",function(){if(!synth||!window.SpeechSynthesisUtterance){say("This browser has no speech synthesis.");return;}synth.cancel();var u=new SpeechSynthesisUtterance(text);u.onstart=function(){say("Reading the canon aloud.");pause.disabled=false;stop.disabled=false;speak.disabled=true;};u.onend=function(){say("Finished reading.");idle();};u.onerror=function(e){var why=e&&e.error?e.error:"";if(why!=="interrupted"&&why!=="canceled")say("Reading stopped"+(why?": "+why:"")+".");idle();};synth.speak(u);});');
   // The engine's own paused flag changes asynchronously (measured in Chromium), so the
