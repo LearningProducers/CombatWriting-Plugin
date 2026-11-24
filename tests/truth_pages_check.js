@@ -302,14 +302,25 @@ check(/the line's kind/.test(privacy)&&/that the hook wrote it/.test(privacy)&&/
 });
 check(/Git for Windows/.test(read(PLUGINS[0]+'/README.md').split('\n').filter(function(l){ return /Node must be on your PATH/.test(l); })[0]||''),PLUGINS[0]+'/README.md: the install paragraph that names Node must name Git for Windows beside it, for a Windows machine');
 
-// The add-on's submission is said in the tense that is true (issue 255): nothing has been submitted to the directory
-// yet, so no page says the add-on "is submitted"; each says it is to be submitted. And the two rows of the add-on's
-// checklist that only the directory's own portal can settle say `portal`, as the same row of the `cw` page does.
-['README.md',PLUGINS[0]+'/README.md','docs/plugin-map.md','docs/directory-checklist-crew.md'].forEach(function(rel){
+// The add-on is not submitted to the Claude plugin directory (issue 257): `cw` alone goes there, and the add-on stays
+// on Learning Producers' own marketplace. So no page says the add-on is, was or is to be submitted (issue 255 had
+// them say "to be submitted"); each of the five says it is not in the directory, or not submitted to it; and the three
+// that give the reason give the one reason: the add-on connects to model providers Learning Producers does not own or
+// control. CLAUDE.md, the wall, says the same, and no longer what pull request 256 made untrue of the hooks. And the
+// two rows of the add-on's checklist that only the directory's own portal can settle say `portal`, as the same row of
+// the `cw` page does.
+['README.md',PLUGINS[0]+'/README.md','docs/plugin-map.md','docs/directory-checklist-crew.md','docs/directory-checklist.md'].forEach(function(rel){
   var page=read(rel), said=/\b(?:is|are|was|were|and|been) submitted\b[^.|]{0,80}/.exec(page.replace(/nothing has been submitted/g,''));
-  check(!said,rel+': says the add-on is, or was, submitted to the directory ("'+(said?said[0]:'')+'"); nothing has been submitted yet');
-  check(/to be submitted/.test(page),rel+': must say the add-on is to be submitted to the directory');
+  check(!said,rel+': says a plugin is, or was, submitted to the directory ("'+(said?said[0]:'')+'"); nothing has been submitted yet, and the add-on is not to be');
+  check(!/to be submitted/.test(page),rel+': still says the add-on is to be submitted to the directory; it is not submitted');
+  check(/not in the Claude plugin directory|not submitted to (?:it|the directory|the Claude plugin directory)/.test(page),rel+': must say the add-on is not in the Claude plugin directory, or not submitted to it');
 });
+['README.md',PLUGINS[0]+'/README.md','docs/directory-checklist-crew.md'].forEach(function(rel){
+  check(/model providers that Learning Producers does not own or control/.test(read(rel))&&/own or control each address/.test(read(rel)),rel+': must give the reason the add-on is not submitted: it connects to model providers that Learning Producers does not own or control, and the directory\'s policy asks a developer to own or control each address their software connects to');
+});
+var wall=read('CLAUDE.md');
+check(!/measured from the seat's own transcript/.test(wall)&&!/on every tool call it holds a fresh reader/.test(wall)&&!/to find a seat's transcript/.test(wall),'CLAUDE.md: still says the model is measured from a seat\'s transcript, or that the fence runs on every tool call; the result hook opens no transcript and the fence is matched (issue 255)');
+check(/not submitted to the Claude plugin directory/.test(wall)&&!/second bundle (?:to be )?submitted/.test(wall)&&!/submitted to the Claude plugin directory as a second bundle/.test(wall),'CLAUDE.md: must say the add-on is not submitted to the Claude plugin directory, in its opening and in its layout');
 var crewPage=read('docs/directory-checklist-crew.md');
 var portalRows=crewPage.split('\n').filter(function(l){ return /^\| A name no other organization's plugin uses/.test(l)||/^\| `name`, `displayName` and `author\.name` not mistakable/.test(l); });
 check(portalRows.length===2&&portalRows.every(function(l){ return l.split('|')[2].trim()==='portal'; })&&!/pass \(the portal confirms\)/.test(crewPage),'docs/directory-checklist-crew.md: the two rows on the name and its look-alikes are the portal\'s to settle and must read `portal`, as the `cw` page\'s row does; found '+JSON.stringify(portalRows.map(function(l){ return l.split('|')[2].trim(); })));
