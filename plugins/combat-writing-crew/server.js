@@ -62,8 +62,9 @@
 // (issue 58) before it reaches a log line, a tool result or stderr: the key in use, whatever its
 // shape, lands as [key redacted] every time it appears, an account id the provider put in its
 // prose (Groq's "in organization `org_…`") as org_[redacted], and a key-shaped string as
-// [key redacted]. A seat's answer passes through scrubKeys before it is written: the key in use
-// is replaced there too, every time it appears, and the answer's other words are left as written.
+// [key redacted]. A seat's answer passes through scrubKeys before it is written: every key the
+// add-on holds is replaced there too, every time it appears, and the answer's other words are
+// left as written.
 
 var fs=require('fs'), path=require('path');
 var lib=require('./crew-lib.js');
@@ -344,7 +345,7 @@ function answer(args){
       var text=choice&&choice.message&&typeof choice.message.content==='string'?choice.message.content:'';
       text=text.replace(/<think>[\s\S]*?<\/think>\s*/g,'').replace(/^﻿/,'').replace(/^\s+/,'');
       // The reply's model field is the provider's text. It becomes the seat's name only when it is
-      // a model id and holds no key in use (a key can have a model id's shape); when it is not, the
+      // a model id and holds none of the keys the add-on holds (a key can have a model id's shape); when it is not, the
       // name stays, and the log says the field was refused and holds none of its text.
       var rawModel=res.json?res.json.model:undefined;
       var returned=lib.isModelId(rawModel)&&lib.scrubKeys(rawModel).count===0?rawModel:null;
@@ -360,7 +361,7 @@ function answer(args){
         lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,read:read,provider:provider.id,model_requested:seat.model,model_returned:returned,file:path.relative(runDir,packetPath),finish_reason:finish,max_tokens_lowered:out.max_tokens_lowered||null,reason:emptyReason});
         return {ok:false,seat:seatId,missing:true,reason:'the provider returned an '+emptyReason+'. The seat is missing this round.'};
       }
-      // A reply that repeats the key in use (a provider, or a proxy before it, echoing the request): the answer is a file
+      // A reply that repeats a key the add-on holds (a provider, or a proxy before it, echoing the request): the answer is a file
       // the record and the board print, so the key is replaced in it before anything is written. Nothing else is changed.
       var keyed=lib.scrubKeys(text); text=keyed.text;
       // Trailing whitespace off every line, so a rating line the model padded still meets the contract.

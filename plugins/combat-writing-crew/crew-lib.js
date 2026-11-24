@@ -475,8 +475,9 @@ function scrubIds(text){
   keysInUse().forEach(function(k){ if(k)out=out.split(k).join(KEY_MARK); });
   return out.replace(KEY_SHAPE,KEY_MARK).replace(ID_UNDERSCORE,'$1_[redacted]').replace(ID_HYPHEN,'$1-[redacted]');
 }
-// A seat's answer, before it is written: the key in use is replaced as the exact string it is,
-// every time it appears, and nothing else is changed. The pattern rules of scrubIds are not
+// A seat's answer, before it is written: every key the add-on holds (each provider's, as
+// keysInUse finds them) is replaced as the exact string it is, every time it appears, and
+// nothing else is changed. The pattern rules of scrubIds are not
 // applied to an answer: they would change a seat's own words (an identifier such as
 // user_profile reads as an account id to them), and the other seats quote those words.
 // {text, count}: the answer and how many times a key was replaced in it.
