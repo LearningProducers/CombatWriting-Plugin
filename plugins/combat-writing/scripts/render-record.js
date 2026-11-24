@@ -14,7 +14,7 @@
 // red-flag counts per seat), then every answer in full by round under its seat's name (a missing
 // seat with the reason the add-on logged for it, lib.missingReason, when there is one), then
 // the log of what was sent, and under it the models measured: one line per fresh reader per
-// round with the model id its replies carry, the model choice passed at its start and where the
+// round with the model id it ran on, the model choice passed at its start and where the
 // line was read from (lib.measuredLines, the log's seat.model lines; nothing when none was
 // measured). A Log line under the crew lines, there and in the short form, when a line of
 // log.jsonl could not be read (lib.logDamageLine). A Champion section sits between the scoreboard
@@ -236,7 +236,7 @@ log.filter(function(e){return e.event==='packet.built';}).forEach(function(e){
 // round, from the packets' sizes and the seats' walls; nothing a seat reads.
 var budgetLines=lib.budgetLines(runDir,log);
 if(budgetLines.length){ out.push(''); out.push('Tokens are estimated at four characters each, the add-on\'s rule. '+budgetLines.join(' ')); }
-// The models measured: which model wrote each fresh reader's replies, round by round, beside the
+// The models measured: which model each fresh reader ran on, round by round, beside the
 // names the run recorded; the labels above are never rewritten from it.
 var measuredLines=lib.measuredLines(seats,log);
 if(measuredLines.length){

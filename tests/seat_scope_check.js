@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // seat_scope_check.js: the seat's reach (ruled 2026-10-16). hooks/seat-scope.js is a PreToolUse
-// hook on every tool: a seat (agent_type cw:seat) uses Read and Write only, reads only its own
+// hook on Read, Write and the tool that starts an agent: a seat (agent_type cw:seat) uses Read and Write only, reads only its own
 // packet and its own answer file and writes only that answer file, judged on the resolved path
 // (issue 239; it read anything inside its run folder until then); any other tool and
 // any path the hook cannot place is denied; every other caller is left alone but for one call,
 // the one that starts a seat (issue 194): the Agent tool, or Task, its earlier name, with subagent_type cw:seat is held to
 // the seat record's start. The live proof, which needs a running Claude Code, is
 // tests/seat_scope_live.js, not part of CI; it covers the seat's own calls, not the start call,
-// whose shape was read from transcripts (the hook's START_READ_ON constant).
+// whose shape was read from a real session (the hook's START_READ_ON constant).
 //
 // Runs the REAL hook as a child process with a hook input on stdin, against a real run made by
 // new-run.js and packet.js in a temporary project, with a temporary folder named in
@@ -86,7 +86,7 @@
 //     holds that version once.
 //   - The deny output is one JSON line in the documented shape, exit 0; the hook writes nothing
 //     in the run or the project, and in the data folder its records alone; it reads one
-//     environment variable, CLAUDE_PLUGIN_DATA; hooks.json carries the PreToolUse entry with no matcher (every tool) and a short timeout.
+//     environment variable, CLAUDE_PLUGIN_DATA; hooks.json carries the PreToolUse entry matched to the seat's two tools and the agent tool's two names (issue 255) and a short timeout.
 //   - The fence fails closed (issue 239): the entry carries onFailure "block", so the host stops
 //     the call when the hook cannot start, exits with an error or times out; a fault inside the
 //     hook's own code is a refusal for a seat's call and for the start of a seat, and silence,
@@ -448,7 +448,7 @@ allowed('start: the bare seat type',call('Agent','',{agent_type:undefined,agent_
 denied('start: the bare seat type, a model on a session record',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'seat',model:'x'}}),/start seat-2 again with no model choice/);
 denied('start: from another agent, a model on a session record',start(taskText(packet2,answer2),'x',{agent_type:'Explore',agent_id:'other'}),/start seat-2 again with no model choice/);
 var readOn=(/^var START_READ_ON='([^']+)';$/m.exec(fs.readFileSync(hook,'utf8'))||[])[1];
-check(typeof readOn==='string'&&/^\d+\.\d+\.\d+ to \d+\.\d+\.\d+$/.test(readOn)&&fs.readFileSync(hook,'utf8').split(readOn).length===2,'seat-scope.js: START_READ_ON must be one constant on its own line, the versions once, got '+readOn);
+check(typeof readOn==='string'&&/^\d+\.\d+\.\d+( to \d+\.\d+\.\d+)?$/.test(readOn)&&fs.readFileSync(hook,'utf8').split(readOn).length===2,'seat-scope.js: START_READ_ON must be one constant on its own line, the versions once, got '+readOn);
 denied('start: no Packet line',start('Read the draft and rate it.'),new RegExp('^Combat Writing seat scope: the call that starts a seat names no packet or answer file \\(its task opens with the two lines `Packet: <path>` and `Answer file: <path>`, the start call as Claude Code '+String(readOn).replace(/\./g,'\\.')+' writes it\\); the seat is not started$'));
 denied('start: no prompt at all',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{subagent_type:'cw:seat'}}),/names no packet or answer file/);
 denied('start: a packet that does not exist',start(taskText(path.join(run,'rounds','01-sparring','seat-9.packet.md'),answer)),/packet named in the seat's task cannot be placed; the seat is not started/);
@@ -508,8 +508,11 @@ check(foreign.length===0,'the hook wrote something in the data folder that is no
 
 // hooks.json carries the entry; the script is clean.
 var hooks=JSON.parse(fs.readFileSync(path.join(plugin,'hooks','hooks.json'),'utf8'));
-var pre=(hooks.hooks.PreToolUse||[]).filter(function(e){return e.matcher===undefined;});  // the host-output entry (matcher AskUserQuestion, issue 60) sits beside it
-check(pre.length===1&&pre[0].hooks.length===1&&pre[0].hooks[0].type==='command'&&pre[0].hooks[0].command==='node "${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js"'&&typeof pre[0].hooks[0].timeout==='number'&&pre[0].hooks[0].timeout<=10,'hooks.json: the one PreToolUse entry with no matcher must run seat-scope.js on every tool with a short timeout: '+JSON.stringify(pre));
+// The matcher (issue 255): the two tools a seat holds and the two names of the tool that starts an agent. A seat holds no
+// other tool (agents/seat.md declares Read and Write), so the hook is asked about every call a seat can make and every start,
+// and about no other call of the person's. The command asks first whether node runs; tests/no_node_check.js pins what follows with none.
+var pre=hooks.hooks.PreToolUse||[];
+check(pre.length===1&&pre[0].matcher==='Read|Write|Agent|Task'&&pre[0].hooks.length===1&&pre[0].hooks[0].type==='command'&&String(pre[0].hooks[0].command).indexOf('if node --version >/dev/null 2>&1; then node "${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js"; else ')===0&&typeof pre[0].hooks[0].timeout==='number'&&pre[0].hooks[0].timeout<=10,'hooks.json: the one PreToolUse entry must be matched to Read|Write|Agent|Task and run seat-scope.js when node is there, with a short timeout: '+JSON.stringify(pre));
 // THE FENCE FAILS CLOSED (issue 239). A hook that cannot start, exits with an error or runs past
 // its timeout must stop the call it was asked about, never let it through: the entry says so to
 // the host. And an error inside the hook is never one of those failures for a caller that is not

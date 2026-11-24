@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js\"",
+            "command": "if node --version >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js\"; else cat \"${CLAUDE_PLUGIN_ROOT}/hooks/no-node.json\"; fi",
             "timeout": 12
           }
         ]
@@ -14,10 +14,11 @@
     ],
     "PreToolUse": [
       {
+        "matcher": "Read|Write|Agent|Task",
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js\"",
+            "command": "if node --version >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js\"; else command -v grep >/dev/null 2>&1 && ! grep -Eq '\"(agent_type|subagent_type)\"(:| :|: | : )\"(cw:seat|seat)\"' && exit 0; echo 'Combat Writing: Node is not on the PATH or does not run, so the fence that holds a fresh reader cannot run; no fresh reader is started or served until Node runs.' >&2; exit 2; fi",
             "timeout": 5,
             "onFailure": "block"
           }
@@ -30,8 +31,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js\"",
+            "command": "if node --version >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js\"; fi",
             "timeout": 80
+          }
+        ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if node --version >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js\"; fi",
+            "timeout": 5
           }
         ]
       }

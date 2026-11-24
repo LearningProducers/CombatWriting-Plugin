@@ -113,7 +113,9 @@ check(/^Last updated: \d{4}-\d\d-\d\d$/m.test(privacy),'PRIVACY.md: must carry i
 check(/not made or endorsed by Anthropic/.test(privacy)&&!/reviewed or endorsed/.test(privacy)&&!/reviewed or endorsed/.test(support),'PRIVACY.md and SUPPORT.md: say "not made or endorsed by Anthropic"; a listing in the directory is read by Anthropic, so "reviewed" would not stay true');
 check(!/hold your draft and the seats' answers/.test(support)&&/record\.md/.test(support),'SUPPORT.md: the log holds no draft and no answer in full; name what the run folder and record.md hold');
 check(/model each reader runs on/.test(privacy),'PRIVACY.md: must say that a reader\'s packet goes to the model each reader runs on; the second reader is by default on a model other than the session\'s');
-check(/every tool call/.test(privacy)&&/every (?:shell|Bash) command/i.test(privacy),'PRIVACY.md: must say what the two hooks are handed: every tool call, and every shell command with its output');
+// What the hooks are handed (issue 255): the fence is matched to a Read, a Write and the start of an agent, and no longer
+// to every tool call; the result hook is handed every shell command with its output and every start of an agent.
+check(/every Read and Write call/.test(privacy)&&/every start of an agent/.test(privacy)&&/every (?:shell|Bash) command/i.test(privacy)&&!/every tool call/.test(privacy),'PRIVACY.md: must say what the two hooks are handed: every Read and Write call and every start of an agent, and every shell command with its output; the fence is no longer handed every tool call');
 check(/browser['’]s own (?:speech )?voices?/i.test(privacy)&&/browser['’]s storage/i.test(privacy),'PRIVACY.md: must speak of the board\'s read-aloud through the browser\'s own voices and of the voice pick kept in the browser\'s storage');
 check(/plain HTTP/.test(privacy)&&/needs no key/.test(privacy),'PRIVACY.md: must say the local Ollama seat is called over plain HTTP and needs no key');
 check(!/calls no one else|is no party/.test(privacy)&&!/until the system clears/.test(privacy)&&!/neither asks you to make an account/.test(privacy)&&!/reads two environment variables/.test(privacy),'PRIVACY.md: a sentence the read found too wide or unproved stands in it');
@@ -261,12 +263,56 @@ searched.forEach(function(f){
 var boardScript=read(PLUGINS[0]+'/scripts/render-board.js');
 check(!/Nothing is sent anywhere/.test(boardScript)&&!/No request leaves the page/.test(boardScript),PLUGINS[0]+'/scripts/render-board.js: a comment says nothing is sent, or that no request leaves the page; say what the page\'s own code does');
 
-// What the result hook reads to find a reader's transcript: the opening of each agent's
-// transcript it opens holds the task that agent was started with (show-result.js taskOf and
-// packetLineOf). The page says that it reads that text and keeps none of it; it does not say
-// that it takes no text.
-check(privacy.indexOf('takes no text of your conversation')<0,'PRIVACY.md: says the result hook takes no text of your conversation; it reads the task each agent was started with, to find the reader\'s transcript');
-check(/holds the task that agent was started with/.test(privacy)&&/keeps none of (it|that text)/.test(privacy),'PRIVACY.md: must say the opening of an agent\'s transcript holds the task that agent was started with, and that the hook keeps none of it');
+// The result hook reads no transcript (issue 255). The model a reader started on comes from the
+// start call the host hands the hook: the task's first lines, to learn the seat and the round,
+// and the model the host resolved. The page says so, says the hook keeps none of the text it is
+// handed, and no longer says it opens the session's transcripts.
+check(privacy.indexOf('takes no text of your conversation')<0,'PRIVACY.md: says the result hook takes no text of your conversation; it reads the first lines of the task a reader was started with');
+check(/reads no transcript/.test(privacy)&&!/transcript files Claude Code keeps/.test(privacy)&&!/up to 200/.test(privacy),'PRIVACY.md: must say the result hook reads no transcript, and no longer that it opens the session\'s transcripts');
+check(/the model the host resolved/.test(privacy)&&/keeps none of (it|that text)/.test(privacy),'PRIVACY.md: must say the hook reads, of the start it is handed, the model the host resolved, and that it keeps none of the text');
+// No Node on the PATH (issue 255): the pages say what stops and what does not.
+[PLUGINS[0]+'/README.md','README.md'].forEach(function(rel){
+  var page=read(rel);
+  check(/Node is not on (?:the|your) PATH/.test(page)&&/nothing of your own work is stopped/i.test(page),rel+': must say what happens when Node is not on the PATH: nothing of your own work is stopped, and no reader is started');
+  check(!/every tool call of the session, your own included/.test(page)&&!/transcript files Claude Code keeps/.test(page),rel+': still says a hook that cannot run stops every tool call of the session, or that a hook reads the session\'s transcript files');
+});
+
+// The checklist's row on hooks.json says the declarations as they stand (found by the fresh-eyes read of issue 255: the
+// row still said the fence had no matcher and the result hook one entry, beside a hooks.json that said otherwise).
+var hooksDecl=JSON.parse(read(PLUGINS[0]+'/hooks/hooks.json')).hooks;
+var hooksRow=read('docs/directory-checklist.md').split('\n').filter(function(l){ return /^\| `hooks\/hooks\.json` valid, with only documented events and types \|/.test(l); })[0]||'';
+var declared=[]; Object.keys(hooksDecl).forEach(function(ev){ hooksDecl[ev].forEach(function(en){ declared.push({event:ev,matcher:en.matcher}); }); });
+check(!!hooksRow&&!/no matcher/.test(hooksRow)&&declared.every(function(d){ return hooksRow.indexOf('`'+d.event+'`')>=0&&hooksRow.indexOf('`'+String(d.matcher).split('|').join('\\|')+'`')>=0; })&&hooksRow.indexOf(['zero','one','two','three','four','five'][declared.length]+' entries')>=0,'docs/directory-checklist.md: the row on hooks.json must name each event and each entry\'s matcher as hooks.json declares them ('+declared.map(function(d){ return d.event+' '+d.matcher; }).join(', ')+') and count the entries; it reads: '+hooksRow.slice(0,420));
+
+// What the second fresh read of issue 255 found on the pages. The privacy page said a provider's answer is written
+// without the key scrub, where the add-on now replaces the key in use in it; it listed six fields of the line the result
+// hook writes, where the hook writes more; and three pages said nothing of the person's own work is stopped with no Node,
+// with no word of the two cases where a call of theirs is.
+// Every key the add-on holds, not one (the acting desk's read of issue 255: the scrub loops over each provider's key
+// it finds, crew-lib.js keysInUse, so a second provider's key in an answer or an error is replaced too).
+check(!/written without that scrub/.test(privacy)&&/replaces every key the add-on holds, each by its exact text, before the answer is written/.test(privacy)&&/shapes are not applied to an answer/.test(privacy)&&/a key the add-on does not hold, and an account id, stay in an answer/.test(privacy)&&/removes from it every key the add-on holds, each by its exact text/.test(privacy)&&!/the key in use/.test(privacy),'PRIVACY.md: must say what the add-on does to a key in an error text and in an answer: every key the add-on holds replaced by its exact text; a key it does not hold, and an account id, stay in an answer; the page must not say "the key in use", which is one key where the code replaces each');
+var crewLibSrc=read(PLUGINS[1]+'/crew-lib.js');
+check(/function scrubKeys\(text\)\{[^}]*keysInUse\(\)\.forEach/.test(crewLibSrc)&&/function keysInUse\(\)\{[\s\S]{0,200}providers\.forEach/.test(crewLibSrc),'the test\'s own ground: crew-lib.js scrubKeys replaces each key keysInUse returns, and keysInUse reads every provider\'s key');
+var hookSrc=read(PLUGINS[0]+'/hooks/show-result.js');
+var lineKeys=((/var line=\{([^}]*)\}/.exec(hookSrc)||[])[1]||'').split(',').map(function(kv){ return kv.split(':')[0].trim(); }).concat((hookSrc.match(/\bline\.([a-z]+)=/g)||[]).map(function(m){ return m.slice(5,-1); })).filter(function(k,i,a){ return k&&a.indexOf(k)===i; }).sort();
+check(lineKeys.join(',')==='at,by,event,meta,model,passed,round,seat,ts','the test\'s own ground: the fields the result hook writes on its line, read from its source, are at, by, event, meta, model, passed, round, seat and ts; found '+lineKeys.join(','));
+check(/the line's kind/.test(privacy)&&/that the hook wrote it/.test(privacy)&&/a mark that the choice could not be read/.test(privacy),'PRIVACY.md: the fields of the line the result hook writes must be named whole: the time, the line\'s kind, the seat, the round, the model\'s id, the choice passed, that it was read at the start, that the hook wrote it, and the mark for a choice that could not be read');
+[['PRIVACY.md',privacy],[PLUGINS[0]+'/README.md',read(PLUGINS[0]+'/README.md')]].forEach(function(pg){
+  check(/named exactly `seat`/.test(pg[1])&&/no `grep`/.test(pg[1]),pg[0]+': where it says nothing of your own work is stopped with no Node, it must name the two cases where a call of yours is: an agent of your own named exactly `seat`, and a machine with no `grep`');
+});
+check(/Git for Windows/.test(read(PLUGINS[0]+'/README.md').split('\n').filter(function(l){ return /Node must be on your PATH/.test(l); })[0]||''),PLUGINS[0]+'/README.md: the install paragraph that names Node must name Git for Windows beside it, for a Windows machine');
+
+// The add-on's submission is said in the tense that is true (issue 255): nothing has been submitted to the directory
+// yet, so no page says the add-on "is submitted"; each says it is to be submitted. And the two rows of the add-on's
+// checklist that only the directory's own portal can settle say `portal`, as the same row of the `cw` page does.
+['README.md',PLUGINS[0]+'/README.md','docs/plugin-map.md','docs/directory-checklist-crew.md'].forEach(function(rel){
+  var page=read(rel), said=/\b(?:is|are|was|were|and|been) submitted\b[^.|]{0,80}/.exec(page.replace(/nothing has been submitted/g,''));
+  check(!said,rel+': says the add-on is, or was, submitted to the directory ("'+(said?said[0]:'')+'"); nothing has been submitted yet');
+  check(/to be submitted/.test(page),rel+': must say the add-on is to be submitted to the directory');
+});
+var crewPage=read('docs/directory-checklist-crew.md');
+var portalRows=crewPage.split('\n').filter(function(l){ return /^\| A name no other organization's plugin uses/.test(l)||/^\| `name`, `displayName` and `author\.name` not mistakable/.test(l); });
+check(portalRows.length===2&&portalRows.every(function(l){ return l.split('|')[2].trim()==='portal'; })&&!/pass \(the portal confirms\)/.test(crewPage),'docs/directory-checklist-crew.md: the two rows on the name and its look-alikes are the portal\'s to settle and must read `portal`, as the `cw` page\'s row does; found '+JSON.stringify(portalRows.map(function(l){ return l.split('|')[2].trim(); })));
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'truth_pages_check: '+failures.length+' failure(s), ':'truth_pages_check: all passed, ')+passes+' checks');

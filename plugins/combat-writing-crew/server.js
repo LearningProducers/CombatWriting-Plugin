@@ -62,7 +62,9 @@
 // (issue 58) before it reaches a log line, a tool result or stderr: the key in use, whatever its
 // shape, lands as [key redacted] every time it appears, an account id the provider put in its
 // prose (Groq's "in organization `org_…`") as org_[redacted], and a key-shaped string as
-// [key redacted].
+// [key redacted]. A seat's answer passes through scrubKeys before it is written: every key the
+// add-on holds is replaced there too, every time it appears, and the answer's other words are
+// left as written.
 
 var fs=require('fs'), path=require('path');
 var lib=require('./crew-lib.js');
@@ -343,10 +345,10 @@ function answer(args){
       var text=choice&&choice.message&&typeof choice.message.content==='string'?choice.message.content:'';
       text=text.replace(/<think>[\s\S]*?<\/think>\s*/g,'').replace(/^﻿/,'').replace(/^\s+/,'');
       // The reply's model field is the provider's text. It becomes the seat's name only when it is
-      // a model id; when it is not, the name stays, and the log says the field was refused and
-      // holds none of its text.
+      // a model id and holds none of the keys the add-on holds (a key can have a model id's shape); when it is not, the
+      // name stays, and the log says the field was refused and holds none of its text.
       var rawModel=res.json?res.json.model:undefined;
-      var returned=lib.isModelId(rawModel)?rawModel:null;
+      var returned=lib.isModelId(rawModel)&&lib.scrubKeys(rawModel).count===0?rawModel:null;
       var modelRefused=returned===null&&rawModel!==undefined&&rawModel!==null&&rawModel!=='';
       // A reply the provider stopped at max_tokens (finish_reason length): read here, logged and said below.
       var rawUsage=(res.json&&res.json.usage)||{};
@@ -359,6 +361,9 @@ function answer(args){
         lib.appendLog(runDir,{event:'crew.failed',round:round,seat:seatId,read:read,provider:provider.id,model_requested:seat.model,model_returned:returned,file:path.relative(runDir,packetPath),finish_reason:finish,max_tokens_lowered:out.max_tokens_lowered||null,reason:emptyReason});
         return {ok:false,seat:seatId,missing:true,reason:'the provider returned an '+emptyReason+'. The seat is missing this round.'};
       }
+      // A reply that repeats a key the add-on holds (a provider, or a proxy before it, echoing the request): the answer is a file
+      // the record and the board print, so the key is replaced in it before anything is written. Nothing else is changed.
+      var keyed=lib.scrubKeys(text); text=keyed.text;
       // Trailing whitespace off every line, so a rating line the model padded still meets the contract.
       text=text.split('\n').map(lineEnd).join('\n').trimEnd();
       // The second overrun (a retry still over the cap) is cut at the cap with the first line kept.
@@ -379,7 +384,7 @@ function answer(args){
         word_cap:rules.cap,contract:read==='rating'?rules.contract:read,truncated:truncated,finish_reason:finish,stopped:stopped,
         input_tokens_estimated:budget.input,reservation:budget.reservation,max_tokens_lowered:out.max_tokens_lowered||null,
         usage:usage,
-        waited_ms:out.waited_ms,key_source:k.source});
+        waited_ms:out.waited_ms,key_source:k.source,key_redacted:keyed.count||undefined});
       return {ok:true,seat:seatId,file:answerPath,model_requested:requested,model_returned:returned,model_refused:modelRefused,model_source:'API response model field',served_by:provider.name,company:seat.company,waited_ms:out.waited_ms,
         max_tokens_lowered:out.max_tokens_lowered||null,truncated:truncated,stopped:stopped,
         next:(stopped?'the provider stopped the reply at '+stopped.at.toLocaleString('en-US')+' output tokens, the most this call asked for'+(stopped.lowered_from?' (lowered from '+stopped.lowered_from.toLocaleString('en-US')+' to fit its per-minute output limit of '+stopped.limit.toLocaleString('en-US')+')':'')+'; the reply may end early and the record marks it stopped. ':'')+(truncated?'the reply was over the cap again and was cut at '+truncated.at+' words'+(truncated.cut_at==='sentence'?', at the last sentence end before the cap,':'')+' with its first line kept; the record marks it truncated. ':'')+'run the listed plugin\'s check-answer.js on the file, then check-flip.js for a rerate round'};

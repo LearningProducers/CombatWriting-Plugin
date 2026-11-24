@@ -427,6 +427,24 @@ var runS=spaced[0].r.stdout.trim();
 [['packet.js',['--run',runS,'--round','01-sparring','--seat','seat-1']],['render-record.js',['--run',runS]],['render-board.js',['--run',runS]],['render-state.js',['--run',runS]]].forEach(function(s){ spaced.push(clocked(s[0],s[1])); });
 spaced.forEach(function(s){ check(s.r.status===0&&s.ms<3000,s.script+' on a draft with 80,000 spaces in one run must answer in under 3 seconds: exit '+s.r.status+' in '+s.ms+' ms'); });
 
+// A SEAT ID IS A SEAT ID (issue 255). The packet's path is made from the seat's id, so a seats file a hand has edited to
+// hold an id that is a path would send the packet outside the run. packet.js refuses any --seat that is not seat-N, as
+// speak.js does, before it reads the file.
+var pid=project('seat-id'); fs.writeFileSync(path.join(pid,'draft.md'),'Dear board,\n\nBuy the company. It is cheap.\n\nYours.\n');
+var runId=node(pid,'new-run.js',['--draft','draft.md','--name','seat-id','--stage','sparring']).stdout.trim();
+var seatsId=JSON.parse(fs.readFileSync(path.join(runId,'seats.json'),'utf8')), ESCAPE='../../../../escaped';
+seatsId.seats[1].id=ESCAPE; fs.writeFileSync(path.join(runId,'seats.json'),JSON.stringify(seatsId,null,2)+'\n');
+var landed=path.resolve(runId,'rounds','01-sparring',ESCAPE+'.packet.md');
+var rEsc=node(pid,'packet.js',['--run',runId,'--round','01-sparring','--seat',ESCAPE]);
+check(rEsc.status!==0&&/seat id/.test(String(rEsc.stderr))&&!fs.existsSync(landed)&&String(rEsc.stdout).trim()==='','a seat id that is a path: packet.js must refuse it by name and write no packet outside the run; exit '+rEsc.status+', out '+JSON.stringify(String(rEsc.stdout).trim().slice(-120))+', the file outside the run '+(fs.existsSync(landed)?'was written':'was not written'));
+try{ fs.rmSync(landed,{force:true}); }catch(e){}
+['seat-x','seat-','Seat-1','seat-1/..','seat-1 ',' seat-1'].forEach(function(bad){
+  var rb=node(pid,'packet.js',['--run',runId,'--round','01-sparring','--seat',bad]);
+  check(rb.status!==0&&/seat id/.test(String(rb.stderr)),'a --seat that is no seat id ('+JSON.stringify(bad)+') must be refused as no seat id; exit '+rb.status+' '+String(rb.stderr).split('\n').filter(Boolean).pop());
+});
+var rGood=node(pid,'packet.js',['--run',runId,'--round','01-sparring','--seat','seat-1']);
+check(rGood.status===0&&fs.existsSync(path.join(runId,'rounds','01-sparring','seat-1.packet.md')),'a seat id of the form still builds its packet inside the run; exit '+rGood.status+' '+String(rGood.stderr).slice(0,160));
+
 fs.rmSync(tmp,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'packet_run_check: '+failures.length+' failure(s), ':'packet_run_check: all passed, ')+passes+' checks');

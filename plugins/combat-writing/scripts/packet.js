@@ -74,6 +74,9 @@ var args=lib.parseArgs(process.argv.slice(2));
 ['run','round','seat'].forEach(function(k){ if(!args[k]||args[k]===true)lib.die('--'+k+' is required'); });
 var runDir=path.resolve(args.run);
 if(!/^\d\d-[a-z][a-z0-9-]*$/.test(args.round))lib.die('--round must look like 01-sparring');
+// The packet's path is made from the seat's id, so the id is held to its form before the seats file is read:
+// an id that is a path, in a seats file a hand has edited, would send the packet outside the run.
+if(!/^seat-\d+$/.test(args.seat))lib.die('--seat must be a seat id, like seat-2');
 var seatsFile=lib.readSeats(runDir);
 var seats=seatsFile.seats;
 var seat=seats.filter(function(s){return s.id===args.seat;})[0];

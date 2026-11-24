@@ -249,7 +249,8 @@ if(exists('docs/directory-checklist-crew.md')){
       var cells=row.split('|').map(function(c){return c.trim();});
       var item=(cells[1]||'').slice(0,60), result=cells[2]||'';
       check(cells.length>=5&&cells[1]&&cells[3],'crew checklist: a row of "'+e[0]+'" lacks an item or what shows it: '+item);
-      check(/^(pass|HELD|n\/a)(?![A-Za-z])/.test(result),'crew checklist: the row "'+item+'" reads "'+result+'", expected pass, HELD or n/a');
+      // `portal` since issue 255: a row only the directory's own portal can settle says so, as the same row of the cw page does.
+      check(/^(pass|HELD|n\/a|portal)(?![A-Za-z])/.test(result),'crew checklist: the row "'+item+'" reads "'+result+'", expected pass, HELD, portal or n/a');
       var bare=row.replace(/LicenseRef-PolyForm-Shield-1\.0\.0|PolyForm[ -]Shield[ -]1\.0\.0/g,' ');
       check(!/\b\d{4}-\d{2}-\d{2}\b/.test(bare)&&!/\b\d+\.\d+\.\d+\b/.test(bare),'crew checklist: the row "'+item+'" carries a date or a version; the number lives in the file or test the row names');
     });

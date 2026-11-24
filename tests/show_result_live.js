@@ -12,7 +12,7 @@
 // and nothing a command's output names.
 //
 // What it does: a throwaway plugin in a temporary folder carries the repository's PostToolUse
-// entry from hooks.json word for word, the repository's hooks/show-result.js, scripts/ and fonts/,
+// entry on Bash from hooks.json word for word, the repository's hooks/show-result.js, scripts/ and fonts/,
 // and one dump hook before it that records what a PostToolUse hook is handed. A scratch project
 // gets a real run, one checked answer and a rendered board through the repository's own scripts;
 // the board is then overwritten with a planted page, which no command of the child renders. Two
@@ -58,8 +58,10 @@ function check(cond,msg){ if(cond)passes++; else failures.push(msg); }
 
 if(process.platform==='win32'){ console.log('show_result_live: cannot run on Windows (the stand-in openers are shell scripts)'); process.exit(2); }
 var provedOn=(/^var PROVED_ON='([^']+)';$/m.exec(fs.readFileSync(hookSrc,'utf8'))||[])[1];
-var entry=JSON.parse(fs.readFileSync(path.join(pluginSrc,'hooks','hooks.json'),'utf8')).hooks.PostToolUse;
-if(!Array.isArray(entry)||entry.length!==1||entry[0].matcher!=='Bash'||!/show-result\.js/.test(entry[0].hooks[0].command)){ console.log('FAIL hooks.json carries no single PostToolUse entry on Bash running show-result.js, so there is nothing to load: '+JSON.stringify(entry)); process.exit(1); }
+// The repository's PostToolUse entry on Bash, word for word. Its second entry, on the tool that starts an agent
+// (the measured model, issue 255), is proved by tests/start_model_live.js and is not loaded here.
+var entry=(JSON.parse(fs.readFileSync(path.join(pluginSrc,'hooks','hooks.json'),'utf8')).hooks.PostToolUse||[]).filter(function(e){ return e.matcher==='Bash'; });
+if(entry.length!==1||!/show-result\.js/.test(entry[0].hooks[0].command)){ console.log('FAIL hooks.json carries no single PostToolUse entry on Bash running show-result.js, so there is nothing to load: '+JSON.stringify(entry)); process.exit(1); }
 var ver=cp.spawnSync(claude,['--version'],{encoding:'utf8'});
 if(ver.status!==0){ console.log('show_result_live: cannot run Claude Code ('+claude+'): '+(ver.stderr||ver.error)); process.exit(2); }
 var version=(ver.stdout.match(/\d+\.\d+\.\d+/)||[ver.stdout.trim()])[0];
