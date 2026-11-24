@@ -18,8 +18,8 @@
 //     and the folder has no .mcp.json: it holds no keys and makes no outside call. Its one
 //     hook file, hooks/hooks.json (the session-start line, ruled 2026-10-09, and the seat scope,
 //     ruled 2026-10-16), is pinned by tests/hook_check.js and tests/seat_scope_check.js.
-//   - The separation, as it stands since the add-on is submitted too (PLAN.md Part 107, issue
-//     221): each plugin folder is its own submission to the directory, so each stands alone. A
+//   - The separation, built when the add-on was to be submitted too (PLAN.md Part 107, issue
+//     221) and kept now that it is not (issue 257): each plugin folder stands alone. A
 //     literal relative require in either folder resolves inside that folder, the add-on's
 //     folder holds its own manifest, README, LICENSE.md and NOTICE, its README has more than 40
 //     words outside code blocks (the directory's README rule), and no tracked file in it holds

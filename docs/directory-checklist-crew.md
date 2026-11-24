@@ -109,7 +109,7 @@ The published checklist has no row for these. The manifest reference (code.claud
 
 ## The security scan
 
-The scan runs after submission and only the portal shows its result; these rows are what this repository does to prepare.
+The scan runs after a submission, and only the portal shows its result. The add-on is not submitted to the directory, so no scan has read it; these rows are what this repository shows of each item.
 
 | Item | Result | Shown by |
 |---|---|---|
