@@ -68,7 +68,7 @@ if(hooks){
   check(commands.length===4,'hooks.json: expected four hook commands (the session start, the fence, and the result hook on Bash and on the tool that starts an agent), found '+commands.length);
   commands.forEach(function(c){
     var cmd=String(c.hook.command), rest=cmd.split('${CLAUDE_PLUGIN_ROOT}').join('');
-    check(c.hook.type==='command'&&/^if node --version >\/dev\/null 2>&1; then node "\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/[a-z-]+\.js"; (?:fi|else .+; fi)$/.test(cmd)&&(cmd.match(/\bnode "/g)||[]).length===1&&(cmd.match(/\bnode\b/g)||[]).length===2&&!/[`]|\$\(|\$\{|\$[A-Za-z_]/.test(rest)&&c.hook.args===undefined,'hooks.json: the '+c.event+' command must ask whether node runs (node --version), then run node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.js" once with no argument, and name no other variable, got '+JSON.stringify(c.hook.command)+(c.hook.args!==undefined?' args '+JSON.stringify(c.hook.args):''));
+    check(c.hook.type==='command'&&/^if node --version >\/dev\/null 2>&1; then node "\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/[a-z-]+\.js"; (?:fi|else .+; fi)$/.test(cmd)&&(cmd.match(/\bnode "/g)||[]).length===1&&(cmd.match(/(?:^|[ ;])node /g)||[]).length===2&&!/[`]|\$\(|\$\{|\$[A-Za-z_]/.test(rest)&&c.hook.args===undefined,'hooks.json: the '+c.event+' command must ask whether node runs (node --version), then run node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.js" once with no argument, and name no other variable, got '+JSON.stringify(c.hook.command)+(c.hook.args!==undefined?' args '+JSON.stringify(c.hook.args):''));
   });
   check(!/CLAUDE_PLUGIN_DATA/.test(read(dir+'/hooks.json')),'hooks.json names CLAUDE_PLUGIN_DATA: no hook command carries a variable but ${CLAUDE_PLUGIN_ROOT}');
 }

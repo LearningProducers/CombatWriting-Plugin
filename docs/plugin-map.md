@@ -91,7 +91,7 @@ Nothing is fetched by any script. The one outside connection is the host opening
 
 ## 5. What runs where
 
-**The hooks**, three, declared in `plugins/combat-writing/hooks/hooks.json`. They run with the session's full access, outside the sandbox the host's shell runs in. Each command there asks the shell for `node` first. On a machine with no Node on the PATH none of the three runs: the session start prints `hooks/no-node.json` (a line for the person, the same fact for the host), the fence refuses the plugin's reader alone, and nothing of the person's own work is stopped.
+**The hooks**, three, declared in `plugins/combat-writing/hooks/hooks.json`. They run with the session's full access, outside the sandbox the host's shell runs in. Each command there asks first whether `node` runs (`node --version`). On a machine with no Node on the PATH, or with a `node` that does not run, none of the three runs: the session start prints `hooks/no-node.json` (a line for the person, the same fact for the host), the fence refuses the plugin's reader, and nothing of the person's own work is stopped, with two exceptions: an agent of your own named exactly `seat` is taken for the plugin's reader and is not started, and on a machine that also has no `grep` a Read, a Write and a start of an agent are refused.
 
 | Hook | When | What it does |
 |---|---|---|
@@ -175,7 +175,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/flip_check.js` | a flip must quote who moved it |
 | `tests/gitignore_check.js` | the two-line gitignore on the first run in a git repository |
 | `tests/help_check.js` | the card, the bare rule with no tool call, the guide's opening and its one live line, the picker, the README's copy of the card |
-| `tests/hook_check.js` | the three hooks are declared as ruled, each command asking for `node` first |
+| `tests/hook_check.js` | the three hooks are declared as ruled, each command asking first whether `node` runs |
 | `tests/key_route_check.js` | where a key comes from, as the shipped files and the public pages say it: a provider's key name stands beside the key file or a word that it is not read, a sentence on an environment variable names one the code reads, and the configure command is the bare one the add-on prints |
 | `tests/license_check.js` | the right license header on every file by path |
 | `tests/lists_check.js` | the board shows the numbers a seat wrote, blank lines between the items or not |
@@ -184,7 +184,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/marketplace_check.js` | the marketplace names both plugins and the add-on rides as cw's dependency |
 | `tests/measured_check.js` | the model a fresh reader started on, measured: the Models line from the log's `seat.model` lines, the change between two rounds, the record's and Run details' lines, the label never rewritten |
 | `tests/method_check.js` | the step text is the app's, with the departures listed |
-| `tests/no_node_check.js` | every hook command run through `sh` with and without `node` on the PATH: with none, the person's own calls pass, the plugin's reader is refused at its start and at each call, the session start says Node is missing, the result hooks say nothing; the fence's entry matched to the seat's two tools and the agent tool's two names |
+| `tests/no_node_check.js` | every hook command run through `sh` with `node` on the PATH, with none, and with a `node` that cannot run: with none or one that cannot run, the person's own calls pass, the plugin's reader is refused at its start and at each call, the session start says Node is missing, the result hooks say nothing; the fence's entry matched to the seat's two tools and the agent tool's two names |
 | `tests/no_node_live.js` | not in CI: one real session on a PATH with no node, through a throwaway plugin that carries the repository's hooks as declared; the person's own Read, Write and shell command go through, the start of the plugin's reader is refused with a line that names Node; rerun after every Claude Code update |
 | `tests/open_board_check.js` | the opener: its exit read, the failed line named |
 | `tests/order_check.js` | any stage may be skipped |

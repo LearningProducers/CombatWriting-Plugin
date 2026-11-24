@@ -63,7 +63,8 @@
 // cannot tell a seat from any other caller there, so a hook that starts and fails stops every
 // call the entry is matched to, the person's own Read, Write and agent starts among them, and no
 // other tool. A machine with no Node on the PATH is not such a failure (issue 255): the command
-// in hooks.json asks the shell for node first, and with none it refuses a call only when the
+// in hooks.json asks first whether node runs (`node --version`, so a node on the PATH that cannot
+// run counts as none), and when it does not it refuses a call only when the
 // hook input names the plugin's reader (its start, or a call of its own) and lets every other
 // call through with no word, so the person's own work is not stopped and no reader runs unheld.
 // Where the host runs a hook's command in no POSIX shell (by the host's documentation, Windows

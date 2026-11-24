@@ -510,7 +510,7 @@ check(foreign.length===0,'the hook wrote something in the data folder that is no
 var hooks=JSON.parse(fs.readFileSync(path.join(plugin,'hooks','hooks.json'),'utf8'));
 // The matcher (issue 255): the two tools a seat holds and the two names of the tool that starts an agent. A seat holds no
 // other tool (agents/seat.md declares Read and Write), so the hook is asked about every call a seat can make and every start,
-// and about no other call of the person's. The command asks for node first; tests/no_node_check.js pins what follows with none.
+// and about no other call of the person's. The command asks first whether node runs; tests/no_node_check.js pins what follows with none.
 var pre=hooks.hooks.PreToolUse||[];
 check(pre.length===1&&pre[0].matcher==='Read|Write|Agent|Task'&&pre[0].hooks.length===1&&pre[0].hooks[0].type==='command'&&String(pre[0].hooks[0].command).indexOf('if node --version >/dev/null 2>&1; then node "${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js"; else ')===0&&typeof pre[0].hooks[0].timeout==='number'&&pre[0].hooks[0].timeout<=10,'hooks.json: the one PreToolUse entry must be matched to Read|Write|Agent|Task and run seat-scope.js when node is there, with a short timeout: '+JSON.stringify(pre));
 // THE FENCE FAILS CLOSED (issue 239). A hook that cannot start, exits with an error or runs past
