@@ -7,8 +7,9 @@
 // session start says in plain words that Node is missing.
 //
 // Runs every command of hooks/hooks.json the way the host does on macOS and Linux, `sh -c`, with
-// ${CLAUDE_PLUGIN_ROOT} put in, twice: on a PATH that holds `grep` and `cat` and no `node`, and
-// on the PATH this test runs on. The hook inputs are the shapes read from a real session.
+// ${CLAUDE_PLUGIN_ROOT} put in, three times: on a PATH that holds `grep` and `cat` and no `node`,
+// on a PATH whose `node` cannot run (a version manager's shim with no version set, exit 126:
+// found by the second fresh read of issue 255), and on the PATH this test runs on. The hook inputs are the shapes read from a real session.
 //
 // What it pins:
 //   - hooks.json: the fence's entry is matched to `Read|Write|Agent|Task`, the two tools the seat
@@ -103,7 +104,7 @@ try{
   check(s0.status===0&&s0.err===''&&!!j0&&typeof j0.systemMessage==='string'&&/\bNode\b/.test(j0.systemMessage)&&/PATH/.test(j0.systemMessage),'no Node, the session start: exit 0 and one JSON object whose systemMessage tells the person Node is not on the PATH; got exit '+s0.status+' out '+JSON.stringify(s0.out.slice(0,200))+' err '+JSON.stringify(s0.err.slice(0,200)));
   check(!!j0&&!!j0.hookSpecificOutput&&j0.hookSpecificOutput.hookEventName==='SessionStart'&&/\bNode\b/.test(String(j0.hookSpecificOutput.additionalContext)),'no Node, the session start: the host is handed the same fact as context; got '+JSON.stringify(j0&&j0.hookSpecificOutput));
   check(noNode!==null&&s0.out===noNode,'no Node, the session start: the output must be hooks/no-node.json, byte for byte');
-  check(!!j0&&/nothing of your own work is stopped/i.test(j0.systemMessage)&&!/https?:\/\//.test(noNode||''),'hooks/no-node.json: the line says the person\'s own work is not stopped, and holds no address');
+  check(!!j0&&/your own work is not stopped/i.test(j0.systemMessage)&&/named exactly seat/.test(j0.systemMessage)&&/no grep/.test(j0.systemMessage)&&/does not run/.test(j0.systemMessage)&&!/https?:\/\//.test(noNode||''),'hooks/no-node.json: the line says the person\'s own work is not stopped, names the two cases where a call of theirs is (an agent named exactly seat; a machine with no grep), covers a node that does not run, and holds no address; it reads: '+JSON.stringify(j0&&j0.systemMessage));
 
   // With no Node: the fence.
   function passes_(name,input){ var r=runCmd(fence,input,tools); check(r.status===0&&r.out===''&&r.err==='','no Node, the fence: '+name+' must pass with no word; got exit '+r.status+' out '+JSON.stringify(r.out.slice(0,160))+' err '+JSON.stringify(r.err.slice(0,160))); }
@@ -121,6 +122,20 @@ try{
   // With no Node: the result hooks say nothing, so no error line follows the person's command.
   var post={session_id:'s',transcript_path:path.join(tmp,'t.jsonl'),cwd:tmp,hook_event_name:'PostToolUse',tool_name:'Bash',tool_input:{command:'ls'},tool_response:{stdout:'x\n',stderr:''},tool_use_id:'toolu_x'};
   results.forEach(function(c){ var r=runCmd(c,post,tools); check(r.status===0&&r.out===''&&r.err==='','no Node, the result hook ('+c.entry.matcher+'): exit 0 and no word; got exit '+r.status+' out '+JSON.stringify(r.out.slice(0,160))+' err '+JSON.stringify(r.err.slice(0,160))); });
+
+  // A node that is on the PATH and cannot run: the same as none. The stand-in is what a version manager's shim does with no version set.
+  var shim=path.join(tmp,'shim'); fs.mkdirSync(shim);
+  fs.writeFileSync(path.join(shim,'node'),'#!/bin/sh\necho "No version is set for command node" >&2\nexit 126\n'); fs.chmodSync(path.join(shim,'node'),0o755);
+  var broken=shim+path.delimiter+tools;
+  var found=cp.spawnSync(sh,['-c','command -v node'],{encoding:'utf8',env:{PATH:broken}});
+  check(found.status===0,'the test\'s own ground: the stand-in node must be found on the PATH (it is the node that cannot run)');
+  var b1=runCmd(fence,mineRead,broken);
+  check(b1.status===0&&b1.out===''&&b1.err==='','a node that cannot run, the fence: the person\'s own Read must pass with no word; got exit '+b1.status+' out '+JSON.stringify(b1.out.slice(0,120))+' err '+JSON.stringify(b1.err.slice(0,160)));
+  var b2=runCmd(fence,seatStart,broken);
+  check(b2.status===2&&/^Combat Writing: /.test(b2.err.trim())&&b2.err.trim().split('\n').length===1,'a node that cannot run, the fence: the start of the plugin\'s reader must be refused, exit 2 and the one line; got exit '+b2.status+' err '+JSON.stringify(b2.err.slice(0,200)));
+  var b3=runCmd(start,{hook_event_name:'SessionStart',source:'startup'},broken);
+  check(b3.status===0&&b3.err===''&&noNode!==null&&b3.out===noNode,'a node that cannot run, the session start: hooks/no-node.json and nothing on stderr; got exit '+b3.status+' out '+JSON.stringify(b3.out.slice(0,120))+' err '+JSON.stringify(b3.err.slice(0,160)));
+  results.forEach(function(c){ var r=runCmd(c,post,broken); check(r.status===0&&r.out===''&&r.err==='','a node that cannot run, the result hook ('+c.entry.matcher+'): exit 0 and no word; got exit '+r.status+' err '+JSON.stringify(r.err.slice(0,160))); });
 
   // With Node: each command runs its script.
   var full=path.dirname(process.execPath)+path.delimiter+tools;

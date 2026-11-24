@@ -257,7 +257,7 @@ check(outs.length>=14&&outs.every(function(o){ return o&&!('systemMessage' in o)
 // 7. hooks.json, the manifests, the docs.
 var hooks=JSON.parse(read(path.join(plugin,'hooks','hooks.json')));
 var sh=hooks.hooks.SessionStart[0].hooks[0];
-check(sh.command==='if command -v node >/dev/null 2>&1; then node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js"; else cat "${CLAUDE_PLUGIN_ROOT}/hooks/no-node.json"; fi'&&sh.args===undefined&&sh.timeout>=12,'hooks.json: the SessionStart command asks for node, runs it on the hook file under ${CLAUDE_PLUGIN_ROOT} with no argument and no other variable (and prints hooks/no-node.json where there is no node, issue 255), and the timeout covers two 5 s budgets: '+JSON.stringify(sh));
+check(sh.command==='if node --version >/dev/null 2>&1; then node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js"; else cat "${CLAUDE_PLUGIN_ROOT}/hooks/no-node.json"; fi'&&sh.args===undefined&&sh.timeout>=12,'hooks.json: the SessionStart command asks for node, runs it on the hook file under ${CLAUDE_PLUGIN_ROOT} with no argument and no other variable (and prints hooks/no-node.json where there is no node, issue 255), and the timeout covers two 5 s budgets: '+JSON.stringify(sh));
 check(!/CLAUDE_PLUGIN_DATA/.test(read(path.join(plugin,'hooks','hooks.json'))),'hooks.json names CLAUDE_PLUGIN_DATA: the hook reads its data folder from the environment, never from the command line');
 var market=JSON.parse(read(path.join(root,'.claude-plugin','marketplace.json')));
 var cw=market.plugins.filter(function(p){return p.name==='cw';})[0];

@@ -17,8 +17,8 @@
 //     whose one command hook runs node on a file inside the plugin, named through
 //     ${CLAUDE_PLUGIN_ROOT}, with no argument (Part 128: the data folder reaches the script in its
 //     environment), no other variable, substitution or launcher.
-//   - Every command in hooks.json opens the same way (issue 255): it asks the shell whether node
-//     is on the PATH and, when it is, runs node on one file under ${CLAUDE_PLUGIN_ROOT}/hooks/ with
+//   - Every command in hooks.json opens the same way (issue 255): it asks whether node runs
+//     (`node --version`, so a node on the PATH that cannot run counts as none) and, when it does, runs node on one file under ${CLAUDE_PLUGIN_ROOT}/hooks/ with
 //     no argument. What follows for a machine with no Node is pinned by tests/no_node_check.js:
 //     the session start prints hooks/no-node.json, the fence refuses the plugin's reader alone,
 //     the result hook does nothing. No command names a variable but ${CLAUDE_PLUGIN_ROOT}.
@@ -58,7 +58,7 @@ if(hooks){
   check(entries.length===1&&Array.isArray(entries[0].hooks)&&entries[0].hooks.length===1,'hooks.json: SessionStart must hold one entry with one hook');
   var h=(entries[0]&&entries[0].hooks&&entries[0].hooks[0])||{};
   check(h.type==='command','hooks.json: the hook type must be command');
-  var START='if command -v node >/dev/null 2>&1; then node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js"; else cat "${CLAUDE_PLUGIN_ROOT}/hooks/no-node.json"; fi';
+  var START='if node --version >/dev/null 2>&1; then node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js"; else cat "${CLAUDE_PLUGIN_ROOT}/hooks/no-node.json"; fi';
   check(h.command===START,'hooks.json: the SessionStart command must be '+START+', got '+JSON.stringify(h.command));
   check(!/[`]|\$\(|\$\{/.test(String(h.command).split('${CLAUDE_PLUGIN_ROOT}').join('')),'hooks.json: the command holds a substitution or another variable');
   check(typeof h.timeout==='number'&&h.timeout>=12&&h.timeout<=15,'hooks.json: the hook timeout covers the two 5 s measurement budgets and no more (Part 83)');
@@ -68,7 +68,7 @@ if(hooks){
   check(commands.length===4,'hooks.json: expected four hook commands (the session start, the fence, and the result hook on Bash and on the tool that starts an agent), found '+commands.length);
   commands.forEach(function(c){
     var cmd=String(c.hook.command), rest=cmd.split('${CLAUDE_PLUGIN_ROOT}').join('');
-    check(c.hook.type==='command'&&/^if command -v node >\/dev\/null 2>&1; then node "\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/[a-z-]+\.js"; (?:fi|else .+; fi)$/.test(cmd)&&(cmd.match(/\bnode "/g)||[]).length===1&&!/[`]|\$\(|\$\{|\$[A-Za-z_]/.test(rest)&&c.hook.args===undefined,'hooks.json: the '+c.event+' command must ask for node, then run node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.js" once with no argument, and name no other variable, got '+JSON.stringify(c.hook.command)+(c.hook.args!==undefined?' args '+JSON.stringify(c.hook.args):''));
+    check(c.hook.type==='command'&&/^if node --version >\/dev\/null 2>&1; then node "\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/[a-z-]+\.js"; (?:fi|else .+; fi)$/.test(cmd)&&(cmd.match(/\bnode "/g)||[]).length===1&&(cmd.match(/\bnode\b/g)||[]).length===2&&!/[`]|\$\(|\$\{|\$[A-Za-z_]/.test(rest)&&c.hook.args===undefined,'hooks.json: the '+c.event+' command must ask whether node runs (node --version), then run node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.js" once with no argument, and name no other variable, got '+JSON.stringify(c.hook.command)+(c.hook.args!==undefined?' args '+JSON.stringify(c.hook.args):''));
   });
   check(!/CLAUDE_PLUGIN_DATA/.test(read(dir+'/hooks.json')),'hooks.json names CLAUDE_PLUGIN_DATA: no hook command carries a variable but ${CLAUDE_PLUGIN_ROOT}');
 }

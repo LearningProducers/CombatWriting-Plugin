@@ -284,6 +284,20 @@ var hooksRow=read('docs/directory-checklist.md').split('\n').filter(function(l){
 var declared=[]; Object.keys(hooksDecl).forEach(function(ev){ hooksDecl[ev].forEach(function(en){ declared.push({event:ev,matcher:en.matcher}); }); });
 check(!!hooksRow&&!/no matcher/.test(hooksRow)&&declared.every(function(d){ return hooksRow.indexOf('`'+d.event+'`')>=0&&hooksRow.indexOf('`'+String(d.matcher).split('|').join('\\|')+'`')>=0; })&&hooksRow.indexOf(['zero','one','two','three','four','five'][declared.length]+' entries')>=0,'docs/directory-checklist.md: the row on hooks.json must name each event and each entry\'s matcher as hooks.json declares them ('+declared.map(function(d){ return d.event+' '+d.matcher; }).join(', ')+') and count the entries; it reads: '+hooksRow.slice(0,420));
 
+// What the second fresh read of issue 255 found on the pages. The privacy page said a provider's answer is written
+// without the key scrub, where the add-on now replaces the key in use in it; it listed six fields of the line the result
+// hook writes, where the hook writes more; and three pages said nothing of the person's own work is stopped with no Node,
+// with no word of the two cases where a call of theirs is.
+check(!/written without that scrub/.test(privacy)&&/replaces the key in use, by its exact text, before the answer is written/.test(privacy)&&/shapes are not applied to an answer/.test(privacy),'PRIVACY.md: must say what the add-on does to a key in an answer: the key in use replaced by its exact text before the answer is written, the shapes not applied to an answer');
+var hookSrc=read(PLUGINS[0]+'/hooks/show-result.js');
+var lineKeys=((/var line=\{([^}]*)\}/.exec(hookSrc)||[])[1]||'').split(',').map(function(kv){ return kv.split(':')[0].trim(); }).concat((hookSrc.match(/\bline\.([a-z]+)=/g)||[]).map(function(m){ return m.slice(5,-1); })).filter(function(k,i,a){ return k&&a.indexOf(k)===i; }).sort();
+check(lineKeys.join(',')==='at,by,event,meta,model,passed,round,seat,ts','the test\'s own ground: the fields the result hook writes on its line, read from its source, are at, by, event, meta, model, passed, round, seat and ts; found '+lineKeys.join(','));
+check(/the line's kind/.test(privacy)&&/that the hook wrote it/.test(privacy)&&/a mark that the choice could not be read/.test(privacy),'PRIVACY.md: the fields of the line the result hook writes must be named whole: the time, the line\'s kind, the seat, the round, the model\'s id, the choice passed, that it was read at the start, that the hook wrote it, and the mark for a choice that could not be read');
+[['PRIVACY.md',privacy],[PLUGINS[0]+'/README.md',read(PLUGINS[0]+'/README.md')]].forEach(function(pg){
+  check(/named exactly `seat`/.test(pg[1])&&/no `grep`/.test(pg[1]),pg[0]+': where it says nothing of your own work is stopped with no Node, it must name the two cases where a call of yours is: an agent of your own named exactly `seat`, and a machine with no `grep`');
+});
+check(/Git for Windows/.test(read(PLUGINS[0]+'/README.md').split('\n').filter(function(l){ return /Node must be on your PATH/.test(l); })[0]||''),PLUGINS[0]+'/README.md: the install paragraph that names Node must name Git for Windows beside it, for a Windows machine');
+
 // The add-on's submission is said in the tense that is true (issue 255): nothing has been submitted to the directory
 // yet, so no page says the add-on "is submitted"; each says it is to be submitted. And the two rows of the add-on's
 // checklist that only the directory's own portal can settle say `portal`, as the same row of the `cw` page does.
