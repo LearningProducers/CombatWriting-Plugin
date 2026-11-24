@@ -475,12 +475,22 @@ function scrubIds(text){
   keysInUse().forEach(function(k){ if(k)out=out.split(k).join(KEY_MARK); });
   return out.replace(KEY_SHAPE,KEY_MARK).replace(ID_UNDERSCORE,'$1_[redacted]').replace(ID_HYPHEN,'$1-[redacted]');
 }
+// A seat's answer, before it is written: the key in use is replaced as the exact string it is,
+// every time it appears, and nothing else is changed. The pattern rules of scrubIds are not
+// applied to an answer: they would change a seat's own words (an identifier such as
+// user_profile reads as an account id to them), and the other seats quote those words.
+// {text, count}: the answer and how many times a key was replaced in it.
+function scrubKeys(text){
+  var out=String(text===undefined||text===null?'':text), count=0;
+  keysInUse().forEach(function(k){ if(!k)return; var parts=out.split(k); count+=parts.length-1; out=parts.join(KEY_MARK); });
+  return {text:out,count:count};
+}
 // A provider's error text, for a reason: scrubbed, made one line and cut at ERROR_MAX characters.
 // The reason goes to the tool result the host reads, to the log and from there to the record.
 var ERROR_MAX=300;
 function errorLine(text){ return oneLine(scrubIds(text),ERROR_MAX); }
 
-module.exports={isModelId:isModelId,isMakerName:isMakerName,localMaker:localMaker,oneLine:oneLine,holdSeats:holdSeats,errorLine:errorLine,MODEL_ID_RE:MODEL_ID_RE,MODEL_UNREPORTED:MODEL_UNREPORTED,MAKER_UNREPORTED:MAKER_UNREPORTED,readText:readText,readManifest:readManifest,manifestVersion:manifestVersion,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
+module.exports={isModelId:isModelId,isMakerName:isMakerName,localMaker:localMaker,oneLine:oneLine,holdSeats:holdSeats,errorLine:errorLine,scrubKeys:scrubKeys,MODEL_ID_RE:MODEL_ID_RE,MODEL_UNREPORTED:MODEL_UNREPORTED,MAKER_UNREPORTED:MAKER_UNREPORTED,readText:readText,readManifest:readManifest,manifestVersion:manifestVersion,appendLog:appendLog,readLog:readLog,readSeats:readSeats,writeSeats:writeSeats,
   loadProviders:loadProviders,keyFor:keyFor,keyShape:keyShape,keyHint:keyHint,keyNext:keyNext,keyField:keyField,keyFilePath:keyFilePath,keyFileShown:keyFileShown,readKeyFile:readKeyFile,KEY_FILE:KEY_FILE,CONFIGURE_COMMAND:CONFIGURE_COMMAND,CAUSES:CAUSES,request:request,vendorOf:vendorOf,makerOf:makerOf,sizeOf:sizeOf,
   eligibleCatalog:eligibleCatalog,resolveSeat:resolveSeat,estimateTokens:estimateTokens,budgetFor:budgetFor,makeWindow:makeWindow,windowKey:windowKey,
   parseCapRefusal:parseCapRefusal,tokensForCap:tokensForCap,loweredMaxTokens:loweredMaxTokens,capRefusalReason:capRefusalReason,finishReason:finishReason,stoppedBy:stoppedBy,TOKENS_PER_WORD:TOKENS_PER_WORD,FIRST_LINE_TOKENS:FIRST_LINE_TOKENS,CAP_MARGIN:CAP_MARGIN,scrubIds:scrubIds,
