@@ -320,7 +320,30 @@ check(/Git for Windows/.test(read(PLUGINS[0]+'/README.md').split('\n').filter(fu
 });
 var wall=read('CLAUDE.md');
 check(!/measured from the seat's own transcript/.test(wall)&&!/on every tool call it holds a fresh reader/.test(wall)&&!/to find a seat's transcript/.test(wall),'CLAUDE.md: still says the model is measured from a seat\'s transcript, or that the fence runs on every tool call; the result hook opens no transcript and the fence is matched (issue 255)');
-check(/not submitted to the Claude plugin directory/.test(wall)&&!/second bundle (?:to be )?submitted/.test(wall)&&!/submitted to the Claude plugin directory as a second bundle/.test(wall),'CLAUDE.md: must say the add-on is not submitted to the Claude plugin directory, in its opening and in its layout');
+check(/not submitted to the Claude plugin directory/.test(wall)&&/on LPI's own marketplace, not submitted to the directory/.test(wall)&&!/second bundle (?:to be )?submitted/.test(wall)&&!/submitted to the Claude plugin directory as a second bundle/.test(wall),'CLAUDE.md: must say the add-on is not submitted to the Claude plugin directory, in its opening and in its layout');
+// The wall's new sentences on the hooks, each held by its own words (they stood on the head when these pins were
+// written, so these did not fail first): when the fence runs, where the model is read, the file printed with no Node,
+// and the five live proofs, each a file that exists.
+check(/before every Read, every Write and every start of an agent it holds a fresh reader/.test(wall)&&/each hook's command asks first whether `node` runs/.test(wall),'CLAUDE.md: must say the fence runs before every Read, every Write and every start of an agent, and that each hook\'s command asks first whether `node` runs');
+check(/measured from the start call, with no transcript read/.test(wall)&&/`tool_response\.resolvedModel`/.test(wall)&&/it opens no transcript and no file the host keeps of a session/.test(wall),'CLAUDE.md: must say the model a fresh reader started on is read from the start call, and that the hook opens no transcript');
+check(/hooks\/no-node\.json/.test(wall)&&exists(PLUGINS[0]+'/hooks/no-node.json'),'CLAUDE.md: its layout must name hooks/no-node.json, a file that exists');
+var liveNamed=((/\((\w+) exceptions, the live proofs[^)]*\)/.exec(wall)||[])[0]||'').match(/tests\/[a-z_]+_live\.js/g)||[];
+var liveOnDisk=fs.readdirSync(path.join(root,'tests')).filter(function(f){ return /_live\.js$/.test(f); }).map(function(f){ return 'tests/'+f; }).sort();
+check(/\(five exceptions, the live proofs/.test(wall)&&liveNamed.slice().sort().join()===liveOnDisk.join(),'CLAUDE.md: the test style must name the live proofs, five, each a file under tests/ and every one there; named '+liveNamed.join(', ')+'; on disk '+liveOnDisk.join(', '));
+// What the first fresh read of this change found (issue 257). The add-on's own README still told the reader to install
+// it from the directory "once it is listed there"; a row of the `cw` checklist still said the directory scans the
+// add-on's folder "as its own submission"; and the wall said more than the hook does in two places: "nothing else" of a
+// start, where the hook also reads the event's and the tool's names, and "every result" for a model id that is shown
+// only when one was read. No file that speaks for the add-on promises it a listing: its README, its manifest's
+// description, the marketplace file.
+check(!/once it is listed/.test(crewReadme)&&/not in the Claude plugin directory/.test(crewReadme)&&/model providers that Learning Producers does not own or control/.test(crewReadme)&&/own or control each address/.test(crewReadme),PLUGINS[1]+'/README.md: must not tell the reader to install the add-on from the directory once it is listed; it must say the add-on is not in the Claude plugin directory, and why');
+[[PLUGINS[1]+'/README.md',crewReadme],[PLUGINS[1]+'/.claude-plugin/plugin.json',String(crew.description||'')],['.claude-plugin/marketplace.json',read('.claude-plugin/marketplace.json')]].forEach(function(pg){
+  var said=/once it is listed|to be submitted|second bundle|\b(?:is|are|was|were|and|been) submitted\b|submitted too|submitted on its own/.exec(pg[1]);
+  check(!said,pg[0]+': speaks of the add-on as submitted to, or to be listed in, the directory ("'+(said?said[0]:'')+'")');
+});
+check(!/scans as its own submission/.test(read('docs/directory-checklist.md'))&&!/each folder is its own submission/.test(read('docs/directory-checklist.md')),'docs/directory-checklist.md: still says the directory scans the add-on\'s folder as its own submission, or that each folder is one; the add-on\'s folder is not submitted');
+check(!/and nothing else of it/.test(wall),'CLAUDE.md: says the hook reads "nothing else" of a reader\'s start, where it also reads the event\'s name and the tool\'s name; the list stands without the claim');
+check(/when one was read at its start, which model id each fresh reader started on/.test(wall),'CLAUDE.md: the crew bullet must say a result names the model id a fresh reader started on when one was read at its start, not in every result');
 var crewPage=read('docs/directory-checklist-crew.md');
 var portalRows=crewPage.split('\n').filter(function(l){ return /^\| A name no other organization's plugin uses/.test(l)||/^\| `name`, `displayName` and `author\.name` not mistakable/.test(l); });
 check(portalRows.length===2&&portalRows.every(function(l){ return l.split('|')[2].trim()==='portal'; })&&!/pass \(the portal confirms\)/.test(crewPage),'docs/directory-checklist-crew.md: the two rows on the name and its look-alikes are the portal\'s to settle and must read `portal`, as the `cw` page\'s row does; found '+JSON.stringify(portalRows.map(function(l){ return l.split('|')[2].trim(); })));

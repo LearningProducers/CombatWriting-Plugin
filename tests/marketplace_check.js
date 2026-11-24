@@ -29,7 +29,7 @@
 //     that speak for the add-on (Part 107, issue 221) is gone with the decision it held; what the pages must say now
 //     is pinned in tests/truth_pages_check.js. The add-on's listing text, its manifest description and its README, says Claude
 //     Code plainly (a local MCP server is ignored in chat on claude.ai and loads in the desktop
-//     app only on your own computer) and never names cw as "the listed plugin"; the README
+//     app only on your own computer) and names cw by its name, never as "the listed plugin"; the README
 //     names the two places a key comes from and no other (the masked prompt, the key file),
 //     says a key in the person's shell is not read, and says why the key file exists; the marketplace's cw entry
 //     names the add-on as its crew; CLAUDE.md says the add-on is not submitted to the directory (issue 257);
@@ -153,19 +153,20 @@ var addonCode=['server.js','crew-lib.js'].map(function(f){return read('plugins/c
 check(addonCode.every(function(t){return !/https?:\/\//.test(noComments(t));}),'add-on: server.js or crew-lib.js holds a URL outside a comment; the addresses it calls stand in providers.json alone');
 check((addonCode[0].replace(/\/\/[^\n]*/g,'').match(/\blib\.request\(/g)||[]).length===2&&(addonCode[1].replace(/\/\/[^\n]*/g,'').match(/\.request\(/g)||[]).length===1,'add-on: server.js must call lib.request in two places and crew-lib.js must open a request in one');
 
-// The separation, re-pinned (PLAN.md Part 107, issue 221): the add-on is submitted too, each folder
-// its own submission, and a person who installs one gets that folder alone. So each stands alone.
+// The separation, pinned when the add-on was to be submitted too (PLAN.md Part 107, issue 221) and kept
+// now that it is not (issue 257): a person who installs one plugin gets that folder alone, and the
+// directory reads the `cw` folder alone. So each stands alone.
 ['plugins/combat-writing','plugins/combat-writing-crew'].forEach(function(folder){
   filesUnder(folder).filter(function(f){return /\.js$/.test(f);}).forEach(function(f){
     var text=read(f), re=/require\(\s*['"](\.[^'"]*)['"]\s*\)/g, m;
     while((m=re.exec(text))){
       var target=path.resolve(root,path.dirname(f),m[1]);
-      check(target.indexOf(path.join(root,folder)+path.sep)===0,f+': require('+JSON.stringify(m[1])+') leaves '+folder+', and each folder is its own submission');
+      check(target.indexOf(path.join(root,folder)+path.sep)===0,f+': require('+JSON.stringify(m[1])+') leaves '+folder+', and each folder stands alone');
     }
   });
 });
 ['.claude-plugin/plugin.json','README.md','LICENSE.md','NOTICE','server.js','crew-lib.js','providers.json'].forEach(function(f){
-  check(exists('plugins/combat-writing-crew/'+f),'crew: '+f+' is missing from the add-on\'s folder, which is submitted on its own');
+  check(exists('plugins/combat-writing-crew/'+f),'crew: '+f+' is missing from the add-on\'s folder, which is installed on its own');
 });
 var crewReadme=read('plugins/combat-writing-crew/README.md');
 var crewWords=crewReadme.replace(/```[\s\S]*?```/g,' ').replace(/<!--[\s\S]*?-->/g,' ').split(/\s+/).filter(function(w){return /[A-Za-z0-9]/.test(w);}).length;
@@ -176,7 +177,7 @@ var crewListing={'crew manifest description':String(crew.description||''),'crew 
 Object.keys(crewListing).forEach(function(k){
   var t=crewListing[k].replace(/\*\*/g,'');
   check(/Claude Code/.test(t)&&/ignored in chat on claude\.ai/.test(t)&&/loads in the desktop app only on your own computer/.test(t),k+': should say Claude Code plainly: a local MCP server is ignored in chat on claude.ai and loads in the desktop app only on your own computer');
-  check(!/\blisted plugin\b/i.test(t),k+': names cw as "the listed plugin", which says this one is not');
+  check(!/\blisted plugin\b/i.test(t),k+': names cw as "the listed plugin"; the listing text names it `cw`');
 });
 check(/from two places and no other, the masked prompt first and then your own key file/.test(crewReadme)&&/A key in your shell is not read/.test(crewReadme)&&!/environment variable/i.test(crewReadme)&&!/three routes/i.test(crewReadme),'crew README: should name the two places a key comes from, the masked prompt and the key file, say a key in the shell is not read, and name no third');
 check(/key file exists[^.]*survives a host update/i.test(crewReadme.replace(/\*\*/g,'')),'crew README: should say why the key file exists: it is the route that survives a host update');
