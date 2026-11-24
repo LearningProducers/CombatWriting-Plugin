@@ -247,15 +247,20 @@ function sizeOf(id){ var m=/(\d+)b\b/i.exec(String(id)); return m?parseInt(m[1],
 function eligibleCatalog(records,catalogRules){
   var rules=catalogRules||{};
   var exclude=rules.exclude?new RegExp(rules.exclude,'i'):null;
-  var out=[];
+  var out=[], refused=0;
   (Array.isArray(records)?records:[]).forEach(function(r){
-    if(!r||!isModelId(r.id)||r.active===false)return; // an id that is no model id is not offered
+    if(!r)return;
+    // An id that is no model id is not offered. How many were left out is counted, so a family
+    // that finds no model can say so; the count is a number and holds none of an id's text.
+    if(!isModelId(r.id)){ if(r.id!==undefined&&r.id!==null&&r.id!=='')refused+=1; return; }
+    if(r.active===false)return;
     if(exclude&&exclude.test(r.id))return;
     if(rules.min_context&&r.context_window!==undefined&&Number(r.context_window)<rules.min_context)return;
     if(rules.min_output&&r.max_completion_tokens!==undefined&&Number(r.max_completion_tokens)<rules.min_output)return;
     out.push({id:r.id,owned_by:isMakerName(r.owned_by)?r.owned_by:'',created:Number(r.created)||0});
   });
   out.sort(function(a,b){return (b.created-a.created)||(a.id<b.id?-1:(a.id>b.id?1:0));});
+  out.refused=refused;
   return out;
 }
 

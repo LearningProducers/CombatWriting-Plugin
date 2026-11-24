@@ -116,7 +116,13 @@ write(path.join(rd,'seat-2.answer.md'),'RATING: 6/10\nNot send-ready: the opener
 // seat-3 has no answer this round
 
 // 1. The plain render
+// The text a seat's voice reads is written to a file in the temporary folder and removed once
+// the audio is made (the privacy page says so): no such file is left after a render.
+function spokenTexts(){ return fs.readdirSync(os.tmpdir()).filter(function(n){ return /^cw-speak-\d+-seat-\d+\.txt$/.test(n); }).sort(); }
+var textsBefore=spokenTexts();
 var r1=speak(['--run',run,'--round','01-battle'],null,fake);
+var textsLeft=spokenTexts().filter(function(n){ return textsBefore.indexOf(n)<0; });
+check(textsLeft.length===0,'speak.js left '+textsLeft.length+' text file(s) of a seat\'s spoken answer in the temporary folder: '+textsLeft.join(', '));
 check(r1.status===0&&r1.stdout===''&&r1.stderr==='','render: exit 0 and silent: '+J([r1.status,r1.stdout,r1.stderr]));
 var vj=JSON.parse(read(path.join(rd,'voices.json')));
 check(J(vj.installed)===J(['Ava (Premium)','Zoe (Premium)','Nathan (Enhanced)','Allison (Enhanced)']),'render: installed ranks Premium first, then the founder order, English only: '+J(vj.installed));

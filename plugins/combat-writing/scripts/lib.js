@@ -115,7 +115,7 @@ function writeGitignore(root){
 // is overwritten, so the brief typed last is the brief every new run that brings none carries.
 // brief.js --update appends one dated paragraph, "Update YYYY-MM-DD: <text>", to the project's
 // brief and to a run's, so the prospect of the day lives in the brief where the seats read
-// ("brief update: followed by a line just adds to the brief"); the newest such line is named on
+// (a line after `brief update:` adds to the brief and replaces nothing); the newest such line is named on
 // the short form's Brief line. It rides with the project in git as the vault does. A run's brief
 // has a measured source, read from the path new-run.js was handed: 'project' (that file), 'last'
 // (another run's brief.md under combat-writing/runs/, the run id kept), 'pasted' (a file in
@@ -987,7 +987,7 @@ function crewStateLines(runDir,seats,log){
     if(!outside&&noKey.length){
       var fields=[]; noKey.forEach(function(u){ var f=u.field||'the key field'; if(fields.indexOf(f)<0)fields.push(f); });
       var named=noKey.filter(function(u){return u.field;}).map(function(u){return u.field+' ('+(u.field_title||u.provider_name||u.provider)+')';}).filter(function(v,i,a){return a.indexOf(v)===i;});
-      lines.push('The crew add-on is running and no provider has a key, so the crew is '+crewAloneWords(seats)+': a key was never entered, or an update dropped it (the host rebuilt its credentials store). Next: '+(noKey[0].next||ADDON_CONFIGURE)+', type the key into a key field and save: '+(named.length?named.join(', '):fields.join(', '))+'; a save with nothing typed says No configuration changes and keeps nothing; a free Groq key seats two. Or set the provider\'s environment variable when the prompt is empty.');
+      lines.push('The crew add-on is running and no provider has a key, so the crew is '+crewAloneWords(seats)+': a key was never entered, or an update dropped it (the host rebuilt its credentials store). Next: '+(noKey[0].next||ADDON_CONFIGURE)+', type the key into a key field and save: '+(named.length?named.join(', '):fields.join(', '))+'; a save with nothing typed says No configuration changes and keeps nothing; a free Groq key seats two. When the prompt is empty, one line in your own key file serves, ~/.combat-writing/keys (the add-on\'s README has the steps). A key that stands only in your shell is not read.');
     }
     failed.forEach(function(u){
       lines.push('Not seated: '+(u.provider_name||u.provider)+(u.family?' ('+u.family+')':'')+': '+oneLine(u.reason,1000)+'. Next: run the command again; if it repeats, '+(u.next||ADDON_CONFIGURE)+' to check the '+(u.field||'key')+' field.');
@@ -1488,7 +1488,9 @@ function draftParts(text){
 var PARTS_HEADING='The draft\'s parts (measured by code, by position; the first words only)';
 var PARTS_LINE='Where the task says "opening line", "opening sentence", "first line" or "first sentence", it means the OPENING SENTENCE named under the draft heading, never the greeting; "body" and "closer" mean the parts named there.';
 function draftPartsLines(p){
-  var q=function(s){return '"'+String(s).replace(/"/g,'”')+'"';};
+  // A part's words are quoted with each run of white space made one space: they stand above the
+  // fence, and a carriage return or a line separator in a greeting must not start a line there.
+  var q=function(s){return '"'+String(s).replace(/\s+/g,' ').replace(/"/g,'”')+'"';};
   var lines=[PARTS_HEADING+':'];
   lines.push('- GREETING: '+(p.greeting?'paragraph '+p.greeting.paragraph+', '+q(p.greeting.text):'none'));
   lines.push('- OPENING SENTENCE: '+(p.opening?'paragraph '+p.opening.paragraph+', sentence '+p.opening.sentence+', beginning '+q(p.opening.words):'none'));

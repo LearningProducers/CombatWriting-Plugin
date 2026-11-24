@@ -149,7 +149,7 @@ check(logOf(run2).length===logLen,'briefs.js logs nothing');
 // 6. The skills and the docs.
 var battle=skill('battle'), sparring=skill('sparring'), strategy=skill('strategy'), rules=skill('combat-writing'), help=skill('help'), briefs=skill('briefs');
 [['battle',battle],['sparring',sparring],['strategy',strategy]].forEach(function(p){
-  check(/The keywords: `brief:`, `brief <name>:` \(a brief saved by name\), `brief update:` \(or `update brief:`, with an optional name\), `reader:` \(`prospect:`\), `battle:`/.test(p[1]),p[0]+': THE PASTE RULE lists brief <name>:');
+  check(/The keywords: `brief:` \(`context:`\), `brief <name>:` \(a brief saved by name\), `brief update:` \(or `update brief:`, with an optional name\), `reader:` \(`prospect:`\), `battle:`/.test(p[1]),p[0]+': THE PASTE RULE lists brief <name>:');
   check(/^- Briefs by name \(Part 86\): one project, many briefs\. `brief <name>: <text>`/m.test(p[1])&&/pass `--brief <that file> --brief-name <name>` to `new-run\.js`; the unnamed default, `combat-writing\/brief\.md`, is untouched/.test(p[1])&&/`brief: <name>` alone, one word that matches a saved name \(`briefs\.js --names` lists them\), picks it/.test(p[1])&&/`brief update <name>: <text>` adds a dated line to that saved brief \(`brief\.js --update <file> --name <name>`\)/.test(p[1]),p[0]+': carries the briefs-by-name bullet');
   check(/\[--brief-name <name>\]/.test(p[1])&&/argument-hint: .*\[brief: \.\.\.\|brief <name>: \.\.\.\|brief: <name>\]/.test(p[1]),p[0]+': the command line and the argument-hint show --brief-name and the three brief forms');
 });

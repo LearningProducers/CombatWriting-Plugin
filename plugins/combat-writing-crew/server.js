@@ -123,7 +123,7 @@ function listSeats(){
         provider.seats.forEach(function(s){
           if(!named){out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'off: name the local model in the plugin\'s settings (ollama_model) or in '+provider.model_env+' to turn this seat on'});return;}
           // The name is typed by the person or stands in a variable; it is held to a model id like any other.
-          if(!lib.isModelId(named)){out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'off: the local model\'s name is not a model id (letters, digits, dot, dash, underscore, slash, colon and square brackets, at most 120, no space); name it again in the plugin\'s settings (ollama_model) or in '+provider.model_env});return;}
+          if(!lib.isModelId(named)){out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,field:'ollama_model',reason:'the local model\'s name is not a model id (letters, digits, dot, dash, underscore, slash, colon and square brackets, at most 120, no space); name it again in the plugin\'s settings (ollama_model) or in '+provider.model_env});return;}
           out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:true,model:named,maker:lib.localMaker(named),served_by:provider.name,key_source:'none needed'});
         });
         return;
@@ -132,7 +132,7 @@ function listSeats(){
         var taken={};
         provider.seats.forEach(function(s){
           var rec=lib.resolveSeat(s,catalog,taken);
-          if(!rec){out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'no live model matches this family in '+provider.name+'\'s catalog'});return;}
+          if(!rec){out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:false,reason:'no live model matches this family in '+provider.name+'\'s catalog'+(catalog.refused?'; '+catalog.refused+(catalog.refused===1?' id of its list is no model id and was left out':' ids of its list are no model ids and were left out'):'')});return;}
           taken[rec.id]=1;
           out.push({slot:s.slot,provider:provider.id,provider_name:provider.name,family:s.family,available:true,model:rec.id,maker:lib.makerOf(rec.id,rec.owned_by,table.makers),served_by:provider.name,key_source:k.source,catalog_size:catalog.length});
         });
