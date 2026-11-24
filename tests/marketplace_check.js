@@ -154,7 +154,7 @@ check(addonCode.every(function(t){return !/https?:\/\//.test(noComments(t));}),'
 check((addonCode[0].replace(/\/\/[^\n]*/g,'').match(/\blib\.request\(/g)||[]).length===2&&(addonCode[1].replace(/\/\/[^\n]*/g,'').match(/\.request\(/g)||[]).length===1,'add-on: server.js must call lib.request in two places and crew-lib.js must open a request in one');
 
 // The separation, pinned when the add-on was to be submitted too (PLAN.md Part 107, issue 221) and kept
-// now that it is not (issue 257): a person who installs one plugin gets that folder alone, and the
+// now that it is not (issue 257): each plugin is installed from its own folder, and the
 // directory reads the `cw` folder alone. So each stands alone.
 ['plugins/combat-writing','plugins/combat-writing-crew'].forEach(function(folder){
   filesUnder(folder).filter(function(f){return /\.js$/.test(f);}).forEach(function(f){

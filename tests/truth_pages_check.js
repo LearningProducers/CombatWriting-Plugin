@@ -332,8 +332,9 @@ var liveOnDisk=fs.readdirSync(path.join(root,'tests')).filter(function(f){ retur
 check(/\(five exceptions, the live proofs/.test(wall)&&liveNamed.slice().sort().join()===liveOnDisk.join(),'CLAUDE.md: the test style must name the live proofs, five, each a file under tests/ and every one there; named '+liveNamed.join(', ')+'; on disk '+liveOnDisk.join(', '));
 // What the first fresh read of this change found (issue 257). The add-on's own README still told the reader to install
 // it from the directory "once it is listed there"; a row of the `cw` checklist still said the directory scans the
-// add-on's folder "as its own submission"; and the wall said more than the hook does in two places: "nothing else" of a
-// start, where the hook also reads the event's and the tool's names, and "every result" for a model id that is shown
+// add-on's folder "as its own submission"; and the wall was loose in two places: it listed the working folder among what the hook
+// reads of a start and closed with "nothing else of it" (the working folder is of the hook's input, as the READMEs and
+// the hook's header have it, and the wall drops the claim), and it said "every result" for a model id that is shown
 // only when one was read. No file that speaks for the add-on promises it a listing: its README, its manifest's
 // description, the marketplace file.
 check(!/once it is listed/.test(crewReadme)&&/not in the Claude plugin directory/.test(crewReadme)&&/model providers that Learning Producers does not own or control/.test(crewReadme)&&/own or control each address/.test(crewReadme),PLUGINS[1]+'/README.md: must not tell the reader to install the add-on from the directory once it is listed; it must say the add-on is not in the Claude plugin directory, and why');
@@ -342,7 +343,7 @@ check(!/once it is listed/.test(crewReadme)&&/not in the Claude plugin directory
   check(!said,pg[0]+': speaks of the add-on as submitted to, or to be listed in, the directory ("'+(said?said[0]:'')+'")');
 });
 check(!/scans as its own submission/.test(read('docs/directory-checklist.md'))&&!/each folder is its own submission/.test(read('docs/directory-checklist.md')),'docs/directory-checklist.md: still says the directory scans the add-on\'s folder as its own submission, or that each folder is one; the add-on\'s folder is not submitted');
-check(!/and nothing else of it/.test(wall),'CLAUDE.md: says the hook reads "nothing else" of a reader\'s start, where it also reads the event\'s name and the tool\'s name; the list stands without the claim');
+check(!/and nothing else of it/.test(wall),'CLAUDE.md: closes its list of what the hook reads of a reader\'s start with "nothing else of it", and that list holds the working folder, which is of the hook\'s input and not of the start; the list stands without the claim');
 check(/when one was read at its start, which model id each fresh reader started on/.test(wall),'CLAUDE.md: the crew bullet must say a result names the model id a fresh reader started on when one was read at its start, not in every result');
 var crewPage=read('docs/directory-checklist-crew.md');
 var portalRows=crewPage.split('\n').filter(function(l){ return /^\| A name no other organization's plugin uses/.test(l)||/^\| `name`, `displayName` and `author\.name` not mistakable/.test(l); });
