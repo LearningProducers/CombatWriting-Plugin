@@ -113,7 +113,9 @@ check(/^Last updated: \d{4}-\d\d-\d\d$/m.test(privacy),'PRIVACY.md: must carry i
 check(/not made or endorsed by Anthropic/.test(privacy)&&!/reviewed or endorsed/.test(privacy)&&!/reviewed or endorsed/.test(support),'PRIVACY.md and SUPPORT.md: say "not made or endorsed by Anthropic"; a listing in the directory is read by Anthropic, so "reviewed" would not stay true');
 check(!/hold your draft and the seats' answers/.test(support)&&/record\.md/.test(support),'SUPPORT.md: the log holds no draft and no answer in full; name what the run folder and record.md hold');
 check(/model each reader runs on/.test(privacy),'PRIVACY.md: must say that a reader\'s packet goes to the model each reader runs on; the second reader is by default on a model other than the session\'s');
-check(/every tool call/.test(privacy)&&/every (?:shell|Bash) command/i.test(privacy),'PRIVACY.md: must say what the two hooks are handed: every tool call, and every shell command with its output');
+// What the hooks are handed (issue 255): the fence is matched to a Read, a Write and the start of an agent, and no longer
+// to every tool call; the result hook is handed every shell command with its output and every start of an agent.
+check(/every Read and Write call/.test(privacy)&&/every start of an agent/.test(privacy)&&/every (?:shell|Bash) command/i.test(privacy)&&!/every tool call/.test(privacy),'PRIVACY.md: must say what the two hooks are handed: every Read and Write call and every start of an agent, and every shell command with its output; the fence is no longer handed every tool call');
 check(/browser['’]s own (?:speech )?voices?/i.test(privacy)&&/browser['’]s storage/i.test(privacy),'PRIVACY.md: must speak of the board\'s read-aloud through the browser\'s own voices and of the voice pick kept in the browser\'s storage');
 check(/plain HTTP/.test(privacy)&&/needs no key/.test(privacy),'PRIVACY.md: must say the local Ollama seat is called over plain HTTP and needs no key');
 check(!/calls no one else|is no party/.test(privacy)&&!/until the system clears/.test(privacy)&&!/neither asks you to make an account/.test(privacy)&&!/reads two environment variables/.test(privacy),'PRIVACY.md: a sentence the read found too wide or unproved stands in it');
@@ -261,12 +263,19 @@ searched.forEach(function(f){
 var boardScript=read(PLUGINS[0]+'/scripts/render-board.js');
 check(!/Nothing is sent anywhere/.test(boardScript)&&!/No request leaves the page/.test(boardScript),PLUGINS[0]+'/scripts/render-board.js: a comment says nothing is sent, or that no request leaves the page; say what the page\'s own code does');
 
-// What the result hook reads to find a reader's transcript: the opening of each agent's
-// transcript it opens holds the task that agent was started with (show-result.js taskOf and
-// packetLineOf). The page says that it reads that text and keeps none of it; it does not say
-// that it takes no text.
-check(privacy.indexOf('takes no text of your conversation')<0,'PRIVACY.md: says the result hook takes no text of your conversation; it reads the task each agent was started with, to find the reader\'s transcript');
-check(/holds the task that agent was started with/.test(privacy)&&/keeps none of (it|that text)/.test(privacy),'PRIVACY.md: must say the opening of an agent\'s transcript holds the task that agent was started with, and that the hook keeps none of it');
+// The result hook reads no transcript (issue 255). The model a reader started on comes from the
+// start call the host hands the hook: the task's first lines, to learn the seat and the round,
+// and the model the host resolved. The page says so, says the hook keeps none of the text it is
+// handed, and no longer says it opens the session's transcripts.
+check(privacy.indexOf('takes no text of your conversation')<0,'PRIVACY.md: says the result hook takes no text of your conversation; it reads the first lines of the task a reader was started with');
+check(/reads no transcript/.test(privacy)&&!/transcript files Claude Code keeps/.test(privacy)&&!/up to 200/.test(privacy),'PRIVACY.md: must say the result hook reads no transcript, and no longer that it opens the session\'s transcripts');
+check(/the model the host resolved/.test(privacy)&&/keeps none of (it|that text)/.test(privacy),'PRIVACY.md: must say the hook reads, of the start it is handed, the model the host resolved, and that it keeps none of the text');
+// No Node on the PATH (issue 255): the pages say what stops and what does not.
+[PLUGINS[0]+'/README.md','README.md'].forEach(function(rel){
+  var page=read(rel);
+  check(/Node is not on (?:the|your) PATH/.test(page)&&/nothing of your own work is stopped/i.test(page),rel+': must say what happens when Node is not on the PATH: nothing of your own work is stopped, and no reader is started');
+  check(!/every tool call of the session, your own included/.test(page)&&!/transcript files Claude Code keeps/.test(page),rel+': still says a hook that cannot run stops every tool call of the session, or that a hook reads the session\'s transcript files');
+});
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'truth_pages_check: '+failures.length+' failure(s), ':'truth_pages_check: all passed, ')+passes+' checks');
