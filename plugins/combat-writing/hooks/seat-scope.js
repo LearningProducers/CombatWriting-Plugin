@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
-// seat-scope.js: the seat's reach. A PreToolUse hook on every tool. A fresh
+// seat-scope.js: the seat's reach. A PreToolUse hook on four tools, the two a seat holds (Read
+// and Write, the tools agents/seat.md declares; the host gives a seat no other) and the two names
+// of the tool that starts an agent (hooks.json's matcher, issue 255). A fresh
 // reader (the `seat` agent, agent_type `cw:seat`) uses Read and Write only, reads two files, its
 // own packet and its own answer file, and writes that answer file alone, each judged on the
 // resolved path; any other tool, any other file and any path the hook cannot place is denied.
@@ -58,9 +60,16 @@
 // host stops the call when the hook cannot start, exits with an error or runs past its timeout,
 // where without the field it would let the call through (the field is read by Claude Code
 // 2.1.295 and later; an earlier host ignores it and lets the call through, as before). The host
-// cannot tell a seat from any other caller there: the entry has no matcher, so a hook that
-// cannot run stops every tool call of the session until Node is there or the plugin is switched
-// off. A fault inside this file's own code is therefore never left to the host: it is caught
+// cannot tell a seat from any other caller there, so a hook that starts and fails stops every
+// call the entry is matched to, the person's own Read, Write and agent starts among them, and no
+// other tool. A machine with no Node on the PATH is not such a failure (issue 255): the command
+// in hooks.json asks the shell for node first, and with none it refuses a call only when the
+// hook input names the plugin's reader (its start, or a call of its own) and lets every other
+// call through with no word, so the person's own work is not stopped and no reader runs unheld.
+// Where the host runs a hook's command in no POSIX shell (by the host's documentation, Windows
+// with no Git Bash; not measured here), the command cannot run at all and the matched calls are
+// stopped.
+// A fault inside this file's own code is therefore never left to the host: it is caught
 // below and answered here, a refusal for a seat's call and for the start of a seat, silence and
 // exit 0 for every other caller.
 //

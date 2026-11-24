@@ -184,6 +184,7 @@ One command runs everything CI runs: `node tests/run_all.js` from the repository
 | `tests/marketplace_check.js` | the marketplace names both plugins and the add-on rides as cw's dependency |
 | `tests/measured_check.js` | the model that answered, measured: the Models line from the log's `seat.model` lines, the change between two rounds, the record's and Run details' lines, the label never rewritten |
 | `tests/method_check.js` | the step text is the app's, with the departures listed |
+| `tests/no_node_check.js` | every hook command run through `sh` with and without `node` on the PATH: with none, the person's own calls pass, the plugin's reader is refused at its start and at each call, the session start says Node is missing, the result hooks say nothing; the fence's entry matched to the seat's two tools and the agent tool's two names |
 | `tests/open_board_check.js` | the opener: its exit read, the failed line named |
 | `tests/order_check.js` | any stage may be skipped |
 | `tests/packet_check.js` | the packet from files only, the previous round carried, the contract |

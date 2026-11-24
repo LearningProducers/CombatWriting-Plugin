@@ -57,8 +57,8 @@ check(!!fence&&fence.hook.onFailure==='block','hooks.json: the fence keeps onFai
 [start,fence].concat(results).filter(Boolean).forEach(function(c){
   var cmd=String(c.hook.command), bare=cmd.split('${CLAUDE_PLUGIN_ROOT}').join('');
   check(!/\$\(|`|\$\{|\bcurl\b|\bwget\b|\beval\b|\|\s*(sh|bash)\b|>\s*[^&\s\/]/.test(bare),'hooks.json: a hook command holds a substitution, a second variable, a fetch, an eval, a pipe to a shell or a write to a file: '+cmd);
-  var programs=(bare.replace(/'[^']*'/g,' ').replace(/"[^"]*"/g,' ').match(/(?:^|;|\bthen\b|\belse\b|&&|\|\|)\s*([A-Za-z\[][A-Za-z0-9_-]*)/g)||[]).map(function(m){ return m.replace(/^(?:;|then|else|&&|\|\|)?\s*/,''); });
-  var allowed=['if','command','node','grep','cat','echo','exit','fi','['];
+  var programs=bare.replace(/'[^']*'/g,' ').replace(/"[^"]*"/g,' ').split(/;|&&|\|\|/).map(function(st){ st=st.trim(); while(/^(?:if|then|else)\s+/.test(st))st=st.replace(/^(?:if|then|else)\s+/,''); return st.split(/\s+/)[0]; }).filter(Boolean);
+  var allowed=['command','node','grep','cat','echo','exit','fi','['];
   check(programs.every(function(p){ return allowed.indexOf(p)>=0; }),'hooks.json: a hook command starts something other than node, grep and cat (and the shell\'s own words): '+JSON.stringify(programs)+' in '+cmd);
 });
 
@@ -104,7 +104,8 @@ try{
 
   // With no Node: the fence.
   function passes_(name,input){ var r=runCmd(fence,input,tools); check(r.status===0&&r.out===''&&r.err==='','no Node, the fence: '+name+' must pass with no word; got exit '+r.status+' out '+JSON.stringify(r.out.slice(0,160))+' err '+JSON.stringify(r.err.slice(0,160))); }
-  function refused(name,input,PATH){ var r=runCmd(fence,input,PATH||tools); check(r.status===2&&r.out===''&&/\bNode\b/.test(r.err)&&/Combat Writing/.test(r.err)&&r.err.trim().split('\n').length===1,'no Node, the fence: '+name+' must be refused, exit 2 and one line on stderr that names Node; got exit '+r.status+' out '+JSON.stringify(r.out.slice(0,160))+' err '+JSON.stringify(r.err.slice(0,200))); }
+  // The refusal's own line is the last on stderr; with no grep the shell's own complaint stands before it.
+  function refused(name,input,PATH){ var r=runCmd(fence,input,PATH||tools), last=r.err.trim().split('\n').pop(); check(r.status===2&&r.out===''&&/\bNode\b/.test(last)&&/^Combat Writing: /.test(last)&&(PATH||r.err.trim().split('\n').length===1),'no Node, the fence: '+name+' must be refused, exit 2 and one line on stderr that names Node; got exit '+r.status+' out '+JSON.stringify(r.out.slice(0,160))+' err '+JSON.stringify(r.err.slice(0,200))); }
   passes_('the person\'s own Read',mineRead);
   passes_('the person\'s own Write, its text holding the reader\'s name',mineWrite);
   passes_('the person\'s own start of another agent',mineStart);
