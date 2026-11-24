@@ -35,6 +35,16 @@
             "timeout": 80
           }
         ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v node >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js\"; fi",
+            "timeout": 5
+          }
+        ]
       }
     ]
   }

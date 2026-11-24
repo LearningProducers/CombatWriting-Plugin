@@ -771,10 +771,13 @@ function sessionModelOf(log){
   var c=(log||[]).filter(function(e){return e.event==='run.created';})[0];
   return c&&c.session_model?String(c.session_model):null;
 }
-// The models measured (hooks/show-result.js, the log's seat.model lines): which model wrote a
-// fresh reader's replies in a round, read from the seat's own transcript after its answer was
-// checked, with the model choice passed at its start and the session's own model as its newest
-// reply carries it. The latest line per seat per round, as {seat: {round: line}}. A seat's
+// The models measured (hooks/show-result.js, the log's seat.model lines): which model a fresh
+// reader ran on in a round. A line marked `at: "start"` holds the model the host resolved when
+// it started the reader, handed to the hook with the start call, and the model choice passed;
+// no transcript is read for it and it carries no session id. A line with no such mark was
+// written by an earlier version of the hook from the seat's own transcript: the id on its
+// replies, the choice passed and the session's own id; a run's log keeps such lines and they
+// are read as they were. The latest line per seat per round, as {seat: {round: line}}. A seat's
 // record, its label and its seat key are never rewritten from it: the seats quote each other by
 // the labels their packets carry, and a label that changed between rounds would break the
 // attribution the flip check holds. The measured id is shown beside the label instead.
@@ -798,9 +801,10 @@ function latestRoundOf(log){
   return latest;
 }
 // What the measurement says of the crew as it stands: null unless the log holds a seat.model line
-// for a fresh reader in the run's latest round (a round run where no transcript could be placed
-// is spoken for by the recorded names, as before). session is the session's measured id from the
-// newest such line that carries one, or null; latest is each fresh reader's newest measured line
+// for a fresh reader in the run's latest round (a round with no measured start is spoken for by
+// the recorded names, as before). session is the session's measured id from the newest such
+// line that carries one, or null: a line read at a reader's start carries none, so the first
+// sentence of the Models line is then the records'; latest is each fresh reader's newest measured line
 // in any round; changes is, per fresh reader, the newest round whose measured id differs from
 // its measured id in the measured round before.
 function measuredModels(seats,log){
@@ -817,24 +821,30 @@ function measuredModels(seats,log){
     latest[s.id]=by[s.id][rounds[rounds.length-1]];
     for(var i=rounds.length-1;i>0;i--){
       var now=by[s.id][rounds[i]], before=by[s.id][rounds[i-1]];
-      if(now.model!==before.model){ changes.push({seat:s.id,round:rounds[i],model:now.model,before:before.model,ts:now.ts||null}); break; }
+      if(now.model!==before.model){ changes.push({seat:s.id,round:rounds[i],model:now.model,before:before.model,ts:now.ts||null,verb:measuredVerb(now),beforeVerb:measuredVerb(before)}); break; }
     }
   });
   return {round:round,session:session,latest:latest,changes:changes};
 }
-// One change in words: "seat-1 answered on <id> from round <round> (<YYYY-MM-DD HH:MM UTC>), where it answered on <earlier id> before."
-// A time that is no date is left out, as fallbackWords leaves it out: the sentence is said without it.
+// What a measured line says of its id: "started on" for a line read at the reader's start, the
+// model the host resolved; "answered on" for an older line, read from the id on the seat's replies.
+function measuredVerb(e){ return e&&e.at==='start'?'started on':'answered on'; }
+// One change in words: "seat-1 started on <id> from round <round> (<YYYY-MM-DD HH:MM UTC>), where it started on <earlier id> before.",
+// each id said in its own line's word. A time that is no date is left out, as fallbackWords leaves it out: the sentence is said without it.
 function modelChangeWords(c){
-  return c.seat+' answered on '+c.model+' from round '+c.round+(c.ts&&!isNaN(new Date(c.ts))?' ('+whenUtc(c.ts)+')':'')+', where it answered on '+c.before+' before.';
+  return c.seat+' '+(c.verb||'answered on')+' '+c.model+' from round '+c.round+(c.ts&&!isNaN(new Date(c.ts))?' ('+whenUtc(c.ts)+')':'')+', where it '+(c.beforeVerb||'answered on')+' '+c.before+' before.';
 }
 // The measured lines for the record and the board's Run details: one per fresh reader per round
-// with a measured model, in round order: the id that answered (and every id its replies carry,
-// in order, when more than one), the model choice passed at its start or that none was, the
-// session's own id, and where the line was read from (and that it was the end of a long
-// transcript, when the hook's read was partial). Empty when nothing was measured.
+// with a measured model, in round order. A line read at the reader's start: the id it started
+// on, the model choice passed or that none was, and that it is the model the host resolved,
+// handed to the hook with the start call. An older line, read from a transcript: the id that
+// answered (and every id its replies carry, in order, when more than one), the choice passed,
+// the session's own id, and where it was read from (and that it was the end of a long
+// transcript, when the read was partial). Empty when nothing was measured.
 var MEASURED_HEADING='Models measured';
-var MEASURED_NOTE='A seat\'s label is the name the run recorded, the host\'s word; the model that answered is read from the model id on the seat\'s own replies, one line per fresh reader per round.';
+var MEASURED_NOTE='A seat\'s label is the name the run recorded, the host\'s word; the model beside it is measured, one line per fresh reader per round, each saying where it was read.';
 var MEASURED_SOURCE='read from the seat\'s own transcript';
+var MEASURED_SOURCE_START='the model the host resolved when it started the reader, handed to the plugin\'s hook with the start call';
 function measuredLines(seats,log){
   var by=seatModels(log), out=[];
   (seats||[]).filter(function(s){ return !s.provider&&by[s.id]; }).forEach(function(s){
@@ -844,6 +854,8 @@ function measuredLines(seats,log){
   return out.map(function(e){
     var many=Array.isArray(e.models)&&e.models.length>1&&e.models.every(isModelId);
     var unread=e.meta===false||(e.passed!==null&&e.passed!==undefined&&!isModelId(e.passed));
+    var choice=isModelId(e.passed)?'passed at start: '+e.passed:unread?'the start choice could not be read':'none passed at start';
+    if(e.at==='start')return e.seat+', round '+e.round+': started on '+e.model+'; '+choice+'; '+MEASURED_SOURCE_START+'.';
     return e.seat+', round '+e.round+': answered on '+e.model+(many?' (its replies carry '+e.models.join(', then ')+')':'')+'; '
       +(isModelId(e.passed)?'passed at start: '+e.passed:unread?'the start choice could not be read':'none passed at start')+'; '
       +(isModelId(e.session)?'the session on '+e.session:'the session\'s own model could not be read')+'; '+MEASURED_SOURCE+(e.partial===true?', the end of a long one':'')+'.';
@@ -858,7 +870,8 @@ function measuredLines(seats,log){
 // company's model by design and is named on the crew line, never here.
 // Recorded or measured: with no seat.model line for the run's latest round, the line speaks from
 // the records alone (a reader that starts on a named model other than the session's recorded
-// one). With one, the session's model is the measured id and a fresh reader is named when the
+// one), and so it does when the measured lines were read at the readers' starts, which carry no
+// session id. With lines an earlier version read from transcripts, the session's model is the measured id and a fresh reader is named when the
 // id on its newest measured replies differs from it, the two compared as written: "seat-2
 // answered on <id>"; a fresh reader no round measured is still named from its record, marked
 // "as recorded"; and a reader whose measured id changed between two rounds gets one sentence
@@ -1984,7 +1997,7 @@ module.exports={
   DEFAULT_SYNTHESIS_RERATE_PROMPT:DEFAULT_SYNTHESIS_RERATE_PROMPT,DEFAULT_FIRST_CRITIQUE_PROMPT:DEFAULT_FIRST_CRITIQUE_PROMPT,FIRST_ROUND_LINE:FIRST_ROUND_LINE,CMD:CMD,startedAtLine:startedAtLine,nextLine:nextLine,runSlug:runSlug,thisRunLine:thisRunLine,runSummary:runSummary,runsLine:runsLine,listRunSummaries:listRunSummaries,matchRuns:matchRuns,NO_RATING_LINE:NO_RATING_LINE,
   SIGNAL_LINE:SIGNAL_LINE,VERDICT_SENTENCE_LINE:VERDICT_SENTENCE_LINE,VERDICT_SENTENCE_LINE_CRITIQUE:VERDICT_SENTENCE_LINE_CRITIQUE,SCOREBOARD_LEGEND:SCOREBOARD_LEGEND,BOARD_FILE:BOARD_FILE,verdictPhrases:verdictPhrases,verdictOf:verdictOf,verdictLine:verdictLine,escapeHtml:escapeHtml,renderLite:renderLite,ADDON_INSTALL:ADDON_INSTALL,ADDON_CONFIGURE:ADDON_CONFIGURE,ADDON_STATE:ADDON_STATE,addonStateLine:addonStateLine,crewStateLines:crewStateLines,
   seatStart:seatStart,sessionModelOf:sessionModelOf,modelsLine:modelsLine,SOURCE_NAMED:SOURCE_NAMED,SOURCE_SESSION:SOURCE_SESSION,seatFallbacks:seatFallbacks,fallbackWords:fallbackWords,FALLBACK_REASON_SHOWN:FALLBACK_REASON_SHOWN,
-  MODEL_ID_RE:MODEL_ID_RE,isModelId:isModelId,seatModels:seatModels,measuredModels:measuredModels,modelChangeWords:modelChangeWords,measuredLines:measuredLines,MEASURED_HEADING:MEASURED_HEADING,MEASURED_NOTE:MEASURED_NOTE,MEASURED_SOURCE:MEASURED_SOURCE,
+  MODEL_ID_RE:MODEL_ID_RE,isModelId:isModelId,seatModels:seatModels,measuredModels:measuredModels,modelChangeWords:modelChangeWords,measuredLines:measuredLines,MEASURED_HEADING:MEASURED_HEADING,MEASURED_NOTE:MEASURED_NOTE,MEASURED_SOURCE_START:MEASURED_SOURCE_START,MEASURED_SOURCE:MEASURED_SOURCE,
   MAX_FRESH_READERS:MAX_FRESH_READERS,READERS_FILE:READERS_FILE,READERS_REL:READERS_REL,freshReaders:freshReaders,crewAloneWords:crewAloneWords,readersPicksPath:readersPicksPath,readReaderPicks:readReaderPicks,
   PICKER_FILE:PICKER_FILE,PICKER_REL:PICKER_REL,PICKER_OPTION:PICKER_OPTION,PICKER_ON_CMD:PICKER_ON_CMD,pickerPath:pickerPath,readPicker:readPicker,projectOfRun:projectOfRun,
   parseArgs:parseArgs,die:die,sha256:sha256,readText:readText,holdSeats:holdSeats,isSeatName:isSeatName,isMakerName:isMakerName,localMaker:localMaker,oneLine:oneLine,appendLog:appendLog,readLog:readLog,logDamage:logDamage,logDamageLine:logDamageLine,readSeats:readSeats,isFreshReader:isFreshReader,isPaddedSeat:isPaddedSeat,seatLabel:seatLabel,seatShortName:seatShortName,seatKey:seatKey,askedIn:askedIn,wasAsked:wasAsked,nameSources:nameSources,
