@@ -18,24 +18,21 @@
 //     and the folder has no .mcp.json: it holds no keys and makes no outside call. Its one
 //     hook file, hooks/hooks.json (the session-start line, ruled 2026-10-09, and the seat scope,
 //     ruled 2026-10-16), is pinned by tests/hook_check.js and tests/seat_scope_check.js.
-//   - The separation, as it stands since the add-on is submitted too (PLAN.md Part 107, issue
-//     221): each plugin folder is its own submission to the directory, so each stands alone. A
+//   - The separation, built when the add-on was to be submitted too (PLAN.md Part 107, issue
+//     221) and kept now that it is not (issue 257): each plugin folder stands alone. A
 //     literal relative require in either folder resolves inside that folder, the add-on's
 //     folder holds its own manifest, README, LICENSE.md and NOTICE, its README has more than 40
 //     words outside code blocks (the directory's README rule), and no tracked file in it holds
 //     something shaped like a credential.
-//   - The add-on's road to the directory (Part 107, issue 221). No file that speaks for the
-//     add-on says it is not listed: the marketplace, the add-on's manifest and README, both
-//     checklist pages, CLAUDE.md and RULINGS.md (its record, issue 224), and since issue 245 the root README, the listing README and the plugin map, are read line by line for the phrases that said so (not
-//     listed, never listed, not from this directory, unlisted plugin, not or never submitted, not in the Claude plugin
-//     directory, only plugins/combat-writing is submitted, the directory never scans); the one
-//     sentence left alone is the /mcp one, where "not listed" is a server missing from that
-//     list. The add-on's listing text, its manifest description and its README, says Claude
+//   - The add-on's road to the directory ended (issue 257): the add-on is not submitted, and stays on Learning
+//     Producers' own marketplace. The check that barred every "not listed" and "not submitted" phrase from the files
+//     that speak for the add-on (Part 107, issue 221) is gone with the decision it held; what the pages must say now
+//     is pinned in tests/truth_pages_check.js. The add-on's listing text, its manifest description and its README, says Claude
 //     Code plainly (a local MCP server is ignored in chat on claude.ai and loads in the desktop
-//     app only on your own computer) and never names cw as "the listed plugin"; the README
+//     app only on your own computer) and names cw by its name, never as "the listed plugin"; the README
 //     names the two places a key comes from and no other (the masked prompt, the key file),
 //     says a key in the person's shell is not read, and says why the key file exists; the marketplace's cw entry
-//     names the add-on as its crew; CLAUDE.md says the add-on is submitted as a second bundle;
+//     names the add-on as its crew; CLAUDE.md says the add-on is not submitted to the directory (issue 257);
 //     the main checklist's add-on row no longer reads n/a and points at the add-on's own page.
 //   - docs/directory-checklist-crew.md, the add-on's own pass: it names the two published
 //     pages it was read against; its sections are the published checklist's, each with as
@@ -156,48 +153,31 @@ var addonCode=['server.js','crew-lib.js'].map(function(f){return read('plugins/c
 check(addonCode.every(function(t){return !/https?:\/\//.test(noComments(t));}),'add-on: server.js or crew-lib.js holds a URL outside a comment; the addresses it calls stand in providers.json alone');
 check((addonCode[0].replace(/\/\/[^\n]*/g,'').match(/\blib\.request\(/g)||[]).length===2&&(addonCode[1].replace(/\/\/[^\n]*/g,'').match(/\.request\(/g)||[]).length===1,'add-on: server.js must call lib.request in two places and crew-lib.js must open a request in one');
 
-// The separation, re-pinned (PLAN.md Part 107, issue 221): the add-on is submitted too, each folder
-// its own submission, and a person who installs one gets that folder alone. So each stands alone.
+// The separation, pinned when the add-on was to be submitted too (PLAN.md Part 107, issue 221) and kept
+// now that it is not (issue 257): each plugin is installed from its own folder, and the
+// directory reads the `cw` folder alone. So each stands alone.
 ['plugins/combat-writing','plugins/combat-writing-crew'].forEach(function(folder){
   filesUnder(folder).filter(function(f){return /\.js$/.test(f);}).forEach(function(f){
     var text=read(f), re=/require\(\s*['"](\.[^'"]*)['"]\s*\)/g, m;
     while((m=re.exec(text))){
       var target=path.resolve(root,path.dirname(f),m[1]);
-      check(target.indexOf(path.join(root,folder)+path.sep)===0,f+': require('+JSON.stringify(m[1])+') leaves '+folder+', and each folder is its own submission');
+      check(target.indexOf(path.join(root,folder)+path.sep)===0,f+': require('+JSON.stringify(m[1])+') leaves '+folder+', and each folder stands alone');
     }
   });
 });
 ['.claude-plugin/plugin.json','README.md','LICENSE.md','NOTICE','server.js','crew-lib.js','providers.json'].forEach(function(f){
-  check(exists('plugins/combat-writing-crew/'+f),'crew: '+f+' is missing from the add-on\'s folder, which is submitted on its own');
+  check(exists('plugins/combat-writing-crew/'+f),'crew: '+f+' is missing from the add-on\'s folder, which is installed on its own');
 });
 var crewReadme=read('plugins/combat-writing-crew/README.md');
 var crewWords=crewReadme.replace(/```[\s\S]*?```/g,' ').replace(/<!--[\s\S]*?-->/g,' ').split(/\s+/).filter(function(w){return /[A-Za-z0-9]/.test(w);}).length;
 check(crewWords>40,'crew README: '+crewWords+' words outside code blocks, the directory needs more than 40');
 
-// The add-on's road to the directory (PLAN.md Part 107, issue 221): no file that speaks for the
-// add-on says it is not listed.
-var ROAD=['.claude-plugin/marketplace.json','plugins/combat-writing-crew/.claude-plugin/plugin.json','plugins/combat-writing-crew/README.md','docs/directory-checklist.md','docs/directory-checklist-crew.md','CLAUDE.md','RULINGS.md','README.md','plugins/combat-writing/README.md','docs/plugin-map.md'];
-var NOT_LISTED=[/\b(?:not|never) listed\b/i,/\bnot from (?:this|the) directory\b/i,/\bunlisted (?:plugin|add-on)\b/i,/\b(?:not|never) submitted\b/i,/\bnot in the Claude plugin directory\b/i,/\bonly `?plugins\/combat-writing`? is submitted\b/i,/\bthe directory never scans\b/i];
-// The one sentence that keeps the words: under /mcp, "not listed" is a server missing from that list.
-var MCP_LIST=[/if it is not listed, `?\/plugin`?/g,/not listed means `?\/plugin`?/g];
-ROAD.forEach(function(f){
-  check(exists(f),f+': missing');
-  if(!exists(f))return;
-  read(f).split('\n').forEach(function(line,i){
-    var bare=line.replace(/\*\*/g,'');
-    MCP_LIST.forEach(function(re){ bare=bare.replace(re,' '); });
-    NOT_LISTED.forEach(function(re){
-      var m=re.exec(bare);
-      check(!m,f+':'+(i+1)+': says the add-on is not listed ("'+(m?m[0]:'')+'"): '+bare.trim().slice(0,110));
-    });
-  });
-});
 // The listing text, the add-on's manifest description and its README, says Claude Code plainly.
 var crewListing={'crew manifest description':String(crew.description||''),'crew README':crewReadme};
 Object.keys(crewListing).forEach(function(k){
   var t=crewListing[k].replace(/\*\*/g,'');
   check(/Claude Code/.test(t)&&/ignored in chat on claude\.ai/.test(t)&&/loads in the desktop app only on your own computer/.test(t),k+': should say Claude Code plainly: a local MCP server is ignored in chat on claude.ai and loads in the desktop app only on your own computer');
-  check(!/\blisted plugin\b/i.test(t),k+': names cw as "the listed plugin", which says this one is not');
+  check(!/\blisted plugin\b/i.test(t),k+': names cw as "the listed plugin"; the listing text names it `cw`');
 });
 check(/from two places and no other, the masked prompt first and then your own key file/.test(crewReadme)&&/A key in your shell is not read/.test(crewReadme)&&!/environment variable/i.test(crewReadme)&&!/three routes/i.test(crewReadme),'crew README: should name the two places a key comes from, the masked prompt and the key file, say a key in the shell is not read, and name no third');
 check(/key file exists[^.]*survives a host update/i.test(crewReadme.replace(/\*\*/g,'')),'crew README: should say why the key file exists: it is the route that survives a host update');
@@ -206,7 +186,7 @@ if(market){
   check(/combat-writing-crew/.test(cwEntry.description||'')&&/\bcrew\b/.test(cwEntry.description||'')&&/add-on/.test(cwEntry.description||''),'marketplace: the cw entry\'s description should name the add-on, combat-writing-crew, as its crew');
 }
 var claudeMd=read('CLAUDE.md');
-check(/submitted to the Claude plugin directory as a second bundle/.test(claudeMd),'CLAUDE.md: the add-on rule should say the add-on is submitted to the Claude plugin directory as a second bundle');
+check(/not submitted to the Claude plugin directory/.test(claudeMd)&&!/submitted to the Claude plugin directory as a second bundle/.test(claudeMd),'CLAUDE.md: should say the add-on is not submitted to the Claude plugin directory, and no longer that it is submitted as a second bundle');
 var mainPage=read('docs/directory-checklist.md');
 var addonRow=mainPage.split('\n').filter(function(l){return /^\| The add-on's keys \|/.test(l);})[0]||'';
 check(!!addonRow,'docs/directory-checklist.md: the row "The add-on\'s keys" is missing');
