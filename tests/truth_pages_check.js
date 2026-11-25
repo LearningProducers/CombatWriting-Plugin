@@ -365,6 +365,8 @@ check(faceDesc.length>0&&faceDesc.length<=300,PLUGINS[0]+'/.claude-plugin/plugin
   check(/Claude Code/.test(d[1])&&/7 forbidden/.test(d[1]),d[0]+' must name Claude Code and the rating rule, 7 forbidden');
 });
 check(!/description names (?:the seven commands|what ships, the seven commands)/.test(read('docs/directory-checklist.md')),'docs/directory-checklist.md: two rows say the description names the seven commands, the record and the board; the short description names none of them');
+check(!/README and the description/.test(read('docs/directory-checklist.md')),'docs/directory-checklist.md: says the README and the description disclose the one link the host opens; the short description names no link, and the README and the privacy page disclose it');
+check(!/asked about Read and Write alone/.test(read('docs/directory-checklist.md'))&&/the fence is asked about Read, Write and the start of an agent/.test(read('docs/directory-checklist.md')),'docs/directory-checklist.md: says the fence is asked about Read and Write alone; hooks.json matches it to Read, Write and the two names of the tool that starts an agent');
 check(/not in (?:this|the Claude plugin) directory/.test(faceDesc),PLUGINS[0]+'/.claude-plugin/plugin.json: the description must say the add-on is not in the directory');
 // Three claims that said more than the code, on the two READMEs. Which of the two holds a reader to Read and Write:
 // the agent file's `tools:` line, not the hook. What the board loads: nothing from the network; it links the run's
@@ -380,11 +382,12 @@ check(/new Audio\(/.test(read(PLUGINS[0]+'/scripts/render-board.js'))&&/href="re
 var seatTypes=(/var SEAT_TYPES=\[([^\]]*)\]/.exec(read(PLUGINS[0]+'/hooks/seat-scope.js'))||[])[1]||'';
 check(/'cw:seat'/.test(seatTypes)&&/'seat'/.test(seatTypes.replace(/'cw:seat'/,'')),'the test\'s own ground: the fence takes an agent named `seat` for the plugin\'s reader (SEAT_TYPES holds it); when the name leaves the code, the pages\' sentence leaves with it');
 ['README.md',PLUGINS[0]+'/README.md','PRIVACY.md','docs/plugin-map.md'].forEach(function(rel){
-  check(/[Ww]ith Node present, an agent of your own named exactly `seat`/.test(read(rel)),rel+': must say an agent of your own named exactly `seat` is taken for the plugin\'s reader with Node present too, not only when Node is missing');
+  check(/[Ww]ith Node present, an agent of your own named exactly `seat` is taken for the plugin's reader too/.test(read(rel)),rel+': must say an agent of your own named exactly `seat` is taken for the plugin\'s reader with Node present too, not only when Node is missing');
 });
 // The root README's first screen: after the motto, three lines of what the plugin is, then the install line, then a
 // table of the hook entries, one row an entry of hooks/hooks.json in its order: the event, what it is matched to,
-// what it does, and what happens when it cannot run (a call is stopped only where the entry sets onFailure "block").
+// what it does, and what happens when it fails (a call is stopped only where the entry sets onFailure "block"). The
+// cell on what a hook does is held by its length alone: its words are a reader's to judge.
 var faceLines=read('README.md').split('\n'), faceMotto=faceLines.indexOf('**Reading is Peace. Writing is War.**'), faceH2=faceLines.map(function(l,i){ return /^## /.test(l)?i:-1; }).filter(function(i){ return i>=0; });
 var faceOpen=faceMotto>=0&&faceH2.length?faceLines.slice(faceMotto+1,faceH2[0]).filter(function(l){ return l.trim(); }):[];
 check(faceOpen.length===3&&faceOpen.every(function(l){ return l.length<=320; }),'README.md: between the motto and the first heading stand three lines of what the plugin is, each 320 characters or fewer; found '+faceOpen.length+' ('+faceOpen.map(function(l){ return l.length; }).join(', ')+')');
@@ -397,7 +400,7 @@ check(faceEntries.length>0&&faceRows.length===faceEntries.length,'README.md: the
 faceEntries.forEach(function(e,i){
   var r=faceRows[i]||{ev:'',matcher:'',does:'',fail:''};
   check(r.ev===e.ev&&r.matcher===e.matcher,'README.md: row '+(i+1)+' of the hooks table must be '+e.ev+' matched to '+e.matcher+'; it is '+r.ev+' matched to '+r.matcher);
-  check(r.does.length>20&&(e.block?/the call is stopped/.test(r.fail)&&!/^Nothing is stopped/.test(r.fail):/^Nothing is stopped/.test(r.fail)),'README.md: row '+(i+1)+' of the hooks table ('+e.ev+', '+e.matcher+') must say what the hook does, and that '+(e.block?'the call is stopped when the hook cannot run (the entry sets onFailure "block")':'nothing is stopped when it cannot run (the entry sets no onFailure)'));
+  check(r.does.length>20&&(e.block?/the call is stopped/.test(r.fail)&&!/^Nothing is stopped/.test(r.fail):/^Nothing is stopped/.test(r.fail)),'README.md: row '+(i+1)+' of the hooks table ('+e.ev+', '+e.matcher+') must say what the hook does, and that '+(e.block?'the call is stopped when the hook fails (the entry sets onFailure "block")':'nothing is stopped when it fails (the entry sets no onFailure)'));
 });
 
 failures.forEach(function(f){console.log('FAIL '+f);});
