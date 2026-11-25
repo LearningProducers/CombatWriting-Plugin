@@ -493,6 +493,11 @@ allowed('the bare name seat: a Read by the person\'s own agent, outside any run,
 allowed('the bare name seat: a Bash call by the person\'s own agent is untouched',call('Bash','',{agent_type:'seat',agent_id:'mine',tool_name:'Bash',tool_input:{command:'ls'}}));
 denied('input that does not parse but names the start of a reader is refused',call('Agent','','{"hook_event_name":"PreToolUse","tool_name":"Agent","tool_input":{"subagent_type" : "cw:seat", not json'),/^Combat Writing seat scope: the hook input could not be read; the seat is not started$/);
 allowed('input that does not parse and names an agent called seat is not the reader\'s',call('Read','','{"agent_type":"seat", not json'));
+// Found by the second fresh read of issue 261: a byte the host never writes, standing between the key and the name, hid the
+// name from the two patterns, and the input, which does not parse, was let through. What cannot be read and holds the
+// reader's name between double quotes does not pass; the same input with no such name is still not the hook's to judge.
+denied('input that does not parse and holds the reader\'s name behind a stray byte is refused',call('Read','','{"hook_event_name":"PreToolUse","tool_name":"Read","agent_type":\u0001"cw:seat","tool_input":{"file_path":"/x"}}'),/^Combat Writing seat scope: the hook input could not be read and holds the reader's name; a call that cannot be read and names the reader does not pass$/);
+allowed('input that does not parse and holds no reader\'s name is not the hook\'s to judge',call('Read','','{"hook_event_name":"PreToolUse","tool_name":"Read","agent_type":\u0001"Explore","tool_input":{"file_path":"/x"}}'));
 denied('start: from another agent, a model on a session record',start(taskText(packet2,answer2),'x',{agent_type:'Explore',agent_id:'other'}),/start seat-2 again with no model choice/);
 var readOn=(/^var START_READ_ON='([^']+)';$/m.exec(fs.readFileSync(hook,'utf8'))||[])[1];
 check(typeof readOn==='string'&&/^\d+\.\d+\.\d+( to \d+\.\d+\.\d+)?$/.test(readOn)&&fs.readFileSync(hook,'utf8').split(readOn).length===2,'seat-scope.js: START_READ_ON must be one constant on its own line, the versions once, got '+readOn);

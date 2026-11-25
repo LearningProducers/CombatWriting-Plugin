@@ -62,7 +62,7 @@ var ADDON_CONFIGURE='/plugin configure combat-writing-crew';
 // seat), filled by addonStateLine for the run at hand (Part 87).
 var ADDON_STATE={
   // No install command here: the plugin is whole with its own readers, and the add-on's install
-  // line stands in one place, /cw:help crew, the next command this line names.
+  // line stands in one place in this plugin, /cw:help crew, the next command this line names (the add-on's own README carries it too).
   absent:'The crew add-on is not installed, so the crew is {CREW}: the plugin is whole that way. Other companies\' models sit only through the add-on, a separate plugin on your own keys. Next, only if you want them: '+CMD_HELP_CREW+'.',
   down:'The crew add-on is installed but its server is not running in this session (no crew_list tool), so the crew is {CREW}. Next: /mcp, find combat-writing-crew: if it shows failed or disconnected, reconnect it there and run the command again; if it is not listed, /plugin to check the add-on is enabled, then /reload-plugins.'
 };
@@ -905,7 +905,7 @@ function modelsLine(seats,log){
   return parts.length?parts.join(' '):null;
 }
 // The two plain lines of a run's first results: the short form before any round carries them, and so does the first
-// short form after a round, with the legend; a run that began at strategy therefore reads each two times.
+// short form after a round, with the legend; a run that began at strategy therefore reads each at least two times (every short form before a round carries them).
 // The rank: the second fresh reader, when it is named at its start, sits on a model the host
 // chose, by default the second most capable its agent tool offers. That rank is the host's own
 // judgment and no measure, and the first result says so; null when there is no second fresh

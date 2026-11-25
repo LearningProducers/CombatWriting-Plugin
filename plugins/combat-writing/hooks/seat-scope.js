@@ -143,7 +143,7 @@
 // nothing, reads one environment variable, CLAUDE_PLUGIN_DATA, and never prints a path from
 // inside the draft.
 // Input that does not parse is denied when it names the reader, as the caller or as the agent
-// to start, and ignored otherwise.
+// to start, or holds the reader's name between double quotes anywhere, and ignored otherwise.
 // A fault in the hook's own code is answered by who the input says is calling, the parsed input
 // when the fault falls after it was read and the raw input before: refused for a seat and for
 // the start of a seat, silence and exit 0 for every other caller.
@@ -381,6 +381,9 @@ process.stdin.on('end',function(){
     // Not readable: a seat's call and the start of a seat are denied all the same; anything else is not ours to judge.
     if(NAMES_SEAT.test(raw))return deny('the hook input could not be read; a seat does nothing the hook cannot judge',true);
     if(NAMES_START.test(raw))return deny('the hook input could not be read; the seat is not started',true);
+    // Neither, and the reader's name stands in it between double quotes all the same (a byte the host never writes, standing
+    // between a key and the name, hides the name from the two patterns above): what cannot be read and names the reader does not pass.
+    if(raw.indexOf('"'+SEAT_TYPE+'"')>=0)return deny('the hook input could not be read and holds the reader\'s name; a call that cannot be read and names the reader does not pass',true);
     return allow();
   }
   if(!input||input.hook_event_name!=='PreToolUse')return allow();

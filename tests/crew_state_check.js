@@ -54,7 +54,7 @@ check(seatsLines(r0.record).length===1,'unrecorded: record.md must carry one Sea
 // State 1: absent.
 var a=node('crew-state.js',['--run',run,'--state','absent']);
 // Not installed (issue 261): the line says the crew as it is, that the plugin is whole that way, and names one next command,
-// /cw:help crew, the one place the add-on's install line stands. No result carries an install command or a marketplace.
+// /cw:help crew, the one place in this plugin where the add-on's install line stands. No result carries an install command or a marketplace.
 var ABSENT='The crew add-on is not installed, so the crew is one seat: the plugin is whole that way. Other companies\' models sit only through the add-on, a separate plugin on your own keys. Next, only if you want them: /cw:help crew.';
 check(a.status===0&&a.stdout.trim()===ABSENT,'absent: crew-state.js must print the sentence, got '+a.stdout+a.stderr);
 check(a.stdout.indexOf(INSTALL)<0&&!/\/plugin install|--marketplace|\/plugin configure/.test(a.stdout)&&read(path.join(root,'plugins','combat-writing','skills','help','SKILL.md')).indexOf(INSTALL)>=0,'absent: the sentence must hold no install command; the install line stands in /cw:help crew');
