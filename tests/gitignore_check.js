@@ -42,7 +42,8 @@ function node(script,args,cwd){ return cp.spawnSync(process.execPath,[path.join(
 function logOf(run){ return read(path.join(run,'log.jsonl')).split('\n').filter(Boolean).map(function(l){return JSON.parse(l);}); }
 var git=cp.spawnSync('git',['--version'],{encoding:'utf8'}).status===0;
 function status(cwd){ return cp.spawnSync('git',['status','--porcelain','-uall'],{cwd:cwd,encoding:'utf8'}).stdout.split('\n').filter(Boolean).sort(); }
-var IGNORE_LINE='Wrote combat-writing/.gitignore with two lines, runs/ and inbox/, so the runs and the inbox stay out of git and the vault stays with the project; a file already there is never overwritten.';
+// The line also names what still rides with the project in git and how to keep any of it out (issue 261: the ignore file covers two folders, and a person who commits without reading shares the rest).
+var IGNORE_LINE='Wrote combat-writing/.gitignore with two lines, runs/ and inbox/, so the runs and the inbox stay out of git and the vault stays with the project; a file already there is never overwritten. Your briefs (brief.md, briefs/), the vault and the three settings files (voices.json, seats.json, picker.json) ride with the project in git: add a line for any of them to that file to keep it out.';
 
 function project(name){ var p=fs.mkdtempSync(path.join(os.tmpdir(),'cw-gitignore-'+name+'-')); fs.writeFileSync(path.join(p,'draft.md'),'Dear board,\n\nBuy the company.\n'); fs.writeFileSync(path.join(p,'brief.md'),'CEO. Get a yes.\n'); return p; }
 
@@ -115,6 +116,7 @@ else{
   check(rn.status===0&&!fs.existsSync(path.join(none,'combat-writing','.gitignore')),'outside a repository: no ignore file may be written');
   check(!logOf(rn.stdout.trim()).some(function(e){return /^gitignore\./.test(e.event);}),'outside a repository: no gitignore line in the log');
 }
+check(lib.GITIGNORE_LINE===IGNORE_LINE,'lib: the ignore-file line must name what the two lines keep out and what still rides with the project (the briefs, the vault, the three settings files), got '+lib.GITIGNORE_LINE);
 check(lib.inGitRepo(root)===true&&lib.GITIGNORE_LINES.join(',')==='runs/,inbox/','lib: inGitRepo finds this repository and the two lines are runs/ and inbox/');
 
 // The text: one wording for the rule and for the first-run sentence, in three places.

@@ -160,7 +160,7 @@ sj.seats.pop(); fs.writeFileSync(path.join(run,'seats.json'),JSON.stringify(sj,n
 
 // The crew line, the Seats line, the seat key, the board, the state.
 var absent=node('crew-state.js',['--run',run,'--state','absent']);
-check(absent.status===0&&absent.stdout.trim()===lib.addonStateLine('absent',sj.seats)&&/so the crew is the two fresh readers \(one company's models\)\. Next: /.test(absent.stdout),'crew-state absent: should name the two fresh readers, got '+absent.stdout.slice(0,140));
+check(absent.status===0&&absent.stdout.trim()===lib.addonStateLine('absent',sj.seats)&&/so the crew is the two fresh readers \(one company's models\): the plugin is whole that way\. .* Next, only if you want them: \/cw:help crew\.$/.test(absent.stdout.trim()),'crew-state absent: should name the two fresh readers, got '+absent.stdout.slice(0,140));
 var down1=node('crew-state.js',['--run',run1,'--state','down']);
 check(down1.status===0&&/so the crew is one seat\. Next: \/mcp/.test(down1.stdout),'crew-state down on one reader: should say one seat, got '+down1.stdout.slice(0,140));
 check(lib.crewAloneWords(sj.seats)==='the two fresh readers (one company\'s models)'&&lib.crewAloneWords(seats1)==='one seat'&&lib.crewAloneWords([])==='one seat','lib.crewAloneWords');
@@ -168,6 +168,13 @@ var short=node('render-record.js',['--run',run,'--short']).stdout;
 var crewLine=(short.split('\n').filter(function(l){return /^\*\*Crew:\*\*/.test(l);})[0]||'');
 check(/Test Model A \(Anthropic\), seat-1; Test Model B \(Anthropic\), seat-2\. One company's models \(Anthropic\)\. Seat names come from the agent configuration/.test(crewLine),'short form: crew line should name both readers, got '+crewLine);
 check(/\*\*Seats:\*\* The crew add-on is not installed, so the crew is the two fresh readers \(one company's models\)/.test(short),'short form: the Seats line should name the two fresh readers');
+// WHOSE RANK (issue 261). Seat-2 sits on the second most capable model the host's agent tool offers, a rank the host makes
+// and no measure. The pages said so; the first result did not. The first short form of a run now says it once, naming the
+// fresh readers named at their start: before any round, and with the legend at the first round of a run that began there.
+var RANK='The model seat-2 reads on is the host\'s choice, the second most capable its agent tool offers unless you picked one: that rank is the host\'s own, no measure (/cw:help crew).';
+check(lib.rankLine(sj.seats)===RANK&&short.split('\n').indexOf(RANK)>0,'short form (before any round): the first result must say whose rank seated seat-2 (the fixture names both readers at their start; the line speaks of the second), got '+JSON.stringify(lib.rankLine(sj.seats))+' and a short form that '+(short.indexOf(RANK)>=0?'holds it':'does not hold it'));
+check(lib.rankLine(seats1)===null&&lib.rankLine([{id:'seat-1',start:'session'},{id:'seat-2',start:'session'}])===null&&lib.rankLine([{id:'seat-1',start:'session'},{id:'seat-2',start:'named',provider:'x'}])===null,'lib.rankLine: null when no fresh reader is named at its start (one reader on the session\'s model; two on it; an outside seat is no fresh reader)');
+check(lib.rankLine([{id:'seat-1',start:'named'},{id:'seat-2',start:'session'}])===null&&lib.rankLine([{id:'seat-1',start:'named'},{id:'seat-2',start:'named'}])===RANK,'lib.rankLine: it speaks of the second fresh reader alone; a first reader named at its start is the person\'s pick, and no rank seated it');
 check(/^Seat key: seat-1 Test Model A · seat-2 Test Model B$/m.test(short),'short form: the seat key should list both readers, got '+(short.split('\n').filter(function(l){return /^Seat key/.test(l);})[0]||'none'));
 node('render-board.js',['--run',run]);
 var board=read(path.join(run,'board.html'));

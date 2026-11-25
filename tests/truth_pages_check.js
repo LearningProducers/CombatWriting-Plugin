@@ -298,7 +298,7 @@ var lineKeys=((/var line=\{([^}]*)\}/.exec(hookSrc)||[])[1]||'').split(',').map(
 check(lineKeys.join(',')==='at,by,event,meta,model,passed,round,seat,ts','the test\'s own ground: the fields the result hook writes on its line, read from its source, are at, by, event, meta, model, passed, round, seat and ts; found '+lineKeys.join(','));
 check(/the line's kind/.test(privacy)&&/that the hook wrote it/.test(privacy)&&/a mark that the choice could not be read/.test(privacy),'PRIVACY.md: the fields of the line the result hook writes must be named whole: the time, the line\'s kind, the seat, the round, the model\'s id, the choice passed, that it was read at the start, that the hook wrote it, and the mark for a choice that could not be read');
 [['PRIVACY.md',privacy],[PLUGINS[0]+'/README.md',read(PLUGINS[0]+'/README.md')]].forEach(function(pg){
-  check(/named exactly `seat`/.test(pg[1])&&/no `grep`/.test(pg[1]),pg[0]+': where it says nothing of your own work is stopped with no Node, it must name the two cases where a call of yours is: an agent of your own named exactly `seat`, and a machine with no `grep`');
+  check(/one of whose values is exactly the reader's name, `cw:seat`, or ends with that name right after a double quote/.test(pg[1])&&/no `grep`/.test(pg[1]),pg[0]+': where it says nothing of your own work is stopped with no Node, it must name the two cases where a call of yours is: one of whose values is exactly the reader\'s name, or ends with it right after a double quote, and a machine with no `grep`');
 });
 check(/Git for Windows/.test(read(PLUGINS[0]+'/README.md').split('\n').filter(function(l){ return /Node must be on your PATH/.test(l); })[0]||''),PLUGINS[0]+'/README.md: the install paragraph that names Node must name Git for Windows beside it, for a Windows machine');
 
@@ -379,10 +379,16 @@ check(/not in (?:this|the Claude plugin) directory/.test(faceDesc),PLUGINS[0]+'/
 });
 check(/^tools: Read, Write$/m.test(read(PLUGINS[0]+'/agents/seat.md')),'the test\'s own ground: agents/seat.md gives a reader Read and Write and no other tool');
 check(/new Audio\(/.test(read(PLUGINS[0]+'/scripts/render-board.js'))&&/href="record\.md"/.test(read(PLUGINS[0]+'/scripts/render-board.js')),'the test\'s own ground: the board plays audio files and links record.md');
-var seatTypes=(/var SEAT_TYPES=\[([^\]]*)\]/.exec(read(PLUGINS[0]+'/hooks/seat-scope.js'))||[])[1]||'';
-check(/'cw:seat'/.test(seatTypes)&&/'seat'/.test(seatTypes.replace(/'cw:seat'/,'')),'the test\'s own ground: the fence takes an agent named `seat` for the plugin\'s reader (SEAT_TYPES holds it); when the name leaves the code, the pages\' sentence leaves with it');
+// The reader's one name (issue 261): the two hooks hold the plugin's reader by `cw:seat` alone, so the pages no longer say an
+// agent of the person's own named `seat` is taken for it; they say it is the person's.
+[PLUGINS[0]+'/hooks/seat-scope.js',PLUGINS[0]+'/hooks/show-result.js'].forEach(function(rel){
+  check(/^var SEAT_TYPE='cw:seat';$/m.test(read(rel))&&!/SEAT_TYPES/.test(read(rel))&&!/\(\?:cw:\)\?seat/.test(read(rel)),rel+': the test\'s own ground: the hook holds the plugin\'s reader by one name, cw:seat, and by no pattern that also takes the bare name');
+});
+['README.md',PLUGINS[0]+'/README.md','PRIVACY.md','docs/plugin-map.md',PLUGINS[0]+'/skills/combat-writing/SKILL.md',PLUGINS[0]+'/hooks/no-node.json'].forEach(function(rel){
+  check(!/named exactly `?seat`? is taken/.test(read(rel))&&!/named exactly `?seat`?/.test(read(rel)),rel+': must no longer say an agent of your own named exactly `seat` is taken for the plugin\'s reader; the reader\'s one name is cw:seat');
+});
 ['README.md',PLUGINS[0]+'/README.md','PRIVACY.md','docs/plugin-map.md'].forEach(function(rel){
-  check(/[Ww]ith Node present, an agent of your own named exactly `seat` is taken for the plugin's reader too/.test(read(rel)),rel+': must say an agent of your own named exactly `seat` is taken for the plugin\'s reader with Node present too, not only when Node is missing');
+  check(/an agent of your own named `seat` is yours/.test(read(rel)),rel+': must say an agent of your own named `seat` is yours');
 });
 // The root README's first screen: after the motto, three lines of what the plugin is, then the install line, then a
 // table of the hook entries, one row an entry of hooks/hooks.json in its order: the event, what it is matched to,
@@ -402,6 +408,21 @@ faceEntries.forEach(function(e,i){
   check(r.ev===e.ev&&r.matcher===e.matcher,'README.md: row '+(i+1)+' of the hooks table must be '+e.ev+' matched to '+e.matcher+'; it is '+r.ev+' matched to '+r.matcher);
   check(r.does.length>20&&(e.block?/the call is stopped/.test(r.fail)&&!/^Nothing is stopped/.test(r.fail):/^Nothing is stopped/.test(r.fail)),'README.md: row '+(i+1)+' of the hooks table ('+e.ev+', '+e.matcher+') must say what the hook does, and that '+(e.block?'the call is stopped when the hook fails (the entry sets onFailure "block")':'nothing is stopped when it fails (the entry sets no onFailure)'));
 });
+
+// The table's own heading (issue 261: no check held it): the four columns the rows above are read by, then the rule line.
+var faceHead=faceH2.length>2?faceLines.slice(faceH2[1],faceH2[2]).filter(function(l){ return /^\|/.test(l); }).slice(0,2):[];
+check(faceHead[0]==='| Event | Matched to | What it does | When the hook fails |'&&faceHead[1]==='|---|---|---|---|','README.md: the hooks table must open with its heading, the four columns Event, Matched to, What it does and When the hook fails, then the rule line; it opens '+JSON.stringify(faceHead));
+// The checklist's two rows on the description (issue 261: they were held only by what they must not say). Each thing a
+// row says the description names is in the description, the length a row gives is the length it has at the most, and
+// what the row says it leaves out (a link) is not in it.
+var cwDesc=String(json(PLUGINS[0]+'/.claude-plugin/plugin.json').description||''), clistRows=read('docs/directory-checklist.md').split('\n');
+var rowListing=clistRows.filter(function(l){ return /^\| \*\*Listing details\*\* /.test(l); })[0]||'', rowScoped=clistRows.filter(function(l){ return /^\| The `cw` plugin's description stays scoped /.test(l); })[0]||'';
+var saidLength=parseInt((/the description says in (\d+) characters or fewer/.exec(rowListing)||[])[1],10);
+check(saidLength>0&&cwDesc.length>0&&cwDesc.length<=saidLength,'docs/directory-checklist.md: the Listing details row must give a length the description keeps to; the row says '+saidLength+', the description is '+cwDesc.length+' characters');
+[[/two fresh readers/,/two fresh readers/],[/the rating from 1 to 10 with 7 forbidden/,/rates it 1 to 10, 7 forbidden/],[/the reading of each other in the sharing rounds/,/read each other in the sharing rounds/],[/a rating again when asked/,/rate again when you ask/],[/`\/cw:help`/,/\/cw:help/],[/they need an add-on that is not in the directory/,/need an add-on not in this directory/]].forEach(function(p){
+  check(p[0].test(rowScoped)&&p[1].test(cwDesc),'docs/directory-checklist.md: the row on the description\'s scope must name '+p[0]+' and the description must hold '+p[1]+'; the row '+(p[0].test(rowScoped)?'does':'does not')+', the description '+(p[1].test(cwDesc)?'does':'does not'));
+});
+check(/not in the description/.test(rowScoped)&&!/https?:|shipped/.test(cwDesc),'docs/directory-checklist.md: the row says the one link the host opens is disclosed elsewhere and not in the description; the description must name no link and not `shipped`');
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'truth_pages_check: '+failures.length+' failure(s), ':'truth_pages_check: all passed, ')+passes+' checks');

@@ -364,9 +364,9 @@ function openBoard(board,done){
 function logOpened(board,ok,reason,cmd){
   var runDir=path.dirname(board), logFile=path.join(runDir,'log.jsonl');
   if(!fs.existsSync(logFile))return;
-  var line={ts:new Date().toISOString(),event:'board.opened',file:path.basename(board),opener:cmd,ok:ok,reason:reason||null,by:'hook'};
-  if(ok===null)line.started=true; // the opener was started and had not exited at the deadline: neither a success nor a failure was measured
-  try{ fs.appendFileSync(logFile,JSON.stringify(line)+'\n'); }catch(e){}
+  var opened={ts:new Date().toISOString(),event:'board.opened',file:path.basename(board),opener:cmd,ok:ok,reason:reason||null,by:'hook'};
+  if(ok===null)opened.started=true; // the opener was started and had not exited at the deadline: neither a success nor a failure was measured
+  try{ fs.appendFileSync(logFile,JSON.stringify(opened)+'\n'); }catch(e){}
 }
 
 // THE MEASURED MODEL. Every read is guarded and every miss is silence: this never fails the command it follows.

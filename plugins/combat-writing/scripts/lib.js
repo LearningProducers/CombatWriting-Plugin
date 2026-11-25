@@ -56,11 +56,14 @@ var FIRST_ROUND_LINE='This is the first round of the run: no seat has read the d
 // crew.registered log line it writes, naming the key field to fill. crewStateLines renders
 // whichever the log holds, and the record, the board and the short form print it under the crew line.
 var ADDON_INSTALL='/plugin install combat-writing-crew --marketplace LearningProducers/CombatWriting-Plugin';
+var CMD_HELP_CREW='/cw:help crew';
 var ADDON_CONFIGURE='/plugin configure combat-writing-crew';
 // {CREW} is the crew the run is left with, in words (crewAloneWords: the two fresh readers, or one
 // seat), filled by addonStateLine for the run at hand (Part 87).
 var ADDON_STATE={
-  absent:'The crew add-on is not installed, so the crew is {CREW}. Next: '+ADDON_INSTALL+', then /reload-plugins or a new session, then '+ADDON_CONFIGURE+' to enter a key.',
+  // No install command here: the plugin is whole with its own readers, and the add-on's install
+  // line stands in one place, /cw:help crew, the next command this line names.
+  absent:'The crew add-on is not installed, so the crew is {CREW}: the plugin is whole that way. Other companies\' models sit only through the add-on, a separate plugin on your own keys. Next, only if you want them: '+CMD_HELP_CREW+'.',
   down:'The crew add-on is installed but its server is not running in this session (no crew_list tool), so the crew is {CREW}. Next: /mcp, find combat-writing-crew: if it shows failed or disconnected, reconnect it there and run the command again; if it is not listed, /plugin to check the add-on is enabled, then /reload-plugins.'
 };
 function addonStateLine(state,seats){ var t=ADDON_STATE[state]; return t?t.replace('{CREW}',crewAloneWords(seats||[])):null; }
@@ -92,7 +95,7 @@ function vaultPath(runDir){
 // entry (a folder or a file); no command is run.
 var GITIGNORE_FILE='.gitignore';
 var GITIGNORE_LINES=['runs/','inbox/'];
-var GITIGNORE_LINE='Wrote combat-writing/.gitignore with two lines, runs/ and inbox/, so the runs and the inbox stay out of git and the vault stays with the project; a file already there is never overwritten.';
+var GITIGNORE_LINE='Wrote combat-writing/.gitignore with two lines, runs/ and inbox/, so the runs and the inbox stay out of git and the vault stays with the project; a file already there is never overwritten. Your briefs (brief.md, briefs/), the vault and the three settings files (voices.json, seats.json, picker.json) ride with the project in git: add a line for any of them to that file to keep it out.';
 function inGitRepo(dir){
   var d=path.resolve(dir);
   for(;;){
@@ -900,6 +903,24 @@ function modelsLine(seats,log){
   if(measured)measured.changes.forEach(function(c){ parts.push(modelChangeWords(c)); });
   seatFallbacks(seats,log).forEach(function(e){ parts.push(fallbackWords(e)); });
   return parts.length?parts.join(' '):null;
+}
+// The first result's two plain lines.
+// The rank: the second fresh reader, when it is named at its start, sits on a model the host
+// chose, by default the second most capable its agent tool offers. That rank is the host's own
+// judgment and no measure, and the first result says so; null when there is no second fresh
+// reader or it runs on the session's own model. (The first reader named at its start is a pick
+// of the person's, and no rank seated it.)
+function rankLine(seats){
+  var second=freshReaders(seats||[])[1];
+  if(!second||seatStart(second)!=='named')return null;
+  return 'The model '+second.id+' reads on is the host\'s choice, the second most capable its agent tool offers unless you picked one: that rank is the host\'s own, no measure ('+CMD_HELP_CREW+').';
+}
+// The links: no seat can open one, and every packet says so to the seat. The first result says
+// it to the person when the stored draft or brief holds an address; null when neither does.
+function linksNote(draftText,briefText){
+  var d=hasLink(draftText), b=hasLink(briefText);
+  if(!d&&!b)return null;
+  return 'The '+(d&&b?'draft and the brief hold':d?'draft holds':'brief holds')+' an address. No seat can open a link: its page is unread text to every seat. If the page\'s words matter, paste them into the draft or the brief.';
 }
 // The crew a run is left with when no outside seat is registered, in words for the Seats line.
 function crewAloneWords(seats){
@@ -2008,7 +2029,7 @@ module.exports={
   READER_FILE:READER_FILE,READER_HEADING:READER_HEADING,READER_SHOWN:READER_SHOWN,readerPath:readerPath,readReader:readReader,readerWords:readerWords,
   BRIEF_UPDATE_RE:BRIEF_UPDATE_RE,BRIEF_UPDATE_SHOWN:BRIEF_UPDATE_SHOWN,briefUpdateParagraph:briefUpdateParagraph,newestBriefUpdate:newestBriefUpdate,briefUpdateWords:briefUpdateWords,
   URL_RE:URL_RE,VAULT_FILE:VAULT_FILE,VAULT_REL:VAULT_REL,VAULT_HEADING:VAULT_HEADING,VAULT_INTRO:VAULT_INTRO,vaultPath:vaultPath,stripScheme:stripScheme,hostOf:hostOf,canonMatch:canonMatch,pageText:pageText,matchWords:matchWords,whenUtc:whenUtc,dateUtc:dateUtc,NO_TIME:NO_TIME,NO_DATE:NO_DATE,shippedLine:shippedLine,championEvents:championEvents,championNextLine:championNextLine,
-  copyOf:copyOf,capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,READ_WHOLE_CHARS:READ_WHOLE_CHARS,READ_REFUSED_BYTES:READ_REFUSED_BYTES,readWarning:readWarning,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,packetHead:packetHead,FENCES:FENCES,fenceMark:fenceMark,fenceLine:fenceLine,fenceMarkLine:fenceMarkLine,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,copyShare:copyShare,rewriteCopy:rewriteCopy,copyMark:copyMark,COPY_SHARE:COPY_SHARE,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,NO_WORDS:NO_WORDS,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,VOICE_ORDER:VOICE_ORDER,voiceTier:voiceTier,voiceBase:voiceBase,voiceRank:voiceRank,isFenceLine:isFenceLine,plainSpoken:plainSpoken,spokenPlain:spokenPlain,draftParts:draftParts,draftPartsLines:draftPartsLines,PARTS_HEADING:PARTS_HEADING,PARTS_LINE:PARTS_LINE,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
+  rankLine:rankLine,linksNote:linksNote,CMD_HELP_CREW:CMD_HELP_CREW,copyOf:copyOf,capSent:capSent,contractSent:contractSent,estimateTokens:estimateTokens,packetSize:packetSize,PACKET_PARTS:PACKET_PARTS,roundBudget:roundBudget,budgetLine:budgetLine,budgetWarning:budgetWarning,budgetLines:budgetLines,READ_WHOLE_CHARS:READ_WHOLE_CHARS,READ_REFUSED_BYTES:READ_REFUSED_BYTES,readWarning:readWarning,sectionsSent:sectionsSent,SECTIONS_LINE:SECTIONS_LINE,SECTION_LABELS:SECTION_LABELS,LINKS_UNREAD_LINE:LINKS_UNREAD_LINE,hasLink:hasLink,sectionLabelOf:sectionLabelOf,answerSections:answerSections,sectionReasons:sectionReasons,roundContract:roundContract,roundTask:roundTask,taskLine:taskLine,kindLabel:kindLabel,packetHead:packetHead,FENCES:FENCES,fenceMark:fenceMark,fenceLine:fenceLine,fenceMarkLine:fenceMarkLine,PROMPT_FIRST_LINE:PROMPT_FIRST_LINE,SECTIONS_LINE_PROMPTED:SECTIONS_LINE_PROMPTED,REWRITE_LINE:REWRITE_LINE,REWRITE_BEGIN:REWRITE_BEGIN,REWRITE_END:REWRITE_END,asksRewrite:asksRewrite,rewriteOf:rewriteOf,rewriteReasons:rewriteReasons,rewriteSent:rewriteSent,copyShare:copyShare,rewriteCopy:rewriteCopy,copyMark:copyMark,COPY_SHARE:COPY_SHARE,announcedOrdinal:announcedOrdinal,TASK_KINDS:TASK_KINDS,ratingLine:ratingLine,roundAnswers:roundAnswers,latestOwnAnswer:latestOwnAnswer,latestOwnRating:latestOwnRating,flipInputs:flipInputs,wordCount:wordCount,NO_WORDS:NO_WORDS,draftFacts:draftFacts,draftFactsLine:draftFactsLine,draftFactsFull:draftFactsFull,FACTS_HEADING:FACTS_HEADING,VOICE_ORDER:VOICE_ORDER,voiceTier:voiceTier,voiceBase:voiceBase,voiceRank:voiceRank,isFenceLine:isFenceLine,plainSpoken:plainSpoken,spokenPlain:spokenPlain,draftParts:draftParts,draftPartsLines:draftPartsLines,PARTS_HEADING:PARTS_HEADING,PARTS_LINE:PARTS_LINE,oneLineWarning:oneLineWarning,ONE_LINE_WORDS:ONE_LINE_WORDS,RETRY_TARGET_RATIO:RETRY_TARGET_RATIO,retryTarget:retryTarget,SENTENCE_CUT_WINDOW:SENTENCE_CUT_WINDOW,truncateAnswer:truncateAnswer,truncationLine:truncationLine,contractOf:contractOf,parseRating:parseRating,checkAnswer:checkAnswer,
   normalizeQuote:normalizeQuote,attributedQuotes:attributedQuotes,checkFlip:checkFlip,
   STATE_SCHEMA:STATE_SCHEMA,STATE_FILE:STATE_FILE,pluginVersion:pluginVersion,noRoundsLine:noRoundsLine,truncationOf:truncationOf,stoppedOf:stoppedOf,stoppedMark:stoppedMark,withStopped:withStopped,stoppedLine:stoppedLine,missingReason:missingReason,missingWhy:missingWhy,MISSING_REASON_SHOWN:MISSING_REASON_SHOWN,roundCell:roundCell,finalCell:finalCell,finalText:finalText,runState:runState
 };

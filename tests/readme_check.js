@@ -173,7 +173,9 @@ check(!/environment variable|key file/.test(brings),'plugins/combat-writing/READ
 
 // The phrase "stands once" in any Markdown file outside PLAN.md, its two archive files and the release notes.
 var SKIP={'node_modules':1,'.git':1,'.venv':1,'results':1};
-function mdFiles(dir){ var out=[]; fs.readdirSync(dir).forEach(function(n){ if(SKIP[n])return; var p=path.join(dir,n); var st=fs.statSync(p); if(st.isDirectory()){ if(path.relative(root,p)==='.github/release-notes')return; out=out.concat(mdFiles(p)); } else if(/\.md$/.test(n)&&['PLAN.md','PLAN_ARCHIVE.md','PLAN_ARCHIVE_2.md'].indexOf(path.relative(root,p))<0)out.push(p); }); return out; }
+// A folder whose name opens with a dot is no page of the repository but `.github` (issue 261: an untracked folder a tool
+// leaves in a working tree, read here, made this file's count of checks differ between a working tree and a clean clone).
+function mdFiles(dir){ var out=[]; fs.readdirSync(dir).forEach(function(n){ if(SKIP[n]||(n.charAt(0)==='.'&&n!=='.github'))return; var p=path.join(dir,n); var st=fs.statSync(p); if(st.isDirectory()){ if(path.relative(root,p)==='.github/release-notes')return; out=out.concat(mdFiles(p)); } else if(/\.md$/.test(n)&&['PLAN.md','PLAN_ARCHIVE.md','PLAN_ARCHIVE_2.md'].indexOf(path.relative(root,p))<0)out.push(p); }); return out; }
 mdFiles(root).forEach(function(p){ read(path.relative(root,p)).split('\n').forEach(function(l,i){ check(l.indexOf('stands once')<0,path.relative(root,p)+':'+(i+1)+': says the credit line "stands once"; it stands at the foot of the help card and of the help guide'); }); });
 
 failures.forEach(function(f){console.log('FAIL '+f);});
