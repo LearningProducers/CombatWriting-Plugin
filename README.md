@@ -21,7 +21,7 @@ Node must be on your PATH. The Claude Code version the plugin needs, what one in
 
 The four entries of [hooks/hooks.json](plugins/combat-writing/hooks/hooks.json), in its order. Each command asks first whether Node runs. Where the last column says nothing is stopped, that is what Claude Code's hooks reference says of a hook that fails on that event; the fence's stop was measured in a real session.
 
-| Event | Matched to | What it does | When it cannot run |
+| Event | Matched to | What it does | When the hook fails |
 |---|---|---|---|
 | `SessionStart` | `startup`, `resume` | Hands the host one line of context, "Combat Writing ready. /cw:help for the guide.", and prints nothing to you. When the install still lacks something, it adds that as context, once where it can record that it did. | Nothing is stopped: the session starts without the line. With no Node, it prints one line that says Node is missing. |
 | `PreToolUse` | `Read`, `Write`, `Agent`, `Task` | The seat fence. It holds a fresh reader's Read to its own packet and answer file, its Write to that answer file, and the start of a reader to that seat's record. A call that is not a reader's and starts none passes. | When the hook cannot start, exits with an error or runs past five seconds, the call is stopped, yours included: a Read, a Write or a start of an agent. With no Node, the fence refuses the plugin's reader and lets your own calls through, with the two exceptions the plugin's README names. |

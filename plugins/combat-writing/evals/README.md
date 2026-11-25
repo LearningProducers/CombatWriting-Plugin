@@ -18,7 +18,7 @@ The source-available plugin and these cases are under the license in the plugin'
 
 ## Running
 
-From the repository root, with Claude Code 2.1.269 or later:
+From the repository root, on the Claude Code version the plugin needs or a later one (the plugin's README names it, under "Install"; the `claude plugin eval` command itself is older than that, from 2.1.269):
 
 ```
 claude plugin eval plugins/combat-writing --trust-plugin --no-publish --allow-tools Bash Write Agent Task --max-cost-usd 20
