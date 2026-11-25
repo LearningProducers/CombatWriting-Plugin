@@ -70,7 +70,7 @@ if(hooks){
     // A tool hook's command opens with its filter (issue 261; tests/no_node_check.js holds the filter and runs it), and the judge
     // behind the filter and the judge with no sed are one text: that judge is what is held here, as the whole command was before.
     var whole=String(c.hook.command), rest=whole.split('${CLAUDE_PLUGIN_ROOT}').join('');
-    var behind=/^if command -v sed >\/dev\/null 2>&1(?: && command -v grep >\/dev\/null 2>&1)?; then sed -n -E '[^']+' \| if read -r first; then (.+); fi; else (.+); fi$/.exec(whole);
+    var behind=/^if command -v sed >\/dev\/null 2>&1(?: && command -v grep >\/dev\/null 2>&1)?; then LC_ALL=C sed -n -E '[^']+' \| if read -r first; then (.+); fi; else (.+); fi$/.exec(whole);
     check(c.event==='SessionStart'?!behind:!!behind&&behind[1]===behind[2],'hooks.json: the '+c.event+' command must '+(c.event==='SessionStart'?'carry no filter':'open with its filter and carry one judge, behind the filter and with no sed')+', got '+JSON.stringify(whole));
     var cmd=behind?behind[1]:whole;
     check(c.hook.type==='command'&&/^if node --version >\/dev\/null 2>&1; then node "\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/[a-z-]+\.js"; (?:fi|else .+; fi)$/.test(cmd)&&(cmd.match(/\bnode "/g)||[]).length===1&&(cmd.match(/(?:^|[ ;])node /g)||[]).length===2&&!/[`]|\$\(|\$\{|\$[A-Za-z_]/.test(rest)&&c.hook.args===undefined,'hooks.json: the '+c.event+' command must ask whether node runs (node --version), then run node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.js" once with no argument, and name no other variable, got '+JSON.stringify(c.hook.command)+(c.hook.args!==undefined?' args '+JSON.stringify(c.hook.args):''));

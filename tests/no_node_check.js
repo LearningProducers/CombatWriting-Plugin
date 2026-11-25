@@ -81,13 +81,13 @@ check(!!fence&&fence.hook.onFailure==='block','hooks.json: the fence keeps onFai
 [start,fence].concat(results).filter(Boolean).forEach(function(c){
   var cmd=String(c.hook.command), bare=cmd.split('${CLAUDE_PLUGIN_ROOT}').join('');
   check(!/\$|`|[*?\[\]{}~]|\bcurl\b|\bwget\b|\beval\b|\b(?:sh|bash|python3?|node) -[ce]\b|\|\s*(sh|bash)\b|>\s*[^&\s\/]/.test(bare),'hooks.json: a hook command holds a variable other than ${CLAUDE_PLUGIN_ROOT}, a substitution, a wildcard character or a bracket, an inline program, a fetch, an eval, a pipe to a shell or a write to a file: '+cmd);
-  var programs=bare.replace(/'[^']*'/g,' ').replace(/"[^"]*"/g,' ').split(/;|&&|\|\||\|/).map(function(st){ st=st.trim(); while(/^(?:if|then|else|!)\s+/.test(st))st=st.replace(/^(?:if|then|else|!)\s+/,''); return st.split(/\s+/)[0]; }).filter(Boolean);
+  var programs=bare.replace(/'[^']*'/g,' ').replace(/"[^"]*"/g,' ').split(/;|&&|\|\||\|/).map(function(st){ st=st.trim(); while(/^(?:if|then|else|!|LC_ALL=C)\s+/.test(st))st=st.replace(/^(?:if|then|else|!|LC_ALL=C)\s+/,''); return st.split(/\s+/)[0]; }).filter(Boolean);
   var allowed=['command','node','sed','grep','cat','echo','exit','read','fi'];
   check(programs.every(function(p){ return allowed.indexOf(p)>=0; }),'hooks.json: a hook command starts something other than node, sed, grep and cat (and the shell\'s own words): '+JSON.stringify(programs)+' in '+cmd);
   // The filter is the first thing a tool hook's command runs, and Node is started only behind it.
   if(c!==start){
-    var m=/^if command -v sed >\/dev\/null 2>&1(?: && command -v grep >\/dev\/null 2>&1)?; then sed -n -E '([^']+)' \| if read -r first; then (.+); fi; else (.+); fi$/.exec(cmd);
-    check(!!m&&m[2]===m[3],'hooks.json: a tool hook\'s command must open with the filter (one sed, then one line read of what it printed) and run the same judge behind it as it runs with no sed: '+cmd);
+    var m=/^if command -v sed >\/dev\/null 2>&1(?: && command -v grep >\/dev\/null 2>&1)?; then LC_ALL=C sed -n -E '([^']+)' \| if read -r first; then (.+); fi; else (.+); fi$/.exec(cmd);
+    check(!!m&&m[2]===m[3],'hooks.json: a tool hook\'s command must open with the filter (one sed, run on bytes under LC_ALL=C, then one line read of what it printed) and run the same judge behind it as it runs with no sed: '+cmd);
     check(!!m&&/^\/([^\/]+)\/=;\/\1\/p$/.test(m[1]),'hooks.json: the filter prints a line number and then the input, for one pattern, and nothing else: '+(m&&m[1]));
   }
 });
@@ -108,7 +108,8 @@ try{
   var data=path.join(tmp,'data'); fs.mkdirSync(data); fs.writeFileSync(path.join(data,'first-session'),'{}\n');
   function runCmd(c,input,PATH){
     var cmd=String(c.hook.command).split('${CLAUDE_PLUGIN_ROOT}').join(plugin);
-    var r=cp.spawnSync(sh,['-c',cmd],{input:typeof input==='string'?input:JSON.stringify(input),encoding:'utf8',cwd:tmp,timeout:30000,env:{PATH:PATH,HOME:tmp,CLAUDE_PLUGIN_ROOT:plugin,CLAUDE_PLUGIN_DATA:data}});
+    // The commands are run under a UTF-8 locale, as a person's shell is, so the bytes case below is tried where it failed.
+    var r=cp.spawnSync(sh,['-c',cmd],{input:Buffer.isBuffer(input)||typeof input==='string'?input:JSON.stringify(input),encoding:'utf8',cwd:tmp,timeout:30000,env:{PATH:PATH,HOME:tmp,LANG:'en_US.UTF-8',CLAUDE_PLUGIN_ROOT:plugin,CLAUDE_PLUGIN_DATA:data}});
     return {status:r.status,out:String(r.stdout||''),err:String(r.stderr||'')};
   }
   var probe=cp.spawnSync(sh,['-c','command -v node'],{encoding:'utf8',env:{PATH:tools}});
@@ -133,6 +134,10 @@ try{
   var spaced=JSON.stringify(seatStart).replace('"subagent_type":"cw:seat"','"subagent_type" : "cw:seat"');
   var spacedWide=JSON.stringify(seatStart).replace('"subagent_type":"cw:seat"','"subagent_type":  \t"cw:seat"');
   var spacedOwn=JSON.stringify(seatRead).replace('"agent_type":"cw:seat"','"agent_type"  :  "cw:seat"');
+  // BYTES THAT ARE NO UTF-8 (found by the first fresh read of issue 261): under a UTF-8 locale `sed` stops on such input
+  // with "illegal byte sequence" and prints nothing, and `grep` finds nothing in it, so a reader's call that held such a
+  // byte passed the filter unjudged and, with no Node, passed the fence. Both programs run under LC_ALL=C, on bytes.
+  var badBytes=Buffer.concat([Buffer.from('{"session_id":"s","cwd":"/x","hook_event_name":"PreToolUse","tool_name":"Read","tool_input":{"file_path":"/x/'),Buffer.from([0xff,0xfe]),Buffer.from('.md"},"agent_id":"a1","agent_type":"cw:seat"}\n')]);
 
   // With no Node: the session start.
   var noNode=null; try{ noNode=fs.readFileSync(path.join(plugin,'hooks','no-node.json'),'utf8'); }catch(e){}
@@ -160,6 +165,7 @@ try{
     refused('the reader\'s own Read',seatRead);
     refused('the reader\'s own Read with two spaces on each side of the colon',spacedOwn);
     refused('the reader\'s own Write',seatWrite);
+    refused('the reader\'s own Read of a path that holds bytes that are no UTF-8',badBytes);
     refused('a call of the person\'s own that holds the reader\'s name as a whole quoted value (the case the pages name)',mineNamed);
     refused('a Write of the person\'s own whose text ends with the reader\'s name right after a double quote (the same case)',pre('Write',{file_path:path.join(tmp,'notes.md'),content:'The reader is "cw:seat'}));
     passes_('a Write of the person\'s own whose text holds the reader\'s name in double quotes anywhere before its end',pre('Write',{file_path:path.join(tmp,'notes.md'),content:'The reader is "cw:seat", by its full name.\n'}));
@@ -205,6 +211,8 @@ try{
     var s=starts(t[1],t[2],counted);
     check(s.n>=1,'the cost: '+t[0]+' must reach Node (the filter lets it through); '+s.n+' started, exit '+s.r.status);
   });
+  var bb=starts(fence,badBytes,counted), bbj=null; try{ bbj=JSON.parse(bb.r.out); }catch(e){}
+  check(bb.n>=1&&!!bbj&&bbj.hookSpecificOutput&&bbj.hookSpecificOutput.permissionDecision==='deny','the cost: a reader\'s call that holds bytes that are no UTF-8 must reach Node and be judged there (the filter runs on bytes); '+bb.n+' started, out '+JSON.stringify(bb.r.out.slice(0,160))+' err '+JSON.stringify(bb.r.err.slice(0,120)));
   var cr=starts(fence,seatGrep,counted), cj=null; try{ cj=JSON.parse(cr.r.out); }catch(e){}
   check(cr.r.status===0&&!!cj&&cj.hookSpecificOutput&&cj.hookSpecificOutput.permissionDecision==='deny','behind the filter the script reads the whole input: a reader\'s Grep is refused in the script\'s own words; got exit '+cr.r.status+' out '+JSON.stringify(cr.r.out.slice(0,200)));
   // A FENCE THAT CANNOT LOAD (issue 261): a node that runs (`--version` answers) and fails on any script.

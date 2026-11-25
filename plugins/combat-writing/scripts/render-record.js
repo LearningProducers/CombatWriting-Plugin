@@ -270,7 +270,8 @@ if(args.next===true){
     // The legend once per run: the first short form of the run prints it and logs that it did.
     var legendShown=log.some(function(e){return e.event==='legend.printed';});
     if(!legendShown){ s.push(lib.SCOREBOARD_LEGEND,''); lib.appendLog(runDir,{event:'legend.printed'}); }
-    // The first result of the run also says, once, whose rank seated a reader named at its start and that no seat opens a link.
+    // The first result after a round also says whose rank seated a reader named at its start and that no seat opens a link:
+    // with the legend, so one time among the results that follow a round. A run that began at strategy said both there too (below).
     var firstNotes=legendShown?[]:[lib.rankLine(seats),lib.linksNote(newestText,briefText)].filter(Boolean);
     firstNotes.forEach(function(l){ s.push(l,''); });
     var tableStart=out.indexOf('## Scoreboard');
@@ -285,7 +286,8 @@ if(args.next===true){
     // and which brief the run has (issue 65).
     if(newestFacts)s.push('','Draft: '+lib.draftFactsLine(newestFacts)+(oneLine?'\n'+oneLine:''));
     s.push('',lib.briefLine(createdLine,briefText));
-    // The first result (strategy stored the draft, nothing read it): whose rank seated a reader named at its start, and that no seat opens a link.
+    // The result before any round (strategy stored the draft, nothing read it): whose rank seated a reader named at its start, and
+    // that no seat opens a link. The first result after a round says both again, with the legend (above).
     [lib.rankLine(seats),lib.linksNote(newestText,briefText)].filter(Boolean).forEach(function(l){ s.push('',l); });
   }
   s.push('','Seat key: '+lib.seatKey(seats));

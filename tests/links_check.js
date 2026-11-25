@@ -114,7 +114,8 @@ check(/links are unread|cannot open a link/i.test(read(path.join(root,'plugins',
 
 // THE PERSON IS TOLD TOO (issue 261). Every packet tells the seat that no seat opens a link, and /cw:help rounds tells the
 // person who asks; nothing told the person whose stored draft or brief holds an address. The first short form of a run says
-// it: before any round, and with the legend at the first round; never when neither holds an address, and once a run.
+// it: before any round, and again with the legend at the first round (so two times on a run that began at strategy, one
+// on a run that began at a round); never when neither holds an address, and in no later short form.
 var NOTE_BOTH='The draft and the brief hold an address. No seat can open a link: its page is unread text to every seat. If the page\'s words matter, paste them into the draft or the brief.';
 var NOTE_DRAFT=NOTE_BOTH.replace('The draft and the brief hold','The draft holds'), NOTE_BRIEF=NOTE_BOTH.replace('The draft and the brief hold','The brief holds');
 check(lib.linksNote('See https://example.com/a.','Read https://example.org/page first.')===NOTE_BOTH&&lib.linksNote('See https://example.com/a.','plain')===NOTE_DRAFT&&lib.linksNote('plain','See https://example.com/a.')===NOTE_BRIEF&&lib.linksNote('plain','plain')===null&&lib.linksNote(null,null)===null,'lib.linksNote: names the draft, the brief or both, and is null when neither holds an address');

@@ -169,8 +169,8 @@ var crewLine=(short.split('\n').filter(function(l){return /^\*\*Crew:\*\*/.test(
 check(/Test Model A \(Anthropic\), seat-1; Test Model B \(Anthropic\), seat-2\. One company's models \(Anthropic\)\. Seat names come from the agent configuration/.test(crewLine),'short form: crew line should name both readers, got '+crewLine);
 check(/\*\*Seats:\*\* The crew add-on is not installed, so the crew is the two fresh readers \(one company's models\)/.test(short),'short form: the Seats line should name the two fresh readers');
 // WHOSE RANK (issue 261). Seat-2 sits on the second most capable model the host's agent tool offers, a rank the host makes
-// and no measure. The pages said so; the first result did not. The first short form of a run now says it once, naming the
-// fresh readers named at their start: before any round, and with the legend at the first round of a run that began there.
+// and no measure. The pages said so; the first result did not. The short form before any round now says it, and the first short form
+// after a round says it with the legend (two times on a run that began at strategy), of the second fresh reader when it is named at its start.
 var RANK='The model seat-2 reads on is the host\'s choice, the second most capable its agent tool offers unless you picked one: that rank is the host\'s own, no measure (/cw:help crew).';
 check(lib.rankLine(sj.seats)===RANK&&short.split('\n').indexOf(RANK)>0,'short form (before any round): the first result must say whose rank seated seat-2 (the fixture names both readers at their start; the line speaks of the second), got '+JSON.stringify(lib.rankLine(sj.seats))+' and a short form that '+(short.indexOf(RANK)>=0?'holds it':'does not hold it'));
 check(lib.rankLine(seats1)===null&&lib.rankLine([{id:'seat-1',start:'session'},{id:'seat-2',start:'session'}])===null&&lib.rankLine([{id:'seat-1',start:'session'},{id:'seat-2',start:'named',provider:'x'}])===null,'lib.rankLine: null when no fresh reader is named at its start (one reader on the session\'s model; two on it; an outside seat is no fresh reader)');

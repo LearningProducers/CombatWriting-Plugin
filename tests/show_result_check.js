@@ -324,7 +324,7 @@ check(renderWait===60000&&boardWait===15000,'show-result.js: the render window i
 // only when it names a result script (after a shell command) or the plugin's reader (after a start of an agent), so no
 // Node process starts on any other call; behind the filter, and with no sed, the judge as it was.
 var RESULT_JUDGE='if node --version >/dev/null 2>&1; then node "${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js"; fi';
-function behind(re){ return 'if command -v sed >/dev/null 2>&1; then sed -n -E \'/'+re+'/=;/'+re+'/p\' | if read -r first; then '+RESULT_JUDGE+'; fi; else '+RESULT_JUDGE+'; fi'; }
+function behind(re){ return 'if command -v sed >/dev/null 2>&1; then LC_ALL=C sed -n -E \'/'+re+'/=;/'+re+'/p\' | if read -r first; then '+RESULT_JUDGE+'; fi; else '+RESULT_JUDGE+'; fi'; }
 // The names in the filter after a shell command are the scripts the hook acts on, read from the hook's own patterns.
 var hookSrc=fs.readFileSync(hook,'utf8'), acted=['SHORT_RE','OPENER_RE','SPEAK_RE'].map(function(n){ return ((new RegExp('\\b'+n+'=/([a-z-]+)\\\\\\.js')).exec(hookSrc)||[])[1]; });
 check(acted.join(',')==='render-record,open-board,speak','the test\'s own ground: the three scripts the hook acts on, read from its patterns, got '+JSON.stringify(acted));

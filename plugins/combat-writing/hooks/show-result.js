@@ -38,7 +38,7 @@
 // print: it produced red refusals and the host waited out the loop cap. Retired by this hook.
 //
 // THE FILTER (issue 261). The two commands in hooks.json that run this file open with one `sed`
-// that prints the hook input, a line number first, only when it holds the name of one of the
+// (run under LC_ALL=C, on bytes, so input that is no UTF-8 does not stop it) that prints the hook input, a line number first, only when it holds the name of one of the
 // three scripts the hook acts on (after a shell command: render-record.js, open-board.js,
 // speak.js, in the command or in its output) or the plugin's reader's name (after a start of an
 // agent); the shell starts Node only when the filter printed. So after any other shell command

@@ -21,7 +21,10 @@
 // THE FILTER (issue 261). The command in hooks.json opens with one `sed` that reads the hook
 // input and prints it, a line number first, only when it holds the letters `cw:seat` or the
 // characters `\u00`, the way JSON writes a character as an escape; the shell reads that first
-// line and starts Node only when there was one. So a call that names no reader starts no Node
+// line and starts Node only when there was one. The `sed`, and the `grep` of a machine with no
+// Node, run under LC_ALL=C, on bytes: under a UTF-8 locale `sed` stops on a byte that is no UTF-8
+// and prints nothing, and `grep` finds nothing in such input, so a reader's call that held one
+// would have passed unjudged. So a call that names no reader starts no Node
 // process: measured on one machine, about 6 ms where the two Node processes cost about 50. What
 // the filter is trusted on: that the host writes the reader's name in the input as plain letters,
 // or as escapes of that form, which this file reads and `sed` cannot. Measured on the Claude Code

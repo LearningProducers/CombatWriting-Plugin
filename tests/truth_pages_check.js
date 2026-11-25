@@ -424,6 +424,13 @@ check(!/uses Read and Write only, reads two files/.test(fenceSrc)&&/no other too
 // call that runs the four result scripts, the same words in both. It is the host's writing; this holds only that the skills ask.
 var WAIT_LINE='give the shell call that runs these four scripts the description "Combat Writing: showing the result (on a Mac the voices can take up to a minute)"';
 ['battle','sparring'].forEach(function(n){ check(read(PLUGINS[0]+'/skills/'+n+'/SKILL.md').split(WAIT_LINE).length===2,PLUGINS[0]+'/skills/'+n+'/SKILL.md: must ask the host once for the one line the person reads while the hook renders the voices'); });
+// A fence that cannot load (issue 261, and the first fresh read of it: the listing README lagged the root README here).
+// Both READMEs say whose call is stopped when the fence's script is reached and fails: a reader's, or one of the person's
+// that holds the reader's name or a character written as an escape; neither says "yours included" of every matched call.
+['README.md',PLUGINS[0]+'/README.md'].forEach(function(rel){
+  var t=read(rel);
+  check(/when the fence's script is reached and then fails \(it cannot be read, or it stops on an error\) Claude Code stops the call it was asked about, where it would have let it through, and a hook that runs past its five seconds stops that one call: a reader's call, or a call of yours that holds the reader's name or a character written as an escape/.test(t)&&!/a Read, a Write or a start of an agent, yours included, where it would have let it through/.test(t),rel+': must say a fence that is reached and fails stops a reader\'s call or a call of yours that holds the reader\'s name or an escaped character, and no longer that it stops every Read, Write and start of an agent, yours included');
+});
 // The table's own heading (issue 261: no check held it): the four columns the rows above are read by, then the rule line.
 var faceHead=faceH2.length>2?faceLines.slice(faceH2[1],faceH2[2]).filter(function(l){ return /^\|/.test(l); }).slice(0,2):[];
 check(faceHead[0]==='| Event | Matched to | What it does | When the hook fails |'&&faceHead[1]==='|---|---|---|---|','README.md: the hooks table must open with its heading, the four columns Event, Matched to, What it does and When the hook fails, then the rule line; it opens '+JSON.stringify(faceHead));

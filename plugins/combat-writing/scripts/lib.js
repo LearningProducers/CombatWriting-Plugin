@@ -904,7 +904,8 @@ function modelsLine(seats,log){
   seatFallbacks(seats,log).forEach(function(e){ parts.push(fallbackWords(e)); });
   return parts.length?parts.join(' '):null;
 }
-// The first result's two plain lines.
+// The two plain lines of a run's first results: the short form before any round carries them, and so does the first
+// short form after a round, with the legend; a run that began at strategy therefore reads each two times.
 // The rank: the second fresh reader, when it is named at its start, sits on a model the host
 // chose, by default the second most capable its agent tool offers. That rank is the host's own
 // judgment and no measure, and the first result says so; null when there is no second fresh
