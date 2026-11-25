@@ -121,11 +121,11 @@ check(/plain HTTP/.test(privacy)&&/needs no key/.test(privacy),'PRIVACY.md: must
 check(!/calls no one else|is no party/.test(privacy)&&!/until the system clears/.test(privacy)&&!/neither asks you to make an account/.test(privacy)&&!/reads two environment variables/.test(privacy),'PRIVACY.md: a sentence the read found too wide or unproved stands in it');
 check(/redirect/.test(privacy),'PRIVACY.md: the shipped link is fetched with its redirects followed; the page must say so');
 check(/temporary folder/.test(privacy)&&/absolute/.test(privacy)&&/twenty/.test(privacy),'PRIVACY.md: must name the temporary folder, that the records\' paths are absolute, and the twenty sessions a start clears at the most');
-// Two older pages said the plugin writes nowhere but the project folder; the hooks' data folder and
-// the speech script's temporary files are outside it.
+// Two older pages said the plugin writes nowhere but the project folder; the hooks' data folder is
+// outside it, and until issue 261 the speech script's temporary files were (it writes none now).
 var listing=read(PLUGINS[0]+'/README.md'), helpSkill=read(PLUGINS[0]+'/skills/help/SKILL.md'), rules=read(PLUGINS[0]+'/skills/combat-writing/SKILL.md');
 [['the listing README',listing],['the help skill',helpSkill]].forEach(function(p){
-  check(/Nothing is written anywhere else in your project\. Outside it/.test(p[1])&&/temporary folder/.test(p[1])&&/data folder/.test(p[1]),p[0]+': its list of what is written must end on the project and then name the two places outside it, the data folder and the temporary folder');
+  check(/Nothing is written anywhere else in your project\. Outside it/.test(p[1])&&/temporary folder/.test(p[1])&&/data folder/.test(p[1]),p[0]+': its list of what is written must end on the project and then name the data folder, the one place outside it, and say what becomes of the temporary folder');
 });
 check(!/the scripts write only inside/.test(listing)&&!/They write only inside/.test(rules),'the listing README and the rules skill: "write only inside combat-writing/" leaves out the speech script\'s files in the temporary folder');
 check(!/Nothing is sent anywhere to speak\./.test(listing),'the listing README: "Nothing is sent anywhere to speak." speaks for every browser\'s voices; say what the plugin\'s own code does');
@@ -172,7 +172,7 @@ var WIDE=[
 });
 check(/first call/.test(rootReadme)&&/binds/.test(rootReadme),'README.md: must say a fresh reader\'s first call names its packet or its answer file and binds it to that start\'s record');
 check(/plain HTTP/.test(crewReadme),PLUGINS[1]+'/README.md: "over HTTPS" must name the exception, the local Ollama seat over plain HTTP');
-check(/temporary folder/.test(rootReadme)&&/data folder/.test(rootReadme),'README.md: what the plugin writes must name the two places outside the project');
+check(/temporary folder/.test(rootReadme)&&/data folder/.test(rootReadme),'README.md: what the plugin writes must name the data folder, the one place outside the project, and say what becomes of the temporary folder');
 
 // THE HOSTS.
 var declared=(crew.network&&Array.isArray(crew.network.hosts))?crew.network.hosts.slice().sort():null;
@@ -409,6 +409,21 @@ faceEntries.forEach(function(e,i){
   check(r.does.length>20&&(e.block?/the call is stopped/.test(r.fail)&&!/^Nothing is stopped/.test(r.fail):/^Nothing is stopped/.test(r.fail)),'README.md: row '+(i+1)+' of the hooks table ('+e.ev+', '+e.matcher+') must say what the hook does, and that '+(e.block?'the call is stopped when the hook fails (the entry sets onFailure "block")':'nothing is stopped when it fails (the entry sets no onFailure)'));
 });
 
+// The loose sentences in code (issue 261): Part 150 set them right on the pages. That the fence holds a reader to Read
+// and Write only stood in the rules skill, the agent file's text and the fence's own header: the agent file's `tools:` line
+// does that, and the hook holds the two files and the start. And two skill descriptions said every result ends with a picker.
+var rulesSkill=read(PLUGINS[0]+'/skills/combat-writing/SKILL.md'), seatFile=read(PLUGINS[0]+'/agents/seat.md'), fenceSrc=read(PLUGINS[0]+'/hooks/seat-scope.js');
+check(!/lets the `seat` agent use Read and Write only/.test(rulesSkill)&&/Read and Write are its only tools, by its agent file's `tools:` line/.test(rulesSkill),PLUGINS[0]+'/skills/combat-writing/SKILL.md: must not say the hook lets the seat use Read and Write only; the agent file\'s `tools:` line gives a reader its two tools');
+check(!/or any tool but Read and Write, is refused/.test(seatFile)&&/Read and Write are the only tools you are given, and the plugin's hook holds you to the two files/.test(seatFile),PLUGINS[0]+'/agents/seat.md: must not tell a reader that the hook refuses any tool but Read and Write; it is given those two alone, and the hook holds it to the two files');
+check(!/uses Read and Write only, reads two files/.test(fenceSrc)&&/no other tool by its agent file's `tools:` line, which the host applies/.test(fenceSrc),PLUGINS[0]+'/hooks/seat-scope.js: its header must not say the hook holds a reader to Read and Write only');
+['battle','sparring'].forEach(function(n){
+  var d=(/^description: (.+)$/m.exec(read(PLUGINS[0]+'/skills/'+n+'/SKILL.md'))||[])[1]||'';
+  check(/ends with a picker for the next round, unless you switched it off\./.test(d)&&!/ends with a picker for the next round\./.test(d),PLUGINS[0]+'/skills/'+n+'/SKILL.md: its description must not say every result ends with a picker without the off switch');
+});
+// The wait (issue 261): a hook cannot say a line before it ends, so the two round skills hand the host one line for the shell
+// call that runs the four result scripts, the same words in both. It is the host's writing; this holds only that the skills ask.
+var WAIT_LINE='give the shell call that runs these four scripts the description "Combat Writing: showing the result (on a Mac the voices can take up to a minute)"';
+['battle','sparring'].forEach(function(n){ check(read(PLUGINS[0]+'/skills/'+n+'/SKILL.md').split(WAIT_LINE).length===2,PLUGINS[0]+'/skills/'+n+'/SKILL.md: must ask the host once for the one line the person reads while the hook renders the voices'); });
 // The table's own heading (issue 261: no check held it): the four columns the rows above are read by, then the rule line.
 var faceHead=faceH2.length>2?faceLines.slice(faceH2[1],faceH2[2]).filter(function(l){ return /^\|/.test(l); }).slice(0,2):[];
 check(faceHead[0]==='| Event | Matched to | What it does | When the hook fails |'&&faceHead[1]==='|---|---|---|---|','README.md: the hooks table must open with its heading, the four columns Event, Matched to, What it does and When the hook fails, then the rule line; it opens '+JSON.stringify(faceHead));

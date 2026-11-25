@@ -11,7 +11,7 @@
     {
       "name": "cw",
       "source": "./plugins/combat-writing",
-      "version": "0.9.27",
+      "version": "0.9.28",
       "description": "Combat Writing (/cw) for Claude Code: two fresh readers attack your draft. Each rates it 1 to 10, 7 forbidden, and says why. They read each other in the sharing rounds and rate again when you ask. With the add-on, combat-writing-crew, other companies' models join the crew on your own API keys, in the second reader's chair.",
       "dependencies": [
         "combat-writing-crew"

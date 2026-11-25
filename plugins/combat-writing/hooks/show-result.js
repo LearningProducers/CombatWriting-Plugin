@@ -37,6 +37,15 @@
 // picker until the host printed (hooks/host-output.js, issues 60 and 68) could not make it
 // print: it produced red refusals and the host waited out the loop cap. Retired by this hook.
 //
+// THE FILTER (issue 261). The two commands in hooks.json that run this file open with one `sed`
+// that prints the hook input, a line number first, only when it holds the name of one of the
+// three scripts the hook acts on (after a shell command: render-record.js, open-board.js,
+// speak.js, in the command or in its output) or the plugin's reader's name (after a start of an
+// agent); the shell starts Node only when the filter printed. So after any other shell command
+// and any other agent's start no Node process starts: measured on one machine, about 6 ms where
+// the two Node processes cost about 50. With no `sed` the command runs with no filter, as before.
+// What follows is unchanged: this file still asks whether the command ran a script on a real run.
+//
 // THE REAL RUN (issue 235). The hook runs outside the sandbox the host's shell runs in, so what
 // it acts on is held to one thing: a real run folder. A command counts only when the segment that
 // names one of the scripts also carries a --run value (a backslash at a line's end joins the two

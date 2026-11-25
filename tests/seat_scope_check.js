@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // seat_scope_check.js: the seat's reach (ruled 2026-10-16). hooks/seat-scope.js is a PreToolUse
-// hook on Read, Write and the tool that starts an agent: a seat (agent_type cw:seat) uses Read and Write only, reads only its own
+// hook on Read, Write and the tool that starts an agent: a seat (agent_type cw:seat, whose only tools are Read and Write by its agent file) reads only its own
 // packet and its own answer file and writes only that answer file, judged on the resolved path
 // (issue 239; it read anything inside its run folder until then); any other tool and
 // any path the hook cannot place is denied; every other caller is left alone but for one call,
@@ -557,7 +557,7 @@ check(foreign.length===0,'the hook wrote something in the data folder that is no
 var hooks=JSON.parse(fs.readFileSync(path.join(plugin,'hooks','hooks.json'),'utf8'));
 // The matcher (issue 255): the two tools a seat holds and the two names of the tool that starts an agent. A seat holds no
 // other tool (agents/seat.md declares Read and Write), so the hook is asked about every call a seat can make and every start,
-// and about no other call of the person's. The command asks first whether node runs; tests/no_node_check.js pins what follows with none.
+// and about no other call of the person's. The command opens with its filter and asks behind it whether node runs; tests/no_node_check.js pins the filter and what follows with no Node.
 var pre=hooks.hooks.PreToolUse||[];
 check(pre.length===1&&pre[0].matcher==='Read|Write|Agent|Task'&&pre[0].hooks.length===1&&pre[0].hooks[0].type==='command'&&String(pre[0].hooks[0].command).split('if node --version >/dev/null 2>&1; then node "${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js"; else ').length===3&&String(pre[0].hooks[0].command).indexOf('if command -v sed >/dev/null 2>&1 && command -v grep >/dev/null 2>&1; then sed -n -E ')===0&&typeof pre[0].hooks[0].timeout==='number'&&pre[0].hooks[0].timeout<=10,'hooks.json: the one PreToolUse entry must be matched to Read|Write|Agent|Task and run seat-scope.js when node is there, behind the filter and, with no sed or no grep, without it (tests/no_node_check.js pins the filter), with a short timeout: '+JSON.stringify(pre));
 // THE FENCE FAILS CLOSED (issue 239). A hook that cannot start, exits with an error or runs past
