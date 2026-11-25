@@ -46,7 +46,7 @@
 //   - The plugin README's card, between its markers, is the skill's card with its markdown
 //     stripped (bold and code spans), line for line, and its /cw:help bullet names the card, all
 //     with the live line, and a topic; no sentence in it says a line prints under the card.
-//   - The manifest description names the card; CLAUDE.md names the markers, and RULINGS.md, the
+//   - The manifest description names /cw:help as the place to start (issue 260: the description is short); CLAUDE.md names the markers, and RULINGS.md, the
 //     record behind it since issue 224, names issue 74 and issue 160.
 //
 // Run from the repo root:   node tests/help_check.js
@@ -185,7 +185,7 @@ check(rb>0&&re>rb&&readme.slice(rb+BEGIN.length,re).replace(/^\n+|\n+$/g,'')==='
 check(/^- `\/cw:help` bare is the card: what Combat Writing is in one line, the four stages with their commands, the line to begin with, then one keypress picks a stage and your next message is its text \(typing `\/cw` alone completes to it\)\. `\/cw:help all` is the guide in plain words, under 450 words, with one live line naming the seats that sit right now; `\/cw:help <topic>` one section of the full guide\.$/m.test(readme),'README: the /cw:help bullet');
 check(readme.indexOf('under the card')<0&&readme.indexOf('under it the seats')<0,'README: no sentence says a line prints under the card');
 var manifest=JSON.parse(read(path.join(plugin,'.claude-plugin','plugin.json')));
-check(/\/cw:help, bare, is the card and a picker to begin; \/cw:help all explains the method\./.test(manifest.description),'manifest: the description names the card and all');
+check(/\/cw:help\b/.test(manifest.description)&&manifest.description.length<=300,'manifest: the description names /cw:help as the place to start, in 300 characters or fewer (issue 260); it is '+manifest.description.length);
 var claude=read(path.join(root,'CLAUDE.md')), rulings=read(path.join(root,'RULINGS.md'));
 // Issue 226: the markers' sentence left the wall (the checks above hold the card and the guide between them); RULINGS.md carries it, and the wall's bullet names this check.
 check(/issue 74, 2026-10-26/.test(rulings)&&/between its two marker comments/.test(rulings)&&/pinned equal by `tests\/help_check\.js`/.test(rulings)&&new RegExp('^- Output is organized and easy on the eyes[^\\n]* Held by: [^\\n]*tests/help_check\\.js','m').test(claude),'RULINGS.md (issues 224 and 226): names the markers, this check and issue 74; CLAUDE.md: the bullet names this check');

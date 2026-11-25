@@ -35,8 +35,10 @@
 //   - The root README's "Run the checks" section names the command, `node tests/run_all.js`,
 //     the `claude` CLI for the validate step, uv for the screen's tests, and the documentation
 //     page that names the Claude Code version the one-step install line needs (a version has a
-//     home, second_copy_check.js: the root README points, the plugin README carries it beside
-//     its install line); every `--flag` the section names is one tests/run_all.js reads, and
+//     home, second_copy_check.js: the root README points, the add-on's README carries it beside
+//     its install line, and the plugin's README names the later version the plugin needs, the one
+//     floor: equal to the version the fence's header names for onFailure, with its reason, and no
+//     Markdown file in the plugin's folder names another "or later" version; issue 260); every `--flag` the section names is one tests/run_all.js reads, and
 //     `--profile directory`, the validator's directory profile, is named there and read there.
 //   - The key sentence in the plugin README's "What one install brings": with no key the
 //     add-on can find, the crew is its two fresh readers, and where a key is read from is the
@@ -136,11 +138,29 @@ crewReadme.split('\n').forEach(function(l,i){
   var missing=commandSkills.filter(function(n){ return l.indexOf('/cw:'+n)<0; });
   check(missing.length===0,'plugins/combat-writing-crew/README.md:'+(i+1)+': lists the cw commands and leaves out /cw:'+missing.join(', /cw:'));
 });
-// The plugin README carries the version beside its one-step install line, as the add-on's does.
+// One floor (issue 260). The plugin README named the version its one-step install line needs, and the seat fence
+// stops a call on a failed hook through a setting, onFailure, that Claude Code reads from a later version: between
+// the two the fence fails open. The Install section names one version, the one the plugin needs, equal to the version
+// the fence's own header names for that setting; every "Claude Code X or later" in the file is that version; and the
+// add-on's install line needs no later one.
 var cwInstall=sectionOf(p,'Install');
-check(/--marketplace/.test(cwInstall)&&/Claude Code \d+\.\d+\.\d+ or later/.test(cwInstall),'plugins/combat-writing/README.md: the Install section does not name the Claude Code version its install line needs');
 var need=function(t){ return (/Claude Code (\d+\.\d+\.\d+) or later/.exec(t)||[])[1]; };
-check(need(cwInstall)===need(sectionOf(crewReadme,'Install')),'the two plugin READMEs name different Claude Code versions for the same install line: '+need(cwInstall)+' and '+need(sectionOf(crewReadme,'Install')));
+var floor=(/the field is read by Claude Code\s*(?:\/\/\s*)?(\d+\.\d+\.\d+) and later/.exec(read('plugins/combat-writing/hooks/seat-scope.js'))||[])[1];
+var newer=function(a,b){ var x=String(a).split('.').map(Number), y=String(b).split('.').map(Number); for(var i=0;i<3;i++){ if(x[i]!==y[i])return x[i]>y[i]; } return false; };
+check(!!floor,'hooks/seat-scope.js: its header must name the Claude Code version that reads onFailure ("the field is read by Claude Code X and later")');
+check(/--marketplace/.test(cwInstall)&&/The plugin needs Claude Code \d+\.\d+\.\d+ or later/.test(cwInstall)&&need(cwInstall)===floor,'plugins/combat-writing/README.md: the Install section must say "The plugin needs Claude Code '+floor+' or later", the version from which the seat fence stops a call when its hook fails; it names '+need(cwInstall));
+var laters=(p.match(/Claude Code \d+\.\d+\.\d+ or later/g)||[]).map(need).filter(function(v,i,a){ return a.indexOf(v)===i; });
+check(laters.length===1&&laters[0]===floor,'plugins/combat-writing/README.md: names more than one "Claude Code X or later", or one that is not the plugin\'s floor: '+laters.join(', '));
+check(/onFailure/.test(cwInstall)&&/lets the call through/.test(cwInstall)&&/cannot start, exits with an error or runs past/.test(cwInstall)&&!/when its hook cannot run/.test(cwInstall),'plugins/combat-writing/README.md: the Install section must give the floor\'s reason in a sentence: the setting, onFailure, that an earlier Claude Code lets the call through, and when the fence stops a call in the fence\'s own words (its hook cannot start, exits with an error or runs past its time), never "cannot run", which the same page says of a machine with no Node, where nothing is stopped');
+// No second floor inside the plugin's folder: every Markdown file there that says "Claude Code X or later" names the floor.
+var pluginMd=[]; (function walk(d){ fs.readdirSync(d).forEach(function(n){ var q=path.join(d,n), st=fs.statSync(q); if(st.isDirectory()){ if(n!=='results'&&n!=='node_modules'&&n.charAt(0)!=='.')walk(q); } else if(/\.md$/.test(n))pluginMd.push(q); }); })(path.join(root,'plugins','combat-writing'));
+check(pluginMd.length>5,'the test\'s own ground: the Markdown files of the plugin\'s folder were not found');
+pluginMd.forEach(function(f){
+  var other=(fs.readFileSync(f,'utf8').match(/Claude Code \d+\.\d+\.\d+ or later/g)||[]).map(need).filter(function(v){ return v!==floor; });
+  check(other.length===0,path.relative(root,f)+': names a Claude Code version "or later" that is not the plugin\'s floor: '+other.join(', '));
+});
+var crewNeed=need(sectionOf(crewReadme,'Install'));
+check(!!crewNeed&&!newer(crewNeed,floor),'the add-on\'s README names a Claude Code version for its install line that is later than the plugin\'s floor: '+crewNeed+' against '+floor);
 
 // The key sentence: no key the add-on can find, and a pointer, never a copied list.
 var brings=p.split('\n').filter(function(l){ return l.indexOf('**What one install brings.**')===0; })[0]||'';

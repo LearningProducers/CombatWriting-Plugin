@@ -349,6 +349,60 @@ var crewPage=read('docs/directory-checklist-crew.md');
 var portalRows=crewPage.split('\n').filter(function(l){ return /^\| A name no other organization's plugin uses/.test(l)||/^\| `name`, `displayName` and `author\.name` not mistakable/.test(l); });
 check(portalRows.length===2&&portalRows.every(function(l){ return l.split('|')[2].trim()==='portal'; })&&!/pass \(the portal confirms\)/.test(crewPage),'docs/directory-checklist-crew.md: the two rows on the name and its look-alikes are the portal\'s to settle and must read `portal`, as the `cw` page\'s row does; found '+JSON.stringify(portalRows.map(function(l){ return l.split('|')[2].trim(); })));
 
+// THE LISTING'S FACE (issue 260). What a stranger meets first says what the directory's copy does when read alone.
+// The manifest's description is 300 characters or fewer; it and the marketplace's entry for `cw` say two fresh
+// readers, that other companies' models are the add-on's, that a seat rates again when the person asks, and that
+// seats read each other in the sharing rounds; neither says every result ends with a picker (the picker can be
+// switched off for a project).
+var faceDesc=String(cw.description||''), faceEntry=String((((json('.claude-plugin/marketplace.json').plugins||[]).filter(function(e){ return e.name==='cw'; })[0])||{}).description||'');
+check(faceDesc.length>0&&faceDesc.length<=300,PLUGINS[0]+'/.claude-plugin/plugin.json: the description must be 300 characters or fewer; it is '+faceDesc.length);
+[[PLUGINS[0]+'/.claude-plugin/plugin.json: the description',faceDesc],['.claude-plugin/marketplace.json: the entry for cw',faceEntry]].forEach(function(d){
+  check(/two fresh (?:AI )?readers/.test(d[1]),d[0]+' must say the crew is two fresh readers');
+  check(/add-on/.test(d[1])&&/other companies' models/i.test(d[1]),d[0]+' must say other companies\' models are the add-on\'s');
+  check(/rate again when you ask/.test(d[1]),d[0]+' must say a seat rates again when you ask');
+  check(/in the sharing rounds/.test(d[1])&&!/reads each other in battle/.test(d[1]),d[0]+' must say the seats read each other in the sharing rounds, not in every battle round');
+  check(!/ends with a picker/.test(d[1]),d[0]+' says every result ends with a picker; the picker can be switched off for a project');
+  check(/Claude Code/.test(d[1])&&/7 forbidden/.test(d[1]),d[0]+' must name Claude Code and the rating rule, 7 forbidden');
+});
+check(!/description names (?:the seven commands|what ships, the seven commands)/.test(read('docs/directory-checklist.md')),'docs/directory-checklist.md: two rows say the description names the seven commands, the record and the board; the short description names none of them');
+check(!/README and the description/.test(read('docs/directory-checklist.md')),'docs/directory-checklist.md: says the README and the description disclose the one link the host opens; the short description names no link, and the README and the privacy page disclose it');
+check(!/asked about Read and Write alone/.test(read('docs/directory-checklist.md'))&&/the fence is asked about Read, Write and the start of an agent/.test(read('docs/directory-checklist.md')),'docs/directory-checklist.md: says the fence is asked about Read and Write alone; hooks.json matches it to Read, Write and the two names of the tool that starts an agent');
+check(/not in (?:this|the Claude plugin) directory/.test(faceDesc),PLUGINS[0]+'/.claude-plugin/plugin.json: the description must say the add-on is not in the directory');
+// Three claims that said more than the code, on the two READMEs. Which of the two holds a reader to Read and Write:
+// the agent file's `tools:` line, not the hook. What the board loads: nothing from the network; it links the run's
+// record and plays the run's own audio files. And the name `seat`: an agent of the person's own named exactly so is
+// taken for the plugin's reader with Node present too, which the two READMEs, the privacy page and the map say.
+['README.md',PLUGINS[0]+'/README.md'].forEach(function(rel){
+  var t=read(rel);
+  check(!/holds every fresh reader to Read and Write only/.test(t)&&/its `tools:` line/.test(t)&&/`agents\/seat\.md`/.test(t),rel+': must not say the hook holds a reader to Read and Write only; that is the agent file\'s `tools:` line (`agents/seat.md`), and the hook holds the two files and the start');
+  check(!/loads nothing from anywhere/.test(t)&&/loads nothing from the network/.test(t)&&/audio files/.test(t)&&/links the run's own `record\.md`/.test(t),rel+': must say the board loads nothing from the network, and name what it does use: the link to the run\'s own record.md and the run\'s own audio files');
+});
+check(/^tools: Read, Write$/m.test(read(PLUGINS[0]+'/agents/seat.md')),'the test\'s own ground: agents/seat.md gives a reader Read and Write and no other tool');
+check(/new Audio\(/.test(read(PLUGINS[0]+'/scripts/render-board.js'))&&/href="record\.md"/.test(read(PLUGINS[0]+'/scripts/render-board.js')),'the test\'s own ground: the board plays audio files and links record.md');
+var seatTypes=(/var SEAT_TYPES=\[([^\]]*)\]/.exec(read(PLUGINS[0]+'/hooks/seat-scope.js'))||[])[1]||'';
+check(/'cw:seat'/.test(seatTypes)&&/'seat'/.test(seatTypes.replace(/'cw:seat'/,'')),'the test\'s own ground: the fence takes an agent named `seat` for the plugin\'s reader (SEAT_TYPES holds it); when the name leaves the code, the pages\' sentence leaves with it');
+['README.md',PLUGINS[0]+'/README.md','PRIVACY.md','docs/plugin-map.md'].forEach(function(rel){
+  check(/[Ww]ith Node present, an agent of your own named exactly `seat` is taken for the plugin's reader too/.test(read(rel)),rel+': must say an agent of your own named exactly `seat` is taken for the plugin\'s reader with Node present too, not only when Node is missing');
+});
+// The root README's first screen: after the motto, three lines of what the plugin is, then the install line, then a
+// table of the hook entries, one row an entry of hooks/hooks.json in its order: the event, what it is matched to,
+// what it does, and what happens when it fails (a call is stopped only where the entry sets onFailure "block"). The
+// cell on what a hook does is held by its length alone: its words are a reader's to judge.
+var faceLines=read('README.md').split('\n'), faceMotto=faceLines.indexOf('**Reading is Peace. Writing is War.**'), faceH2=faceLines.map(function(l,i){ return /^## /.test(l)?i:-1; }).filter(function(i){ return i>=0; });
+var faceOpen=faceMotto>=0&&faceH2.length?faceLines.slice(faceMotto+1,faceH2[0]).filter(function(l){ return l.trim(); }):[];
+check(faceOpen.length===3&&faceOpen.every(function(l){ return l.length<=320; }),'README.md: between the motto and the first heading stand three lines of what the plugin is, each 320 characters or fewer; found '+faceOpen.length+' ('+faceOpen.map(function(l){ return l.length; }).join(', ')+')');
+check(faceH2.length>1&&faceLines[faceH2[0]]==='## Install'&&faceLines.slice(faceH2[0],faceH2[1]).indexOf('/plugin install cw --marketplace LearningProducers/CombatWriting-Plugin')>=0,'README.md: the first heading must be "## Install", with the install line under it');
+check(faceH2.length>2&&faceLines[faceH2[1]]==='## The hooks','README.md: the second heading must be "## The hooks"');
+var faceRows=faceH2.length>2?faceLines.slice(faceH2[1],faceH2[2]).filter(function(l){ return /^\| `/.test(l); }).map(function(l){ var c=l.split('|').map(function(x){ return x.trim(); }); return {ev:c[1].replace(/`/g,''),matcher:(c[2].match(/`[^`]+`/g)||[]).map(function(x){ return x.replace(/`/g,''); }).join('|'),does:c[3]||'',fail:c[4]||''}; }):[];
+var faceHooks=json(PLUGINS[0]+'/hooks/hooks.json').hooks||{}, faceEntries=[];
+Object.keys(faceHooks).forEach(function(ev){ faceHooks[ev].forEach(function(e){ faceEntries.push({ev:ev,matcher:String(e.matcher||''),block:(e.hooks||[]).some(function(h){ return h.onFailure==='block'; })}); }); });
+check(faceEntries.length>0&&faceRows.length===faceEntries.length,'README.md: the hooks table must hold one row an entry of hooks/hooks.json: '+faceRows.length+' rows, '+faceEntries.length+' entries');
+faceEntries.forEach(function(e,i){
+  var r=faceRows[i]||{ev:'',matcher:'',does:'',fail:''};
+  check(r.ev===e.ev&&r.matcher===e.matcher,'README.md: row '+(i+1)+' of the hooks table must be '+e.ev+' matched to '+e.matcher+'; it is '+r.ev+' matched to '+r.matcher);
+  check(r.does.length>20&&(e.block?/the call is stopped/.test(r.fail)&&!/^Nothing is stopped/.test(r.fail):/^Nothing is stopped/.test(r.fail)),'README.md: row '+(i+1)+' of the hooks table ('+e.ev+', '+e.matcher+') must say what the hook does, and that '+(e.block?'the call is stopped when the hook fails (the entry sets onFailure "block")':'nothing is stopped when it fails (the entry sets no onFailure)'));
+});
+
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'truth_pages_check: '+failures.length+' failure(s), ':'truth_pages_check: all passed, ')+passes+' checks');
 process.exit(failures.length?1:0);
