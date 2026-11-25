@@ -17,11 +17,13 @@
 //     whose one command hook runs node on a file inside the plugin, named through
 //     ${CLAUDE_PLUGIN_ROOT}, with no argument (Part 128: the data folder reaches the script in its
 //     environment), no other variable, substitution or launcher.
-//   - Every command in hooks.json opens the same way (issue 255): it asks whether node runs
+//   - Every command in hooks.json carries one judge of the same shape (issue 255): it asks whether node runs
 //     (`node --version`, so a node on the PATH that cannot run counts as none) and, when it does, runs node on one file under ${CLAUDE_PLUGIN_ROOT}/hooks/ with
-//     no argument. What follows for a machine with no Node is pinned by tests/no_node_check.js:
-//     the session start prints hooks/no-node.json, the fence refuses the plugin's reader alone,
-//     the result hook does nothing. No command names a variable but ${CLAUDE_PLUGIN_ROOT}.
+//     no argument. The session start's command is that judge alone; each of the three on a tool call opens with its
+//     filter and carries the judge twice, behind the filter and for a machine with no sed (issue 261). What the filter
+//     is, and what follows for a machine with no Node, are pinned by tests/no_node_check.js: the session start prints
+//     hooks/no-node.json, the fence refuses a call that holds the reader's quoted name (and, with no grep, every call
+//     it is matched to), the result hook does nothing. No command names a variable but ${CLAUDE_PLUGIN_ROOT}.
 //   - Run with node on a start after the first (a data folder that holds the sentinel, named in
 //     CLAUDE_PLUGIN_DATA), session-start.js exits 0 and prints one JSON object whose
 //     hookSpecificOutput carries exactly "Combat Writing ready. /cw:help for the guide." as

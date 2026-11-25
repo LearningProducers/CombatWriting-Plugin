@@ -62,7 +62,7 @@ var ADDON_CONFIGURE='/plugin configure combat-writing-crew';
 // seat), filled by addonStateLine for the run at hand (Part 87).
 var ADDON_STATE={
   // No install command here: the plugin is whole with its own readers, and the add-on's install
-  // line stands in one place in this plugin, /cw:help crew, the next command this line names (the add-on's own README carries it too).
+  // line stands in the help, where /cw:help crew, the next command this line names, shows it.
   absent:'The crew add-on is not installed, so the crew is {CREW}: the plugin is whole that way. Other companies\' models sit only through the add-on, a separate plugin on your own keys. Next, only if you want them: '+CMD_HELP_CREW+'.',
   down:'The crew add-on is installed but its server is not running in this session (no crew_list tool), so the crew is {CREW}. Next: /mcp, find combat-writing-crew: if it shows failed or disconnected, reconnect it there and run the command again; if it is not listed, /plugin to check the add-on is enabled, then /reload-plugins.'
 };

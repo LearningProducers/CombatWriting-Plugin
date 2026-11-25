@@ -90,7 +90,7 @@
 // call through, as before). The
 // host cannot tell a seat from any other caller there. What keeps that from the person's own
 // calls is THE FILTER: this file is started only for a call whose input holds the reader's name
-// or a character written as an escape, so a file that cannot be read, or that stops on an error,
+// or a character written as a `\u00` escape, so a file that cannot be read, or that stops on an error,
 // stops a reader's call and a call of the person's that holds one of those, and no other. Before
 // the filter it stopped every Read, every Write and every start of an agent. A machine with no
 // Node on the PATH is not such a failure (issue 255): behind the filter the command asks whether
@@ -360,8 +360,9 @@ if(require.main!==module){
 // A fault in this file's own code is answered here and never left to the host, whose onFailure
 // "block" would stop the call whoever made it: a refusal for a seat and for the start of one,
 // silence for every other caller. `who` is set as soon as the input says who is calling; a
-// fault before that is answered from the raw input, read the way input that does not parse is
-// read, so a seat is refused however early the fault falls.
+// fault before that is answered from the raw input, read by the first two tests of input that
+// does not parse (the reader as the caller, the reader as the agent to start), so a seat is
+// refused however early the fault falls.
 var who=null, raw='';
 // Input that does not parse, read for who is calling: the reader's own call, and the start of a reader.
 var NAMES_SEAT=/"agent_type"\s*:\s*"cw:seat"/, NAMES_START=/"subagent_type"\s*:\s*"cw:seat"/;

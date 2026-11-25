@@ -207,7 +207,7 @@ try{
     var s=starts(t[1],t[2],counted);
     check(s.n===0&&s.r.status===0&&s.r.out===''&&s.r.err==='','the cost: '+t[0]+' must start no Node process and pass with no word; '+s.n+' started, exit '+s.r.status+' out '+JSON.stringify(s.r.out.slice(0,120))+' err '+JSON.stringify(s.r.err.slice(0,120)));
   });
-  [['a reader\'s own Read',fence,seatRead],['the start of a reader',fence,seatStart],['a shell command that names a result script',bash,postScript],['after the start of a reader',after,postSeat],['a Write that holds an escaped character, which sed cannot read as a letter and the script can',fence,pre('Write',{file_path:path.join(tmp,'notes.md'),content:'A bell: \u0007\n'})]].forEach(function(t){
+  [['a reader\'s own Read',fence,seatRead],['the start of a reader',fence,seatStart],['a shell command that names a result script',bash,postScript],['after the start of a reader',after,postSeat],['a Write that holds a character written as a \\u00 escape, the form sed cannot read as a letter and the script can',fence,pre('Write',{file_path:path.join(tmp,'notes.md'),content:'A bell: \u0007\n'})]].forEach(function(t){
     var s=starts(t[1],t[2],counted);
     check(s.n>=1,'the cost: '+t[0]+' must reach Node (the filter lets it through); '+s.n+' started, exit '+s.r.status);
   });

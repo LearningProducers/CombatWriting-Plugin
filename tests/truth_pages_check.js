@@ -127,7 +127,7 @@ var listing=read(PLUGINS[0]+'/README.md'), helpSkill=read(PLUGINS[0]+'/skills/he
 [['the listing README',listing],['the help skill',helpSkill]].forEach(function(p){
   check(/Nothing is written anywhere else in your project\. Outside it/.test(p[1])&&/temporary folder/.test(p[1])&&/data folder/.test(p[1]),p[0]+': its list of what is written must end on the project and then name the data folder, the one place outside it, and say what becomes of the temporary folder');
 });
-check(!/the scripts write only inside/.test(listing)&&!/They write only inside/.test(rules),'the listing README and the rules skill: "write only inside combat-writing/" leaves out the speech script\'s files in the temporary folder');
+check(!/the scripts write only inside/.test(listing)&&!/They write only inside/.test(rules),'the listing README and the rules skill: "write only inside combat-writing/" leaves out the hooks\' data folder, outside the project');
 check(!/Nothing is sent anywhere to speak\./.test(listing),'the listing README: "Nothing is sent anywhere to speak." speaks for every browser\'s voices; say what the plugin\'s own code does');
 
 // WHAT THE SECOND READ FOUND. The page was rewritten after the first read, so a second reader who
@@ -426,10 +426,10 @@ var WAIT_LINE='give the shell call that runs these four scripts the description 
 ['battle','sparring'].forEach(function(n){ check(read(PLUGINS[0]+'/skills/'+n+'/SKILL.md').split(WAIT_LINE).length===2,PLUGINS[0]+'/skills/'+n+'/SKILL.md: must ask the host once for the one line the person reads while the hook renders the voices'); });
 // A fence that cannot load (issue 261, and the first fresh read of it: the listing README lagged the root README here).
 // Both READMEs say whose call is stopped when the fence's script is reached and fails: a reader's, or one of the person's
-// that holds the reader's name or a character written as an escape; neither says "yours included" of every matched call.
+// that holds the reader's name or a character written as a \u00 escape; neither says "yours included" of every matched call.
 ['README.md',PLUGINS[0]+'/README.md'].forEach(function(rel){
   var t=read(rel);
-  check(/when the fence's script is reached and then fails \(it cannot be read, or it stops on an error\) Claude Code stops the call it was asked about, where it would have let it through, and a hook that runs past its five seconds stops that one call: a reader's call, or a call of yours that holds the reader's name or a character written as an escape/.test(t)&&!/a Read, a Write or a start of an agent, yours included, where it would have let it through/.test(t),rel+': must say a fence that is reached and fails stops a reader\'s call or a call of yours that holds the reader\'s name or an escaped character, and no longer that it stops every Read, Write and start of an agent, yours included');
+  check(/when the fence's script is reached and then fails \(it cannot be read, or it stops on an error\) Claude Code stops the call it was asked about, where it would have let it through, and a hook that runs past its five seconds stops that one call: a reader's call, or a call of yours that holds the reader's name or a character written as a `\\u00` escape/.test(t)&&!/a Read, a Write or a start of an agent, yours included, where it would have let it through/.test(t),rel+': must say a fence that is reached and fails stops a reader\'s call or a call of yours that holds the reader\'s name or a character written as a \\u00 escape, and no longer that it stops every Read, Write and start of an agent, yours included');
 });
 // The table's own heading (issue 261: no check held it): the four columns the rows above are read by, then the rule line.
 var faceHead=faceH2.length>2?faceLines.slice(faceH2[1],faceH2[2]).filter(function(l){ return /^\|/.test(l); }).slice(0,2):[];

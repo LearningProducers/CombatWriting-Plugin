@@ -76,8 +76,8 @@ function qualityVoices(){
   return {owed:true,names:names};
 }
 // The add-on's line names no install command: the plugin is whole with its two readers, the
-// add-on is a separate plugin the person installs only by choice, and /cw:help crew is the one
-// place in this plugin where its install line stands.
+// add-on is a separate plugin the person installs only by choice, and /cw:help crew is where
+// its install line stands.
 function addonLine(){ return 'The crew add-on is not installed: the crew is the two fresh readers, one company\'s models, and the plugin is whole that way. Other companies\' models sit only through the add-on, a separate plugin on the person\'s own keys: /cw:help crew says how. Say nothing of this unless the person asks.'; }
 function voicesLine(names){ return 'This Mac has '+names.length+' premium or enhanced '+(names.length===1?'voice':'voices')+(names.length?' ('+names.join(', ')+')':'')+'. The board reads each seat in its own voice when three are installed: System Settings, Accessibility, Read & Speak (Spoken Content before macOS 26), the ⓘ beside System voice, then the arrow beside Ava (Premium), Nathan (Enhanced) and Allison (Enhanced), or any Premium or Enhanced voice. /cw:help voices.'; }
 
