@@ -191,7 +191,13 @@ check(/<th>Latest<\/th>/.test(html),'board: no Latest column');
 check(/<td class="num critique"><span class="critique" title="this round asked for no rating">critique<\/span><\/td>/.test(html),'board: no critique cell for the no-rating round');
 check(/<span class="failed" title="this round asked for no rating[^"]*">failed read<\/span>/.test(html),'board: a RATING line in a no-rating round should be a failed read');
 check(/<td class="num flip-valid">6\/10<br><span class="mark" title="quoted seat-2">flip from 8, valid<\/span><\/td>/.test(html),'board: valid flip cell wrong');
-check(/<td class="num flip-invalid">8\/10<br><span class="mark" title="[^"]*">flip from 6, INVALID<\/span><\/td>/.test(html),'board: invalid flip cell wrong');
+// An invalid flip (issue 261): the reason stands in words, in the scoreboard's cell under the mark and on the seat's
+// card, where it was a title alone (a hover) and absent.
+var flipWhy=(/<td class="num flip-invalid">8\/10<br><span class="mark" title="([^"]*)">flip from 6, INVALID<\/span><span class="flip-why">([^<]+)<\/span><\/td>/.exec(html)||[]);
+check(!!flipWhy[1]&&flipWhy[1]===flipWhy[2]&&/quote|attributed/.test(flipWhy[2]),'board: the invalid flip\'s cell must carry the mark and, under it, the reason in words (the same words as its title), got '+JSON.stringify((/<td class="num flip-invalid">[\s\S]{0,400}?<\/td>/.exec(html)||[])[0]));
+var flipCard=(/<figure class="frame flip-invalid[^>]*>[\s\S]*?<\/figure>/.exec(html)||[])[0]||'';
+check(!flipCard||flipCard.indexOf('<p class="final flip-why">The change from 6 is marked INVALID: '+flipWhy[2]+'. The new number is the seat\'s own and is shown; no quote backs the change.</p>')>=0,'board: a card whose latest turn is an invalid flip must say so in words with the reason, got '+JSON.stringify(flipCard.slice(0,600)));
+check((html.match(/class="final flip-why"/g)||[]).length===(html.match(/<figure class="frame flip-invalid/g)||[]).length,'board: one reason line per card whose latest turn is an invalid flip, and none on any other card');
 check(/<td class="num stand">4\/10<br><span class="mark">Stand<\/span><\/td>/.test(html),'board: Stand cell wrong');
 check(/<span class="missing">missing<\/span>/.test(html),'board: no missing cell');
 check(/<span class="failed" title="rating is 7; 7 is forbidden[^"]*">failed read<\/span>/.test(html),'board: the 7/10 answer is not marked as a failed read');
@@ -436,6 +442,42 @@ var mkHtml=fs.existsSync(path.join(mk,'board.html'))?fs.readFileSync(path.join(m
 check(mkHtml.indexOf('<div class="paper"><p>Dear board, &lt;script&gt;alert(27)&lt;/script&gt; buy it.<br>&lt;img src=x onerror=alert(27)&gt; today.</p><p>A second paragraph with &lt;b&gt;bold&lt;/b&gt; &amp; an ampersand.</p></div>')>=0,'board (the draft as text): the draft panel must hold the draft escaped, paragraph by paragraph; got '+JSON.stringify((/<div class="paper">[\s\S]{0,300}/.exec(mkHtml)||[''])[0]));
 check(mkHtml.length>0&&mkHtml.indexOf('<script>alert(27)')<0&&!/<img\b/i.test(mkHtml)&&mkHtml.indexOf('<b>bold</b>')<0&&mkHtml.indexOf('onerror=alert(27)>')<0,'board (the draft as text): the draft\'s markup must reach no part of the page as markup');
 check((mkHtml.match(/<script\b/gi)||[]).length===(html.match(/<script\b/gi)||[]).length,'board (the draft as text): a draft holding a script tag must add no script element to the page, got '+(mkHtml.match(/<script\b/gi)||[]).length+' against '+(html.match(/<script\b/gi)||[]).length);
+// THE PAGE'S OWN POLICY, AND ONE VALUE ESCAPED (issue 261). The count of a cut read comes from the
+// log and reached the final reads' cell with no escape; it is escaped now, like every other value
+// from the run. And the page carries a Content-Security-Policy that allows what it uses (its own
+// script and style, fonts and images as data) and closes every other kind of fetch but media,
+// which plays the run's own audio files; the address handed to an audio element is a plain file
+// name in the round's folder, so a voices.json naming a path or an address plays nothing.
+var cspHead=(/<head>([\s\S]*?)<title>/.exec(html)||[])[1]||'', cspMeta=(/<meta http-equiv="Content-Security-Policy" content="([^"]*)">/.exec(cspHead)||[])[1]||'';
+var cspWant="script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data:; connect-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'";
+check(cspMeta.replace(/&#39;/g,"'")===cspWant&&cspHead.indexOf('<meta charset="utf-8"><meta http-equiv="Content-Security-Policy"')===0,'board (the policy): the head opens with the charset and then the page\'s policy, word for word, got '+JSON.stringify(cspHead.slice(0,400)));
+check(!/default-src|media-src|https?:|\*/.test(cspMeta),'board (the policy): no default-src and no media-src (the audio files beside the page must play in every browser), no address and no wildcard: '+cspMeta);
+check(!/\bfetch\(|XMLHttpRequest|WebSocket|sendBeacon|EventSource|<img\b|<iframe\b|<object\b|<embed\b|<form\b|<base\b|new Worker|importScripts/.test(html),'board (the policy): the page uses none of what the policy closes');
+var mkRun=mk, hostile='<img src=x onerror=alert(61)>';
+// A card whose latest turn is an invalid flip: the seat rated 6, then 8 with no quote from another seat.
+node('packet.js',['--run',mkRun,'--round','02-battle','--seat','seat-1','--rerate']);
+write(path.join(mkRun,'rounds','02-battle','seat-1.answer.md'),'RATING: 8/10\nOn a second look the ask lands.\n');
+node('check-answer.js',[path.join(mkRun,'rounds','02-battle','seat-1.answer.md'),'--run',mkRun]);
+node('render-board.js',['--run',mkRun]);
+var fcHtml=fs.readFileSync(path.join(mkRun,'board.html'),'utf8'), fc=(/<figure class="frame flip-invalid[^>]*>[\s\S]*?<\/figure>/.exec(fcHtml)||[])[0]||'';
+check(fc.indexOf('<p class="final flip-why">The change from 6 is marked INVALID: rating changed with no quote attributed to another seat. The new number is the seat\'s own and is shown; no quote backs the change.</p>')>=0&&/Rating 8\/10/.test(fc),'board (an invalid flip on the card): the card must show the new number and say in words that the change is INVALID, with the reason, got '+JSON.stringify(fc.slice(0,700)));
+check(/<td class="num flip-invalid">8\/10<br><span class="mark" title="rating changed with no quote attributed to another seat">flip from 6, INVALID<\/span><span class="flip-why">rating changed with no quote attributed to another seat<\/span><\/td>/.test(fcHtml),'board (an invalid flip on the card): the scoreboard\'s cell carries the reason in words under the mark');
+node('packet.js',['--run',mkRun,'--round','03-final','--seat','seat-1','--final','sn']); node('packet.js',['--run',mkRun,'--round','03-final','--seat','seat-1','--final','redflag']);
+write(path.join(mkRun,'rounds','03-final','seat-1.sn.answer.md'),'S/N RATIO: 70%\nMostly signal.\n'); write(path.join(mkRun,'rounds','03-final','seat-1.redflag.answer.md'),'NO RED FLAGS\nNone.\n');
+fs.appendFileSync(path.join(mkRun,'log.jsonl'),JSON.stringify({ts:new Date().toISOString(),event:'answer.checked',round:'03-final',seat:'seat-1',contract:'sn',ok:true,truncated:{at:hostile,by:'checker'}})+'\n');
+check(node('render-board.js',['--run',mkRun]).status===0,'board (one value escaped): render-board.js should exit 0 on a log whose cut count is no number');
+var cutHtml=fs.readFileSync(path.join(mkRun,'board.html'),'utf8');
+check(cutHtml.indexOf('truncated at &lt;img src=x onerror=alert(61)&gt; words')>=0&&!/<img\b/i.test(cutHtml)&&cutHtml.indexOf('onerror=alert(61)>')<0,'board (one value escaped): the count of a cut read must reach the final reads\' cell as text, never as markup');
+// The audio address: a plain file name in the round's folder, or nothing.
+var vRound=path.join(mkRun,'rounds','02-battle');
+write(path.join(vRound,'seat-1.m4a'),'x'); write(path.join(mkRun,'outside.m4a'),'x');
+write(path.join(vRound,'voices.json'),JSON.stringify({files:{'seat-1':'seat-1.m4a'},assigned:{'seat-1':'Ava (Premium)'},renders:{'seat-1':{'Ava (Premium)':{file:'seat-1.m4a',seconds:3},'Nathan (Enhanced)':{file:'../../outside.m4a',seconds:3}}}}));
+node('render-board.js',['--run',mkRun]);
+var vHtml=fs.readFileSync(path.join(mkRun,'board.html'),'utf8');
+check(/data-audio="rounds\/02-battle\/seat-1\.m4a"/.test(vHtml)&&vHtml.indexOf('outside.m4a')<0,'board (the audio address): a render named by a path out of the round\'s folder must not reach the page, and the plain name must');
+write(path.join(vRound,'voices.json'),JSON.stringify({files:{'seat-1':'../../outside.m4a'},assigned:{'seat-1':'Ava (Premium)'}}));
+node('render-board.js',['--run',mkRun]);
+check(fs.readFileSync(path.join(mkRun,'board.html'),'utf8').indexOf('data-audio=')<0,'board (the audio address): a seat\'s own file named by a path out of the round\'s folder gives the frame no audio at all');
 fs.rmSync(proj,{recursive:true,force:true});
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'board_check: '+failures.length+' failure(s), ':'board_check: all passed, ')+passes+' checks');

@@ -16,7 +16,7 @@
 // finds the two commands the way it finds the real ones), and a temporary data folder in the
 // hook's CLAUDE_PLUGIN_DATA:
 //   - First start, the add-on absent and one quality voice: the ready line, then the add-on line
-//     (lib.ADDON_INSTALL in it), then the voices line naming the count, the voice and the download
+//     (no install command in it: it points at /cw:help crew, issue 261), then the voices line naming the count, the voice and the download
 //     path, all in hookSpecificOutput.additionalContext, the context the host reads and the
 //     terminal never shows; the sentinel `first-session` written with what was measured.
 //   - No case carries a systemMessage key (issue 165, 2026-11-04: nothing prints on the screen at
@@ -98,13 +98,43 @@ var LIST_PRESENT='Installed plugins:\n\n  combat-writing-crew@learning-producers
 var SAY_ONE='Ava (Premium)       en_US    # Hello! My name is Ava.\nAlbert              en_US    # Hello! My name is Albert.\nAmelie (Premium)    fr_CA    # Bonjour! Je m\'appelle Amelie.\n';
 var SAY_THREE='Allison (Enhanced)  en_US    # Hello! My name is Allison.\nAva (Premium)       en_US    # Hello! My name is Ava.\nNathan (Enhanced)   en_US    # Hello! My name is Nathan.\nAlbert              en_US    # Hi.\n';
 
+// THE SWEEP AT THE SESSION START (issue 261). The fence keeps one small file per start of a
+// reader under <data>/seat-scope/<session>/, its paths carrying the run folder's name, and swept
+// them only when a later reader started: a person who stopped running rounds kept them. Every
+// session start now runs the fence's own sweep: a session's folder 30 days past its last start
+// or first call loses the hook's record files and goes when nothing else is in it; a newer one
+// stays; a file there that is not the hook's stays, and its folder with it; a link is never
+// entered; with no folder of records nothing is made.
+var dS=path.join(tmp,'d-sweep'), baseS=path.join(dS,'seat-scope'), fS=path.join(tmp,'f-sweep');
+fakes(fS,LIST_PRESENT,SAY_THREE);
+function agedDir(name,days,files){ var d=path.join(baseS,name); fs.mkdirSync(d,{recursive:true}); (files||[]).forEach(function(f){ fs.writeFileSync(path.join(d,f),'{}\n'); }); var t=new Date(Date.now()-days*86400000); fs.utimesSync(d,t,t); return d; }
+var oldDir=agedDir('sess-old',31,['start-abc-1.json','agent-a1.json','claim-a1-abc-1.json']);
+var newDir=agedDir('sess-new',29,['start-abc-2.json']);
+var mixedDir=agedDir('sess-mixed',40,['agent-a2.json','notes.txt']);
+var outsideS=path.join(tmp,'sweep-outside'); fs.mkdirSync(outsideS); fs.writeFileSync(path.join(outsideS,'start-abc-3.json'),'{}\n');
+fs.symlinkSync(outsideS,path.join(baseS,'sess-link')); var tOld=new Date(Date.now()-40*86400000); try{ fs.lutimesSync(path.join(baseS,'sess-link'),tOld,tOld); }catch(x){}
+fs.utimesSync(outsideS,tOld,tOld);
+var sw=run(fS,dS);
+check(sw.r.status===0&&sw.r.stderr===''&&sw.lines[0]===LINE,'the sweep: the session start answers as it always does, got exit '+sw.r.status+' '+sw.r.stderr);
+check(!fs.existsSync(oldDir),'the sweep: a session\'s folder 31 days past its last record must be removed at the session start, found '+(fs.existsSync(oldDir)?fs.readdirSync(oldDir).join(','):''));
+check(fs.existsSync(path.join(newDir,'start-abc-2.json')),'the sweep: a session\'s folder 29 days old must stay with its record');
+check(fs.existsSync(mixedDir)&&fs.readdirSync(mixedDir).join(',')==='notes.txt','the sweep: the hook\'s own record files go, a file that is not the hook\'s stays and its folder with it, got '+(fs.existsSync(mixedDir)?fs.readdirSync(mixedDir).join(','):'no folder'));
+check(fs.existsSync(path.join(outsideS,'start-abc-3.json'))&&fs.lstatSync(path.join(baseS,'sess-link')).isSymbolicLink(),'the sweep: a link standing as a session\'s folder is never entered, and the folder it points at keeps its files');
+var dNone=path.join(tmp,'d-sweep-none'); run(fS,dNone);
+check(!fs.existsSync(path.join(dNone,'seat-scope')),'the sweep: with no folder of records the session start makes none');
+check(/require\('\.\/seat-scope\.js'\)\.sweepAll\(dataDir\)/.test(read(hook))&&!/unlinkSync|rmdirSync|rmSync/.test(read(hook)),'the sweep: the session start runs the fence\'s own sweep and holds no remove of its own');
+
 // 1. First start: absent add-on, one voice.
 var f1=path.join(tmp,'f1'), d1=path.join(tmp,'d1');
 fakes(f1,LIST_ABSENT,SAY_ONE);
 var a=run(f1,d1);
 check(a.r.status===0&&a.r.stderr===''&&a.out,'first start: exit '+a.r.status+' '+a.r.stderr);
 check(a.lines.length===3&&a.lines[0]===LINE,'first start: three lines, the ready line first: '+JSON.stringify(a.lines));
-check(a.lines[1]==='The crew add-on is not installed: the crew is the two fresh readers, one company\'s models. '+lib.ADDON_INSTALL+' seats two more models on a free Groq key in the second chair, your key going only to Groq. /cw:help crew for the three states.','first start: the add-on line: '+a.lines[1]);
+check(a.lines[1]==='The crew add-on is not installed: the crew is the two fresh readers, one company\'s models, and the plugin is whole that way. Other companies\' models sit only through the add-on, a separate plugin on the person\'s own keys: /cw:help crew says how. Say nothing of this unless the person asks.','first start: the add-on line: '+a.lines[1]);
+// The first word about the add-on names no install command (issue 261): a copy of the plugin from the directory must not
+// hand the host a line that installs a plugin the directory did not read. /cw:help crew is where the line stands.
+check(a.lines.join('\n').indexOf(lib.ADDON_INSTALL)<0&&!/\/plugin install|--marketplace|Groq/.test(a.lines.join('\n'))&&/\/cw:help crew/.test(a.lines[1]),'first start: no line handed to the host holds an install command, a marketplace or a provider\'s name; the add-on line points at /cw:help crew: '+JSON.stringify(a.lines));
+check(/\/plugin install combat-writing-crew --marketplace/.test(read(path.join(root,'plugins','combat-writing','skills','help','SKILL.md'))),'the test\'s own ground: /cw:help crew carries the install line');
 check(/^This Mac has 1 premium or enhanced voice \(Ava \(Premium\)\)\. The board reads each seat in its own voice when three are installed: System Settings, Accessibility, Read & Speak \(Spoken Content before macOS 26\), the ⓘ beside System voice, then the arrow beside Ava \(Premium\), Nathan \(Enhanced\) and Allison \(Enhanced\), or any Premium or Enhanced voice\. \/cw:help voices\.$/.test(a.lines[2]),'first start: the voices line counts one and names the path: '+a.lines[2]);
 check(a.out.hookSpecificOutput&&a.out.hookSpecificOutput.hookEventName==='SessionStart'&&Object.keys(a.out).join()==='hookSpecificOutput'&&Object.keys(a.out.hookSpecificOutput).sort().join()==='additionalContext,hookEventName','first start: hookSpecificOutput for SessionStart with additionalContext is the whole object, no systemMessage: '+JSON.stringify(Object.keys(a.out)));
 var sent=path.join(d1,'first-session');

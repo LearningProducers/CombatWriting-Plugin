@@ -17,11 +17,13 @@
 //     whose one command hook runs node on a file inside the plugin, named through
 //     ${CLAUDE_PLUGIN_ROOT}, with no argument (Part 128: the data folder reaches the script in its
 //     environment), no other variable, substitution or launcher.
-//   - Every command in hooks.json opens the same way (issue 255): it asks whether node runs
+//   - Every command in hooks.json carries one judge of the same shape (issue 255): it asks whether node runs
 //     (`node --version`, so a node on the PATH that cannot run counts as none) and, when it does, runs node on one file under ${CLAUDE_PLUGIN_ROOT}/hooks/ with
-//     no argument. What follows for a machine with no Node is pinned by tests/no_node_check.js:
-//     the session start prints hooks/no-node.json, the fence refuses the plugin's reader alone,
-//     the result hook does nothing. No command names a variable but ${CLAUDE_PLUGIN_ROOT}.
+//     no argument. The session start's command is that judge alone; each of the three on a tool call opens with its
+//     filter and carries the judge twice, behind the filter and for a machine with no sed (issue 261). What the filter
+//     is, and what follows for a machine with no Node, are pinned by tests/no_node_check.js: the session start prints
+//     hooks/no-node.json, the fence refuses a call that holds the reader's quoted name (and, with no grep, every call
+//     it is matched to), the result hook does nothing. No command names a variable but ${CLAUDE_PLUGIN_ROOT}.
 //   - Run with node on a start after the first (a data folder that holds the sentinel, named in
 //     CLAUDE_PLUGIN_DATA), session-start.js exits 0 and prints one JSON object whose
 //     hookSpecificOutput carries exactly "Combat Writing ready. /cw:help for the guide." as
@@ -67,7 +69,12 @@ if(hooks){
   Object.keys(hooks.hooks||{}).forEach(function(ev){ (hooks.hooks[ev]||[]).forEach(function(en){ (en.hooks||[]).forEach(function(x){ commands.push({event:ev,hook:x}); }); }); });
   check(commands.length===4,'hooks.json: expected four hook commands (the session start, the fence, and the result hook on Bash and on the tool that starts an agent), found '+commands.length);
   commands.forEach(function(c){
-    var cmd=String(c.hook.command), rest=cmd.split('${CLAUDE_PLUGIN_ROOT}').join('');
+    // A tool hook's command opens with its filter (issue 261; tests/no_node_check.js holds the filter and runs it), and the judge
+    // behind the filter and the judge with no sed are one text: that judge is what is held here, as the whole command was before.
+    var whole=String(c.hook.command), rest=whole.split('${CLAUDE_PLUGIN_ROOT}').join('');
+    var behind=/^if command -v sed >\/dev\/null 2>&1(?: && command -v grep >\/dev\/null 2>&1)?; then LC_ALL=C sed -n -E '[^']+' \| if read -r first; then (.+); fi; else (.+); fi$/.exec(whole);
+    check(c.event==='SessionStart'?!behind:!!behind&&behind[1]===behind[2],'hooks.json: the '+c.event+' command must '+(c.event==='SessionStart'?'carry no filter':'open with its filter and carry one judge, behind the filter and with no sed')+', got '+JSON.stringify(whole));
+    var cmd=behind?behind[1]:whole;
     check(c.hook.type==='command'&&/^if node --version >\/dev\/null 2>&1; then node "\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/[a-z-]+\.js"; (?:fi|else .+; fi)$/.test(cmd)&&(cmd.match(/\bnode "/g)||[]).length===1&&(cmd.match(/(?:^|[ ;])node /g)||[]).length===2&&!/[`]|\$\(|\$\{|\$[A-Za-z_]/.test(rest)&&c.hook.args===undefined,'hooks.json: the '+c.event+' command must ask whether node runs (node --version), then run node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.js" once with no argument, and name no other variable, got '+JSON.stringify(c.hook.command)+(c.hook.args!==undefined?' args '+JSON.stringify(c.hook.args):''));
   });
   check(!/CLAUDE_PLUGIN_DATA/.test(read(dir+'/hooks.json')),'hooks.json names CLAUDE_PLUGIN_DATA: no hook command carries a variable but ${CLAUDE_PLUGIN_ROOT}');
@@ -77,7 +84,7 @@ var script=read(dir+'/session-start.js');
 check(script.split('\n')[0]==='// SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0','session-start.js: no Shield header on line 1');
 var code=script.replace(/\/\/[^\n]*/g,'');
 var reqs=(code.match(/require\(['"][^'"]+['"]\)/g)||[]).map(function(r){return r.replace(/require\(['"]|['"]\)/g,'');}).sort();
-check(reqs.join()==='../scripts/lib.js,child_process,fs,path'&&!/\bfetch\(/.test(code)&&!/https?:\/\//.test(code),'session-start.js: requires fs, path, child_process and lib.js only, fetches nothing, holds no URL: '+reqs.join());
+check(reqs.join()==='../scripts/lib.js,./seat-scope.js,child_process,fs,path'&&!/\bfetch\(/.test(code)&&!/https?:\/\//.test(code),'session-start.js: requires fs, path, child_process, lib.js and, for its sweep of the fence\'s old records, the fence\'s own file, and nothing else; fetches nothing, holds no URL: '+reqs.join());
 check((code.match(/process\.env\.([A-Z_]+)/g)||[]).filter(function(v,i,a){return a.indexOf(v)===i;}).sort().join()==='process.env.CLAUDE_PLUGIN_DATA,process.env.HOME','session-start.js: reads only CLAUDE_PLUGIN_DATA and HOME (the cache fallback) from the environment');
 check(!/plugin install|plugin\s*,\s*['"]install/.test(code),'session-start.js: never installs');
 check(!/process\.argv/.test(code),'session-start.js: reads an argument; the data folder comes from the environment alone');

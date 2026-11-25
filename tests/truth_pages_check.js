@@ -121,13 +121,13 @@ check(/plain HTTP/.test(privacy)&&/needs no key/.test(privacy),'PRIVACY.md: must
 check(!/calls no one else|is no party/.test(privacy)&&!/until the system clears/.test(privacy)&&!/neither asks you to make an account/.test(privacy)&&!/reads two environment variables/.test(privacy),'PRIVACY.md: a sentence the read found too wide or unproved stands in it');
 check(/redirect/.test(privacy),'PRIVACY.md: the shipped link is fetched with its redirects followed; the page must say so');
 check(/temporary folder/.test(privacy)&&/absolute/.test(privacy)&&/twenty/.test(privacy),'PRIVACY.md: must name the temporary folder, that the records\' paths are absolute, and the twenty sessions a start clears at the most');
-// Two older pages said the plugin writes nowhere but the project folder; the hooks' data folder and
-// the speech script's temporary files are outside it.
+// Two older pages said the plugin writes nowhere but the project folder; the hooks' data folder is
+// outside it, and until issue 261 the speech script's temporary files were (it writes none now).
 var listing=read(PLUGINS[0]+'/README.md'), helpSkill=read(PLUGINS[0]+'/skills/help/SKILL.md'), rules=read(PLUGINS[0]+'/skills/combat-writing/SKILL.md');
 [['the listing README',listing],['the help skill',helpSkill]].forEach(function(p){
-  check(/Nothing is written anywhere else in your project\. Outside it/.test(p[1])&&/temporary folder/.test(p[1])&&/data folder/.test(p[1]),p[0]+': its list of what is written must end on the project and then name the two places outside it, the data folder and the temporary folder');
+  check(/Nothing is written anywhere else in your project\. Outside it/.test(p[1])&&/temporary folder/.test(p[1])&&/data folder/.test(p[1]),p[0]+': its list of what is written must end on the project and then name the data folder, the one place outside it, and say what becomes of the temporary folder');
 });
-check(!/the scripts write only inside/.test(listing)&&!/They write only inside/.test(rules),'the listing README and the rules skill: "write only inside combat-writing/" leaves out the speech script\'s files in the temporary folder');
+check(!/the scripts write only inside/.test(listing)&&!/They write only inside/.test(rules),'the listing README and the rules skill: "write only inside combat-writing/" leaves out the hooks\' data folder, outside the project');
 check(!/Nothing is sent anywhere to speak\./.test(listing),'the listing README: "Nothing is sent anywhere to speak." speaks for every browser\'s voices; say what the plugin\'s own code does');
 
 // WHAT THE SECOND READ FOUND. The page was rewritten after the first read, so a second reader who
@@ -172,7 +172,7 @@ var WIDE=[
 });
 check(/first call/.test(rootReadme)&&/binds/.test(rootReadme),'README.md: must say a fresh reader\'s first call names its packet or its answer file and binds it to that start\'s record');
 check(/plain HTTP/.test(crewReadme),PLUGINS[1]+'/README.md: "over HTTPS" must name the exception, the local Ollama seat over plain HTTP');
-check(/temporary folder/.test(rootReadme)&&/data folder/.test(rootReadme),'README.md: what the plugin writes must name the two places outside the project');
+check(/temporary folder/.test(rootReadme)&&/data folder/.test(rootReadme),'README.md: what the plugin writes must name the data folder, the one place outside the project, and say what becomes of the temporary folder');
 
 // THE HOSTS.
 var declared=(crew.network&&Array.isArray(crew.network.hosts))?crew.network.hosts.slice().sort():null;
@@ -298,7 +298,7 @@ var lineKeys=((/var line=\{([^}]*)\}/.exec(hookSrc)||[])[1]||'').split(',').map(
 check(lineKeys.join(',')==='at,by,event,meta,model,passed,round,seat,ts','the test\'s own ground: the fields the result hook writes on its line, read from its source, are at, by, event, meta, model, passed, round, seat and ts; found '+lineKeys.join(','));
 check(/the line's kind/.test(privacy)&&/that the hook wrote it/.test(privacy)&&/a mark that the choice could not be read/.test(privacy),'PRIVACY.md: the fields of the line the result hook writes must be named whole: the time, the line\'s kind, the seat, the round, the model\'s id, the choice passed, that it was read at the start, that the hook wrote it, and the mark for a choice that could not be read');
 [['PRIVACY.md',privacy],[PLUGINS[0]+'/README.md',read(PLUGINS[0]+'/README.md')]].forEach(function(pg){
-  check(/named exactly `seat`/.test(pg[1])&&/no `grep`/.test(pg[1]),pg[0]+': where it says nothing of your own work is stopped with no Node, it must name the two cases where a call of yours is: an agent of your own named exactly `seat`, and a machine with no `grep`');
+  check(/one of whose values is exactly the reader's name, `cw:seat`, or ends with that name right after a double quote/.test(pg[1])&&/no `grep`/.test(pg[1]),pg[0]+': where it says nothing of your own work is stopped with no Node, it must name the two cases where a call of yours is: one of whose values is exactly the reader\'s name, or ends with it right after a double quote, and a machine with no `grep`');
 });
 check(/Git for Windows/.test(read(PLUGINS[0]+'/README.md').split('\n').filter(function(l){ return /Node must be on your PATH/.test(l); })[0]||''),PLUGINS[0]+'/README.md: the install paragraph that names Node must name Git for Windows beside it, for a Windows machine');
 
@@ -379,10 +379,16 @@ check(/not in (?:this|the Claude plugin) directory/.test(faceDesc),PLUGINS[0]+'/
 });
 check(/^tools: Read, Write$/m.test(read(PLUGINS[0]+'/agents/seat.md')),'the test\'s own ground: agents/seat.md gives a reader Read and Write and no other tool');
 check(/new Audio\(/.test(read(PLUGINS[0]+'/scripts/render-board.js'))&&/href="record\.md"/.test(read(PLUGINS[0]+'/scripts/render-board.js')),'the test\'s own ground: the board plays audio files and links record.md');
-var seatTypes=(/var SEAT_TYPES=\[([^\]]*)\]/.exec(read(PLUGINS[0]+'/hooks/seat-scope.js'))||[])[1]||'';
-check(/'cw:seat'/.test(seatTypes)&&/'seat'/.test(seatTypes.replace(/'cw:seat'/,'')),'the test\'s own ground: the fence takes an agent named `seat` for the plugin\'s reader (SEAT_TYPES holds it); when the name leaves the code, the pages\' sentence leaves with it');
+// The reader's one name (issue 261): the two hooks hold the plugin's reader by `cw:seat` alone, so the pages no longer say an
+// agent of the person's own named `seat` is taken for it; they say it is the person's.
+[PLUGINS[0]+'/hooks/seat-scope.js',PLUGINS[0]+'/hooks/show-result.js'].forEach(function(rel){
+  check(/^var SEAT_TYPE='cw:seat';$/m.test(read(rel))&&!/SEAT_TYPES/.test(read(rel))&&!/\(\?:cw:\)\?seat/.test(read(rel)),rel+': the test\'s own ground: the hook holds the plugin\'s reader by one name, cw:seat, and by no pattern that also takes the bare name');
+});
+['README.md',PLUGINS[0]+'/README.md','PRIVACY.md','docs/plugin-map.md',PLUGINS[0]+'/skills/combat-writing/SKILL.md',PLUGINS[0]+'/hooks/no-node.json'].forEach(function(rel){
+  check(!/named exactly `?seat`? is taken/.test(read(rel))&&!/named exactly `?seat`?/.test(read(rel)),rel+': must no longer say an agent of your own named exactly `seat` is taken for the plugin\'s reader; the reader\'s one name is cw:seat');
+});
 ['README.md',PLUGINS[0]+'/README.md','PRIVACY.md','docs/plugin-map.md'].forEach(function(rel){
-  check(/[Ww]ith Node present, an agent of your own named exactly `seat` is taken for the plugin's reader too/.test(read(rel)),rel+': must say an agent of your own named exactly `seat` is taken for the plugin\'s reader with Node present too, not only when Node is missing');
+  check(/an agent of your own named `seat` is yours/.test(read(rel)),rel+': must say an agent of your own named `seat` is yours');
 });
 // The root README's first screen: after the motto, three lines of what the plugin is, then the install line, then a
 // table of the hook entries, one row an entry of hooks/hooks.json in its order: the event, what it is matched to,
@@ -402,6 +408,43 @@ faceEntries.forEach(function(e,i){
   check(r.ev===e.ev&&r.matcher===e.matcher,'README.md: row '+(i+1)+' of the hooks table must be '+e.ev+' matched to '+e.matcher+'; it is '+r.ev+' matched to '+r.matcher);
   check(r.does.length>20&&(e.block?/the call is stopped/.test(r.fail)&&!/^Nothing is stopped/.test(r.fail):/^Nothing is stopped/.test(r.fail)),'README.md: row '+(i+1)+' of the hooks table ('+e.ev+', '+e.matcher+') must say what the hook does, and that '+(e.block?'the call is stopped when the hook fails (the entry sets onFailure "block")':'nothing is stopped when it fails (the entry sets no onFailure)'));
 });
+
+// The loose sentences in code (issue 261): Part 150 set them right on the pages. That the fence holds a reader to Read
+// and Write only stood in the rules skill, the agent file's text and the fence's own header: the agent file's `tools:` line
+// does that, and the hook holds the two files and the start. And two skill descriptions said every result ends with a picker.
+var rulesSkill=read(PLUGINS[0]+'/skills/combat-writing/SKILL.md'), seatFile=read(PLUGINS[0]+'/agents/seat.md'), fenceSrc=read(PLUGINS[0]+'/hooks/seat-scope.js');
+check(!/lets the `seat` agent use Read and Write only/.test(rulesSkill)&&/Read and Write are its only tools, by its agent file's `tools:` line/.test(rulesSkill),PLUGINS[0]+'/skills/combat-writing/SKILL.md: must not say the hook lets the seat use Read and Write only; the agent file\'s `tools:` line gives a reader its two tools');
+check(!/or any tool but Read and Write, is refused/.test(seatFile)&&/Read and Write are the only tools you are given, and the plugin's hook holds you to the two files/.test(seatFile),PLUGINS[0]+'/agents/seat.md: must not tell a reader that the hook refuses any tool but Read and Write; it is given those two alone, and the hook holds it to the two files');
+check(!/uses Read and Write only, reads two files/.test(fenceSrc)&&/no other tool by its agent file's `tools:` line, which the host applies/.test(fenceSrc),PLUGINS[0]+'/hooks/seat-scope.js: its header must not say the hook holds a reader to Read and Write only');
+['battle','sparring'].forEach(function(n){
+  var d=(/^description: (.+)$/m.exec(read(PLUGINS[0]+'/skills/'+n+'/SKILL.md'))||[])[1]||'';
+  check(/ends with a picker for the next round, unless you switched it off\./.test(d)&&!/ends with a picker for the next round\./.test(d),PLUGINS[0]+'/skills/'+n+'/SKILL.md: its description must not say every result ends with a picker without the off switch');
+});
+// The wait (issue 261): a hook cannot say a line before it ends, so the two round skills hand the host one line for the shell
+// call that runs the four result scripts, the same words in both. It is the host's writing; this holds only that the skills ask.
+var WAIT_LINE='give the shell call that runs these four scripts the description "Combat Writing: showing the result (on a Mac the voices can take up to a minute)"';
+['battle','sparring'].forEach(function(n){ check(read(PLUGINS[0]+'/skills/'+n+'/SKILL.md').split(WAIT_LINE).length===2,PLUGINS[0]+'/skills/'+n+'/SKILL.md: must ask the host once for the one line the person reads while the hook renders the voices'); });
+// A fence that cannot load (issue 261, and the first fresh read of it: the listing README lagged the root README here).
+// Both READMEs say whose call is stopped when the fence's script is reached and fails: a reader's, or one of the person's
+// that holds the reader's name or a character written as a \u00 escape; neither says "yours included" of every matched call.
+['README.md',PLUGINS[0]+'/README.md'].forEach(function(rel){
+  var t=read(rel);
+  check(/when the fence's script is reached and then fails \(it cannot be read, or it stops on an error\) Claude Code stops the call it was asked about, where it would have let it through, and a hook that runs past its five seconds stops that one call: a reader's call, or a call of yours that holds the reader's name or a character written as a `\\u00` escape/.test(t)&&!/a Read, a Write or a start of an agent, yours included, where it would have let it through/.test(t),rel+': must say a fence that is reached and fails stops a reader\'s call or a call of yours that holds the reader\'s name or a character written as a \\u00 escape, and no longer that it stops every Read, Write and start of an agent, yours included');
+});
+// The table's own heading (issue 261: no check held it): the four columns the rows above are read by, then the rule line.
+var faceHead=faceH2.length>2?faceLines.slice(faceH2[1],faceH2[2]).filter(function(l){ return /^\|/.test(l); }).slice(0,2):[];
+check(faceHead[0]==='| Event | Matched to | What it does | When the hook fails |'&&faceHead[1]==='|---|---|---|---|','README.md: the hooks table must open with its heading, the four columns Event, Matched to, What it does and When the hook fails, then the rule line; it opens '+JSON.stringify(faceHead));
+// The checklist's two rows on the description (issue 261: they were held only by what they must not say). Each thing a
+// row says the description names is in the description, the length a row gives is the length it has at the most, and
+// what the row says it leaves out (a link) is not in it.
+var cwDesc=String(json(PLUGINS[0]+'/.claude-plugin/plugin.json').description||''), clistRows=read('docs/directory-checklist.md').split('\n');
+var rowListing=clistRows.filter(function(l){ return /^\| \*\*Listing details\*\* /.test(l); })[0]||'', rowScoped=clistRows.filter(function(l){ return /^\| The `cw` plugin's description stays scoped /.test(l); })[0]||'';
+var saidLength=parseInt((/the description says in (\d+) characters or fewer/.exec(rowListing)||[])[1],10);
+check(saidLength>0&&cwDesc.length>0&&cwDesc.length<=saidLength,'docs/directory-checklist.md: the Listing details row must give a length the description keeps to; the row says '+saidLength+', the description is '+cwDesc.length+' characters');
+[[/two fresh readers/,/two fresh readers/],[/the rating from 1 to 10 with 7 forbidden/,/rates it 1 to 10, 7 forbidden/],[/the reading of each other in the sharing rounds/,/read each other in the sharing rounds/],[/a rating again when asked/,/rate again when you ask/],[/`\/cw:help`/,/\/cw:help/],[/they need an add-on that is not in the directory/,/need an add-on not in this directory/]].forEach(function(p){
+  check(p[0].test(rowScoped)&&p[1].test(cwDesc),'docs/directory-checklist.md: the row on the description\'s scope must name '+p[0]+' and the description must hold '+p[1]+'; the row '+(p[0].test(rowScoped)?'does':'does not')+', the description '+(p[1].test(cwDesc)?'does':'does not'));
+});
+check(/not in the description/.test(rowScoped)&&!/https?:|shipped/.test(cwDesc),'docs/directory-checklist.md: the row says the one link the host opens is disclosed elsewhere and not in the description; the description must name no link and not `shipped`');
 
 failures.forEach(function(f){console.log('FAIL '+f);});
 console.log((failures.length?'truth_pages_check: '+failures.length+' failure(s), ':'truth_pages_check: all passed, ')+passes+' checks');

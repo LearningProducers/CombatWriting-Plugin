@@ -129,7 +129,8 @@ out.push('');
 // Each draft with its hash and its counts: words, paragraphs, lines, measured from the file.
 function draftLabel(d){var e=lastLog(function(x){return (x.event==='draft.added'&&x.file===d)||(x.event==='run.created'&&d==='draft.md');});var sha=e?(e.sha256||(e.draft&&e.draft.sha256)):null;var f=lib.draftFacts(lib.readText(path.join(runDir,d)));return d+' ('+(sha?'sha256 '+sha.slice(0,12)+'…; ':'')+lib.draftFactsLine(f)+')';}
 out.push('**Drafts:** '+(drafts.length?drafts.map(draftLabel).join(', ')+'.':'none yet; the brief is stored and the draft joins the run when sparring or battle brings it.'));
-var newestFacts=drafts.length?lib.draftFacts(lib.readText(path.join(runDir,drafts[drafts.length-1]))):null;
+var newestText=drafts.length?lib.readText(path.join(runDir,drafts[drafts.length-1])):null;
+var newestFacts=newestText!==null?lib.draftFacts(newestText):null;
 var oneLine=newestFacts?lib.oneLineWarning(newestFacts):null;
 if(oneLine){out.push('');out.push('**Draft as stored:** '+oneLine);}
 if(newestFacts){out.push('');out.push('**'+lib.FACTS_HEADING+':** '+lib.draftFactsFull(newestFacts)+'. Every packet carries this line.');}
@@ -269,6 +270,10 @@ if(args.next===true){
     // The legend once per run: the first short form of the run prints it and logs that it did.
     var legendShown=log.some(function(e){return e.event==='legend.printed';});
     if(!legendShown){ s.push(lib.SCOREBOARD_LEGEND,''); lib.appendLog(runDir,{event:'legend.printed'}); }
+    // The first result after a round also says whose rank seated a reader named at its start and that no seat opens a link:
+    // with the legend, so one time among the results that follow a round. A run that began at strategy said both there too (below).
+    var firstNotes=legendShown?[]:[lib.rankLine(seats),lib.linksNote(newestText,briefText)].filter(Boolean);
+    firstNotes.forEach(function(l){ s.push(l,''); });
     var tableStart=out.indexOf('## Scoreboard');
     var tableEnd=out.indexOf('## Answers');
     s=s.concat(out.slice(tableStart+1,tableEnd).filter(function(l){return l.indexOf('|')===0;}));
@@ -281,6 +286,9 @@ if(args.next===true){
     // and which brief the run has (issue 65).
     if(newestFacts)s.push('','Draft: '+lib.draftFactsLine(newestFacts)+(oneLine?'\n'+oneLine:''));
     s.push('',lib.briefLine(createdLine,briefText));
+    // The result before any round (strategy stored the draft, nothing read it): whose rank seated a reader named at its start, and
+    // that no seat opens a link. The first result after a round says both again, with the legend (above).
+    [lib.rankLine(seats),lib.linksNote(newestText,briefText)].filter(Boolean).forEach(function(l){ s.push('',l); });
   }
   s.push('','Seat key: '+lib.seatKey(seats));
   process.stdout.write(s.join('\n')+'\n');

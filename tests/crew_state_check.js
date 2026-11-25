@@ -11,8 +11,9 @@
 //   - A run with one fresh reader and nothing recorded: the Seats line says the add-on's state
 //     was not recorded and points at /cw:help crew.
 //   - crew-state.js --state absent logs addon.state and prints the sentence; the short form,
-//     record.md and board.html then carry a Seats line under the crew line with the install
-//     command, /reload-plugins and /plugin configure combat-writing-crew.
+//     record.md and board.html then carry a Seats line under the crew line that says the crew
+//     as it is, that the plugin is whole that way, and one next command, /cw:help crew, with no
+//     install command in it (issue 261).
 //   - crew-state.js --state down: the Seats line names /mcp, the server name combat-writing-crew,
 //     what to look for (failed or disconnected), /plugin and /reload-plugins; the latest state
 //     wins.
@@ -53,7 +54,11 @@ check(seatsLines(r0.record).length===1,'unrecorded: record.md must carry one Sea
 
 // State 1: absent.
 var a=node('crew-state.js',['--run',run,'--state','absent']);
-check(a.status===0&&a.stdout.trim()==='The crew add-on is not installed, so the crew is one seat. Next: '+INSTALL+', then /reload-plugins or a new session, then '+CONF+' to enter a key.','absent: crew-state.js must print the sentence, got '+a.stdout+a.stderr);
+// Not installed (issue 261): the line says the crew as it is, that the plugin is whole that way, and names one next command,
+// /cw:help crew, where the add-on's install line stands. No result carries an install command or a marketplace.
+var ABSENT='The crew add-on is not installed, so the crew is one seat: the plugin is whole that way. Other companies\' models sit only through the add-on, a separate plugin on your own keys. Next, only if you want them: /cw:help crew.';
+check(a.status===0&&a.stdout.trim()===ABSENT,'absent: crew-state.js must print the sentence, got '+a.stdout+a.stderr);
+check(a.stdout.indexOf(INSTALL)<0&&!/\/plugin install|--marketplace|\/plugin configure/.test(a.stdout)&&read(path.join(root,'plugins','combat-writing','skills','help','SKILL.md')).indexOf(INSTALL)>=0,'absent: the sentence must hold no install command; the install line stands in /cw:help crew');
 var logA=read(path.join(run,'log.jsonl')).trim().split('\n').map(JSON.parse).filter(function(e){return e.event==='addon.state';});
 check(logA.length===1&&logA[0].state==='absent'&&logA[0].by==='host'&&logA[0].crew_list_tool===false&&Object.keys(logA[0])[0]==='ts','absent: addon.state must be logged with the state, by host, and the timestamp first');
 var r1=render(run);
@@ -62,7 +67,7 @@ check(l1.length===1&&l1[0]==='**Seats:** '+a.stdout.trim(),'absent: the short fo
 var shortLines=r1.short.trim().split('\n');
 check(shortLines[0].indexOf('**Crew:**')===0&&shortLines[2]===l1[0],'absent: the Seats line must sit right under the crew line in the short form');
 check(r1.record.split('\n')[4]===l1[0],'absent: record.md must carry the Seats line right under the crew line');
-check(r1.board.indexOf('<strong>Seats:</strong> The crew add-on is not installed, so the crew is one seat. Next: '+INSTALL)>=0,'absent: board.html must carry the Seats line');
+check(r1.board.indexOf('<strong>Seats:</strong> '+ABSENT.replace(/'/g,"'"))>=0&&r1.board.indexOf('/plugin install')<0,'absent: board.html must carry the Seats line, and no install command');
 check(shortLines[shortLines.length-1]==='Seat key: seat-1 Test Model','absent: the seat key still closes the short form');
 
 // State 2: down; the latest state wins.

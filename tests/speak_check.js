@@ -4,7 +4,7 @@
 // writes rounds/<round>/voices.json for the board, logs voices.rendered, and is silent on success.
 // Runs the REAL speak.js from plugins/combat-writing/scripts against a fixture run in a temporary
 // project, with a fake speech command that lists voices on `-v ?` and writes the voice name
-// and the text it was handed on `-v V -o OUT -f IN`; the real `say` is never run. The fake
+// and the text it was handed on its standard input for `-v V -o OUT`; the real `say` is never run. The fake
 // reaches the script the way the real command does (issue 239): a folder first on the child's
 // PATH holds it under the name `say`, and a file of this test's own, loaded by node before the
 // script, starts the child as a Mac, so the script looks for the engine at all. The script reads
@@ -85,7 +85,8 @@ write(fake,'#!/bin/bash\n'
  +'while [ $# -gt 0 ]; do case "$1" in -v) voice="$2"; shift 2;; -o) out="$2"; shift 2;; -f) in="$2"; shift 2;; --data-format=*) fmt="$1"; shift;; --bit-rate=*) br="$1"; shift;; *) shift;; esac; done\n'
  +'if [ -n "$FAKE_SAY_FAIL_VOICE" ] && [ "$voice" = "$FAKE_SAY_FAIL_VOICE" ]; then echo "fake say: refused $voice" >&2; exit 1; fi\n'
  +'if [ -n "$FAKE_SAY_AAC_REFUSE" ] && [ -n "$fmt" ]; then echo "fake say: aac refused" >&2; exit 1; fi\n'
- +'{ echo "VOICE: $voice"; if [ -n "$fmt" ]; then echo "ARGS: $fmt $br"; fi; cat "$in"; } > "$out"\n');
+ +'if [ -n "$in" ]; then echo "fake say: handed a file, $in; the text comes on standard input" >&2; exit 1; fi\n'
+ +'{ echo "VOICE: $voice"; if [ -n "$fmt" ]; then echo "ARGS: $fmt $br"; fi; cat; } > "$out"\n');
 fs.chmodSync(fake,0o755);
 // A fake that writes MPEG-4 containers: FAKE_M4A_SECONDS=0 a silent one (ftyp, moov with duration
 // 0, no mdat), above 0 one with sound (an mdat atom and that duration).
@@ -116,13 +117,25 @@ write(path.join(rd,'seat-2.answer.md'),'RATING: 6/10\nNot send-ready: the opener
 // seat-3 has no answer this round
 
 // 1. The plain render
-// The text a seat's voice reads is written to a file in the temporary folder and removed once
-// the audio is made (the privacy page says so): no such file is left after a render.
-function spokenTexts(){ return fs.readdirSync(os.tmpdir()).filter(function(n){ return /^cw-speak-\d+-seat-\d+\.txt$/.test(n); }).sort(); }
-var textsBefore=spokenTexts();
-var r1=speak(['--run',run,'--round','01-battle'],null,fake);
-var textsLeft=spokenTexts().filter(function(n){ return textsBefore.indexOf(n)<0; });
-check(textsLeft.length===0,'speak.js left '+textsLeft.length+' text file(s) of a seat\'s spoken answer in the temporary folder: '+textsLeft.join(', '));
+// NO TEXT FILE (issue 261). The text a seat's voice reads was written to a file in the system's
+// temporary folder and removed at the script's end, so a render stopped early left it there. It
+// goes to the engine on standard input now: the child is given a temporary folder of its own
+// (TMPDIR), and nothing is ever written in it, whether the render ends or is stopped half way.
+// A file an earlier version left is removed at the next render once it is fifteen minutes old;
+// a newer one (a render of an earlier version still running) and any other file are left alone.
+var ownTmp=path.join(tmp,'own-tmp'); fs.mkdirSync(ownTmp);
+function inTmp(){ return fs.readdirSync(ownTmp).sort(); }
+var staleOld=path.join(ownTmp,'cw-speak-4242-seat-1.txt'), staleNew=path.join(ownTmp,'cw-speak-4243-seat-2.txt'), notOurs=path.join(ownTmp,'cw-speak-notes.txt');
+[staleOld,staleNew,notOurs].forEach(function(f){ write(f,'left behind\n'); });
+var long=new Date(Date.now()-16*60*1000); fs.utimesSync(staleOld,long,long); fs.utimesSync(notOurs,long,long);
+// A render stopped half way (the hook's window): the stand-in engine never returns, the script is killed, and the temporary folder is as it was.
+var hang=path.join(tmp,'fakesay-hang.sh');
+write(hang,'#!/bin/bash\nif [ "$1" = "-v" ] && [ "$2" = "?" ]; then exec "'+fake+'" -v "?"; fi\nif [ "$1" = "--file-format=m4af" ]; then exec "'+fake+'" "$@"; fi\nsleep 30\n'); fs.chmodSync(hang,0o755);
+var rh=cp.spawnSync(process.execPath,[path.join(scripts,'speak.js'),'--run',run,'--round','01-battle'],{encoding:'utf8',timeout:1500,env:Object.assign({},process.env,{PATH:binFor(hang)+path.delimiter+(process.env.PATH||''),NODE_OPTIONS:'--require '+JSON.stringify(asPlatform),TMPDIR:ownTmp})});
+check(!!rh.error&&rh.error.code==='ETIMEDOUT'&&J(inTmp())===J(['cw-speak-4243-seat-2.txt','cw-speak-notes.txt']),'no text file: a render stopped half way must leave nothing in the temporary folder; stopped: '+J(rh.error&&rh.error.code)+', the folder holds '+J(inTmp()));
+var r1=speak(['--run',run,'--round','01-battle'],{TMPDIR:ownTmp},fake);
+check(J(inTmp())===J(['cw-speak-4243-seat-2.txt','cw-speak-notes.txt']),'no text file: a render must write nothing in the temporary folder, remove a text file an earlier version left sixteen minutes ago, and leave a newer one and any other file; the folder holds '+J(inTmp()));
+check(!/os\.tmpdir\(\)[^;]*writeFileSync|writeFileSync\([^)]*tmpdir|'-f'/.test(read(path.join(scripts,'speak.js'))),'no text file: speak.js must hand the engine no file of text (`-f`) and write none in the temporary folder');
 check(r1.status===0&&r1.stdout===''&&r1.stderr==='','render: exit 0 and silent: '+J([r1.status,r1.stdout,r1.stderr]));
 var vj=JSON.parse(read(path.join(rd,'voices.json')));
 check(J(vj.installed)===J(['Ava (Premium)','Zoe (Premium)','Nathan (Enhanced)','Allison (Enhanced)']),'render: installed ranks Premium first, then the founder order, English only: '+J(vj.installed));

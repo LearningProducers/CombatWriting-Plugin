@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Shield-1.0.0
 // seat_scope_check.js: the seat's reach (ruled 2026-10-16). hooks/seat-scope.js is a PreToolUse
-// hook on Read, Write and the tool that starts an agent: a seat (agent_type cw:seat) uses Read and Write only, reads only its own
+// hook on Read, Write and the tool that starts an agent: a seat (agent_type cw:seat, whose only tools are Read and Write by its agent file) reads only its own
 // packet and its own answer file and writes only that answer file, judged on the resolved path
 // (issue 239; it read anything inside its run folder until then); any other tool and
 // any path the hook cannot place is denied; every other caller is left alone but for one call,
@@ -19,7 +19,7 @@
 // What it pins:
 //   - The host (no agent_type) and another agent: no output, exit 0, whatever the path or tool,
 //     and whatever the size of the input (2 MB), the start of a seat excepted.
-//   - The start of a seat (tool Agent, tool_input.subagent_type cw:seat or seat, the prompt
+//   - The start of a seat (tool Agent or Task, tool_input.subagent_type cw:seat, the prompt
 //     opening with the two task lines), from the host or another agent: a record that says
 //     session with a model passed is denied, telling the host to start the seat again with no
 //     model choice; with no model (or an empty one) allowed; a record that says named with a
@@ -140,7 +140,20 @@ function call(tool,filePath,extra,env){
   return shaped(cp.spawnSync(process.execPath,[hook],{input:raw,encoding:'utf8',cwd:proj,env:hookEnv(env),timeout:20000}));
 }
 function allowed(name,r){ check(r.status===0&&r.out===''&&r.stderr==='',name+': expected silence and exit 0, got exit '+r.status+' out '+JSON.stringify(r.out)+' err '+r.stderr); }
-function denied(name,r,re){ check(r.status===0&&!!r.json&&r.json.hookSpecificOutput&&r.json.hookSpecificOutput.hookEventName==='PreToolUse'&&r.json.hookSpecificOutput.permissionDecision==='deny'&&Object.keys(r.json).join(',')==='hookSpecificOutput'&&r.stderr==='',name+': expected a deny line and exit 0, got exit '+r.status+' out '+JSON.stringify(r.out)+' err '+r.stderr); if(re)check(re.test(r.reason),name+': reason "'+r.reason+'" does not match '+re); }
+// THE PLAIN LINE (issue 261): a refusal whose cause is the shape of what the host handed the hook
+// (no start on record, input that does not parse, no agent id, no file named, a fault in the hook)
+// carries one line for the person beside it, the hook's systemMessage; a refusal of what a reader
+// asked for (a file that is not its own, a tool, a start the record does not allow) carries none.
+// Every refusal this file reads is held to that, both ways.
+var SHAPED=/no start of this seat is on the hook's record|the hook input could not be read|carries no agent id|names no file|^Combat Writing seat scope: the hook failed \(/;
+var PLAIN_LINE='Combat Writing: Claude Code handed the plugin\'s fence a call it could not place, so a fresh reader was refused. The fence was last proved on Claude Code '+((/^var PROVED_ON='([^']+)';$/m.exec(fs.readFileSync(hook,'utf8'))||[])[1])+', and a later version may hand it something else. Your own work is not stopped, and outside seats through the add-on still answer. Run `claude --version` and report the version at github.com/LearningProducers/CombatWriting-Plugin/issues.';
+function denied(name,r,re){
+  check(r.status===0&&!!r.json&&r.json.hookSpecificOutput&&r.json.hookSpecificOutput.hookEventName==='PreToolUse'&&r.json.hookSpecificOutput.permissionDecision==='deny'&&/^hookSpecificOutput(,systemMessage)?$/.test(Object.keys(r.json).join(','))&&r.stderr==='',name+': expected a deny line and exit 0, got exit '+r.status+' out '+JSON.stringify(r.out)+' err '+r.stderr);
+  if(re)check(re.test(r.reason),name+': reason "'+r.reason+'" does not match '+re);
+  var told=!!r.json&&r.json.systemMessage;
+  if(SHAPED.test(r.reason))check(told===PLAIN_LINE,name+': a refusal for the shape of the hook\'s input must carry the plain line for the person, word for word; got '+JSON.stringify(told));
+  else check(told===undefined||told===false,name+': a refusal of what a reader asked for must carry no line for the person; got '+JSON.stringify(told));
+}
 // The start call the host makes. Its own session unless one is named, so the starts judged
 // further down leave no start waiting in a session a seat of this test calls from.
 function taskText(pk,an){ return 'Packet: '+pk+'\nAnswer file: '+an+'\nRead the packet, write your answer to the answer file, reply with one line.'; }
@@ -296,6 +309,28 @@ allowed('sent back: the new seat reads the answer file first and is placed by it
 allowed('sent back: the new seat rewrites the answer file',C('Write',answer));
 allowed('sent back: the new seat reads the packet',C('Read',packet));
 allowed('sent back: the first seat keeps its record',A('Read',packet));
+// THE FIRST CALL NAMES THE OTHER'S PACKET (issue 261). A reader with no record takes whichever
+// waiting start its first call names; the hook is handed nothing at the start that a reader's own
+// call carries (measured: the start has no agent id, and the reader's calls carry no id of the
+// start), so it cannot bind the two any other way. What both readers get when the first one
+// names the other's packet: the first is held to that packet and that answer file and to nothing
+// of the seat it was started for; the second finds its own start taken and is refused it, and
+// may take the one start left, the first reader's. No reader is ever on two records, no packet
+// is ever open to two readers, and a reader that swapped can write only the answer file of the
+// packet it read.
+var cross='sess-cross', X=as(cross,'seatX'), Y=as(cross,'seatY');
+allowed('crossed: the start of seat-1',start(taskText(packet,answer),'m',{session_id:cross}));
+allowed('crossed: the start of seat-2',start(taskText(packet2,answer2),undefined,{session_id:cross}));
+allowed('crossed: the reader started for seat-1 names seat-2\'s packet first, and takes that start',X('Read',packet2));
+denied('crossed: that reader, placed on seat-2, is refused seat-1\'s packet, the one it was started for',X('Read',packet),OWN);
+denied('crossed: that reader is refused seat-1\'s answer file',X('Write',answer),/writes only its own answer file, /);
+allowed('crossed: that reader writes seat-2\'s answer file, the answer of the packet it read',X('Write',answer2));
+denied('crossed: the reader started for seat-2 finds its packet\'s start taken',Y('Read',packet2),OWN);
+denied('crossed: the reader started for seat-2 cannot write seat-2\'s answer file either',Y('Write',answer2),/writes only its own answer file$/);
+check(waiting(cross).length===1&&placedSeats(cross).join(',')==='agent-seatX.json','crossed: the refused reader must have taken nothing: one start still waits and one reader is placed, got '+JSON.stringify(kept(cross,/./)));
+allowed('crossed: the second reader may take the one start left, seat-1\'s',Y('Read',packet));
+denied('crossed: and is then held to it',Y('Read',packet2),OWN);
+check(waiting(cross).length===0&&placedSeats(cross).join(',')==='agent-seatX.json,agent-seatY.json'&&strays(cross).length===0,'crossed: two starts, two readers placed, each on one record, got '+JSON.stringify(kept(cross,/./)));
 // A start in one session places no seat of another.
 allowed('another session: a start waits in its own session',start(taskText(packet2,answer2),undefined,{session_id:'sess-here'}));
 denied('another session: a seat of another session asks for that packet',as('sess-there','x')('Read',packet2),/no start of this seat is on the hook's record/);
@@ -444,8 +479,25 @@ allowed('start: named record, a model passed (never compared to the record)',sta
 denied('start: named record, no model',start(taskText(packet,answer)),/^Combat Writing seat scope: seat-1's record names Test Model; start seat-1 again and pass that model as the agent tool's model choice$/);
 denied('start: named record, an empty model',start(taskText(packet,answer),''),/seat-1's record names Test Model/);
 allowed('start: a relative packet path',start(taskText(path.relative(proj,packet2),path.relative(proj,answer2))));
-allowed('start: the bare seat type',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'seat'}}));
-denied('start: the bare seat type, a model on a session record',call('Agent','',{agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'seat',model:'x'}}),/start seat-2 again with no model choice/);
+// THE READER'S ONE NAME (issue 261). The plugin's reader is `cw:seat`, the name the host reports
+// for it at its start and at each of its calls (measured: a start by the bare name `seat` is
+// answered by the host with "Agent type 'seat' not found" where no such agent is the person's
+// own). An agent named `seat` is therefore the person's: its start is not judged, whatever it
+// carries, nothing is put on record for it, and its calls are untouched.
+var bareBefore=waiting('sess-bare').length;
+allowed('the bare name seat: a start is the person\'s own agent, not judged',call('Agent','',{session_id:'sess-bare',agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'seat'}}));
+allowed('the bare name seat: a start with a model, on a packet whose record says session, is not judged either',call('Agent','',{session_id:'sess-bare',agent_type:undefined,agent_id:undefined,tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'seat',model:'x'}}));
+allowed('the bare name seat: a start with no task lines is not judged',call('Task','',{session_id:'sess-bare',agent_type:undefined,agent_id:undefined,tool_name:'Task',tool_input:{description:'d',prompt:'Do my own work.',subagent_type:'seat'}}));
+check(waiting('sess-bare').length===bareBefore&&bareBefore===0,'the bare name seat: a start of the person\'s own agent must put nothing on record, got '+JSON.stringify(kept('sess-bare',/./)));
+allowed('the bare name seat: a Read by the person\'s own agent, outside any run, is untouched',call('Read',path.join(proj,'secret.txt'),{agent_type:'seat',agent_id:'mine'}));
+allowed('the bare name seat: a Bash call by the person\'s own agent is untouched',call('Bash','',{agent_type:'seat',agent_id:'mine',tool_name:'Bash',tool_input:{command:'ls'}}));
+denied('input that does not parse but names the start of a reader is refused',call('Agent','','{"hook_event_name":"PreToolUse","tool_name":"Agent","tool_input":{"subagent_type" : "cw:seat", not json'),/^Combat Writing seat scope: the hook input could not be read; the seat is not started$/);
+allowed('input that does not parse and names an agent called seat is not the reader\'s',call('Read','','{"agent_type":"seat", not json'));
+// Found by the second fresh read of issue 261: a byte the host never writes, standing between the key and the name, hid the
+// name from the two patterns, and the input, which does not parse, was let through. What cannot be read and holds the
+// reader's name between double quotes does not pass; the same input with no such name is still not the hook's to judge.
+denied('input that does not parse and holds the reader\'s name behind a stray byte is refused',call('Read','','{"hook_event_name":"PreToolUse","tool_name":"Read","agent_type":\u0001"cw:seat","tool_input":{"file_path":"/x"}}'),/^Combat Writing seat scope: the hook input could not be read and holds the reader's name; a call that cannot be read and names the reader does not pass$/);
+allowed('input that does not parse and holds no reader\'s name is not the hook\'s to judge',call('Read','','{"hook_event_name":"PreToolUse","tool_name":"Read","agent_type":\u0001"Explore","tool_input":{"file_path":"/x"}}'));
 denied('start: from another agent, a model on a session record',start(taskText(packet2,answer2),'x',{agent_type:'Explore',agent_id:'other'}),/start seat-2 again with no model choice/);
 var readOn=(/^var START_READ_ON='([^']+)';$/m.exec(fs.readFileSync(hook,'utf8'))||[])[1];
 check(typeof readOn==='string'&&/^\d+\.\d+\.\d+( to \d+\.\d+\.\d+)?$/.test(readOn)&&fs.readFileSync(hook,'utf8').split(readOn).length===2,'seat-scope.js: START_READ_ON must be one constant on its own line, the versions once, got '+readOn);
@@ -510,9 +562,9 @@ check(foreign.length===0,'the hook wrote something in the data folder that is no
 var hooks=JSON.parse(fs.readFileSync(path.join(plugin,'hooks','hooks.json'),'utf8'));
 // The matcher (issue 255): the two tools a seat holds and the two names of the tool that starts an agent. A seat holds no
 // other tool (agents/seat.md declares Read and Write), so the hook is asked about every call a seat can make and every start,
-// and about no other call of the person's. The command asks first whether node runs; tests/no_node_check.js pins what follows with none.
+// and about no other call of the person's. The command opens with its filter and asks behind it whether node runs; tests/no_node_check.js pins the filter and what follows with no Node.
 var pre=hooks.hooks.PreToolUse||[];
-check(pre.length===1&&pre[0].matcher==='Read|Write|Agent|Task'&&pre[0].hooks.length===1&&pre[0].hooks[0].type==='command'&&String(pre[0].hooks[0].command).indexOf('if node --version >/dev/null 2>&1; then node "${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js"; else ')===0&&typeof pre[0].hooks[0].timeout==='number'&&pre[0].hooks[0].timeout<=10,'hooks.json: the one PreToolUse entry must be matched to Read|Write|Agent|Task and run seat-scope.js when node is there, with a short timeout: '+JSON.stringify(pre));
+check(pre.length===1&&pre[0].matcher==='Read|Write|Agent|Task'&&pre[0].hooks.length===1&&pre[0].hooks[0].type==='command'&&String(pre[0].hooks[0].command).split('if node --version >/dev/null 2>&1; then node "${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js"; else ').length===3&&String(pre[0].hooks[0].command).indexOf('if command -v sed >/dev/null 2>&1 && command -v grep >/dev/null 2>&1; then LC_ALL=C sed -n -E ')===0&&typeof pre[0].hooks[0].timeout==='number'&&pre[0].hooks[0].timeout<=10,'hooks.json: the one PreToolUse entry must be matched to Read|Write|Agent|Task and run seat-scope.js when node is there, behind the filter and, with no sed or no grep, without it (tests/no_node_check.js pins the filter), with a short timeout: '+JSON.stringify(pre));
 // THE FENCE FAILS CLOSED (issue 239). A hook that cannot start, exits with an error or runs past
 // its timeout must stop the call it was asked about, never let it through: the entry says so to
 // the host. And an error inside the hook is never one of those failures for a caller that is not
@@ -528,12 +580,12 @@ var base={session_id:sid,transcript_path:transcript,cwd:proj,hook_event_name:'Pr
 denied('a fault inside the hook, a seat\'s read',broken(Object.assign({},base,{tool_name:'Read',tool_input:{file_path:packet},agent_id:aid,agent_type:'cw:seat'})),/^Combat Writing seat scope: the hook failed \(a fault inside the hook\); a seat does nothing the hook cannot judge$/);
 denied('a fault inside the hook, the start of a seat',broken(Object.assign({},base,{tool_name:'Agent',tool_input:{description:'d',prompt:taskText(packet2,answer2),subagent_type:'cw:seat'}})),/^Combat Writing seat scope: the hook failed \(a fault inside the hook\); the seat is not started$/);
 // A fault BEFORE the hook has read who is calling: the first thing it does with the parsed input
-// is look the agent type up in its list of seat types, so a lookup that throws there faults every
-// caller's run, the host's included. The breaker leaves a mark when it throws, so silence is
-// proved to be the hook's answer to a fault that happened, and not a run in which nothing failed.
+// is read the event's name, so a read that throws there faults every caller's run, the host's
+// included. The breaker leaves a mark when it throws, so silence is proved to be the hook's
+// answer to a fault that happened, and not a run in which nothing failed.
 var earlyMark=path.join(tmp,'early-fault.txt');
 var early=path.join(tmp,'break-early.js');
-fs.writeFileSync(early,'var real=Array.prototype.indexOf,armed=false;\nArray.prototype.indexOf=function(x){ if(armed&&this.length===2&&this[0]==="cw:seat"&&this[1]==="seat"){ armed=false; require("fs").appendFileSync('+JSON.stringify(earlyMark)+',"threw\\n"); throw new Error("an early fault inside the hook"); } return real.apply(this,arguments); };\nprocess.stdin.on("end",function(){ armed=true; });\n');
+fs.writeFileSync(early,'var real=JSON.parse,armed=false;\nJSON.parse=function(){ var v=real.apply(JSON,arguments); if(armed&&v&&typeof v==="object"&&("hook_event_name" in v)){ armed=false; Object.defineProperty(v,"hook_event_name",{get:function(){ require("fs").appendFileSync('+JSON.stringify(earlyMark)+',"threw\\n"); throw new Error("an early fault inside the hook"); }}); } return v; };\nprocess.stdin.on("end",function(){ armed=true; });\n');
 function brokenEarly(input){
   try{ fs.unlinkSync(earlyMark); }catch(e){}
   var r=shaped(cp.spawnSync(process.execPath,['-r',early,hook],{input:JSON.stringify(input),encoding:'utf8',cwd:proj,env:hookEnv()}));

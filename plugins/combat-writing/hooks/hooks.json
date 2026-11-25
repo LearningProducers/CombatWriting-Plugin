@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if node --version >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js\"; else command -v grep >/dev/null 2>&1 && ! grep -Eq '\"(agent_type|subagent_type)\"(:| :|: | : )\"(cw:seat|seat)\"' && exit 0; echo 'Combat Writing: Node is not on the PATH or does not run, so the fence that holds a fresh reader cannot run; no fresh reader is started or served until Node runs.' >&2; exit 2; fi",
+            "command": "if command -v sed >/dev/null 2>&1 && command -v grep >/dev/null 2>&1; then LC_ALL=C sed -n -E '/cw:seat|\\\\u00/=;/cw:seat|\\\\u00/p' | if read -r first; then if node --version >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js\"; else command -v grep >/dev/null 2>&1 && ! LC_ALL=C grep -Fq '\"cw:seat\"' && exit 0; echo 'Combat Writing: Node is not on the PATH or does not run, so the fence that holds a fresh reader cannot run; no fresh reader is started or served until Node runs.' >&2; exit 2; fi; fi; else if node --version >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/seat-scope.js\"; else command -v grep >/dev/null 2>&1 && ! LC_ALL=C grep -Fq '\"cw:seat\"' && exit 0; echo 'Combat Writing: Node is not on the PATH or does not run, so the fence that holds a fresh reader cannot run; no fresh reader is started or served until Node runs.' >&2; exit 2; fi; fi",
             "timeout": 5,
             "onFailure": "block"
           }
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if node --version >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js\"; fi",
+            "command": "if command -v sed >/dev/null 2>&1; then LC_ALL=C sed -n -E '/render-record.js|open-board.js|speak.js/=;/render-record.js|open-board.js|speak.js/p' | if read -r first; then if node --version >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js\"; fi; fi; else if node --version >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js\"; fi; fi",
             "timeout": 80
           }
         ]
@@ -41,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if node --version >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js\"; fi",
+            "command": "if command -v sed >/dev/null 2>&1; then LC_ALL=C sed -n -E '/cw:seat|\\\\u00/=;/cw:seat|\\\\u00/p' | if read -r first; then if node --version >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js\"; fi; fi; else if node --version >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js\"; fi; fi",
             "timeout": 5
           }
         ]

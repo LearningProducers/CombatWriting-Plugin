@@ -11,7 +11,9 @@
 // no desktop: Claude Code's sandbox has no Launch Services, measured 2026-10-24), the hook opens
 // the board itself with the system opener, outside the sandbox (hooks run with the session's
 // full access, the Claude Code docs' word), appends `board.opened {ok, by: "hook"}` to the run's
-// log, and says "Board opened by the plugin" or why not. The board it opens is the run's own
+// log, and says "Board opened by the plugin" or why not. An opener still running three seconds
+// after it was started is neither: the line holds `ok: null` and `started: true`, and the message
+// says the page is not known to have opened and how to open it by hand. The board it opens is the run's own
 // board.html and no other file, rendered again by the hook before it is opened (THE REAL RUN,
 // below). One command may carry both scripts.
 // When the command ran `speak.js` and its line says the speech engine wrote no sound in that
@@ -34,6 +36,15 @@
 // the scripts' output into collapsed shell lines and narrated, and a hook that refused the Next
 // picker until the host printed (hooks/host-output.js, issues 60 and 68) could not make it
 // print: it produced red refusals and the host waited out the loop cap. Retired by this hook.
+//
+// THE FILTER (issue 261). The two commands in hooks.json that run this file open with one `sed`
+// (run under LC_ALL=C, on bytes, so input that is no UTF-8 does not stop it) that prints the hook input, a line number first, only when it holds the name of one of the
+// three scripts the hook acts on (after a shell command: render-record.js, open-board.js,
+// speak.js, in the command or in its output) or the plugin's reader's name (after a start of an
+// agent); the shell starts Node only when the filter printed. So after any other shell command
+// and any other agent's start no Node process starts: measured on one machine, about 6 ms where
+// the two Node processes cost about 50. With no `sed` the command runs with no filter, as before.
+// What follows is unchanged: this file still asks whether the command ran a script on a real run.
 //
 // THE REAL RUN (issue 235). The hook runs outside the sandbox the host's shell runs in, so what
 // it acts on is held to one thing: a real run folder. A command counts only when the segment that
@@ -87,7 +98,7 @@
 // THE MEASURED MODEL (issue 255: with no transcript read): the name a fresh reader carries in
 // the run is the host's word, written by new-run.js from what the host said, and nothing in the
 // run measured it. The host hands a PostToolUse hook each start of an agent with what the start
-// returned, and for the plugin's own reader (subagent_type `cw:seat` or `seat`, the tool named
+// returned, and for the plugin's own reader (subagent_type `cw:seat`, the tool named
 // Agent or Task) that holds the model the host resolved for the reader, the documented field
 // tool_response.resolvedModel, after a background start (the skills' way) and after a
 // foreground one. The hook reads four things of that start and nothing else of it: the
@@ -169,9 +180,9 @@ var PROVED_ON='2.1.330';
 // The Claude Code version the start call's shape was read on, from a real session (THE MEASURED MODEL). One copy.
 var STARTED_READ_ON='2.1.331';
 var ROUND_RE=/^\d\d-[a-z][a-z0-9-]*$/, PACKET_RE=/^(seat-\d+)((?:\.[a-z]+)?)\.packet\.md$/;
-// The tool that starts an agent, by its two names, and the plugin's reader, by its two.
+// The tool that starts an agent, by its two names, and the plugin's reader, by its one (the name the host reports for it).
 var START_TOOLS=['Agent','Task'];
-var SEAT_TYPES=['cw:seat','seat'];
+var SEAT_TYPE='cw:seat';
 // The class a model id is written in: letters, digits, dot, dash, underscore, slash, colon and
 // square brackets, at most 120, no space and no line break. The rule of lib.MODEL_ID_RE in
 // scripts/lib.js, mirrored here so the hook requires nothing of the plugin's; the test keeps the two equal.
@@ -335,7 +346,8 @@ function renderBoard(runDir){
 function finish(obj){ process.stdout.write(JSON.stringify(obj)+'\n'); process.exit(0); }
 function silent(){ process.exit(0); }
 
-// The board opened outside the sandbox: the same opener open-board.js uses, the exit read the same way.
+// The board opened outside the sandbox: the same opener open-board.js uses, the exit read the same
+// way but at the deadline, where this hook says what it measured (started) and the script counts an open.
 function openBoard(board,done){
   var cmd, argv;
   if(process.platform==='darwin'){ cmd='open'; argv=[board]; }
@@ -354,12 +366,16 @@ function openBoard(board,done){
     var first=stderr.split('\n').filter(function(l){return l.trim();})[0]||('exit '+code);
     settle(false,first.slice(0,REASON_MAX)+' (exit '+code+')');
   });
-  setTimeout(function(){ if(settled)return; try{child.unref();}catch(e){} settle(true,'still running after '+EXIT_WAIT_MS+' ms; counted as opened'); },EXIT_WAIT_MS);
+  // The opener still running at the deadline: it was started, and whether a page came up is not
+  // known. That is what is logged and said (ok null, started true), never a success.
+  setTimeout(function(){ if(settled)return; try{child.unref();}catch(e){} settle(null,'still running after '+EXIT_WAIT_MS+' ms: started, not known to have opened'); },EXIT_WAIT_MS);
 }
 function logOpened(board,ok,reason,cmd){
   var runDir=path.dirname(board), logFile=path.join(runDir,'log.jsonl');
   if(!fs.existsSync(logFile))return;
-  try{ fs.appendFileSync(logFile,JSON.stringify({ts:new Date().toISOString(),event:'board.opened',file:path.basename(board),opener:cmd,ok:ok,reason:reason||null,by:'hook'})+'\n'); }catch(e){}
+  var opened={ts:new Date().toISOString(),event:'board.opened',file:path.basename(board),opener:cmd,ok:ok,reason:reason||null,by:'hook'};
+  if(ok===null)opened.started=true; // the opener was started and had not exited at the deadline: neither a success nor a failure was measured
+  try{ fs.appendFileSync(logFile,JSON.stringify(opened)+'\n'); }catch(e){}
 }
 
 // THE MEASURED MODEL. Every read is guarded and every miss is silence: this never fails the command it follows.
@@ -427,12 +443,11 @@ function seatOfTask(task,cwd){
   return {run:run,seat:m[1],round:round};
 }
 // THE MEASURED MODEL: after the host started the plugin's reader, one log line with the model the
-// host resolved for it. Of the start the reader's type, the task's opening, the model choice and
-// the resolved model are read, and nothing else; the working folder places a relative packet
-// path; no transcript is opened.
+// host resolved for it. What is read of the start, and of the hook input around it, is the list
+// in the header (THE MEASURED MODEL); no transcript is opened.
 function measureStart(input){
   var ti=input.tool_input, tr=input.tool_response;
-  if(!ti||typeof ti!=='object'||SEAT_TYPES.indexOf(ti.subagent_type)<0||typeof ti.prompt!=='string')return;
+  if(!ti||typeof ti!=='object'||ti.subagent_type!==SEAT_TYPE||typeof ti.prompt!=='string')return;
   if(!tr||typeof tr!=='object'||Array.isArray(tr))return;
   var model=tr.resolvedModel; if(!isModelId(model))return;
   var place=seatOfTask(ti.prompt.slice(0,TASK_CHARS),typeof input.cwd==='string'&&input.cwd?input.cwd:null); if(!place)return;
@@ -525,7 +540,7 @@ process.stdin.on('end',function(){
   }
   openBoard(board,function(ok,reason,cmd){
     logOpened(board,ok,reason,cmd);
-    parts.push(ok?'Board opened by the plugin: '+board:'Board: '+board+' (the plugin could not open it either: '+reason+'; open it yourself: open '+board+')');
+    parts.push(ok===true?'Board opened by the plugin: '+board:ok===null?'Board: '+board+' (the plugin started the opener, which was still running after '+(EXIT_WAIT_MS/1000)+' seconds, so the page is not known to have opened; if none came up, open it yourself: open '+board+')':'Board: '+board+' (the plugin could not open it either: '+reason+'; open it yourself: open '+board+')');
     say(parts);
   });
 });

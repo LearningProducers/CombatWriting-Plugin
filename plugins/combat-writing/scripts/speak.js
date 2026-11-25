@@ -16,9 +16,14 @@
 // Premium above Enhanced, then by a fixed order (Ava, Nathan, Allison, then the rest), then by
 // name, and gives seat k the k-th distinct one, seat-1 included, wrapping; a voice kept for a seat
 // in <project>/combat-writing/voices.json wins when it is installed. For every <seat>.answer.md in
-// the round it writes the spoken text (lib.spokenPlain: fences and markdown marks dropped, the
-// second pass appended) to a temporary file, runs `say -v "<voice>" -o rounds/<round>/<seat>.m4a -f
-// <that file>`, and removes the temporary file. It writes rounds/<round>/voices.json {engine,
+// the round it makes the spoken text (lib.spokenPlain: fences and markdown marks dropped, the
+// second pass appended) and runs `say -v "<voice>" -o rounds/<round>/<seat>.m4a` with that text on
+// the engine's standard input (the engine reads it there when it is handed no file and no words,
+// its manual's rule), so no file of a seat's answer is written anywhere but the run folder: until
+// this rule the text stood in a file in the system's temporary folder while the engine ran, and a
+// render stopped at the hook's window never reached the line that removed it. A file an earlier
+// version left there (cw-speak-<number>-seat-<n>.txt) is removed at the next render once it is
+// STALE_MS old. It writes rounds/<round>/voices.json {engine,
 // installed, assigned, files} for the board, logs voices.rendered, and prints nothing on success:
 // the board shows the voice names, and the measurement is accessible, not presented. A seat whose
 // render fails is logged (voices.failed, the first stderr line) and skipped; the board falls back to
@@ -216,13 +221,13 @@ function writeRecord(){
 }
 // One render: the voice, the output, the spoken text. AAC first when the engine lists it; a refusal
 // of the AAC flags (a non-zero exit) is retried once in the engine's default format and recorded.
-function renderOne(voice,outPath,tmp){
+function renderOne(voice,outPath,text){
   var format=aac?AAC_FORMAT:'lpcm';
-  var r=runSay(['-v',voice,'-o',outPath,'-f',tmp].concat(aac?AAC_ARGS:[]));
+  var r=runSay(['-v',voice,'-o',outPath].concat(aac?AAC_ARGS:[]),{input:text});
   if(aac&&(r.error||r.status!==0)){
     if(!aacRefused)aacRefused=r.error?(r.error.code||r.error.message):String(r.stderr||'').trim().split('\n')[0]||('exit '+r.status);
     try{ fs.unlinkSync(outPath); }catch(err){}
-    r=runSay(['-v',voice,'-o',outPath,'-f',tmp]); format='lpcm';
+    r=runSay(['-v',voice,'-o',outPath],{input:text}); format='lpcm';
   }
   var ran=!r.error&&r.status===0&&fs.existsSync(outPath);
   var snd=ran?soundIn(outPath):null;
@@ -230,6 +235,18 @@ function renderOne(voice,outPath,tmp){
   try{ fs.unlinkSync(outPath); }catch(err){}
   return {ok:false,silenced:ran,reason:ran?'no sound':(r.error?(r.error.code||r.error.message):String(r.stderr||'').trim().split('\n')[0]||('exit '+r.status))};
 }
+// What an earlier version left in the system's temporary folder when its render was stopped: a
+// plain file of this script's own old name, STALE_MS old or more, is removed; nothing else there
+// is touched, and a failure here never stops a render.
+var STALE_NAME=/^cw-speak-\d+-seat-\d+\.txt$/, STALE_MS=15*60*1000;
+try{
+  var tmpDir=os.tmpdir(), cut=Date.now()-STALE_MS;
+  fs.readdirSync(tmpDir).forEach(function(n){
+    if(!STALE_NAME.test(n))return;
+    try{ var f=path.join(tmpDir,n), st=fs.lstatSync(f); if(st.isFile()&&st.mtimeMs<=cut)fs.unlinkSync(f); }catch(err){}
+  });
+}catch(err){}
+// The text each seat's voice reads, held in memory and handed to the engine on its standard input.
 var tmps={};
 answered.forEach(function(s){
   var text=lib.readText(path.join(roundDir,s.id+'.answer.md'));
@@ -237,8 +254,7 @@ answered.forEach(function(s){
   var crew=fs.existsSync(crewPath)?lib.readText(crewPath):null;
   var spoken=lib.spokenPlain(text,crew);
   if(!spoken.trim())return;
-  tmps[s.id]=path.join(os.tmpdir(),'cw-speak-'+process.pid+'-'+s.id+'.txt');
-  fs.writeFileSync(tmps[s.id],spoken+'\n');
+  tmps[s.id]=spoken+'\n';
 });
 // Pass 1: every seat's own voice, so a render stopped early still leaves one file per seat.
 answered.forEach(function(s){
@@ -263,7 +279,6 @@ for(var k=0;k<MAX_VOICES_PER_SEAT-1;k++){
     rendersFailed[s.id]=rendersFailed[s.id]||{}; rendersFailed[s.id][voice]=r.reason;
   });
 }
-Object.keys(tmps).forEach(function(id){ try{ fs.unlinkSync(tmps[id]); }catch(err){} });
 var record=writeRecord();
 if(silenced.length){
   lib.appendLog(runDir,{event:'voices.silenced',round:round,engine:record.engine,seats:silenced,files:files,by:by,ms:Date.now()-t0});

@@ -24,12 +24,14 @@
 //   - The crew add-on: `claude plugin list` (the documented signal, read with a 5 s budget) names
 //     combat-writing-crew; when the command cannot run, the plugin cache is read instead
 //     (~/.claude/plugins/cache/<marketplace>/<plugin>/, the layout the security page documents).
-//     Lacking: the install line, what it seats, where the key goes.
+//     Lacking: one line saying the crew is the two readers, whole that way, and that
+//     /cw:help crew says how other companies' models sit; no install command is in it.
 //   - The voices, on macOS alone: `say -v ?` filtered as speak.js filters (Premium or Enhanced,
 //     the page's language), fewer than three named with the download path. No program downloads
 //     Apple's voices; the line says where they are.
 // The hook installs nothing, downloads nothing, writes only the sentinel (what it measured, dated),
-// and reads two environment variables, CLAUDE_PLUGIN_DATA and HOME (for the cache). It reads no
+// removes only the fence's own record files past their days and a folder they left empty (the
+// sweep of hooks/seat-scope.js, run here at every start: sweepAll), and reads two environment variables, CLAUDE_PLUGIN_DATA and HOME (for the cache). It reads no
 // switch of the tests': `claude` and `say` are found the way any command is, and the tests put
 // their fakes there. The data folder is
 // read from the hook's environment alone, CLAUDE_PLUGIN_DATA, which the host exports to every
@@ -73,9 +75,17 @@ function qualityVoices(){
   });
   return {owed:true,names:names};
 }
-function addonLine(){ return 'The crew add-on is not installed: the crew is the two fresh readers, one company\'s models. '+lib.ADDON_INSTALL+' seats two more models on a free Groq key in the second chair, your key going only to Groq. /cw:help crew for the three states.'; }
+// The add-on's line names no install command: the plugin is whole with its two readers, the
+// add-on is a separate plugin the person installs only by choice, and /cw:help crew is where
+// its install line stands.
+function addonLine(){ return 'The crew add-on is not installed: the crew is the two fresh readers, one company\'s models, and the plugin is whole that way. Other companies\' models sit only through the add-on, a separate plugin on the person\'s own keys: /cw:help crew says how. Say nothing of this unless the person asks.'; }
 function voicesLine(names){ return 'This Mac has '+names.length+' premium or enhanced '+(names.length===1?'voice':'voices')+(names.length?' ('+names.join(', ')+')':'')+'. The board reads each seat in its own voice when three are installed: System Settings, Accessibility, Read & Speak (Spoken Content before macOS 26), the ⓘ beside System voice, then the arrow beside Ava (Premium), Nathan (Enhanced) and Allison (Enhanced), or any Premium or Enhanced voice. /cw:help voices.'; }
 
+// The fence's old records (hooks/seat-scope.js keeps one small file per start of a reader, its
+// paths carrying the run folder's name): every start sweeps the sessions' folders past their days,
+// by the fence's own rule and its own code, so a person who stops running rounds does not keep
+// them until a later reader starts. A failure here is never the session's.
+if(dataDir){ try{ require('./seat-scope.js').sweepAll(dataDir); }catch(e){} }
 var lines=[LINE];
 // The check is skipped in one state only: the hook can see the sentinel, the proof it already ran.
 // No data folder, or one that cannot be made, read or written, is no proof, so that start measures:

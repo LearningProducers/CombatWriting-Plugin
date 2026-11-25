@@ -1,7 +1,7 @@
 {
   "name": "cw",
   "displayName": "Combat Writing",
-  "version": "0.9.27",
+  "version": "0.9.28",
   "description": "Combat Writing for Claude Code: two fresh readers on your session's company's models attack your draft. Each rates it 1 to 10, 7 forbidden, and says why. They read each other in the sharing rounds and rate again when you ask. Other companies' models need an add-on not in this directory. See /cw:help",
   "author": {
     "name": "Learning Producers Inc.",

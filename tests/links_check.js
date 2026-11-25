@@ -112,6 +112,24 @@ check(/cannot open a link/.test(read(path.join(plugin,'README.md'))),'the plugin
 check(/Links are unread \(issue 90/.test(read(path.join(root,'RULINGS.md')))&&/^- The draft's counts:[^\n]* Held by: [^\n]*tests\/links_check\.js/m.test(read(path.join(root,'CLAUDE.md'))),'RULINGS.md (issue 224) carries the rule with its issue, and CLAUDE.md\'s bullet on the draft\'s counts names this check (issue 226)');
 check(/links are unread|cannot open a link/i.test(read(path.join(root,'plugins','combat-writing-crew','README.md'))),'the add-on README says the system line names unread links');
 
+// THE PERSON IS TOLD TOO (issue 261). Every packet tells the seat that no seat opens a link, and /cw:help rounds tells the
+// person who asks; nothing told the person whose stored draft or brief holds an address. The first short form of a run says
+// it: before any round, and again with the legend at the first round (so at least two times on a run that began at strategy, one
+// on a run that began at a round); never when neither holds an address, and in no later short form.
+var NOTE_BOTH='The draft and the brief hold an address. No seat can open a link: its page is unread text to every seat. If the page\'s words matter, paste them into the draft or the brief.';
+var NOTE_DRAFT=NOTE_BOTH.replace('The draft and the brief hold','The draft holds'), NOTE_BRIEF=NOTE_BOTH.replace('The draft and the brief hold','The brief holds');
+check(lib.linksNote('See https://example.com/a.','Read https://example.org/page first.')===NOTE_BOTH&&lib.linksNote('See https://example.com/a.','plain')===NOTE_DRAFT&&lib.linksNote('plain','See https://example.com/a.')===NOTE_BRIEF&&lib.linksNote('plain','plain')===null&&lib.linksNote(null,null)===null,'lib.linksNote: names the draft, the brief or both, and is null when neither holds an address');
+function shortOf(r){ return node('render-record.js',['--run',r,'--short']).stdout.split('\n'); }
+var fresh=node('new-run.js',['--draft','draft-link.md','--brief','brief-plain.md','--stage','strategy','--name','toldfirst','--model','Test Model']).stdout.trim();
+check(shortOf(fresh).indexOf(NOTE_DRAFT)>0,'the first result, before any round: a stored draft that holds an address must be said to the person, got\n'+shortOf(fresh).join('\n'));
+var plain=node('new-run.js',['--draft','draft-plain.md','--brief','brief-plain.md','--stage','strategy','--name','toldnothing','--model','Test Model']).stdout.trim();
+check(shortOf(plain).join('\n').indexOf('No seat can open a link')<0,'the first result: a draft and a brief with no address must bring no line about links');
+// A run that began at a round: the note rides with the legend in the first short form, and not in the second.
+node('packet.js',['--run',fresh,'--round','01-sparring','--seat','seat-1']);
+fs.writeFileSync(path.join(fresh,'rounds','01-sparring','seat-1.answer.md'),'RATING: 6/10\nThe page is unread.\n');
+var first=shortOf(fresh), second=shortOf(fresh);
+check(first.indexOf(NOTE_DRAFT)>0&&first.indexOf(lib.SCOREBOARD_LEGEND)>=0&&second.indexOf(NOTE_DRAFT)<0&&second.indexOf(lib.SCOREBOARD_LEGEND)<0,'the first result after a round: the note rides once, with the legend, and not in the next short form');
+
 fs.rmSync(proj,{recursive:true,force:true});
 if(failures.length){ failures.forEach(function(f){ console.log('FAIL: '+f); }); console.log(passes+' passed, '+failures.length+' failed'); process.exit(1); }
 console.log('links_check: '+passes+' checks passed');

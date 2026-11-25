@@ -2,11 +2,36 @@
 // seat-scope.js: the seat's reach. A PreToolUse hook on four tools, the two a seat holds (Read
 // and Write, the tools agents/seat.md declares; the host gives a seat no other) and the two names
 // of the tool that starts an agent (hooks.json's matcher, issue 255). A fresh
-// reader (the `seat` agent, agent_type `cw:seat`) uses Read and Write only, reads two files, its
-// own packet and its own answer file, and writes that answer file alone, each judged on the
-// resolved path; any other tool, any other file and any path the hook cannot place is denied.
-// Every other caller, the host and any other agent, is left alone but for one call, the one that
-// starts a seat (below): the hook prints nothing and exits 0, in about 20 ms.
+// reader (the `seat` agent, agent_type `cw:seat`, its one name: THE READER'S NAME, below) has
+// Read and Write and no other tool by its agent file's `tools:` line, which the host applies. Of
+// the calls this hook is asked about, it holds a reader to two files, its own packet and its own
+// answer file for reading and that answer file alone for writing, each judged on the resolved
+// path, and refuses a reader the tool that starts an agent; any other file and any path the hook
+// cannot place is denied. Every other caller, the host and any other agent, is left alone but for
+// one call, the one that starts a seat (below): the hook prints nothing and exits 0. Most such
+// calls never start this file at all (THE FILTER, below).
+//
+// THE READER'S NAME (issue 261). The plugin's reader is `cw:seat`: the host names a plugin's
+// agent by the plugin's name, a colon and the agent's (its documentation's rule, and measured:
+// agent_type `cw:seat` on the reader's own calls, subagent_type `cw:seat` at its start, and a
+// start by the bare name `seat` answered "Agent type 'seat' not found" where the person has no
+// agent of that name). An agent named `seat` is therefore the person's own, and this hook does
+// not judge it: until this rule the bare name was taken for the reader, here and with no Node.
+//
+// THE FILTER (issue 261). The command in hooks.json opens with one `sed` that reads the hook
+// input and prints it, a line number first, only when it holds the letters `cw:seat` or the
+// characters `\u00`, the way JSON writes a character as an escape; the shell reads that first
+// line and starts Node only when there was one. The `sed`, and the `grep` of a machine with no
+// Node, run under LC_ALL=C, on bytes: under a UTF-8 locale `sed` stops on a byte that is no UTF-8
+// and prints nothing, and `grep` finds nothing in such input, so a reader's call that held one
+// would have passed unjudged. So a call that names no reader starts no Node
+// process: measured on one machine, about 6 ms where the two Node processes cost about 50. What
+// the filter is trusted on: that the host writes the reader's name in the input as plain letters,
+// or as escapes of that form, which this file reads and `sed` cannot. Measured on the Claude Code
+// version in START_READ_ON: the input is one line of compact JSON, the name in plain letters. An
+// input that held the name in any other spelling would pass the filter unjudged, and a filter
+// that printed nothing because it failed passes the call as one that found nothing does; the
+// live proofs, run before a release, are what hold the spelling.
 //
 // The two files, and why no more: the packet carries the draft, the brief, the reader and the
 // other seats' answers of the round before, written into it by packet.js, and names no file by
@@ -50,33 +75,51 @@
 // with the reason, so a seat the hook cannot place does nothing rather than anything.
 //
 // When the records end: a session's folder of records is removed by a later start of a seat,
-// in any session, once 30 days have passed since the last start or first call in it, at most 20
-// folders at one start: 30 days is the least a record stays, and with no later start it stays. The hook removes its own record
+// in any session, and by every session start (hooks/session-start.js runs this file's own
+// sweep, sweepAll, at the foot of this file's functions), once 30 days have passed since the
+// last start or first call in it, at most 20 folders at one start: 30 days is the least a record
+// stays, and it stays on only while no session starts with the plugin on. The hook removes its own record
 // files there and the folder when nothing else is in it. A link is never a folder of the hook's:
 // one standing where the folder of records or a session's folder should be is not written
 // through, read through or entered, and a record that is a link is left where it is.
 //
 // When the hook itself fails: hooks.json sets onFailure "block" on this hook's entry, so the
-// host stops the call when the hook cannot start, exits with an error or runs past its timeout,
-// where without the field it would let the call through (the field is read by Claude Code
-// 2.1.295 and later; an earlier host ignores it and lets the call through, as before). The host
-// cannot tell a seat from any other caller there, so a hook that starts and fails stops every
-// call the entry is matched to, the person's own Read, Write and agent starts among them, and no
-// other tool. A machine with no Node on the PATH is not such a failure (issue 255): the command
-// in hooks.json asks first whether node runs (`node --version`, so a node on the PATH that cannot
-// run counts as none), and when it does not it refuses a call only when the
-// hook input names the plugin's reader (its start, or a call of its own) and lets every other
-// call through with no word, so the person's own work is not stopped and no reader runs unheld.
-// Where the host runs a hook's command in no POSIX shell (by the host's documentation, Windows
-// with no Git Bash; not measured here), the command cannot run at all and the matched calls are
-// stopped.
+// host stops the call when the hook's command cannot start, exits with an error or runs past its
+// timeout, where without the field it would let the call through
+// (the field is read by Claude Code 2.1.295 and later; an earlier host ignores it and lets the
+// call through, as before). The
+// host cannot tell a seat from any other caller there. What keeps that from the person's own
+// calls is THE FILTER: this file is started only for a call whose input holds the reader's name
+// or a character written as a `\u00` escape, so a file that cannot be read, or that stops on an error,
+// stops a reader's call and a call of the person's that holds one of those, and no other. Before
+// the filter it stopped every Read, every Write and every start of an agent. A machine with no
+// Node on the PATH is not such a failure (issue 255): behind the filter the command asks whether
+// node runs (`node --version`, so a node on the PATH that cannot run counts as none), and when
+// it does not it refuses a call only when the hook input holds the reader's name between double
+// quotes, `"cw:seat"`, found by `grep` as fixed text, so however the host spaces the input (the
+// start of a reader and a reader's own call hold it so; a call of the person's own holds it so
+// only when one of its values is exactly the name, or ends with the name right after a double
+// quote, because a double quote inside a value is written with a backslash before it), and lets
+// every other call through with no word, so the person's own work is not stopped and no reader
+// runs unheld. With no `sed`, or no `grep`, the command runs with no filter, as it did before;
+// with no Node and no `grep` it refuses every call it is matched to. Where the host runs a
+// hook's command in no POSIX shell (by the host's documentation, Windows with no Git Bash; not
+// measured here), the command cannot run at all and the matched calls are stopped.
 // A fault inside this file's own code is therefore never left to the host: it is caught
 // below and answered here, a refusal for a seat's call and for the start of a seat, silence and
 // exit 0 for every other caller.
 //
+// THE PLAIN LINE (issue 261). A refusal whose cause is the shape of what the host handed the
+// hook, and not what a reader asked for, also carries one line for the person (systemMessage):
+// input that does not parse, a reader's call with no agent id or no file named, no start of the
+// reader on the hook's record, a fault in this file. PROVED_ON names the version the reach was
+// last proved on, and a later host may hand the hook something else; until this rule the person
+// learned that from a reader's refusal, if the host relayed it. The line is said with each such
+// refusal: the hook keeps no note of having said it, because a refused call writes nothing.
+//
 // How a seat starts: the one judgment on a caller that is not a seat. The call that starts a
 // fresh reader is the Agent tool (Task, its earlier name, is judged the same way) with
-// subagent_type `cw:seat` (or `seat`), its prompt opening
+// subagent_type `cw:seat`, its prompt opening
 // with the same two lines, and a model choice only when one is passed (the shape read from a
 // real session's hook input on the Claude Code version in START_READ_ON below). The hook resolves the packet to its run folder, takes the seat id from the
 // packet's file name, reads that seat's record in the run's seats.json and holds the call to
@@ -93,13 +136,14 @@
 // whose start is not on record could not be placed by it, so it is not started. Any other call of
 // those two tools, and every other tool from a caller that is not a seat, is untouched.
 //
-// Output on deny: one JSON line, hookSpecificOutput.permissionDecision "deny" with the reason,
-// exit 0 (the documented form). On allow: nothing, exit 0, so the session's own permission
+// Output on deny: one JSON line, hookSpecificOutput.permissionDecision "deny" with the reason
+// (and, for a refusal of THE PLAIN LINE's kind, a systemMessage beside it), exit 0 (the documented form). On allow: nothing, exit 0, so the session's own permission
 // rules still apply. The hook reads the hook input, its own records and the file system, and
 // opens no transcript; it writes its records in the plugin's data folder and nowhere else, calls
 // nothing, reads one environment variable, CLAUDE_PLUGIN_DATA, and never prints a path from
 // inside the draft.
-// Input that does not parse is denied when it names a seat agent type and ignored otherwise.
+// Input that does not parse is denied when it names the reader, as the caller or as the agent
+// to start, or holds the reader's name between double quotes anywhere, and ignored otherwise.
 // A fault in the hook's own code is answered by who the input says is calling, the parsed input
 // when the fault falls after it was read and the raw input before: refused for a seat and for
 // the start of a seat, silence and exit 0 for every other caller.
@@ -111,7 +155,8 @@ var PROVED_ON='2.1.330';
 // The Claude Code version the start call's shape was read on, from a real session's hook input. One copy.
 var START_READ_ON='2.1.331';
 var START_TOOLS=['Agent','Task'];
-var SEAT_TYPES=['cw:seat','seat'];
+// The plugin's reader, by its one name: the plugin's name, a colon, the agent file's name. One copy.
+var SEAT_TYPE='cw:seat';
 var SEAT_TOOLS=['Read','Write'];
 var ISSUES='github.com/LearningProducers/CombatWriting-Plugin/issues';
 // The hook's own records: where, how long, and the only names it writes or removes there.
@@ -125,10 +170,17 @@ var WAIT_MS=10, WAIT_FOR=500;
 var ID=/^[A-Za-z0-9_-]{1,128}$/;
 var START_FILE=/^start-[0-9a-z]+-\d+\.json$/;
 var RECORD_FILE=/^(?:start|agent|claim)-[A-Za-z0-9_-]+\.json$/;
+// THE PLAIN LINE: said to the person when a reader is refused for a cause that is the shape of what the host handed the hook.
+var SHAPE_LINE='Combat Writing: Claude Code handed the plugin\'s fence a call it could not place, so a fresh reader was refused. The fence was last proved on Claude Code '+PROVED_ON+', and a later version may hand it something else. Your own work is not stopped, and outside seats through the add-on still answer. Run `claude --version` and report the version at '+ISSUES+'.';
 var SEAT_PACKET=/^(seat-\d+)\.(?:[a-z0-9-]+\.)?packet\.md$/;
 
-function deny(reason){
-  process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:'PreToolUse',permissionDecision:'deny',permissionDecisionReason:'Combat Writing seat scope: '+reason}})+'\n');
+// A refusal. `shape` is true when the cause is the shape of what the host handed the hook and
+// not what a reader asked for: the person is then told in one plain line beside the refusal
+// (THE PLAIN LINE, the header).
+function deny(reason,shape){
+  var out={hookSpecificOutput:{hookEventName:'PreToolUse',permissionDecision:'deny',permissionDecisionReason:'Combat Writing seat scope: '+reason}};
+  if(shape===true)out.systemMessage=SHAPE_LINE;
+  process.stdout.write(JSON.stringify(out)+'\n');
   process.exit(0);
 }
 function allow(){ process.exit(0); }
@@ -299,17 +351,26 @@ function judgeStart(input){
   return allow();
 }
 
+// The sweep, for the session start (hooks/session-start.js requires this file for it and nothing
+// else of it runs there): every session's folder past its days, none of them this caller's.
+if(require.main!==module){
+  module.exports={sweepAll:function(dataDir){ if(typeof dataDir==='string'&&path.isAbsolute(dataDir)&&plainDir(path.join(dataDir,KEPT_IN)))sweep(path.join(dataDir,KEPT_IN),null); },KEPT_IN:KEPT_IN,KEPT_DAYS:KEPT_DAYS,SWEPT_AT_ONCE:SWEPT_AT_ONCE};
+  return;
+}
 // A fault in this file's own code is answered here and never left to the host, whose onFailure
 // "block" would stop the call whoever made it: a refusal for a seat and for the start of one,
 // silence for every other caller. `who` is set as soon as the input says who is calling; a
-// fault before that is answered from the raw input, read the way input that does not parse is
-// read, so a seat is refused however early the fault falls.
+// fault before that is answered from the raw input, read by the first two tests of input that
+// does not parse (the reader as the caller, the reader as the agent to start), so a seat is
+// refused however early the fault falls.
 var who=null, raw='';
+// Input that does not parse, read for who is calling: the reader's own call, and the start of a reader.
+var NAMES_SEAT=/"agent_type"\s*:\s*"cw:seat"/, NAMES_START=/"subagent_type"\s*:\s*"cw:seat"/;
 process.on('uncaughtException',function(e){
   var why='the hook failed ('+(e&&e.code?String(e.code):String(e&&e.message||e).split('\n')[0].slice(0,120))+')';
-  var w=who||(/"agent_type"\s*:\s*"(?:cw:)?seat"/.test(raw)?'seat':/"subagent_type"\s*:\s*"(?:cw:)?seat"/.test(raw)?'start':null);
-  if(w==='seat')return deny(why+'; a seat does nothing the hook cannot judge');
-  if(w==='start')return deny(why+'; the seat is not started');
+  var w=who||(NAMES_SEAT.test(raw)?'seat':NAMES_START.test(raw)?'start':null);
+  if(w==='seat')return deny(why+'; a seat does nothing the hook cannot judge',true);
+  if(w==='start')return deny(why+'; the seat is not started',true);
   process.exit(0);
 });
 
@@ -318,15 +379,19 @@ process.stdin.on('data',function(c){ raw+=c; });
 process.stdin.on('end',function(){
   var input;
   try{ input=JSON.parse(raw); }catch(e){
-    // Not readable: a seat's call is denied all the same; anything else is not ours to judge.
-    if(/"agent_type"\s*:\s*"(?:cw:)?seat"/.test(raw))return deny('the hook input could not be read; a seat does nothing the hook cannot judge');
+    // Not readable: a seat's call and the start of a seat are denied all the same; anything else is not ours to judge.
+    if(NAMES_SEAT.test(raw))return deny('the hook input could not be read; a seat does nothing the hook cannot judge',true);
+    if(NAMES_START.test(raw))return deny('the hook input could not be read; the seat is not started',true);
+    // Neither, and the reader's name stands in it between double quotes all the same (a byte the host never writes, standing
+    // between a key and the name, hides the name from the two patterns above): what cannot be read and names the reader does not pass.
+    if(raw.indexOf('"'+SEAT_TYPE+'"')>=0)return deny('the hook input could not be read and holds the reader\'s name; a call that cannot be read and names the reader does not pass',true);
     return allow();
   }
   if(!input||input.hook_event_name!=='PreToolUse')return allow();
-  if(SEAT_TYPES.indexOf(input.agent_type)<0){
+  if(input.agent_type!==SEAT_TYPE){
     // The host or another agent: one judgment, the call that starts a seat; everything else untouched.
     var ti=input.tool_input;
-    if(START_TOOLS.indexOf(input.tool_name)>=0&&ti&&typeof ti==='object'&&SEAT_TYPES.indexOf(ti.subagent_type)>=0){ who='start'; return judgeStart(input); }
+    if(START_TOOLS.indexOf(input.tool_name)>=0&&ti&&typeof ti==='object'&&ti.subagent_type===SEAT_TYPE){ who='start'; return judgeStart(input); }
     return allow();
   }
   // From here on the caller is a seat: anything the hook cannot place is denied.
@@ -335,9 +400,9 @@ process.stdin.on('end',function(){
   if(SEAT_TOOLS.indexOf(tool)<0)return deny('a seat uses '+SEAT_TOOLS.join(' and ')+' only; '+tool+' is not open to it');
   var cwd=typeof input.cwd==='string'&&input.cwd?input.cwd:process.cwd();
   var aid=input.agent_id, where=recordsOf(input);
-  if(where.dir&&(typeof aid!=='string'||!ID.test(aid)))return deny('the call carries no agent id the hook will use in a path; nothing is read or written');
+  if(where.dir&&(typeof aid!=='string'||!ID.test(aid)))return deny('the call carries no agent id the hook will use in a path; nothing is read or written',true);
   var target=input.tool_input&&typeof input.tool_input.file_path==='string'?input.tool_input.file_path:null;
-  if(where.dir&&!target)return deny('the call names no file; nothing is read or written');
+  if(where.dir&&!target)return deny('the call names no file; nothing is read or written',true);
   // The file the call names, resolved: a Read's must exist; a Write's may not yet. The resolved
   // path is what is compared, so a link beside the packet that points at another file is that
   // other file. The file asked for is never named in a reason: its path may be the draft's words.
@@ -345,7 +410,7 @@ process.stdin.on('end',function(){
   var held=!!where.dir&&plainDir(path.dirname(where.dir))&&plainDir(where.dir);
   var rec=held?readRecord(path.join(where.dir,'agent-'+aid+'.json')):null;
   if(!rec&&held)rec=take(where.dir,aid,tool,placed);
-  if(!rec||rec.waiting===0)return deny('no start of this seat is on the hook\'s record ('+(where.dir?'it looked in '+where.dir:where.why)+'), so no packet can be placed and nothing is read or written. The hook records a seat when the agent tool starts it, and was last proved on Claude Code '+PROVED_ON+': if the agent tool started this seat, run `claude --version` and open an issue at '+ISSUES+' naming the version. Outside seats through the add-on are not affected');
+  if(!rec||rec.waiting===0)return deny('no start of this seat is on the hook\'s record ('+(where.dir?'it looked in '+where.dir:where.why)+'), so no packet can be placed and nothing is read or written. The hook records a seat when the agent tool starts it, and was last proved on Claude Code '+PROVED_ON+': if the agent tool started this seat, run `claude --version` and open an issue at '+ISSUES+' naming the version. Outside seats through the add-on are not affected',true);
   var packet=rec.packet||null, answer=rec.answer||null;
   if(tool==='Read'){
     // Two files and no other: the packet, and the answer file once it is on disk.
