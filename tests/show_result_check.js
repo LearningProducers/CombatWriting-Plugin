@@ -58,7 +58,7 @@
 //     timeout covers it plus the board.
 //   - THE MEASURED MODEL (issue 196, measured 2026-11-10: the name on every result was the host's
 //     word and nothing in the run measured it; issue 255: with no transcript read). After the
-//     host started a fresh reader (the tool named Agent or Task, the reader `cw:seat` or `seat`),
+//     host started a fresh reader (the tool named Agent or Task, the reader `cw:seat` and no other name),
 //     the hook reads the start call it is handed: the task's `Packet:` line for the seat and the
 //     round, the model choice passed, and the model the host resolved. It appends exactly one
 //     seat.model line to the run's log: seat, round, model, passed (or null), at start, by hook;
@@ -225,6 +225,14 @@ var m6=shown('the plugin could not open it either',call(post(O,failedLine+'\n'),
 check(m6==='Board: '+board+' (the plugin could not open it either: no display here (exit 1); open it yourself: open '+board+')','the plugin could not open it either: the message, got '+JSON.stringify(m6));
 var e6=logOf().slice(-1)[0];
 check(e6.event==='board.opened'&&e6.ok===false&&e6.by==='hook'&&/no display here/.test(e6.reason),'the plugin could not open it either: the log line, got '+JSON.stringify(e6));
+// An opener still running at the deadline (issue 261): it was started, and no exit was read, so
+// the hook logs and says that, never a success. The line said "counted as opened" before.
+var slowOpener=path.join(tmp,'slow.js'); fs.writeFileSync(slowOpener,'setTimeout(function(){},4500);\n');
+var m6b=shown('the opener still running at the deadline',call(post(O,failedLine+'\n'),slowOpener));
+check(m6b==='Board: '+board+' (the plugin started the opener, which was still running after 3 seconds, so the page is not known to have opened; if none came up, open it yourself: open '+board+')','the opener still running at the deadline: the message says what was measured, got '+JSON.stringify(m6b));
+var e6b=logOf().slice(-1)[0];
+check(e6b.event==='board.opened'&&e6b.ok===null&&e6b.started===true&&e6b.by==='hook'&&e6b.reason==='still running after 3000 ms: started, not known to have opened','the opener still running at the deadline: the log line holds ok null and started true, never a success, got '+JSON.stringify(e6b));
+check(!('started' in e5[1])&&!('started' in e6),'an opener that exited: the log line carries no `started` key, got '+JSON.stringify([e5[1],e6]));
 var m7=shown('no opener in the shell',call(post(O,noOpenerLine+'\n'),okOpener));
 check(m7==='Board opened by the plugin: '+board&&opens().length===2,'no opener in the shell: the plugin opens it, got '+JSON.stringify(m7));
 var m8=shown('the shell opened it',call(post(O,openedLine+'\n'),okOpener));
@@ -312,10 +320,18 @@ var postEntries=hooks.hooks.PostToolUse||[];
 var srcForWait=fs.readFileSync(hook,'utf8');
 var renderWait=parseInt((/var RENDER_WAIT_MS=(\d+)/.exec(srcForWait)||[])[1],10), boardWait=parseInt((/BOARD_WAIT_MS=(\d+)/.exec(srcForWait)||[])[1],10);
 check(renderWait===60000&&boardWait===15000,'show-result.js: the render window is 60 s and the board window 15 s (Part 82: twelve files at about 1.4 s each, measured 2026-10-31, three times over), got '+renderWait+' and '+boardWait);
-var RESULT_CMD='if node --version >/dev/null 2>&1; then node "${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js"; fi';
+// Each command opens with its filter (issue 261; tests/no_node_check.js runs them): one sed that prints the hook input
+// only when it names a result script (after a shell command) or the plugin's reader (after a start of an agent), so no
+// Node process starts on any other call; behind the filter, and with no sed, the judge as it was.
+var RESULT_JUDGE='if node --version >/dev/null 2>&1; then node "${CLAUDE_PLUGIN_ROOT}/hooks/show-result.js"; fi';
+function behind(re){ return 'if command -v sed >/dev/null 2>&1; then sed -n -E \'/'+re+'/=;/'+re+'/p\' | if read -r first; then '+RESULT_JUDGE+'; fi; else '+RESULT_JUDGE+'; fi'; }
+// The names in the filter after a shell command are the scripts the hook acts on, read from the hook's own patterns.
+var hookSrc=fs.readFileSync(hook,'utf8'), acted=['SHORT_RE','OPENER_RE','SPEAK_RE'].map(function(n){ return ((new RegExp('\\b'+n+'=/([a-z-]+)\\\\\\.js')).exec(hookSrc)||[])[1]; });
+check(acted.join(',')==='render-record,open-board,speak','the test\'s own ground: the three scripts the hook acts on, read from its patterns, got '+JSON.stringify(acted));
+var RESULT_CMD=behind(acted.map(function(n){ return n+'.js'; }).join('|')), START_CMD=behind('cw:seat|\\\\u00');
 check(postEntries.length===2&&postEntries[0].matcher==='Bash'&&postEntries[0].hooks.length===1&&postEntries[0].hooks[0].type==='command'&&postEntries[0].hooks[0].command===RESULT_CMD&&typeof postEntries[0].hooks[0].timeout==='number'&&postEntries[0].hooks[0].timeout*1000>=renderWait+boardWait&&postEntries[0].hooks[0].timeout<=90,'hooks.json: the first PostToolUse entry is on Bash, runs show-result.js when node is there, and its timeout covers the render window and the board: '+JSON.stringify(postEntries[0]));
 // THE MEASURED MODEL (issue 255): the second entry, on the tool that starts an agent by its two names, the same script, a short timeout.
-check(postEntries.length===2&&postEntries[1].matcher==='Agent|Task'&&postEntries[1].hooks.length===1&&postEntries[1].hooks[0].type==='command'&&postEntries[1].hooks[0].command===RESULT_CMD&&typeof postEntries[1].hooks[0].timeout==='number'&&postEntries[1].hooks[0].timeout<=10,'hooks.json: the second PostToolUse entry is on Agent|Task, runs show-result.js when node is there, with a short timeout: '+JSON.stringify(postEntries[1]));
+check(postEntries.length===2&&postEntries[1].matcher==='Agent|Task'&&postEntries[1].hooks.length===1&&postEntries[1].hooks[0].type==='command'&&postEntries[1].hooks[0].command===START_CMD&&typeof postEntries[1].hooks[0].timeout==='number'&&postEntries[1].hooks[0].timeout<=10,'hooks.json: the second PostToolUse entry is on Agent|Task, runs show-result.js when node is there, with a short timeout: '+JSON.stringify(postEntries[1]));
 check(!(hooks.hooks.PreToolUse||[]).some(function(e){return e.matcher==='AskUserQuestion';}),'hooks.json: the refusing hook on AskUserQuestion must be gone');
 // THE SILENCED COMMAND (Part 116, issue 179; measured 2026-11-06 on the first round run on cw 0.9.0): the
 // host sent the four scripts' output to /dev/null and echoed "done". The hook re-renders the short form,
@@ -383,9 +399,11 @@ mute('measured: seat-2 started in the foreground, a model passed',call(startIn(P
 var l2=measuredM()[1]||{}, logTextM=fs.readFileSync(path.join(runM,'log.jsonl'),'utf8');
 check(l2.seat==='seat-2'&&l2.model==='test-id-2'&&l2.passed==='test-b'&&l2.at==='start','measured: the model passed at the start is on the line beside the one resolved, got '+JSON.stringify(l2));
 check(logTextM.indexOf(SECRET)<0&&logTextM.indexOf(TASK_WORDS)<0&&logTextM.indexOf('a1.output')<0,'measured: the log holds none of the reply, the task or the output file the hook was handed');
-// The tool by its earlier name and the reader by its plain name; a later start of the same seat on another id is a new line.
+// The tool by its earlier name; the reader by its one name, `cw:seat`: an agent named `seat` is the
+// person's own and is never measured (issue 261). A later start of the same seat on another id is a new line.
 node('packet.js',['--run',runM,'--round','02-battle','--seat','seat-1']);
-mute('measured: the tool named Task, the reader named seat',call(startIn(packetM('02-battle','seat-1'),answerM('02-battle','seat-1'),'test-id-1',{tool:'Task',type:'seat'})),3);
+mute('measured: an agent of the person\'s own named seat, on the same task, is not the plugin\'s reader',call(startIn(packetM('02-battle','seat-1'),answerM('02-battle','seat-1'),'test-id-1',{type:'seat'})),2);
+mute('measured: the tool named Task',call(startIn(packetM('02-battle','seat-1'),answerM('02-battle','seat-1'),'test-id-1',{tool:'Task'})),3);
 check((measuredM()[2]||{}).round==='02-battle','measured: the round comes from the packet\'s place in the run, got '+JSON.stringify(measuredM()[2]));
 mute('measured: the same seat started again on another id',call(startIn(packetM('02-battle','seat-1'),answerM('02-battle','seat-1'),'test-id-6')),4);
 check((measuredM()[3]||{}).model==='test-id-6','measured: a later start on another id is a new line, the latest standing, got '+JSON.stringify(measuredM()[3]));
