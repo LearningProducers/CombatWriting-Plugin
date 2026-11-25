@@ -102,18 +102,21 @@ function voicesOf(round){
   if(fs.existsSync(p)){ try{ v=JSON.parse(fs.readFileSync(p,'utf8')); }catch(e){ v=null; } }
   voicesCache[round]=v; return v;
 }
+// A file of the round's own folder by its plain name: no folder in it, so the address the page is
+// handed for an audio element is always rounds/<round>/<name> and never a path or an address from elsewhere.
+function plainName(f){ return typeof f==='string'&&f!==''&&f===path.basename(f)&&f.indexOf('\\')<0&&f!=='.'&&f!=='..'; }
 // Part 82: every rendered voice for the seat rides with the frame (voice name to file and seconds),
 // the seat's own voice first; a render listed but missing on disk is left out.
 function voiceFile(round,seatId){
   var v=voicesOf(round); if(!v||!v.files||!v.files[seatId])return null;
-  var f=v.files[seatId]; if(!fs.existsSync(path.join(runDir,'rounds',round,f)))return null;
+  var f=v.files[seatId]; if(!plainName(f)||!fs.existsSync(path.join(runDir,'rounds',round,f)))return null;
   var voice=(v.assigned&&v.assigned[seatId])||'';
   var renders={};
   var own=(v.renders&&v.renders[seatId]&&v.renders[seatId][voice])||null;
   renders[voice]={src:'rounds/'+round+'/'+f,seconds:own&&typeof own.seconds==='number'?own.seconds:(v.seconds&&typeof v.seconds[seatId]==='number'?v.seconds[seatId]:null)};
   var rs=(v.renders&&v.renders[seatId])||{};
   Object.keys(rs).forEach(function(name){
-    if(name===voice||!rs[name]||!rs[name].file)return;
+    if(name===voice||!rs[name]||!plainName(rs[name].file))return;
     if(!fs.existsSync(path.join(runDir,'rounds',round,rs[name].file)))return;
     renders[name]={src:'rounds/'+round+'/'+rs[name].file,seconds:typeof rs[name].seconds==='number'?rs[name].seconds:null};
   });
@@ -205,7 +208,16 @@ function fontFaces(){
 var UI='Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
 var html=[];
 html.push('<!doctype html>');
-html.push('<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">');
+// The page's own policy: what it uses and no network. Its script and its style are in the page,
+// its fonts are data in the page, and it holds no image; every other kind of fetch is closed
+// (connect: fetch, XMLHttpRequest, WebSocket, a beacon; object, frame, worker, manifest; a form's
+// target and a base address). Media is left unnamed, so the audio files beside the page play in
+// every browser: what 'self' means for a page opened from a file differs by browser and was not
+// measured, and the one address the page gives an audio element is a path this script wrote,
+// under the run's own rounds folder (voiceFile, above). No default-src, so a directive a browser
+// does not know closes nothing the page uses.
+var CSP="script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data:; connect-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'";
+html.push('<html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="'+esc(CSP)+'"><meta name="viewport" content="width=device-width, initial-scale=1">');
 html.push('<title>Combat Writing board — '+esc(path.basename(runDir))+'</title>');
 html.push('<style>');
 html.push(fontFaces());
@@ -229,7 +241,7 @@ html.push('.side{overflow:auto;min-height:0;display:flex;flex-direction:column;g
 html.push('.hand{position:relative;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px;min-height:0;overflow:auto}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.frame>.full{min-height:0;flex:1 1 auto}.frame>.suit,.frame>.badge,.frame>blockquote,.frame>figcaption,.frame>.final,.frame>.rewrite,.frame>.read-controls{flex:0 0 auto}');
 html.push('.frame{position:relative;margin:0;background:var(--paper);padding:46px 24px 20px;display:flex;flex-direction:column;gap:9px;color:var(--ink);min-height:0;overflow:hidden;border:2px solid var(--c-other);border-radius:10px}.frame .ix{position:absolute;font:800 40px/1 '+UI+';letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--c-other)}.frame .ix small{display:block;font:700 10px/1.2 '+UI+';letter-spacing:.12em;text-transform:uppercase}.frame .ix.tl{top:14px;left:18px}.frame .ix.br{right:18px;bottom:12px;transform:rotate(180deg)}.frame .suit{font:800 11px/1 '+UI+';letter-spacing:.22em;text-transform:uppercase;text-align:center;color:var(--c-other)}');
 html.push('.badge{font:600 11px/1.4 '+UI+';letter-spacing:.1em;text-transform:uppercase;text-align:center;color:var(--ink-2)}.badge.failed,.badge.missing{color:var(--bad)}.badge .mark{font-weight:400;letter-spacing:0;text-transform:none;margin-left:6px}.flip-valid .badge .mark{color:var(--good)}.flip-invalid .badge .mark{color:var(--bad)}');
-html.push('.frame blockquote{margin:0;padding:0;font:700 20px/1.3 '+UI+';text-align:center;overflow-wrap:anywhere}.frame figcaption{font:500 12px/1.5 '+UI+';color:var(--ink-2);text-align:center}.frame figcaption .seat{color:var(--ink-3)}.frame figcaption .note-line{display:block;margin-top:4px}.frame .final{font:12px/1.4 '+UI+';color:var(--ink-2);text-align:center;margin:0}.frame .final.why{overflow-wrap:anywhere}');
+html.push('.frame blockquote{margin:0;padding:0;font:700 20px/1.3 '+UI+';text-align:center;overflow-wrap:anywhere}.frame figcaption{font:500 12px/1.5 '+UI+';color:var(--ink-2);text-align:center}.frame figcaption .seat{color:var(--ink-3)}.frame figcaption .note-line{display:block;margin-top:4px}.frame .final{font:12px/1.4 '+UI+';color:var(--ink-2);text-align:center;margin:0}.frame .final.why{overflow-wrap:anywhere}.final.flip-why{overflow-wrap:anywhere;color:var(--bad)}td.num .flip-why{display:block;white-space:normal;max-width:26ch;color:var(--bad);font-size:12px}');
 html.push('.frame .rewrite{font-size:14px;line-height:1.5;max-height:30%;overflow:auto;border-top:1px solid var(--rule-2);padding-top:8px}.read-controls{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;font:12px/1.4 '+UI+';color:var(--ink-2)}.read-controls button,.canon-controls button{font:600 12px/1 '+UI+';color:var(--ink);background:var(--btn);border:1px solid var(--btn-rule);border-radius:999px;padding:9px 12px;cursor:pointer;min-height:36px}.read-controls button:disabled{opacity:.5;cursor:default}.read-controls select.seat-voice{font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:2px 6px;max-width:18em}');
 html.push('.full{display:flex;flex-direction:column;min-height:0;margin:0}.fold{font:600 12px/1.5 '+UI+';color:var(--ink-2);background:none;border:0;border-top:1px solid var(--rule-2);border-radius:0;padding:8px 44px 0;text-align:center;margin:8px 0 0;width:100%;cursor:pointer;min-height:0}.frame.open{position:absolute;top:0;left:0;right:0;bottom:0;height:auto;min-height:0;overflow:auto;z-index:2}.frame.open>.full{flex:0 0 auto}.frame.open .read{overflow:visible;max-width:76ch;margin:0 auto;width:100%}.frame.open>.rewrite{max-height:none}.read{text-align:left;font-size:14.5px;line-height:1.55;color:var(--read-ink);margin:0;overflow:auto;min-height:0;flex:1 1 auto;overflow-wrap:anywhere}.read p{margin:0 0 .7em}.read ul,.read ol{margin:0 0 .7em 1.3em;padding:0}.read li{margin:0 0 .3em}.read code{font-size:13px;background:var(--surface-2);padding:0 4px;border-radius:3px}.read.failed{color:var(--ink-2)}details.fold{margin-top:8px}details.fold>summary{cursor:pointer;font:13px/1.5 '+UI+';color:var(--ink-2)}');
 // The identity table, one entry per company: the face of the verdict and the read, the frame's
@@ -346,7 +358,7 @@ if(rounds.length){
     rounds.forEach(function(r){
       if(lib.isFinalRound(r)){
         var f=finalCell(s,r);
-        var tr=function(x){return (x.truncated?' <span class="mark">truncated at '+x.truncated.at+' words</span>':'')+(x.stopped?' <span class="mark">'+esc(lib.stoppedMark(x.stopped))+'</span>':'');};
+        var tr=function(x){return (x.truncated?' <span class="mark">truncated at '+esc(String(x.truncated.at))+' words</span>':'')+(x.stopped?' <span class="mark">'+esc(lib.stoppedMark(x.stopped))+'</span>':'');};
         var snT=(f[0].missing?'<span class="missing">S/N missing</span>':f[0].ok?'S/N '+f[0].value+'%':'<span class="failed">S/N failed read</span>')+tr(f[0]);
         var rfT=(f[1].missing?'<span class="missing">red flags missing</span>':f[1].ok?(f[1].value===0?'no red flags':f[1].value+' red flag'+(f[1].value===1?'':'s')):'<span class="failed">red-flag read failed</span>')+tr(f[1]);
         html.push('<td class="num">'+snT+'<br>'+rfT+'</td>');
@@ -357,7 +369,8 @@ if(rounds.length){
       else if(c.kind==='not-asked')html.push('<td class="num"><span class="missing" title="the round was put to other seats only">not asked</span></td>');
       else if(c.kind==='failed')html.push('<td class="num"><span class="failed" title="'+esc(c.title)+'">failed read</span>'+(c.mark?'<br><span class="mark">'+esc(c.mark)+'</span>':'')+'</td>');
       else if(c.kind==='critique')html.push('<td class="num critique"><span class="critique" title="'+esc(c.title)+'">critique</span>'+(c.mark?'<br><span class="mark">'+esc(c.mark)+'</span>':'')+'</td>');
-      else html.push('<td class="num '+c.kind+'">'+c.text+(c.mark?'<br><span class="mark"'+(c.title?' title="'+esc(c.title)+'"':'')+'>'+esc(c.mark)+'</span>':'')+'</td>');
+      // An invalid flip (issue 261): the reason stands in words under the mark, never in a title alone.
+      else html.push('<td class="num '+c.kind+'">'+c.text+(c.mark?'<br><span class="mark"'+(c.title?' title="'+esc(c.title)+'"':'')+'>'+esc(c.mark)+'</span>':'')+(c.kind==='flip-invalid'?'<span class="flip-why">'+esc(c.title)+'</span>':'')+'</td>');
     });
     var lr=latestRating(s);
     html.push('<td class="num">'+(lr?lr.rating+'/10':'—')+'</td></tr>');
@@ -451,6 +464,8 @@ if(tableRounds.length){
       badge=c.kind==='critique'
         ?'<span class="badge critique">'+(c.rewrite?(c.copy?'Rewrite · a copy of '+esc(c.copy.model)+'\'s':'Rewrite'):'Critique')+(c.mark&&!c.copy?'<span class="mark">'+esc(c.mark)+'</span>':c.mark&&c.copy&&c.mark!==lib.copyMark(c.copy)?'<span class="mark">'+esc(c.mark.replace(lib.copyMark(c.copy),'').replace(/^ · | · $/g,''))+'</span>':'')+'</span>'
         :'<span class="badge'+(c.rewrite||c.mark?'':' sr')+'">Rating '+c.rating+'/10'+(c.rewrite?' · rewrite':'')+(c.mark?'<span class="mark">'+esc(c.mark)+'</span>':'')+'</span>';
+      // An invalid flip (issue 261): the card says so in words, with the reason, under the seat's name.
+      if(c.kind==='flip-invalid')whyLine='<p class="final flip-why">The change from '+esc(String(c.from))+' is marked INVALID: '+esc(c.title)+'. The new number is the seat\'s own and is shown; no quote backs the change.</p>';
       // The corner index: the seat's own number, large, top-left and again bottom-right.
       if(c.rating!==null&&c.rating!==undefined)ix='<span class="ix tl" aria-hidden="true">'+c.rating+'<small>of 10</small></span><span class="ix br" aria-hidden="true">'+c.rating+'<small>of 10</small></span>';
       quote=lib.verdictLine(c.answer,c.contract)||'(no words after the first line)';
